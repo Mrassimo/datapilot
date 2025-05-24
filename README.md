@@ -2,6 +2,8 @@
 
 A zero-config command-line tool that analyses CSV files and generates verbose, LLM-ready text outputs that you can copy and paste directly into ChatGPT, Claude, or any other LLM.
 
+🏛️ **NEW**: Revolutionary Data Engineering Archaeology system that builds collective warehouse intelligence over time!
+
 ## Installation
 
 ```bash
