@@ -1,0 +1,137 @@
+import chalk from 'chalk';
+
+export function formatNumber(num, decimals = 2) {
+  if (typeof num !== 'number' || isNaN(num)) return 'N/A';
+  
+  if (Math.abs(num) >= 1000000) {
+    return (num / 1000000).toFixed(decimals) + 'M';
+  } else if (Math.abs(num) >= 1000) {
+    return (num / 1000).toFixed(decimals) + 'K';
+  }
+  
+  return num.toFixed(decimals);
+}
+
+export function formatCurrency(num, currency = '$') {
+  if (typeof num !== 'number' || isNaN(num)) return 'N/A';
+  return currency + num.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
+export function formatPercentage(num, decimals = 1) {
+  if (typeof num !== 'number' || isNaN(num)) return 'N/A';
+  return (num * 100).toFixed(decimals) + '%';
+}
+
+export function formatDate(date) {
+  if (!(date instanceof Date) || isNaN(date.getTime())) return 'N/A';
+  return date.toISOString().split('T')[0];
+}
+
+export function formatFileSize(bytes) {
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  if (bytes === 0) return '0 B';
+  const i = Math.floor(Math.log(bytes) / Math.log(1024));
+  return (bytes / Math.pow(1024, i)).toFixed(2) + ' ' + sizes[i];
+}
+
+export function createSection(title, content) {
+  const separator = '='.repeat(title.length + 8);
+  return `\n${separator}\n=== ${title} ===\n${separator}\n${content}\n`;
+}
+
+export function createSubSection(title, content) {
+  return `\n${title}:\n${content}\n`;
+}
+
+export function bulletList(items) {
+  return items.map(item => `- ${item}`).join('\n');
+}
+
+export function numberedList(items) {
+  return items.map((item, idx) => `${idx + 1}. ${item}`).join('\n');
+}
+
+export function table(headers, rows) {
+  const columnWidths = headers.map((header, idx) => {
+    const headerWidth = header.length;
+    const maxRowWidth = Math.max(...rows.map(row => String(row[idx]).length));
+    return Math.max(headerWidth, maxRowWidth) + 2;
+  });
+  
+  const headerRow = headers.map((header, idx) => 
+    header.padEnd(columnWidths[idx])
+  ).join('|');
+  
+  const separator = columnWidths.map(width => '-'.repeat(width)).join('|');
+  
+  const dataRows = rows.map(row => 
+    row.map((cell, idx) => String(cell).padEnd(columnWidths[idx])).join('|')
+  ).join('\n');
+  
+  return `${headerRow}\n${separator}\n${dataRows}`;
+}
+
+export function progressBar(current, total, width = 40) {
+  const percentage = current / total;
+  const filled = Math.round(width * percentage);
+  const empty = width - filled;
+  const bar = '█'.repeat(filled) + '░'.repeat(empty);
+  return `[${bar}] ${formatPercentage(percentage)}`;
+}
+
+export function highlight(text, type = 'info') {
+  const styles = {
+    info: chalk.blue,
+    success: chalk.green,
+    warning: chalk.yellow,
+    error: chalk.red,
+    important: chalk.bold.cyan
+  };
+  
+  return styles[type] ? styles[type](text) : text;
+}
+
+export function formatColumnAnalysis(column, stats, type) {
+  const lines = [];
+  
+  lines.push(`[Column: ${column}]`);
+  lines.push(`- Data type: ${type.type}`);
+  lines.push(`- Non-null count: ${stats.count} (${formatPercentage(stats.count / (stats.count + stats.nullCount))})`);
+  
+  if (stats.nullCount > 0) {
+    lines.push(`- Missing values: ${stats.nullCount} (${formatPercentage(stats.nullCount / (stats.count + stats.nullCount))})`);
+  }
+  
+  if (type.type === 'integer' || type.type === 'float') {
+    lines.push(`- Statistics:`);
+    lines.push(`  * Mean: ${formatNumber(stats.mean)}`);
+    lines.push(`  * Median: ${formatNumber(stats.median)}`);
+    lines.push(`  * Mode: ${formatNumber(stats.mode)}`);
+    lines.push(`  * Std Dev: ${formatNumber(stats.standardDeviation)}`);
+    lines.push(`  * Min: ${formatNumber(stats.min)}`);
+    lines.push(`  * Max: ${formatNumber(stats.max)}`);
+    lines.push(`  * 25th percentile: ${formatNumber(stats.q1)}`);
+    lines.push(`  * 75th percentile: ${formatNumber(stats.q3)}`);
+    
+    if (Math.abs(stats.skewness) > 0.5) {
+      lines.push(`- Distribution: ${stats.skewness > 0 ? 'Right-skewed' : 'Left-skewed'} (${formatNumber(stats.skewness, 2)})`);
+    } else {
+      lines.push(`- Distribution: Approximately normal (skewness: ${formatNumber(stats.skewness, 2)})`);
+    }
+    
+    if (stats.outliers.length > 0) {
+      lines.push(`- Outliers: ${stats.outliers.length} values beyond 1.5 * IQR`);
+    }
+  } else if (type.type === 'categorical') {
+    lines.push(`- Unique values: ${type.categories.length}`);
+    lines.push(`- Most common: ${type.categories.slice(0, 5).join(', ')}${type.categories.length > 5 ? '...' : ''}`);
+  } else if (type.type === 'identifier') {
+    lines.push(`- Unique values: ${stats.count} (likely a primary key or identifier)`);
+  }
+  
+  return lines.join('\n');
+}
+
+export function formatTimestamp() {
+  return new Date().toISOString().replace('T', ' ').split('.')[0];
+}

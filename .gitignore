@@ -1,0 +1,9 @@
+node_modules/
+*.log
+.DS_Store
+tests/outputs/
+tests/fixtures/large_test.csv
+tests/fixtures/test.txt
+.env
+*.tmp
+coverage/

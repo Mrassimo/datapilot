@@ -1,0 +1,11 @@
+customer_id,name,email,phone,postcode,state,age,purchase_amount,status
+CUST001,John Smith,john@example.com.au,0412345678,2000,NSW,34,149.99,active
+CUST002,Sarah Jones,sarah@company,0298765432,3000,VIC,28,299.50,active
+CUST003,Mike Brown,mike@test.com.au,(02) 9123 4567,4000,QLD,45,199.99,inactive
+CUST004,Lisa White,lisa@email.com.au,+61 412 987 654,5000,SA,31,0.00,active
+CUST005,Tom Green,@example.com,0411111111,2000,nsw,52,499.99,active
+CUST006,Emma Black,emma@domain.com.au,02-9999-8888,2060,NSW,29,79.95,active
+CUST007,Chris Gray,chris@mail,131313,9999,NSW,18,149.99,pending
+CUST008,Amy Pink,amy@test.au,0400 000 000,0000,VIC,41,249.00,active
+CUST009,Dan Blue,dan@company.com.au,0412345678,2000,N.S.W.,36,149.99,active
+CUST010,Kate Yellow,kate@example.com.au,612345678,3141,New South Wales,27,99.99,active

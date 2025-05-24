@@ -1,0 +1,11 @@
+id,name,age,salary,department,start_date
+1,John Doe,35,75000,Engineering,2020-01-15
+2,Jane Smith,,82000,Marketing,2019-06-20
+3,Bob Johnson,42,,Engineering,
+4,,28,68000,Sales,2021-03-10
+5,Alice Brown,31,79000,,2020-09-05
+6,Charlie Davis,,,HR,2022-01-01
+7,Eva Martinez,29,71000,Marketing,2021-07-15
+8,Frank Wilson,45,95000,Engineering,2018-04-22
+9,Grace Lee,33,,Sales,2020-11-30
+10,Henry Chen,38,88000,Engineering,
