@@ -1,19 +1,28 @@
 import { parseCSV, detectColumnTypes } from '../utils/parser.js';
 import { calculateStats, calculateCorrelation } from '../utils/stats.js';
 import { createSection, createSubSection, formatTimestamp, formatNumber, bulletList, numberedList } from '../utils/format.js';
+import { OutputHandler } from '../utils/output.js';
 import { basename } from 'path';
 import ora from 'ora';
 
-export async function visualize(filePath) {
-  const spinner = ora('Reading CSV file...').start();
+export async function visualize(filePath, options = {}) {
+  const outputHandler = new OutputHandler(options);
+  const spinner = options.quiet ? null : ora('Reading CSV file...').start();
   
   try {
-    // Parse CSV
-    const records = await parseCSV(filePath);
-    spinner.text = 'Analyzing visualization opportunities...';
+    // Use preloaded data if available
+    let records, columnTypes;
+    if (options.preloadedData) {
+      records = options.preloadedData.records;
+      columnTypes = options.preloadedData.columnTypes;
+    } else {
+      // Parse CSV
+      records = await parseCSV(filePath, { quiet: options.quiet });
+      if (spinner) spinner.text = 'Analyzing visualization opportunities...';
+      columnTypes = detectColumnTypes(records);
+    }
     
     const fileName = basename(filePath);
-    const columnTypes = detectColumnTypes(records);
     const columns = Object.keys(columnTypes);
     
     // Build report
@@ -204,13 +213,19 @@ Bottom row: Transaction distribution | Correlation matrix`
       'Implement responsive design for mobile viewing'
     ].filter(Boolean)));
     
-    spinner.succeed('Visualization analysis complete!');
+    if (spinner) {
+      spinner.succeed('Visualization analysis complete!');
+    }
     console.log(report);
     
+    outputHandler.finalize();
+    
   } catch (error) {
-    spinner.fail('Error analyzing visualizations');
+    outputHandler.restore();
+    if (spinner) spinner.fail('Error analyzing visualizations');
     console.error(error.message);
-    process.exit(1);
+    if (!options.quiet) process.exit(1);
+    throw error;
   }
 }
 

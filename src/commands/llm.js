@@ -1,19 +1,28 @@
 import { parseCSV, detectColumnTypes } from '../utils/parser.js';
 import { calculateStats, calculateCorrelation, analyzeDistribution } from '../utils/stats.js';
 import { createSection, createSubSection, formatTimestamp, formatNumber, formatPercentage, formatCurrency, bulletList } from '../utils/format.js';
+import { OutputHandler } from '../utils/output.js';
 import { basename } from 'path';
 import ora from 'ora';
 
-export async function llmContext(filePath) {
-  const spinner = ora('Reading CSV file...').start();
+export async function llmContext(filePath, options = {}) {
+  const outputHandler = new OutputHandler(options);
+  const spinner = options.quiet ? null : ora('Reading CSV file...').start();
   
   try {
-    // Parse CSV
-    const records = await parseCSV(filePath);
-    spinner.text = 'Generating LLM context...';
+    // Use preloaded data if available
+    let records, columnTypes;
+    if (options.preloadedData) {
+      records = options.preloadedData.records;
+      columnTypes = options.preloadedData.columnTypes;
+    } else {
+      // Parse CSV
+      records = await parseCSV(filePath, { quiet: options.quiet });
+      if (spinner) spinner.text = 'Generating LLM context...';
+      columnTypes = detectColumnTypes(records);
+    }
     
     const fileName = basename(filePath);
-    const columnTypes = detectColumnTypes(records);
     const columns = Object.keys(columnTypes);
     
     // Build report
@@ -165,13 +174,19 @@ export async function llmContext(filePath) {
     
     report += '\nEND OF CONTEXT\n\n[Paste this into your preferred LLM and ask specific questions about the data]\n';
     
-    spinner.succeed('LLM context generated!');
+    if (spinner) {
+      spinner.succeed('LLM context generated!');
+    }
     console.log(report);
     
+    outputHandler.finalize();
+    
   } catch (error) {
-    spinner.fail('Error generating LLM context');
-    console.error(error.stack || error.message);
-    process.exit(1);
+    outputHandler.restore();
+    if (spinner) spinner.fail('Error generating LLM context');
+    console.error(error.message);
+    if (!options.quiet) process.exit(1);
+    throw error;
   }
 }
 

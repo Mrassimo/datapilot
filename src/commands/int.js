@@ -2,17 +2,26 @@ import { parseCSV, detectColumnTypes } from '../utils/parser.js';
 import { createSection, createSubSection, formatTimestamp, formatPercentage, bulletList, numberedList } from '../utils/format.js';
 import { basename } from 'path';
 import ora from 'ora';
+import { OutputHandler } from '../utils/output.js';
 
-export async function integrity(filePath) {
-  const spinner = ora('Reading CSV file...').start();
+export async function integrity(filePath, options = {}) {
+  const outputHandler = new OutputHandler(options);
+  const spinner = options.quiet ? null : ora('Reading CSV file...').start();
   
   try {
-    // Parse CSV
-    const records = await parseCSV(filePath);
-    spinner.text = 'Checking data integrity...';
+    // Use preloaded data if available
+    let records, columnTypes;
+    if (options.preloadedData) {
+      records = options.preloadedData.records;
+      columnTypes = options.preloadedData.columnTypes;
+    } else {
+      // Parse CSV
+      records = await parseCSV(filePath, { quiet: options.quiet });
+      if (spinner) spinner.text = 'Checking data integrity...';
+      columnTypes = detectColumnTypes(records);
+    }
     
     const fileName = basename(filePath);
-    const columnTypes = detectColumnTypes(records);
     const columns = Object.keys(columnTypes);
     
     // Build report
@@ -258,13 +267,17 @@ export async function integrity(filePath) {
       );
     }
     
-    spinner.succeed('Integrity check complete!');
+    if (spinner) spinner.succeed('Integrity check complete!');
     console.log(report);
     
+    outputHandler.finalize();
+    
   } catch (error) {
-    spinner.fail('Error checking integrity');
+    outputHandler.restore();
+    if (spinner) spinner.fail('Error checking integrity');
     console.error(error.message);
-    process.exit(1);
+    if (!options.quiet) process.exit(1);
+    throw error;
   }
 }
 

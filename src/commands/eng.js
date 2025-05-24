@@ -1,21 +1,30 @@
 import { parseCSV, detectColumnTypes } from '../utils/parser.js';
 import { calculateStats } from '../utils/stats.js';
 import { createSection, createSubSection, formatTimestamp, formatFileSize, bulletList, formatNumber } from '../utils/format.js';
+import { OutputHandler } from '../utils/output.js';
 import { statSync } from 'fs';
 import { basename } from 'path';
 import ora from 'ora';
 
-export async function engineering(filePath) {
-  const spinner = ora('Reading CSV file...').start();
+export async function engineering(filePath, options = {}) {
+  const outputHandler = new OutputHandler(options);
+  const spinner = options.quiet ? null : ora('Reading CSV file...').start();
   
   try {
-    // Parse CSV
-    const records = await parseCSV(filePath);
-    spinner.text = 'Analyzing data engineering requirements...';
+    // Use preloaded data if available
+    let records, columnTypes;
+    if (options.preloadedData) {
+      records = options.preloadedData.records;
+      columnTypes = options.preloadedData.columnTypes;
+    } else {
+      // Parse CSV
+      records = await parseCSV(filePath, { quiet: options.quiet });
+      if (spinner) spinner.text = 'Analyzing data engineering requirements...';
+      columnTypes = detectColumnTypes(records);
+    }
     
     const fileName = basename(filePath);
     const fileStats = statSync(filePath);
-    const columnTypes = detectColumnTypes(records);
     const columns = Object.keys(columnTypes);
     
     // Build report
@@ -134,13 +143,19 @@ export async function engineering(filePath) {
     const performanceRecs = generatePerformanceRecommendations(records, columns, columnTypes);
     report += createSubSection('PERFORMANCE CONSIDERATIONS', bulletList(performanceRecs));
     
-    spinner.succeed('Engineering analysis complete!');
+    if (spinner) {
+      spinner.succeed('Engineering analysis complete!');
+    }
     console.log(report);
     
+    outputHandler.finalize();
+    
   } catch (error) {
-    spinner.fail('Error analyzing engineering requirements');
+    outputHandler.restore();
+    if (spinner) spinner.fail('Error analyzing engineering requirements');
     console.error(error.message);
-    process.exit(1);
+    if (!options.quiet) process.exit(1);
+    throw error;
   }
 }
 
