@@ -85,14 +85,27 @@ program
     await visualize(filePath, options);
   });
 
-// ENG command
+// ENG command - Data Archaeology System
 program
-  .command('eng <file>')
-  .description('Data Engineering Analysis - schema and pipeline recommendations')
+  .command('eng [file]')
+  .description('Data Engineering Archaeology - builds collective intelligence about your warehouse')
   .option('-o, --output <path>', 'Save analysis to file')
+  .option('--save-insights <table> <insights>', 'Save LLM insights for a table')
+  .option('--compile-knowledge', 'Generate comprehensive warehouse report')
+  .option('--show-map', 'Display warehouse domain map')
   .action(async (file, options) => {
-    const filePath = validateFile(file);
-    await engineering(filePath, options);
+    if (options.compileKnowledge || options.showMap) {
+      await engineering(null, options);
+    } else if (options.saveInsights) {
+      const [tableName, insights] = options.saveInsights.split(' ', 2);
+      await engineering(null, { saveInsights: [tableName, insights] });
+    } else if (file) {
+      const filePath = validateFile(file);
+      await engineering(filePath, options);
+    } else {
+      console.error('Error: Please provide a CSV file or use --show-map, --compile-knowledge, or --save-insights');
+      process.exit(1);
+    }
   });
 
 // LLM command
@@ -115,8 +128,19 @@ program.on('--help', () => {
   console.log('  $ datapilot eda sales.csv       # Run exploratory data analysis');
   console.log('  $ datapilot int customers.csv   # Check data integrity');
   console.log('  $ datapilot vis metrics.csv     # Get visualization recommendations');
-  console.log('  $ datapilot eng orders.csv      # Analyze engineering requirements');
-  console.log('  $ datapilot llm dataset.csv     # Generate LLM-ready context');
+  console.log('  $ datapilot eng orders.csv                   # Start data archaeology');
+  console.log('  $ datapilot eng --show-map                   # View warehouse domain map');
+  console.log('  $ datapilot eng --compile-knowledge          # Generate complete warehouse report');
+  console.log('  $ datapilot eng --save-insights table "..."  # Save LLM insights for feedback loop');
+  console.log('  $ datapilot llm dataset.csv                  # Generate LLM-ready context');
+  console.log('');
+  console.log('Data Archaeology Workflow:');
+  console.log('  1. Analyze tables: datapilot eng table1.csv');
+  console.log('  2. Copy LLM prompt from output to your AI');
+  console.log('  3. Save insights: datapilot eng --save-insights table1 "PURPOSE: ..."');
+  console.log('  4. Repeat for more tables to build collective intelligence');
+  console.log('  5. View progress: datapilot eng --show-map');
+  console.log('  6. Compile final report: datapilot eng --compile-knowledge');
   console.log('');
   console.log('Options:');
   console.log('  -o, --output <path>  Save analysis to file instead of stdout');
