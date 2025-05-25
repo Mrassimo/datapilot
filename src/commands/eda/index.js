@@ -13,6 +13,9 @@ import { detectOutliers } from './analysers/outliers.js';
 import { performCARTAnalysis } from './analysers/cart.js';
 import { performRegressionAnalysis } from './analysers/regression.js';
 import { performCorrelationAnalysis } from './analysers/correlations.js';
+import { performTimeSeriesAnalysis } from './analysers/timeseries.js';
+import { validateAustralianData, generateAustralianInsights } from './analysers/australian.js';
+import { assessMLReadiness } from './analysers/mlReadiness.js';
 
 // Import formatters
 import { formatComprehensiveEDAReport } from './formatters/textFormatter.js';
@@ -21,6 +24,7 @@ import { formatComprehensiveEDAReport } from './formatters/textFormatter.js';
 import { parseCSV, detectColumnTypes } from '../../utils/parser.js';
 import { OutputHandler } from '../../utils/output.js';
 import { formatFileSize } from '../../utils/format.js';
+import { createSamplingStrategy, performSampling, createProgressTracker } from './utils/sampling.js';
 
 export async function edaComprehensive(filePath, options = {}) {
   const outputHandler = new OutputHandler(options);
@@ -196,6 +200,40 @@ export async function edaComprehensive(filePath, options = {}) {
     if (analysisNeeds.patternDetection) {
       if (spinner) spinner.text = 'Detecting patterns...';
       analysis.patterns = detectPatterns(records, columns, columnTypes);
+    }
+    
+    // Time series analysis
+    if (analysisNeeds.timeSeries) {
+      if (spinner) spinner.text = 'Analyzing time series...';
+      const dateColumn = analysis.dateColumns[0]; // Use first date column
+      const numericColumns = columns.filter(col => 
+        ['integer', 'float'].includes(columnTypes[col].type)
+      );
+      
+      if (dateColumn && numericColumns.length > 0) {
+        analysis.timeSeriesAnalysis = performTimeSeriesAnalysis(
+          records, 
+          dateColumn, 
+          numericColumns
+        );
+      }
+    }
+    
+    // Australian data validation
+    if (analysisNeeds.australianData) {
+      if (spinner) spinner.text = 'Validating Australian data patterns...';
+      analysis.australianValidation = validateAustralianData(records, columns, columnTypes);
+      
+      if (analysis.australianValidation.detected) {
+        const australianInsights = generateAustralianInsights(analysis.australianValidation);
+        analysis.insights = [...(analysis.insights || []), ...australianInsights];
+      }
+    }
+    
+    // ML readiness assessment
+    if (analysisNeeds.mlReadiness) {
+      if (spinner) spinner.text = 'Assessing ML readiness...';
+      analysis.mlReadiness = assessMLReadiness(records, columns, columnTypes, analysis);
     }
     
     // Generate insights

@@ -66,3 +66,6 @@ export async function commandName(data, headers, filePath, options) {
 - Performance testing with large files (10,000 rows)
 - Edge case testing (empty files, missing values, delimiter detection)
 - No mocking - tests run against actual command implementations
+
+## Development Workflow
+- push to git after a major task is complete and tested
