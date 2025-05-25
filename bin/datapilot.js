@@ -2,7 +2,7 @@
 
 import { program } from 'commander';
 import { existsSync } from 'fs';
-import { resolve } from 'path';
+import { resolve, basename } from 'path';
 import chalk from 'chalk';
 
 // Import commands
@@ -89,29 +89,109 @@ program
     await visualize(filePath, options);
   });
 
-// ENG command - Data Archaeology System
-program
-  .command('eng [file]')
-  .description('Data Engineering Archaeology - builds collective intelligence about your warehouse')
+// ENG command - Data Archaeology System with subcommands
+const eng = program.command('eng');
+eng.description('Data Engineering Archaeology - builds collective intelligence about your warehouse');
+
+// Default action for single file (backward compatible)
+eng
+  .argument('[file]', 'CSV file to analyze')
   .option('-o, --output <path>', 'Save analysis to file')
-  .option('--save-insights <table...>', 'Save LLM insights for a table (usage: --save-insights tablename "insights text")')
-  .option('--compile-knowledge', 'Generate comprehensive warehouse report')
-  .option('--show-map', 'Display warehouse domain map')
   .option('--no-header', 'CSV file has no header row')
   .action(async (file, options) => {
-    if (options.compileKnowledge || options.showMap) {
-      await engineering(null, options);
-    } else if (options.saveInsights) {
-      const [tableName, ...insightsParts] = options.saveInsights;
-      const insights = insightsParts.join(' ');
-      await engineering(null, { saveInsights: [tableName, insights] });
-    } else if (file) {
+    if (file) {
       const filePath = validateFile(file);
       await engineering(filePath, options);
     } else {
-      console.error('Error: Please provide a CSV file or use --show-map, --compile-knowledge, or --save-insights');
+      // Show help if no file provided
+      eng.help();
+    }
+  });
+
+// Subcommand: analyze multiple files
+eng
+  .command('analyze <files...>')
+  .description('Analyze multiple CSV files and detect relationships')
+  .option('--no-header', 'CSV files have no header row')
+  .action(async (files, options) => {
+    const { glob } = await import('glob');
+    console.log(chalk.blue('🏛️  Starting multi-file warehouse analysis...\n'));
+    
+    // Process all files (including glob patterns)
+    const allFiles = [];
+    for (const pattern of files) {
+      if (pattern.includes('*')) {
+        const matches = await glob(pattern, { nodir: true });
+        allFiles.push(...matches.filter(f => f.endsWith('.csv')));
+      } else {
+        allFiles.push(pattern);
+      }
+    }
+    
+    // Validate all files
+    const filePaths = allFiles.map(f => validateFile(f));
+    
+    if (filePaths.length === 0) {
+      console.error('No CSV files found');
       process.exit(1);
     }
+    
+    console.log(`Found ${filePaths.length} CSV files to analyze\n`);
+    
+    // Analyze each file with auto-save
+    for (const filePath of filePaths) {
+      console.log(chalk.cyan(`\nAnalyzing ${basename(filePath)}...`));
+      await engineering(filePath, { ...options, quiet: true, autoSave: true });
+    }
+    
+    // Show relationships and generate report
+    console.log(chalk.green('\n✓ All files analyzed!'));
+    console.log(chalk.blue('\nGenerating warehouse map and relationships...\n'));
+    await engineering(null, { showMap: true });
+  });
+
+// Subcommand: save insights
+eng
+  .command('save <table> [insights]')
+  .description('Save LLM insights for a table (can pipe from stdin)')
+  .action(async (table, insights) => {
+    let finalInsights = insights;
+    
+    // If no insights provided, try to read from stdin
+    if (!insights && !process.stdin.isTTY) {
+      const chunks = [];
+      for await (const chunk of process.stdin) {
+        chunks.push(chunk);
+      }
+      finalInsights = Buffer.concat(chunks).toString().trim();
+    }
+    
+    if (!finalInsights) {
+      console.error('Error: Please provide insights either as argument or via stdin');
+      console.log('\nExamples:');
+      console.log('  datapilot eng save orders "PURPOSE: Transaction fact table..."');
+      console.log('  echo "PURPOSE: Transaction fact table..." | datapilot eng save orders');
+      process.exit(1);
+    }
+    
+    await engineering(null, { saveInsights: [table, finalInsights] });
+  });
+
+// Subcommand: generate report
+eng
+  .command('report')
+  .description('Generate comprehensive warehouse report from all analyses')
+  .option('-o, --output <path>', 'Save report to file')
+  .action(async (options) => {
+    await engineering(null, { compileKnowledge: true, ...options });
+  });
+
+// Subcommand: show map
+eng
+  .command('map')
+  .description('Display warehouse domain map')
+  .action(async () => {
+    await engineering(null, { showMap: true });
   });
 
 // LLM command
@@ -135,19 +215,19 @@ program.on('--help', () => {
   console.log('  $ datapilot eda sales.csv       # Run exploratory data analysis');
   console.log('  $ datapilot int customers.csv   # Check data integrity');
   console.log('  $ datapilot vis metrics.csv     # Get visualization recommendations');
-  console.log('  $ datapilot eng orders.csv                   # Start data archaeology');
-  console.log('  $ datapilot eng --show-map                   # View warehouse domain map');
-  console.log('  $ datapilot eng --compile-knowledge          # Generate complete warehouse report');
-  console.log('  $ datapilot eng --save-insights table "..."  # Save LLM insights for feedback loop');
+  console.log('  $ datapilot eng orders.csv                   # Analyze single file');
+  console.log('  $ datapilot eng analyze *.csv                # Analyze all CSV files');
+  console.log('  $ datapilot eng save orders "PURPOSE: ..."   # Save LLM insights');
+  console.log('  $ echo "PURPOSE: ..." | datapilot eng save orders  # Pipe from LLM');
+  console.log('  $ datapilot eng report                       # Generate full report');
+  console.log('  $ datapilot eng map                          # View warehouse map');
   console.log('  $ datapilot llm dataset.csv                  # Generate LLM-ready context');
   console.log('');
   console.log('Data Archaeology Workflow:');
-  console.log('  1. Analyze tables: datapilot eng table1.csv');
-  console.log('  2. Copy LLM prompt from output to your AI');
-  console.log('  3. Save insights: datapilot eng --save-insights table1 "PURPOSE: ..."');
-  console.log('  4. Repeat for more tables to build collective intelligence');
-  console.log('  5. View progress: datapilot eng --show-map');
-  console.log('  6. Compile final report: datapilot eng --compile-knowledge');
+  console.log('  1. Analyze all tables: datapilot eng analyze *.csv');
+  console.log('  2. Copy LLM prompts and get insights from your AI');
+  console.log('  3. Save insights: datapilot eng save <table> "<insights>"');
+  console.log('  4. Generate report: datapilot eng report');
   console.log('');
   console.log('Options:');
   console.log('  -o, --output <path>  Save analysis to file instead of stdout');

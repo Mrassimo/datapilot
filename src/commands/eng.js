@@ -50,6 +50,24 @@ class ArchaeologyEngine {
     const tableName = basename(csvPath, '.csv');
     await this.knowledgeBase.update(tableName, enhanced);
     
+    // Auto-save the analysis if requested
+    if (options.autoSave) {
+      const outputPath = `${process.env.HOME}/.datapilot/warehouse/analyses/${tableName}_analysis.txt`;
+      const report = this.formatArchaeologyReport(enhanced, knowledge, patterns, prompt);
+      
+      // Ensure directory exists
+      const { mkdirSync } = await import('fs');
+      mkdirSync(`${process.env.HOME}/.datapilot/warehouse/analyses`, { recursive: true });
+      
+      // Save the report
+      const { writeFileSync } = await import('fs');
+      writeFileSync(outputPath, report);
+      
+      if (!options.quiet) {
+        console.log(chalk.green(`✓ Analysis saved to: ${outputPath}`));
+      }
+    }
+    
     if (spinner) spinner.succeed('Data archaeology complete!');
     
     return this.formatArchaeologyReport(enhanced, knowledge, patterns, prompt);
