@@ -25,6 +25,7 @@
     "chardet": "^0.7.0",
     "commander": "^11.0.0",
     "csv-parse": "^5.5.0",
+    "fuzzyset.js": "^1.0.7",
     "glob": "^11.0.2",
     "js-yaml": "^4.1.0",
     "jstat": "^1.9.6",
@@ -33,7 +34,8 @@
     "ml-kmeans": "^6.0.0",
     "ora": "^7.0.0",
     "regression": "^2.0.1",
-    "simple-statistics": "^7.8.0"
+    "simple-statistics": "^7.8.8",
+    "validator": "^13.15.0"
   },
   "engines": {
     "node": ">=14.0.0"

@@ -4,283 +4,138 @@ import { basename } from 'path';
 import ora from 'ora';
 import { OutputHandler } from '../utils/output.js';
 
+// Import validators
+import { analyseCompleteness } from './int/validators/completeness.js';
+import { analyseValidity } from './int/validators/validity.js';
+import { analyseAccuracy } from './int/validators/accuracy.js';
+import { analyseConsistency } from './int/validators/consistency.js';
+import { analyseTimeliness } from './int/validators/timeliness.js';
+import { analyseUniqueness } from './int/validators/uniqueness.js';
+
+// Import detectors
+import { detectBusinessRules } from './int/detectors/ruleDetector.js';
+import { detectPatterns } from './int/detectors/patternDetector.js';
+import { detectAnomalies } from './int/detectors/anomalyDetector.js';
+
+// Import analysers
+import { analyseFuzzyDuplicates } from './int/analysers/fuzzyMatcher.js';
+import { validateAustralianData } from './int/analysers/australianValidator.js';
+import { calculateQualityScore, generateQualityReport } from './int/analysers/qualityScorer.js';
+
+// Import fixers
+import { generateSQLFixes } from './int/fixers/sqlGenerator.js';
+import { generatePythonFixes } from './int/fixers/pythonGenerator.js';
+
 export async function integrity(filePath, options = {}) {
   const outputHandler = new OutputHandler(options);
   const spinner = options.quiet ? null : ora('Reading CSV file...').start();
   
   try {
-    // Use preloaded data if available
-    let records, columnTypes;
+    // Load data
+    let data, headers, columnTypes;
     if (options.preloadedData) {
-      records = options.preloadedData.records;
+      data = options.preloadedData.records;
+      headers = Object.keys(data[0] || {});
       columnTypes = options.preloadedData.columnTypes;
     } else {
-      // Parse CSV
-      records = await parseCSV(filePath, { quiet: options.quiet, header: options.header });
-      if (spinner) spinner.text = 'Checking data integrity...';
-      columnTypes = detectColumnTypes(records);
+      data = await parseCSV(filePath, { quiet: options.quiet, header: options.header });
+      headers = Object.keys(data[0] || {});
+      
+      if (spinner) spinner.text = 'Detecting column types...';
+      columnTypes = detectColumnTypes(data);
     }
     
     const fileName = basename(filePath);
-    const columns = Object.keys(columnTypes);
     
     // Handle empty dataset
-    if (records.length === 0) {
+    if (data.length === 0) {
       const report = createSection('DATA INTEGRITY REPORT',
         `Dataset: ${fileName}\nGenerated: ${formatTimestamp()}\n\n⚠️  Empty dataset - no data to check`);
       console.log(report);
       outputHandler.finalize();
       return;
     }
-    
-    // Build report
-    let report = createSection('DATA INTEGRITY REPORT',
-      `Dataset: ${fileName}\nGenerated: ${formatTimestamp()}`);
-    
-    // Find integrity issues
-    const issues = [];
-    
-    // 1. Check for duplicate rows
-    const duplicates = findDuplicateRows(records);
-    if (duplicates.length > 0) {
-      issues.push({
-        severity: 'HIGH',
-        type: 'Duplicate Records',
-        description: `Found ${duplicates.length} exact duplicate rows`,
-        details: `Row numbers: ${duplicates.slice(0, 10).join(', ')}${duplicates.length > 10 ? '... (see full list below)' : ''}`,
-        impact: 'May cause double-counting in analyses',
-        fix: 'Remove duplicates keeping first occurrence'
-      });
+
+    // Initialize results structure
+    const analysisResults = {
+      fileName,
+      timestamp: formatTimestamp(),
+      recordCount: data.length,
+      columnCount: headers.length,
+      dimensions: {},
+      businessRules: null,
+      patterns: null,
+      anomalies: null,
+      fuzzyDuplicates: null,
+      australianValidation: null,
+      qualityScore: null,
+      fixes: {
+        sql: null,
+        python: null
+      }
+    };
+
+    // Run quality dimension validators
+    if (spinner) spinner.text = 'Analyzing data completeness...';
+    analysisResults.dimensions.completeness = analyseCompleteness(data, headers);
+
+    if (spinner) spinner.text = 'Validating data formats...';
+    analysisResults.dimensions.validity = analyseValidity(data, headers, columnTypes);
+
+    if (spinner) spinner.text = 'Checking data accuracy...';
+    analysisResults.dimensions.accuracy = analyseAccuracy(data, headers, columnTypes);
+
+    if (spinner) spinner.text = 'Evaluating data consistency...';
+    analysisResults.dimensions.consistency = analyseConsistency(data, headers);
+
+    if (spinner) spinner.text = 'Assessing data timeliness...';
+    analysisResults.dimensions.timeliness = analyseTimeliness(data, headers);
+
+    if (spinner) spinner.text = 'Detecting duplicate records...';
+    analysisResults.dimensions.uniqueness = analyseUniqueness(data, headers);
+
+    // Run advanced detectors
+    if (spinner) spinner.text = 'Discovering business rules...';
+    analysisResults.businessRules = detectBusinessRules(data, headers, columnTypes);
+
+    if (spinner) spinner.text = 'Detecting patterns...';
+    analysisResults.patterns = detectPatterns(data, headers, columnTypes);
+
+    if (spinner) spinner.text = 'Finding anomalies...';
+    analysisResults.anomalies = detectAnomalies(data, headers, columnTypes);
+
+    // Run specialised analysers
+    if (data.length < 10000) {
+      if (spinner) spinner.text = 'Performing fuzzy duplicate analysis...';
+      analysisResults.fuzzyDuplicates = analyseFuzzyDuplicates(data, headers);
     }
+
+    if (spinner) spinner.text = 'Checking for Australian-specific data...';
+    analysisResults.australianValidation = validateAustralianData(data, headers);
+
+    // Calculate quality score
+    if (spinner) spinner.text = 'Calculating data quality score...';
+    analysisResults.qualityScore = calculateQualityScore(analysisResults.dimensions);
+
+    // Generate fixes
+    if (spinner) spinner.text = 'Generating automated fixes...';
+    analysisResults.fixes.sql = generateSQLFixes(analysisResults);
+    analysisResults.fixes.python = generatePythonFixes(analysisResults, fileName);
+
+    // Generate report
+    if (spinner) spinner.succeed('Data integrity analysis complete!');
     
-    // 2. Check each column for issues
-    columns.forEach(column => {
-      const type = columnTypes[column];
-      const values = records.map(r => r[column]);
-      
-      // Check for email validation
-      if (type.type === 'email') {
-        const invalidEmails = [];
-        values.forEach((val, idx) => {
-          if (val && !isValidEmail(val)) {
-            invalidEmails.push({ row: idx + 1, value: val, issue: getEmailIssue(val) });
-          }
-        });
-        
-        if (invalidEmails.length > 0) {
-          issues.push({
-            severity: 'MEDIUM',
-            type: 'Invalid Email Formats',
-            column: column,
-            description: `${invalidEmails.length} email addresses fail validation`,
-            examples: invalidEmails.slice(0, 3).map(e => 
-              `  * Row ${e.row}: "${e.value}" (${e.issue})`
-            ),
-            pattern: analyzeEmailPatterns(invalidEmails),
-            fix: 'Implement email validation at data entry'
-          });
-        }
-      }
-      
-      // Check for phone validation
-      if (type.type === 'phone') {
-        const invalidPhones = [];
-        values.forEach((val, idx) => {
-          if (val && !isValidPhone(val)) {
-            invalidPhones.push({ row: idx + 1, value: val });
-          }
-        });
-        
-        if (invalidPhones.length > 0) {
-          issues.push({
-            severity: 'LOW',
-            type: 'Invalid Phone Numbers',
-            column: column,
-            description: `${invalidPhones.length} phone numbers have issues`,
-            details: bulletList([
-              `Format issues: ${invalidPhones.filter(p => p.value.length < 10).length} numbers too short`,
-              `Invalid: ${invalidPhones.filter(p => !/^[\d\s\-\+\(\)]+$/.test(p.value)).length} contain invalid characters`
-            ]),
-            fix: 'Standardize phone number format'
-          });
-        }
-      }
-      
-      // Check for postcode validation (Australian)
-      if (type.type === 'postcode') {
-        const invalidPostcodes = [];
-        values.forEach((val, idx) => {
-          if (val && !isValidAustralianPostcode(val)) {
-            invalidPostcodes.push({ row: idx + 1, value: val });
-          }
-        });
-        
-        if (invalidPostcodes.length > 0) {
-          issues.push({
-            severity: 'LOW',
-            type: 'Invalid Postcodes',
-            column: column,
-            description: `${invalidPostcodes.length} invalid Australian postcodes`,
-            details: bulletList([
-              `Out of range: ${invalidPostcodes.filter(p => p.value < 200 || p.value > 9999).length}`,
-              `Wrong format: ${invalidPostcodes.filter(p => !/^\d{4}$/.test(p.value)).length}`
-            ]),
-            fix: 'Validate postcodes against Australian postcode ranges'
-          });
-        }
-      }
-      
-      // Check for inconsistent categorical values
-      if (type.type === 'categorical') {
-        const inconsistencies = findCategoricalInconsistencies(values);
-        if (inconsistencies.length > 0) {
-          issues.push({
-            severity: 'LOW',
-            type: 'Inconsistent Categorical Values',
-            column: column,
-            description: `Mixed formats for categorical values`,
-            details: inconsistencies.map(inc => 
-              `Found: ${inc.variations.map(v => `${v.value} (${v.count})`).join(', ')}`
-            ).join('\n'),
-            fix: 'Standardize categorical values'
-          });
-        }
-      }
-      
-      // Check for suspicious patterns
-      if (type.type === 'integer' || type.type === 'float') {
-        const suspiciousValues = findSuspiciousNumericValues(values);
-        if (suspiciousValues.zeros > values.length * 0.05) {
-          issues.push({
-            severity: 'MEDIUM',
-            type: 'Suspicious Zero Values',
-            column: column,
-            description: `${suspiciousValues.zeros} records have value = 0`,
-            impact: 'May indicate missing data or errors',
-            fix: 'Investigate zero values - possible data entry errors'
-          });
-        }
-        
-        if (suspiciousValues.negatives > 0 && column.toLowerCase().includes('amount') || column.toLowerCase().includes('price')) {
-          issues.push({
-            severity: 'HIGH',
-            type: 'Negative Values in Financial Column',
-            column: column,
-            description: `${suspiciousValues.negatives} negative values found`,
-            impact: 'Financial calculations may be incorrect',
-            fix: 'Review negative values - may be returns or errors'
-          });
-        }
-      }
-    });
-    
-    // Check for referential integrity issues
-    const idColumns = columns.filter(col => 
-      columnTypes[col].type === 'identifier' || 
-      col.toLowerCase().includes('_id') ||
-      col.toLowerCase().includes('id_')
-    );
-    
-    if (idColumns.length > 1) {
-      issues.push({
-        severity: 'INFO',
-        type: 'Multiple ID Columns Detected',
-        description: `Found ${idColumns.length} potential ID columns: ${idColumns.join(', ')}`,
-        impact: 'May indicate denormalized data or multiple entities',
-        fix: 'Consider normalizing into separate tables'
-      });
-    }
-    
-    // Format issues
-    report += `\nCRITICAL ISSUES FOUND: ${issues.filter(i => i.severity === 'HIGH').length}\n`;
-    
-    issues.forEach((issue, idx) => {
-      report += `\n[ISSUE ${idx + 1}] ${issue.type}\n`;
-      report += `- Severity: ${issue.severity}\n`;
-      if (issue.column) report += `- Column: ${issue.column}\n`;
-      report += `- Description: ${issue.description}\n`;
-      
-      if (issue.examples) {
-        report += `- Examples:\n${issue.examples.join('\n')}\n`;
-      }
-      if (issue.details) {
-        report += `- Details: ${issue.details}\n`;
-      }
-      if (issue.pattern) {
-        report += `- Pattern: ${issue.pattern}\n`;
-      }
-      if (issue.impact) {
-        report += `- Impact: ${issue.impact}\n`;
-      }
-      report += `- Suggested fix: ${issue.fix}\n`;
-    });
-    
-    // Data Quality Metrics
-    const totalCells = records.length * columns.length;
-    const nullCells = columns.reduce((sum, col) => {
-      return sum + records.filter(r => r[col] === null || r[col] === undefined).length;
-    }, 0);
-    
-    const completeness = (totalCells - nullCells) / totalCells;
-    const duplicateRate = duplicates.length / records.length;
-    const issueRate = issues.length / columns.length;
-    
-    const qualityScore = (completeness * 0.4 + (1 - duplicateRate) * 0.3 + (1 - Math.min(issueRate, 1)) * 0.3) * 100;
-    
-    report += createSubSection('DATA QUALITY METRICS', bulletList([
-      `Overall Quality Score: ${qualityScore.toFixed(1)}%`,
-      `Completeness: ${formatPercentage(completeness)} (missing ${formatPercentage(1 - completeness)} of expected values)`,
-      `Consistency: ${formatPercentage(1 - issueRate)} (${issues.length} issues detected)`,
-      `Validity: ${formatPercentage(1 - duplicateRate)} (${duplicates.length} duplicate rows)`
-    ]));
-    
-    // Validation details by column
-    report += createSubSection('VALIDATION DETAILS BY COLUMN', '');
-    
-    columns.forEach(column => {
-      const type = columnTypes[column];
-      const values = records.map(r => r[column]);
-      const nullCount = values.filter(v => v === null || v === undefined).length;
-      
-      report += `\n[${column}]\n`;
-      report += `- Type: ${type.type}\n`;
-      report += `- Completeness: ${formatPercentage((values.length - nullCount) / values.length)}\n`;
-      
-      // Add type-specific validation results
-      if (type.type === 'date') {
-        const dates = values.filter(v => v instanceof Date);
-        const futureDates = dates.filter(d => d > new Date());
-        const ancientDates = dates.filter(d => d < new Date('1900-01-01'));
-        
-        if (futureDates.length > 0) {
-          report += `- Future dates: ${futureDates.length}\n`;
-        }
-        if (ancientDates.length > 0) {
-          report += `- Suspicious old dates: ${ancientDates.length} (before 1900)\n`;
-        }
-      }
-      
-      if (type.type === 'categorical' && type.categories) {
-        report += `- Unique values: ${type.categories.length}\n`;
-        if (type.categories.length <= 10) {
-          report += `- Values: ${type.categories.join(', ')}\n`;
-        }
-      }
-    });
-    
-    // Business rule violations
-    const businessRules = checkBusinessRules(records, columnTypes);
-    if (businessRules.length > 0) {
-      report += createSubSection('BUSINESS RULE VIOLATIONS', 
-        numberedList(businessRules.map(rule => `${rule.description}: ${rule.count} records (${rule.severity})`))
-      );
-    }
-    
-    if (spinner) spinner.succeed('Integrity check complete!');
+    const report = generateComprehensiveReport(analysisResults);
     console.log(report);
-    
+
+    // Save fix scripts if requested
+    if (options.generateFixes) {
+      await saveFixes(analysisResults.fixes, fileName);
+    }
+
     outputHandler.finalize();
-    
+    return analysisResults;
+
   } catch (error) {
     outputHandler.restore();
     if (spinner) spinner.fail('Error checking integrity');
@@ -290,192 +145,234 @@ export async function integrity(filePath, options = {}) {
   }
 }
 
-function findDuplicateRows(records) {
-  const seen = new Map();
-  const duplicates = [];
-  
-  records.forEach((record, idx) => {
-    const key = JSON.stringify(record);
-    if (seen.has(key)) {
-      duplicates.push(idx + 1);
-    } else {
-      seen.set(key, idx + 1);
-    }
-  });
-  
-  return duplicates;
-}
+function generateComprehensiveReport(results) {
+  let report = '';
 
-function isValidEmail(email) {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email);
-}
+  // Header
+  report += createSection('DATA INTEGRITY REPORT',
+    `Dataset: ${results.fileName}
+Generated: ${results.timestamp}
+Quality Framework: ISO 8000 / DAMA-DMBOK Aligned`);
 
-function getEmailIssue(email) {
-  if (!email.includes('@')) return 'missing @ symbol';
-  if (!email.includes('.')) return 'missing domain extension';
-  if (email.startsWith('@')) return 'missing local part';
-  if (email.endsWith('@')) return 'missing domain';
-  if (email.split('@').length > 2) return 'multiple @ symbols';
-  
-  const [local, domain] = email.split('@');
-  if (!domain.includes('.')) return 'missing TLD';
-  if (domain.startsWith('.')) return 'invalid domain format';
-  
-  return 'invalid format';
-}
+  // Overall Quality Score
+  const score = results.qualityScore;
+  report += `\nOVERALL DATA QUALITY SCORE: ${score.overallScore}/100 (${score.grade.letter})
+${score.grade.label}
+${score.trend.symbol} ${score.trend.interpretation}
+${score.benchmark.interpretation}\n`;
 
-function analyzeEmailPatterns(invalidEmails) {
-  const patterns = {
-    missingTLD: 0,
-    missingDomain: 0,
-    missingLocal: 0,
-    other: 0
-  };
-  
-  invalidEmails.forEach(e => {
-    if (e.issue.includes('TLD')) patterns.missingTLD++;
-    else if (e.issue.includes('domain')) patterns.missingDomain++;
-    else if (e.issue.includes('local')) patterns.missingLocal++;
-    else patterns.other++;
-  });
-  
-  const total = invalidEmails.length;
-  const mainIssue = Object.entries(patterns)
-    .sort((a, b) => b[1] - a[1])[0];
-  
-  return `${formatPercentage(mainIssue[1] / total)} of invalid emails are ${mainIssue[0]}`;
-}
+  // Critical Issues Summary
+  const criticalIssues = collectCriticalIssues(results.dimensions);
+  if (criticalIssues.length > 0) {
+    report += createSubSection('CRITICAL ISSUES (immediate action required)',
+      numberedList(criticalIssues.map(issue => 
+        `${issue.field || issue.category}: ${issue.message} [${issue.type}]`
+      ))
+    );
+  }
 
-function isValidPhone(phone) {
-  if (typeof phone !== 'string') return false;
-  const cleaned = phone.replace(/\D/g, '');
-  return cleaned.length >= 8 && cleaned.length <= 15;
-}
-
-function isValidAustralianPostcode(postcode) {
-  const num = parseInt(postcode);
-  return /^\d{4}$/.test(postcode) && num >= 200 && num <= 9999;
-}
-
-function findCategoricalInconsistencies(values) {
-  const valueCounts = {};
-  values.forEach(val => {
-    if (val !== null && val !== undefined) {
-      const normalized = String(val).toLowerCase().trim();
-      if (!valueCounts[normalized]) {
-        valueCounts[normalized] = { original: [], count: 0 };
-      }
-      if (!valueCounts[normalized].original.includes(val)) {
-        valueCounts[normalized].original.push(val);
-      }
-      valueCounts[normalized].count++;
-    }
-  });
-  
-  const inconsistencies = [];
-  Object.entries(valueCounts).forEach(([normalized, data]) => {
-    if (data.original.length > 1) {
-      inconsistencies.push({
-        normalized,
-        variations: data.original.map(orig => ({
-          value: orig,
-          count: values.filter(v => v === orig).length
-        }))
-      });
-    }
-  });
-  
-  return inconsistencies;
-}
-
-function findSuspiciousNumericValues(values) {
-  let zeros = 0;
-  let negatives = 0;
-  let extremeValues = 0;
-  
-  const numbers = values.filter(v => typeof v === 'number');
-  if (numbers.length === 0) return { zeros, negatives, extremeValues };
-  
-  const mean = numbers.reduce((a, b) => a + b, 0) / numbers.length;
-  const stdDev = Math.sqrt(numbers.reduce((sq, n) => sq + Math.pow(n - mean, 2), 0) / numbers.length);
-  
-  numbers.forEach(num => {
-    if (num === 0) zeros++;
-    if (num < 0) negatives++;
-    if (Math.abs(num - mean) > 3 * stdDev) extremeValues++;
-  });
-  
-  return { zeros, negatives, extremeValues };
-}
-
-function checkBusinessRules(records, columnTypes) {
-  const violations = [];
-  const columns = Object.keys(columnTypes);
-  
-  // Check for age violations
-  const ageColumns = columns.filter(col => 
-    col.toLowerCase().includes('age') && 
-    ['integer', 'float'].includes(columnTypes[col].type)
-  );
-  
-  ageColumns.forEach(ageCol => {
-    const underAge = records.filter(r => 
-      typeof r[ageCol] === 'number' && r[ageCol] < 18 && r[ageCol] > 0
-    ).length;
-    
-    if (underAge > 0) {
-      violations.push({
-        description: `Age below 18 in ${ageCol}`,
-        count: underAge,
-        severity: 'may violate terms of service'
-      });
-    }
-  });
-  
-  // Check for duplicate emails
-  const emailColumns = columns.filter(col => columnTypes[col].type === 'email');
-  emailColumns.forEach(emailCol => {
-    const emails = records.map(r => r[emailCol]).filter(e => e !== null);
-    const uniqueEmails = new Set(emails);
-    const duplicateCount = emails.length - uniqueEmails.size;
-    
-    if (duplicateCount > 0) {
-      violations.push({
-        description: `Duplicate email addresses in ${emailCol}`,
-        count: duplicateCount,
-        severity: 'should be unique per customer'
-      });
-    }
-  });
-  
-  // Check for status inconsistencies
-  const statusColumns = columns.filter(col => 
-    col.toLowerCase().includes('status') && 
-    columnTypes[col].type === 'categorical'
-  );
-  
-  const activeColumns = columns.filter(col => 
-    col.toLowerCase().includes('active') || 
-    col.toLowerCase().includes('inactive')
-  );
-  
-  if (statusColumns.length > 0 && activeColumns.length > 0) {
-    const inconsistent = records.filter(r => {
-      const status = r[statusColumns[0]];
-      const active = r[activeColumns[0]];
-      return (status === 'inactive' && active === true) || 
-             (status === 'active' && active === false);
-    }).length;
-    
-    if (inconsistent > 0) {
-      violations.push({
-        description: 'Status field inconsistent with active flag',
-        count: inconsistent,
-        severity: 'data consistency issue'
-      });
+  // Warnings Summary
+  const warnings = collectWarnings(results.dimensions);
+  if (warnings.length > 0) {
+    report += createSubSection('WARNINGS (should be addressed)',
+      numberedList(warnings.slice(0, 10).map(issue => 
+        `${issue.field || issue.category}: ${issue.message}`
+      ))
+    );
+    if (warnings.length > 10) {
+      report += `\n... and ${warnings.length - 10} more warnings\n`;
     }
   }
+
+  // Business Rule Discovery
+  if (results.businessRules && results.businessRules.length > 0) {
+    report += createSubSection('BUSINESS RULE DISCOVERY',
+      `Automatically Detected Rules (Confidence >95%):\n\n` +
+      results.businessRules.slice(0, 5).map((rule, idx) => 
+        `${idx + 1}. ${rule.type}: ${rule.rule}
+   - Confidence: ${rule.confidence.toFixed(1)}%
+   - Violations: ${rule.violations} records
+   - SQL: ${rule.sql}`
+      ).join('\n\n')
+    );
+  }
+
+  // Pattern-Based Anomalies
+  if (results.anomalies) {
+    report += generateAnomalyReport(results.anomalies);
+  }
+
+  // Fuzzy Duplicate Analysis
+  if (results.fuzzyDuplicates && results.fuzzyDuplicates.nearDuplicateGroups.length > 0) {
+    report += createSubSection('FUZZY DUPLICATE ANALYSIS',
+      `Algorithm Stack: ${results.fuzzyDuplicates.algorithms.join(', ')}
+Near-Duplicate Groups Found: ${results.fuzzyDuplicates.nearDuplicateGroups.length}
+
+Top Groups:
+${results.fuzzyDuplicates.nearDuplicateGroups.slice(0, 3).map((group, idx) => 
+  `[Group ${idx + 1}] ${group.recordCount} records (${group.similarity}% similarity)
+${group.records.slice(0, 3).map(r => 
+  `  - Row ${r.index}: ${JSON.stringify(r.data).substring(0, 80)}...`
+).join('\n')}`
+).join('\n\n')}`
+    );
+  }
+
+  // Australian Data Validation
+  if (results.australianValidation && results.australianValidation.detected) {
+    report += generateAustralianValidationReport(results.australianValidation);
+  }
+
+  // Data Quality Scorecard
+  report += createSubSection('DATA QUALITY SCORECARD',
+    `Overall Score: ${score.overallScore}/100 (${score.grade.letter})
+
+Dimensional Breakdown:
+┌─────────────────┬────────┬────────────────────────┐
+│ Dimension       │ Score  │ Key Issues             │
+├─────────────────┼────────┼────────────────────────┤
+${score.scoreBreakdown.map(dim => 
+  `│ ${dim.dimension.padEnd(15)} │ ${String(dim.score).padEnd(6)} │ ${(dim.performance + ' issues').padEnd(22)} │`
+).join('\n')}
+└─────────────────┴────────┴────────────────────────┘`
+  );
+
+  // Recommendations
+  if (score.recommendations) {
+    report += createSubSection('RECOMMENDATION PRIORITY MATRIX', '');
+    
+    if (score.recommendations.quickWins.length > 0) {
+      report += '\n🎯 Quick Wins (High Impact, Low Effort):\n';
+      report += numberedList(score.recommendations.quickWins.map(r => 
+        `${r.action} [Impact: ${r.impact}, Effort: ${r.effort}]`
+      ));
+    }
+
+    if (score.recommendations.strategic.length > 0) {
+      report += '\n📋 Strategic Initiatives (High Impact, High Effort):\n';
+      report += numberedList(score.recommendations.strategic.map(r => 
+        `${r.action} [Impact: ${r.impact}, Effort: ${r.effort}]`
+      ));
+    }
+  }
+
+  // Automated Fix Scripts Available
+  report += createSubSection('AUTOMATED FIX SCRIPTS',
+    `SQL fixes available: ${results.fixes.sql ? 'Yes' : 'No'}
+Python scripts available: ${results.fixes.python ? 'Yes' : 'No'}
+
+To generate fix scripts, run with --generate-fixes flag`
+  );
+
+  // Data Quality Certification
+  if (score.certification.certified) {
+    report += createSubSection('DATA QUALITY CERTIFICATION',
+      `${score.certification.badge} Achieved ${score.certification.level} Certification
+Valid until: ${score.certification.validUntil}`
+    );
+  } else {
+    report += createSubSection('CERTIFICATION STATUS',
+      `Not yet certified. To achieve ${score.certification.nextLevel}:
+- Improve score by ${score.certification.gap.score.toFixed(1)} points
+- Fix ${score.certification.gap.criticalIssues} critical issues
+- Resolve ${score.certification.gap.warnings} warnings`
+    );
+  }
+
+  return report;
+}
+
+function collectCriticalIssues(dimensions) {
+  const issues = [];
+  Object.values(dimensions).forEach(dim => {
+    if (dim.issues) {
+      issues.push(...dim.issues.filter(i => i.type === 'critical'));
+    }
+  });
+  return issues;
+}
+
+function collectWarnings(dimensions) {
+  const warnings = [];
+  Object.values(dimensions).forEach(dim => {
+    if (dim.issues) {
+      warnings.push(...dim.issues.filter(i => i.type === 'warning'));
+    }
+  });
+  return warnings;
+}
+
+function generateAnomalyReport(anomalies) {
+  let report = createSubSection('PATTERN-BASED ANOMALIES', '');
+
+  if (anomalies.benfordLaw.length > 0) {
+    report += "\nBenford's Law Analysis:\n";
+    anomalies.benfordLaw.forEach(result => {
+      report += `- ${result.field}: ${result.interpretation} (χ² = ${result.chiSquare}, p ${result.pValue})\n`;
+    });
+  }
+
+  if (anomalies.roundNumberBias.length > 0) {
+    report += '\nRound Number Bias:\n';
+    anomalies.roundNumberBias.forEach(result => {
+      report += `- ${result.field}: ${result.interpretation}\n`;
+      result.biases.forEach(bias => {
+        report += `  * ${bias.pattern}: ${bias.observedRate} vs expected ${bias.expectedRate}\n`;
+      });
+    });
+  }
+
+  if (anomalies.fraudIndicators.length > 0) {
+    report += '\nPotential Fraud Indicators:\n';
+    anomalies.fraudIndicators.forEach(indicator => {
+      report += `- ${indicator.type}: ${indicator.interpretation}\n`;
+    });
+  }
+
+  return report;
+}
+
+function generateAustralianValidationReport(validation) {
+  let report = createSubSection('AUSTRALIAN DATA VALIDATION', '');
+
+  if (validation.validations.abn) {
+    const abn = validation.validations.abn;
+    report += `\nABN Validation:
+- Valid format: ${abn.valid}/${abn.total} (${abn.validRate})
+- Invalid check digit: ${abn.invalid.length}
+- Defunct companies: ${abn.defunct.length}\n`;
+  }
+
+  if (validation.validations.postcodes) {
+    const pc = validation.validations.postcodes;
+    report += `\nPostcode Analysis:
+- Valid postcodes: ${pc.valid}/${pc.total} (${pc.validRate})
+- State mismatches: ${pc.stateMismatches.length}
+- Distribution: ${Object.entries(pc.distribution).map(([state, pct]) => `${state}: ${pct}`).join(', ')}\n`;
+  }
+
+  if (validation.validations.phoneNumbers) {
+    report += '\nPhone Number Validation:\n';
+    Object.entries(validation.validations.phoneNumbers).forEach(([col, result]) => {
+      report += `- ${col}: ${result.validRate} valid (Mobile: ${result.breakdown.mobile}, Landline: ${result.breakdown.landline})\n`;
+    });
+  }
+
+  return report;
+}
+
+async function saveFixes(fixes, fileName) {
+  const fs = await import('fs/promises');
   
-  return violations;
+  if (fixes.sql) {
+    const sqlFile = fileName.replace('.csv', '_fixes.sql');
+    await fs.writeFile(sqlFile, fixes.sql);
+    console.log(`\n✅ SQL fixes saved to: ${sqlFile}`);
+  }
+
+  if (fixes.python) {
+    const pyFile = fileName.replace('.csv', '_fixes.py');
+    await fs.writeFile(pyFile, fixes.python);
+    console.log(`✅ Python scripts saved to: ${pyFile}`);
+  }
 }
