@@ -49,6 +49,7 @@ program
   .description('Run complete analysis suite - all commands in one go')
   .option('-o, --output <path>', 'Save analysis to file')
   .option('-q, --quick', 'Quick mode - skip detailed analyses for speed')
+  .option('--no-header', 'CSV file has no header row')
   .action(async (file, options) => {
     const filePath = validateFile(file);
     await runAll(filePath, options);
@@ -60,6 +61,7 @@ program
   .description('Exploratory Data Analysis - comprehensive statistical analysis')
   .option('-o, --output <path>', 'Save analysis to file')
   .option('-q, --quick', 'Quick mode - basic statistics only')
+  .option('--no-header', 'CSV file has no header row')
   .action(async (file, options) => {
     const filePath = validateFile(file);
     await eda(filePath, options);
@@ -70,6 +72,7 @@ program
   .command('int <file>')
   .description('Data Integrity Check - find quality issues and inconsistencies')
   .option('-o, --output <path>', 'Save analysis to file')
+  .option('--no-header', 'CSV file has no header row')
   .action(async (file, options) => {
     const filePath = validateFile(file);
     await integrity(filePath, options);
@@ -80,6 +83,7 @@ program
   .command('vis <file>')
   .description('Visualization Recommendations - what charts would be most insightful')
   .option('-o, --output <path>', 'Save analysis to file')
+  .option('--no-header', 'CSV file has no header row')
   .action(async (file, options) => {
     const filePath = validateFile(file);
     await visualize(filePath, options);
@@ -90,14 +94,16 @@ program
   .command('eng [file]')
   .description('Data Engineering Archaeology - builds collective intelligence about your warehouse')
   .option('-o, --output <path>', 'Save analysis to file')
-  .option('--save-insights <table> <insights>', 'Save LLM insights for a table')
+  .option('--save-insights <table...>', 'Save LLM insights for a table (usage: --save-insights tablename "insights text")')
   .option('--compile-knowledge', 'Generate comprehensive warehouse report')
   .option('--show-map', 'Display warehouse domain map')
+  .option('--no-header', 'CSV file has no header row')
   .action(async (file, options) => {
     if (options.compileKnowledge || options.showMap) {
       await engineering(null, options);
     } else if (options.saveInsights) {
-      const [tableName, insights] = options.saveInsights.split(' ', 2);
+      const [tableName, ...insightsParts] = options.saveInsights;
+      const insights = insightsParts.join(' ');
       await engineering(null, { saveInsights: [tableName, insights] });
     } else if (file) {
       const filePath = validateFile(file);
@@ -113,6 +119,7 @@ program
   .command('llm <file>')
   .description('LLM Context Generation - perfect summary for AI analysis')
   .option('-o, --output <path>', 'Save analysis to file')
+  .option('--no-header', 'CSV file has no header row')
   .action(async (file, options) => {
     const filePath = validateFile(file);
     await llmContext(filePath, options);
@@ -145,6 +152,7 @@ program.on('--help', () => {
   console.log('Options:');
   console.log('  -o, --output <path>  Save analysis to file instead of stdout');
   console.log('  -q, --quick          Quick mode - skip detailed analyses for speed');
+  console.log('  --no-header          CSV file has no header row (uses column1, column2, etc.)');
   console.log('');
   console.log('Output:');
   console.log('  All commands produce verbose text output optimized for copying');

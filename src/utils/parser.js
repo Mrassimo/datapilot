@@ -167,8 +167,10 @@ export async function parseCSV(filePath, options = {}) {
   let errorCount = 0;
   let skipCount = 0;
   
-  const parser = parse({
-    columns: true,
+  // Handle headerless CSV files
+  const hasHeader = options.header !== false;
+  const parserOptions = {
+    columns: hasHeader ? true : false,
     skip_empty_lines: true,
     trim: true,
     delimiter,
@@ -195,9 +197,11 @@ export async function parseCSV(filePath, options = {}) {
       
       // Return as string
       return value;
-    },
-    ...options
-  });
+    }
+  };
+
+  // Don't override columns option if explicitly set in options
+  const parser = parse({ ...parserOptions, ...options });
 
   parser.on('skip', (err) => {
     errorCount++;
@@ -214,16 +218,25 @@ export async function parseCSV(filePath, options = {}) {
         for await (const record of source) {
           rowCount++;
           
+          // Convert array to object if headerless
+          let processedRecord = record;
+          if (!hasHeader && Array.isArray(record)) {
+            processedRecord = {};
+            record.forEach((value, index) => {
+              processedRecord[`column${index + 1}`] = value;
+            });
+          }
+          
           // Apply sampling if needed
           if (useSampling && records.length >= MAX_MEMORY_ROWS) {
             skipCount++;
             // Use reservoir sampling for statistical validity
             const j = Math.floor(Math.random() * rowCount);
             if (j < MAX_MEMORY_ROWS) {
-              records[j] = record;
+              records[j] = processedRecord;
             }
           } else {
-            records.push(record);
+            records.push(processedRecord);
           }
           yield;
         }
@@ -417,24 +430,29 @@ function analyzeColumnValues(values, totalRecords) {
     }
   }
   
-  // Check for categorical
-  const uniqueValues = [...new Set(values.filter(v => typeof v === 'string'))];
-  if (uniqueValues.length < Math.min(20, totalRecords * 0.1)) {
-    return {
-      type: 'categorical',
-      categories: uniqueValues.sort(),
-      confidence: 1.0,
-      uniqueCount: uniqueValues.length
-    };
+  // Check for categorical - but only for non-numeric types
+  if (bestType !== 'integer' && bestType !== 'float') {
+    const uniqueValues = [...new Set(values.filter(v => typeof v === 'string'))];
+    if (uniqueValues.length < Math.min(20, totalRecords * 0.1)) {
+      return {
+        type: 'categorical',
+        categories: uniqueValues.sort(),
+        confidence: 1.0,
+        uniqueCount: uniqueValues.length
+      };
+    }
   }
   
-  // Check for identifier
-  if (uniqueValues.length > totalRecords * 0.95) {
-    return {
-      type: 'identifier',
-      confidence: uniqueValues.length / totalRecords,
-      uniqueCount: uniqueValues.length
-    };
+  // Check for identifier - but not for numeric types
+  if (bestType !== 'integer' && bestType !== 'float') {
+    const allUniqueValues = [...new Set(values)];
+    if (allUniqueValues.length > totalRecords * 0.95) {
+      return {
+        type: 'identifier',
+        confidence: allUniqueValues.length / totalRecords,
+        uniqueCount: allUniqueValues.length
+      };
+    }
   }
   
   // Prepare result

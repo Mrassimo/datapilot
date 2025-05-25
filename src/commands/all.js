@@ -34,7 +34,8 @@ export async function runAll(filePath, options = {}) {
     spinner.text = 'Parsing CSV file...';
     const records = await parseCSV(filePath, { 
       quiet: true,
-      noSampling: !options.quick 
+      noSampling: !options.quick,
+      header: options.header 
     });
     
     const columnTypes = detectColumnTypes(records);

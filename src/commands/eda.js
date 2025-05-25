@@ -18,7 +18,7 @@ export async function eda(filePath, options = {}) {
       columnTypes = options.preloadedData.columnTypes;
     } else {
       // Parse CSV
-      records = await parseCSV(filePath, { quiet: options.quiet });
+      records = await parseCSV(filePath, { quiet: options.quiet, header: options.header });
       if (spinner) spinner.text = 'Analyzing data...';
       columnTypes = detectColumnTypes(records);
     }

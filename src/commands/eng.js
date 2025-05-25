@@ -24,7 +24,7 @@ class ArchaeologyEngine {
       records = options.preloadedData.records;
       columnTypes = options.preloadedData.columnTypes;
     } else {
-      records = await parseCSV(csvPath, { quiet: options.quiet });
+      records = await parseCSV(csvPath, { quiet: options.quiet, header: options.header });
       if (spinner) spinner.text = 'Performing data archaeology...';
       columnTypes = detectColumnTypes(records);
     }
