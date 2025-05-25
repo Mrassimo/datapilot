@@ -24,6 +24,15 @@ export async function integrity(filePath, options = {}) {
     const fileName = basename(filePath);
     const columns = Object.keys(columnTypes);
     
+    // Handle empty dataset
+    if (records.length === 0) {
+      const report = createSection('DATA INTEGRITY REPORT',
+        `Dataset: ${fileName}\nGenerated: ${formatTimestamp()}\n\n⚠️  Empty dataset - no data to check`);
+      console.log(report);
+      outputHandler.finalize();
+      return;
+    }
+    
     // Build report
     let report = createSection('DATA INTEGRITY REPORT',
       `Dataset: ${fileName}\nGenerated: ${formatTimestamp()}`);

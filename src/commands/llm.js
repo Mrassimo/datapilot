@@ -1,6 +1,6 @@
 import { parseCSV, detectColumnTypes } from '../utils/parser.js';
 import { calculateStats, calculateCorrelation, analyzeDistribution } from '../utils/stats.js';
-import { createSection, createSubSection, formatTimestamp, formatNumber, formatPercentage, formatCurrency, bulletList } from '../utils/format.js';
+import { createSection, createSubSection, formatTimestamp, formatNumber, formatPercentage, formatCurrency, bulletList, formatSmallDatasetWarning, formatDataTable } from '../utils/format.js';
 import { OutputHandler } from '../utils/output.js';
 import { basename } from 'path';
 import ora from 'ora';
@@ -25,9 +25,33 @@ export async function llmContext(filePath, options = {}) {
     const fileName = basename(filePath);
     const columns = Object.keys(columnTypes);
     
+    // Handle empty dataset
+    if (records.length === 0) {
+      const report = createSection('LLM-READY CONTEXT',
+        `Dataset: ${fileName}\nGenerated: ${formatTimestamp()}\n\n⚠️  Empty dataset - no context to generate`);
+      console.log(report);
+      outputHandler.finalize();
+      return;
+    }
+    
     // Build report
     let report = createSection('LLM-READY CONTEXT',
       `Dataset: ${fileName}\nGenerated: ${formatTimestamp()}`);
+    
+    // Check for small dataset
+    const smallDatasetInfo = formatSmallDatasetWarning(records.length);
+    if (smallDatasetInfo) {
+      report += '\n' + smallDatasetInfo.warning + '\n';
+    }
+    
+    // Add parsing metadata
+    report += createSubSection('PARSING METADATA', bulletList([
+      `File encoding: ${options.encoding || 'UTF-8 (auto-detected)'}`,
+      `Delimiter: ${options.delimiter || 'comma (auto-detected)'}`,
+      `Header detection: ${options.header === false ? 'No headers (generated column names)' : 'Headers detected'}`,
+      `Rows processed: ${records.length}`,
+      `Analysis confidence: ${smallDatasetInfo ? 'Reduced due to small sample size' : 'High'}`
+    ]));
     
     report += createSubSection('DATASET SUMMARY FOR AI ANALYSIS', '');
     
@@ -170,6 +194,26 @@ export async function llmContext(filePath, options = {}) {
     const technicalNotes = generateTechnicalNotes(records, columns, columnTypes);
     technicalNotes.forEach(note => {
       report += `- ${note}\n`;
+    });
+    
+    // Show sample data for context
+    if (records.length > 0) {
+      report += createSubSection('SAMPLE DATA', 'First 5 rows and last 5 rows:');
+      const sampleRows = [
+        ...records.slice(0, 5),
+        ...(records.length > 10 ? records.slice(-5) : [])
+      ];
+      report += formatDataTable(sampleRows, columns.slice(0, 5)); // Show first 5 columns
+      if (columns.length > 5) {
+        report += `\n(${columns.length - 5} additional columns not shown in sample)\n`;
+      }
+    }
+    
+    // Add suggested validation queries
+    report += createSubSection('VALIDATION QUERIES', 'SQL queries to verify data integrity:');
+    const validationQueries = generateValidationQueries(columns, columnTypes, records);
+    validationQueries.forEach((query, idx) => {
+      report += `\n${idx + 1}. ${query.purpose}:\n\`\`\`sql\n${query.sql}\n\`\`\`\n`;
     });
     
     report += '\nEND OF CONTEXT\n\n[Paste this into your preferred LLM and ask specific questions about the data]\n';
@@ -844,4 +888,74 @@ function generateTechnicalNotes(records, columns, columnTypes) {
   }
   
   return notes;
+}
+
+function generateValidationQueries(columns, columnTypes, records) {
+  const queries = [];
+  const tableName = 'your_table'; // Placeholder
+  
+  // Check for orphaned foreign keys
+  columns.forEach(col => {
+    if (col.toLowerCase().includes('_id') && !col.toLowerCase().includes('transaction_id')) {
+      const targetTable = col.replace('_id', '').toLowerCase();
+      queries.push({
+        purpose: `Verify ${col} foreign key relationship`,
+        sql: `SELECT COUNT(*) as orphaned_records 
+FROM ${tableName} t1
+WHERE t1.${col} NOT IN (
+  SELECT ${col} FROM ${targetTable}
+) AND t1.${col} IS NOT NULL`
+      });
+    }
+  });
+  
+  // Check date format consistency
+  const dateColumns = columns.filter(c => columnTypes[c].type === 'date');
+  dateColumns.forEach(col => {
+    queries.push({
+      purpose: `Check ${col} date format consistency`,
+      sql: `SELECT 
+  COUNT(DISTINCT DATE_FORMAT(${col}, '%Y-%m-%d')) as formats,
+  MIN(${col}) as earliest_date,
+  MAX(${col}) as latest_date
+FROM ${tableName}
+WHERE ${col} IS NOT NULL`
+    });
+  });
+  
+  // Check for duplicate identifiers
+  const idColumns = columns.filter(c => columnTypes[c].type === 'identifier');
+  if (idColumns.length > 0) {
+    queries.push({
+      purpose: `Check for duplicate ${idColumns[0]} values`,
+      sql: `SELECT ${idColumns[0]}, COUNT(*) as occurrences
+FROM ${tableName}
+GROUP BY ${idColumns[0]}
+HAVING COUNT(*) > 1
+ORDER BY occurrences DESC
+LIMIT 10`
+    });
+  }
+  
+  // Check numeric column ranges
+  const numericColumns = columns.filter(c => ['integer', 'float'].includes(columnTypes[c].type));
+  if (numericColumns.length > 0) {
+    const col = numericColumns[0];
+    queries.push({
+      purpose: `Verify ${col} value ranges and outliers`,
+      sql: `WITH stats AS (
+  SELECT 
+    AVG(${col}) as mean,
+    STDDEV(${col}) as std_dev
+  FROM ${tableName}
+  WHERE ${col} IS NOT NULL
+)
+SELECT COUNT(*) as outliers
+FROM ${tableName}, stats
+WHERE ${col} > mean + 3 * std_dev
+   OR ${col} < mean - 3 * std_dev`
+    });
+  }
+  
+  return queries.slice(0, 5); // Limit to 5 most relevant queries
 }

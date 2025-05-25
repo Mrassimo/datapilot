@@ -1,6 +1,6 @@
 import { parseCSV, detectColumnTypes } from '../utils/parser.js';
 import { calculateStats, calculateCorrelation, analyzeDistribution } from '../utils/stats.js';
-import { createSection, createSubSection, formatColumnAnalysis, formatTimestamp, formatNumber, formatPercentage, bulletList, formatFileSize } from '../utils/format.js';
+import { createSection, createSubSection, formatColumnAnalysis, formatTimestamp, formatNumber, formatPercentage, bulletList, formatFileSize, formatSmallDatasetWarning, formatDataTable } from '../utils/format.js';
 import { statSync } from 'fs';
 import { basename } from 'path';
 import ora from 'ora';
@@ -29,9 +29,24 @@ export async function eda(filePath, options = {}) {
     
     const columns = Object.keys(columnTypes);
     
+    // Handle empty dataset
+    if (records.length === 0) {
+      const report = createSection('EXPLORATORY DATA ANALYSIS REPORT', 
+        `Dataset: ${fileName}\nGenerated: ${formatTimestamp()}\n\n⚠️  Empty dataset - no data to analyze`);
+      console.log(report);
+      outputHandler.finalize();
+      return;
+    }
+    
     // Build report
     let report = createSection('EXPLORATORY DATA ANALYSIS REPORT', 
       `Dataset: ${fileName}\nGenerated: ${formatTimestamp()}`);
+    
+    // Check for small dataset
+    const smallDatasetInfo = formatSmallDatasetWarning(records.length);
+    if (smallDatasetInfo) {
+      report += '\n' + smallDatasetInfo.warning + '\n';
+    }
     
     // Dataset overview
     report += createSubSection('DATASET OVERVIEW', bulletList([
@@ -42,6 +57,13 @@ export async function eda(filePath, options = {}) {
         `Date range: ${getDateRange(records, columns[0])}` : 
         'No date column detected'
     ]));
+    
+    // Show full data for tiny datasets
+    if (smallDatasetInfo?.showFullData) {
+      report += createSubSection('COMPLETE DATASET', 
+        'Since this is a small dataset, here is the complete data:\n' + 
+        formatDataTable(records, columns));
+    }
     
     // Column Analysis
     report += createSubSection('COLUMN ANALYSIS', '');

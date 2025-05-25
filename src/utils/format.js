@@ -135,3 +135,50 @@ export function formatColumnAnalysis(column, stats, type) {
 export function formatTimestamp() {
   return new Date().toISOString().replace('T', ' ').split('.')[0];
 }
+
+export function formatSmallDatasetWarning(rowCount) {
+  if (rowCount < 20) {
+    return {
+      warning: `⚠️  Small dataset detected (${rowCount} rows) - Statistical analysis may be unreliable`,
+      analysisMode: 'full_scan',
+      showFullData: rowCount < 10,
+      confidenceMultiplier: 0.7
+    };
+  }
+  return null;
+}
+
+export function formatDataTable(records, columns) {
+  if (!records || records.length === 0) return 'No data to display';
+  
+  // Calculate column widths
+  const columnWidths = {};
+  columns.forEach(col => {
+    columnWidths[col] = Math.max(
+      col.length,
+      ...records.map(r => String(r[col] || '').length)
+    );
+    // Cap at reasonable width
+    columnWidths[col] = Math.min(columnWidths[col], 30);
+  });
+  
+  // Build header
+  let table = '\n┌' + columns.map(col => '─'.repeat(columnWidths[col] + 2)).join('┬') + '┐\n';
+  table += '│ ' + columns.map(col => col.padEnd(columnWidths[col])).join(' │ ') + ' │\n';
+  table += '├' + columns.map(col => '─'.repeat(columnWidths[col] + 2)).join('┼') + '┤\n';
+  
+  // Build rows
+  records.forEach(record => {
+    table += '│ ' + columns.map(col => {
+      let val = String(record[col] || '');
+      if (val.length > columnWidths[col]) {
+        val = val.substring(0, columnWidths[col] - 3) + '...';
+      }
+      return val.padEnd(columnWidths[col]);
+    }).join(' │ ') + ' │\n';
+  });
+  
+  table += '└' + columns.map(col => '─'.repeat(columnWidths[col] + 2)).join('┴') + '┘\n';
+  
+  return table;
+}

@@ -25,6 +25,15 @@ export async function visualize(filePath, options = {}) {
     const fileName = basename(filePath);
     const columns = Object.keys(columnTypes);
     
+    // Handle empty dataset
+    if (records.length === 0) {
+      const report = createSection('VISUALISATION ANALYSIS',
+        `Dataset: ${fileName}\nGenerated: ${formatTimestamp()}\n\n⚠️  Empty dataset - no visualizations to recommend`);
+      console.log(report);
+      outputHandler.finalize();
+      return;
+    }
+    
     // Build report
     let report = createSection('VISUALISATION ANALYSIS',
       `Dataset: ${fileName}\nGenerated: ${formatTimestamp()}`);

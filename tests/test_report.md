@@ -1,12 +1,12 @@
 
 # DataPilot Test Report
-Generated: 2025-05-24T04:27:22.535Z
+Generated: 2025-05-25T10:50:08.164Z
 
 ## Summary
 - Total Tests: 38
-- Passed: 38
-- Failed: 0
-- Success Rate: 100.0%
+- Passed: 33
+- Failed: 5
+- Success Rate: 86.8%
 
 ## Test Matrix
 | File | eda | int | vis | eng | llm |
@@ -21,7 +21,11 @@ Generated: 2025-05-24T04:27:22.535Z
 
 
 ## Errors
-No errors
+- eda - empty.csv: Missing section: DATASET OVERVIEW
+- int - empty.csv: Missing section: DATA QUALITY METRICS
+- vis - empty.csv: Missing section: RECOMMENDED VISUALISATIONS
+- eng - empty.csv: Missing section: SCHEMA RECOMMENDATIONS
+- llm - empty.csv: Missing section: DATASET SUMMARY FOR AI ANALYSIS
 
 ## Coverage
 - Commands tested: eda, int, vis, eng, llm

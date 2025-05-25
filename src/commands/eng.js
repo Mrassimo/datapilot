@@ -1,6 +1,6 @@
 import { parseCSV, detectColumnTypes } from '../utils/parser.js';
 import { calculateStats } from '../utils/stats.js';
-import { createSection, createSubSection, formatTimestamp, formatFileSize, bulletList, formatNumber } from '../utils/format.js';
+import { createSection, createSubSection, formatTimestamp, formatFileSize, bulletList, formatNumber, formatSmallDatasetWarning, formatDataTable } from '../utils/format.js';
 import { OutputHandler } from '../utils/output.js';
 import { statSync } from 'fs';
 import { basename } from 'path';
@@ -29,6 +29,14 @@ class ArchaeologyEngine {
       columnTypes = detectColumnTypes(records);
     }
     
+    // Handle empty dataset
+    if (records.length === 0) {
+      if (spinner) spinner.fail('Empty dataset - no data to analyze');
+      const tableName = basename(csvPath, '.csv');
+      return createSection('🏛️ DATA ENGINEERING ARCHAEOLOGY REPORT',
+        `Dataset: ${tableName}.csv\nAnalysis Date: ${formatTimestamp()}\n\n⚠️  Empty dataset - no archaeology to perform`);
+    }
+    
     if (spinner) spinner.text = 'Detecting cross-table patterns...';
     const analysis = await this.performAnalysis(csvPath, records, knowledge, columnTypes);
     
@@ -50,6 +58,9 @@ class ArchaeologyEngine {
   async performAnalysis(csvPath, records, knowledge, columnTypes) {
     const fileName = basename(csvPath);
     const columns = Object.keys(columnTypes);
+    
+    // Set table_name for use in generateLegacySchemaSection
+    this._currentTableName = fileName.replace(/\.csv$/i, '').replace(/[^a-zA-Z0-9_]/g, '_').toLowerCase();
     
     const analysis = {
       table_name: fileName.replace('.csv', ''),
@@ -148,6 +159,17 @@ NEXT_INVESTIGATE: [what tables to analyze next]`;
     let report = createSection('🏛️ DATA ENGINEERING ARCHAEOLOGY REPORT',
       `Dataset: ${analysis.table_name}.csv\nAnalysis Date: ${formatTimestamp()}\nTable ${(knowledge.warehouse_metadata?.discovered_tables || 0) + 1} in warehouse discovery`);
     
+    // Check for small dataset
+    const smallDatasetInfo = formatSmallDatasetWarning(analysis.row_count);
+    if (smallDatasetInfo) {
+      report += '\n' + smallDatasetInfo.warning + '\n';
+      if (smallDatasetInfo.showFullData) {
+        report += createSubSection('📊 DATASET CLASSIFICATION', 
+          'This appears to be reference/lookup data rather than analytical data.\n' +
+          'Consider treating this as a dimension or reference table in your warehouse design.');
+      }
+    }
+    
     // Warehouse Context
     if ((knowledge.warehouse_metadata?.discovered_tables || 0) > 0) {
       report += createSubSection('📊 WAREHOUSE CONTEXT', 
@@ -230,24 +252,103 @@ NEXT_INVESTIGATE: [what tables to analyze next]`;
   }
 
   guessDomain(fileName, columns) {
-    const name = fileName.toLowerCase();
+    // Domain patterns with keywords and weights
+    const domainPatterns = {
+      'Housing': {
+        keywords: ['house', 'housing', 'property', 'real_estate', 'home', 'dwelling', 
+                  'residence', 'building', 'apartment', 'bedroom', 'bathroom', 'sqft', 
+                  'square_feet', 'listing', 'realestate', 'mortgage'],
+        weight: 1.5
+      },
+      'Customer': {
+        keywords: ['customer', 'user', 'client', 'member', 'person', 'people', 
+                  'contact', 'account', 'profile', 'subscriber'],
+        weight: 1.0
+      },
+      'Orders': {
+        keywords: ['order', 'transaction', 'sale', 'purchase', 'invoice', 
+                  'receipt', 'payment', 'checkout', 'cart'],
+        weight: 1.0
+      },
+      'Product': {
+        keywords: ['product', 'item', 'inventory', 'sku', 'catalog', 
+                  'merchandise', 'goods', 'stock'],
+        weight: 1.0
+      },
+      'Financial': {
+        keywords: ['financial', 'finance', 'payment', 'revenue', 'cost', 
+                  'price', 'amount', 'balance', 'credit', 'debit', 'bank'],
+        weight: 1.0
+      },
+      'Location': {
+        keywords: ['location', 'address', 'city', 'state', 'country', 'zip', 
+                  'postal', 'latitude', 'longitude', 'geo', 'region', 'area'],
+        weight: 1.2
+      },
+      'Temporal': {
+        keywords: ['date', 'time', 'year', 'month', 'day', 'quarter', 
+                  'period', 'timestamp', 'datetime'],
+        weight: 0.8
+      },
+      'Economic': {
+        keywords: ['gdp', 'inflation', 'unemployment', 'interest', 'wage', 
+                  'income', 'economy', 'economic', 'indicator'],
+        weight: 1.3
+      },
+      'Logging': {
+        keywords: ['log', 'event', 'audit', 'trace', 'debug', 'error', 
+                  'warning', 'info', 'activity'],
+        weight: 0.9
+      }
+    };
     
-    if (name.includes('customer') || name.includes('user')) return 'Customer';
-    if (name.includes('order') || name.includes('transaction')) return 'Orders';
-    if (name.includes('product') || name.includes('inventory')) return 'Product';
-    if (name.includes('financial') || name.includes('payment')) return 'Financial';
-    if (name.includes('log') || name.includes('event')) return 'Logging';
+    // Create search text from filename and columns
+    const searchText = `${fileName} ${columns.join(' ')}`.toLowerCase();
     
-    // Guess from columns
-    const customerCols = columns.filter(c => c.toLowerCase().includes('customer')).length;
-    const orderCols = columns.filter(c => c.toLowerCase().includes('order')).length;
-    const productCols = columns.filter(c => c.toLowerCase().includes('product')).length;
+    // Score each domain
+    const domainScores = {};
     
-    if (customerCols > 0) return 'Customer';
-    if (orderCols > 0) return 'Orders';
-    if (productCols > 0) return 'Product';
+    for (const [domain, config] of Object.entries(domainPatterns)) {
+      let score = 0;
+      
+      // Check keywords
+      for (const keyword of config.keywords) {
+        if (searchText.includes(keyword)) {
+          score += config.weight;
+          
+          // Bonus for exact filename match
+          if (fileName.toLowerCase().includes(keyword)) {
+            score += 0.5;
+          }
+        }
+      }
+      
+      domainScores[domain] = score;
+    }
     
-    return 'Unknown';
+    // Find the highest scoring domain
+    let bestDomain = 'Unknown';
+    let bestScore = 0;
+    
+    for (const [domain, score] of Object.entries(domainScores)) {
+      if (score > bestScore) {
+        bestScore = score;
+        bestDomain = domain;
+      }
+    }
+    
+    // If score is too low, check for generic patterns
+    if (bestScore < 0.5) {
+      if (columns.some(c => c.toLowerCase().includes('id'))) {
+        if (columns.length < 10) {
+          bestDomain = 'Reference';
+        } else {
+          bestDomain = 'Operational';
+        }
+      }
+    }
+    
+    return bestDomain;
   }
 
   guessTablePurpose(fileName, columns, columnTypes) {
@@ -316,7 +417,20 @@ NEXT_INVESTIGATE: [what tables to analyze next]`;
     return refs;
   }
   buildContextFromRelated(relatedTables) { return '- Related tables: ' + relatedTables.map(t => t.name).join(', '); }
-  formatSchemaSection(analysis) { 
+  formatSchemaSection(analysis) {
+    // Ensure we have schema recommendations
+    if (!analysis.schema_recommendations || analysis.schema_recommendations.trim() === '') {
+      // Generate it if missing
+      const recommendations = this.generateLegacySchemaSection(
+        analysis.columns.map(c => c.name),
+        analysis.columns.reduce((acc, col) => {
+          acc[col.name] = { type: col.type, confidence: col.confidence };
+          return acc;
+        }, {}),
+        [] // We don't have records in this context
+      );
+      return createSubSection('🗄️ SCHEMA RECOMMENDATIONS', recommendations);
+    }
     return createSubSection('🗄️ SCHEMA RECOMMENDATIONS', analysis.schema_recommendations);
   }
   generateRelationshipReport(relationships) { return yaml.dump(relationships || {}); }
@@ -325,9 +439,12 @@ NEXT_INVESTIGATE: [what tables to analyze next]`;
   generateWarehouseRecommendations(knowledge) { return 'Analyze more tables to build recommendations'; }
 
   generateLegacySchemaSection(columns, columnTypes, records) {
+    // Generate a proper table name from the analysis context
+    const tableName = this.generateTableName(columns, columnTypes);
+    
     let schema = '\nSuggested Table Structure:\n```sql\n';
     schema += '-- Recommended data types based on analysis\n';
-    schema += `CREATE TABLE ${columns[0]?.replace(/[^a-z0-9]/g, '_') || 'table'} (\n`;
+    schema += `CREATE TABLE ${tableName} (\n`;
     
     const columnDefinitions = [];
     columns.forEach(column => {
@@ -341,6 +458,50 @@ NEXT_INVESTIGATE: [what tables to analyze next]`;
     schema += '\n);\n```\n';
     
     return schema;
+  }
+
+  generateTableName(columns, columnTypes) {
+    // Use the table name from the file if available
+    if (this._currentTableName) {
+      // Ensure it doesn't match any column names
+      if (columns.some(col => col.toLowerCase() === this._currentTableName)) {
+        return `tbl_${this._currentTableName}`;
+      }
+      return this._currentTableName;
+    }
+    
+    // Fallback to generating based on data characteristics
+    // Check for common table patterns
+    const hasCustomerId = columns.some(c => c.toLowerCase().includes('customer'));
+    const hasOrderId = columns.some(c => c.toLowerCase().includes('order'));
+    const hasProductId = columns.some(c => c.toLowerCase().includes('product'));
+    const hasDate = Object.values(columnTypes).some(t => t.type === 'date');
+    const hasMeasures = columns.some(c => 
+      c.toLowerCase().includes('amount') || 
+      c.toLowerCase().includes('count') ||
+      c.toLowerCase().includes('total')
+    );
+    
+    // Determine table type and name
+    if (hasMeasures && hasDate) {
+      if (hasOrderId) return 'fact_orders';
+      if (hasCustomerId && hasProductId) return 'fact_sales';
+      if (hasCustomerId) return 'fact_customer_transactions';
+      return 'fact_transactions';
+    } else if (hasCustomerId && !hasMeasures) {
+      return 'dim_customers';
+    } else if (hasProductId && !hasMeasures) {
+      return 'dim_products';
+    } else if (columns.length < 5 && columns.some(c => c.toLowerCase().includes('name'))) {
+      return 'ref_lookup';
+    } else {
+      // Default to a generic name based on column count and types
+      const numCategorical = Object.values(columnTypes).filter(t => t.type === 'categorical').length;
+      if (numCategorical > columns.length * 0.5) {
+        return 'dim_reference';
+      }
+      return 'tbl_data';
+    }
   }
 }
 

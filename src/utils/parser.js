@@ -276,9 +276,11 @@ export async function parseCSV(filePath, options = {}) {
     }
   }
 
-  // Handle empty file
+  // Handle empty file - return empty array instead of throwing
   if (records.length === 0) {
-    throw new Error('No data found in CSV file. The file may be empty or have no valid rows.');
+    if (!options.quiet) {
+      console.log(chalk.yellow('⚠️  Warning: No data found in CSV file. The file may be empty or have no valid rows.'));
+    }
   }
 
   return records;
@@ -428,6 +430,25 @@ function analyzeColumnValues(values, totalRecords) {
       bestType = typeVotes.float > 0 ? 'float' : 'integer';
       confidence = numericVotes / totalVotes;
     }
+  }
+  
+  // If we have a strong numeric type detection, stick with it
+  if ((bestType === 'integer' || bestType === 'float') && confidence > 0.8) {
+    // This is definitely a numeric column, don't check for categorical/identifier
+    const result = {
+      type: bestType,
+      confidence: confidence
+    };
+    
+    // Add numeric statistics
+    const numbers = values.map(v => parseNumber(v)).filter(n => n !== null);
+    if (numbers.length > 0) {
+      result.min = Math.min(...numbers);
+      result.max = Math.max(...numbers);
+      result.uniqueCount = [...new Set(numbers)].length;
+    }
+    
+    return result;
   }
   
   // Check for categorical - but only for non-numeric types
