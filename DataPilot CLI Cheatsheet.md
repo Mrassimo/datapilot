@@ -167,31 +167,45 @@ REFERENCES customers(customer_id);
 
 ---
 
-### 5️⃣ **llm** - LLM Context Generation
-**What it does:** Creates a perfect summary of your data for AI assistants  
-**When to use:** When you want ChatGPT or Claude to analyze your data  
-**Real-world example:** You want ChatGPT to find patterns in your sales data
+### 5️⃣ **llm** - Smart LLM Context Generation ✨ ENHANCED!
+**What it does:** Runs comprehensive analysis but outputs only the most important insights for AI  
+**When to use:** When you want ChatGPT or Claude to understand your data without information overload  
+**Real-world example:** You need ChatGPT to identify actionable insights from complex data
 
 ```bash
-# Generate AI-ready context
+# Generate smart, synthesized AI context
 datapilot llm sales_data.csv
 
-# Save to copy into ChatGPT
+# Save concise insights (2-3 pages vs 100+ from 'all')
 datapilot llm sales_data.csv -o context_for_chatgpt.txt
 
-# What it creates:
-# - Natural language description of your data
-# - Key statistics and patterns
-# - Data quality notes
-# - Suggested analysis questions
-# - Everything formatted for easy AI consumption
+# What's NEW in the enhanced version:
+# 🧠 Runs ALL analyses internally (EDA, INT, VIS, ENG)
+# 🎯 Filters to show only high-impact findings
+# 🔗 Connects insights across analyses
+# 📊 Prioritizes by business impact
+# ⚡ Caches results for instant re-runs
+# 💡 Suggests critical actions to take
+
+# Example of smart synthesis:
+# Instead of: "Column A has 23% missing values"
+# You get: "Customer email missing for 23% affects retention analysis"
 ```
 
 **How to use with ChatGPT/Claude:**
 1. Run `datapilot llm yourfile.csv`
-2. Copy the ENTIRE output
+2. Copy the concise, prioritized output (2-3 pages)
 3. Paste into ChatGPT/Claude
-4. Ask: "What patterns do you see?" or "What's interesting about this data?"
+4. Ask specific questions like:
+   - "What actions should I take based on these insights?"
+   - "What's the relationship between the patterns found?"
+   - "What additional analysis would be most valuable?"
+
+**What makes it special:**
+- **Cross-analysis synthesis**: Connects quality issues with statistical patterns
+- **Business impact scoring**: Shows revenue/customer/efficiency implications
+- **Actionable focus**: Every insight includes what to do about it
+- **Smart filtering**: 100+ findings condensed to top 5-10 that matter
 
 ---
 
@@ -436,7 +450,7 @@ datapilot eng report -o sales_analysis_complete.txt
 | "Check for problems" | `datapilot int file.csv` |
 | "How to visualize?" | `datapilot vis file.csv` |
 | "Analyze multiple files" | `datapilot eng analyze *.csv` |
-| "Prepare for ChatGPT" | `datapilot llm file.csv` |
+| "Smart AI context" | `datapilot llm file.csv` |
 | "Do everything" | `datapilot all file.csv` |
 | "Save output" | Add `-o filename.txt` |
 | "No headers" | Add `--no-header` |

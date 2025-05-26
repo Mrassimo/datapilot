@@ -1,7 +1,7 @@
 {
   "name": "datapilot",
-  "version": "1.0.0",
-  "description": "Simple & LLM-Ready CLI tool for CSV data analysis",
+  "version": "1.1.0",
+  "description": "Transform CSV chaos into crystal-clear insights with smart LLM-ready analysis",
   "main": "bin/datapilot.js",
   "bin": {
     "datapilot": "./bin/datapilot.js"

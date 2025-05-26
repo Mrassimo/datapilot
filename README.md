@@ -23,7 +23,7 @@ datapilot eda sales.csv  # Instant insights
 | `int` | Find quality issues | "Is this production-ready?" |
 | `vis` | Chart recommendations | "How should I visualize this?" |
 | `eng` | Relationship discovery | "How do these files connect?" |
-| `llm` | AI-ready summaries | "Explain this to ChatGPT" |
+| `llm` | Smart AI-ready summaries | "Perfect context for ChatGPT" |
 | `all` | Everything above | "Tell me everything" |
 
 ## Quick Start
@@ -38,7 +38,29 @@ datapilot int customers.csv -o issues.txt
 datapilot all dataset.csv --quick
 ```
 
-## 🏛️ Data Engineering Archaeology (NEW!)
+## 🧠 Enhanced LLM Intelligence (NEW!)
+
+Our upgraded `llm` command now provides comprehensive yet concise analysis:
+
+```bash
+# Generate smart, synthesized context for AI
+datapilot llm sales.csv
+
+# What's new:
+# ✨ Runs ALL analyses internally but shows only key insights
+# 🔗 Connects findings across data quality, statistics, and patterns  
+# 📊 Prioritizes business-critical discoveries
+# 🎯 2-3 pages of output vs 100+ pages from 'all' command
+# ⚡ Intelligent caching for instant re-runs
+```
+
+**Smart synthesis example:**
+- Detects: "45% revenue growth in December"
+- Notices: "234 transactions have integrity issues" 
+- Connects: "Rapid growth may be compromising data quality"
+- Recommends: "Fix integrity issues before year-end reporting"
+
+## 🏛️ Data Engineering Archaeology
 
 Our revolutionary `eng` command builds collective intelligence about your data warehouse over time:
 
@@ -92,14 +114,22 @@ datapilot eda raw_data.csv
 datapilot vis raw_data.csv -o dashboard_plan.txt
 ```
 
-### LLM Workflow
+### LLM Workflow - Now with Smart Synthesis
 ```bash
-# Generate perfect context for AI
+# Generate intelligent context (NEW: comprehensive analysis, concise output)
 datapilot llm complex_dataset.csv -o context.txt
 
-# Copy context.txt to ChatGPT/Claude
-# Ask: "What patterns do you see?"
-# Save insights back:
+# The LLM command now:
+# 1. Runs statistical analysis (EDA)
+# 2. Checks data quality (INT)  
+# 3. Identifies visualizations (VIS)
+# 4. Discovers relationships (ENG)
+# 5. Synthesizes cross-cutting insights
+# 6. Prioritizes by business impact
+# 7. Outputs only the most important findings
+
+# Copy context.txt to ChatGPT/Claude for deeper analysis
+# Save insights back to your knowledge base:
 echo "PATTERN: Seasonal sales spike in December" | datapilot eng save sales
 ```
 
