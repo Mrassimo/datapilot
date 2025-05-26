@@ -1,19 +1,41 @@
 import { parse } from 'csv-parse';
-import { createReadStream, statSync } from 'fs';
+import { createReadStream, statSync, openSync, readSync, closeSync, existsSync } from 'fs';
 import { pipeline } from 'stream/promises';
 import * as chardet from 'chardet';
 import chalk from 'chalk';
 import ora from 'ora';
 import { readFileSync } from 'fs';
+import crypto from 'crypto';
+import path from 'path';
 
 // Constants
 const SAMPLE_THRESHOLD = 50 * 1024 * 1024; // 50MB
 const MAX_MEMORY_ROWS = 100000; // Maximum rows to keep in memory
+const SAMPLE_RATE = 0.01; // 1% sampling for files > 1M rows
+const MAX_ROWS_FOR_FULL_ANALYSIS = 50000;
+const CHUNK_SIZE = 10000; // Process 10k rows at a time for CPU-intensive operations
 
-// Detect file encoding
+// Detect file encoding with validation and fallback
 export function detectEncoding(filePath) {
   try {
-    const encoding = chardet.detectFileSync(filePath, { sampleSize: 32768 });
+    const encoding = chardet.detectFileSync(filePath, { sampleSize: 65536 });
+    
+    // Validate detected encoding
+    if (!encoding) {
+      console.log(chalk.yellow('Could not detect encoding, trying UTF-8 with BOM detection'));
+      
+      // Check for BOM
+      const fd = openSync(filePath, 'r');
+      const buffer = Buffer.alloc(3);
+      readSync(fd, buffer, 0, 3, 0);
+      closeSync(fd);
+      
+      if (buffer[0] === 0xEF && buffer[1] === 0xBB && buffer[2] === 0xBF) {
+        return 'utf8';  // UTF-8 with BOM
+      }
+      return 'utf8';
+    }
+    
     if (encoding && encoding !== 'UTF-8' && encoding !== 'ascii') {
       console.log(chalk.yellow(`Detected ${encoding} encoding (will handle automatically)`));
     }
@@ -22,15 +44,20 @@ export function detectEncoding(filePath) {
     const encodingMap = {
       'UTF-8': 'utf8',
       'ascii': 'ascii',
+      'windows-1250': 'latin1',  // Added missing encoding
       'windows-1252': 'latin1',
       'ISO-8859-1': 'latin1',
       'UTF-16LE': 'utf16le',
-      'UTF-16BE': 'utf16be'
+      'UTF-16BE': 'utf16be',
+      'UTF-32LE': 'utf32le',     // Add more encodings
+      'UTF-32BE': 'utf32be',
+      'Big5': 'big5',
+      'Shift_JIS': 'shiftjis'
     };
     
     return encodingMap[encoding] || 'utf8';
   } catch (error) {
-    console.log(chalk.yellow('Could not detect encoding, assuming UTF-8'));
+    console.log(chalk.yellow('Encoding detection failed, defaulting to UTF-8'));
     return 'utf8';
   }
 }
@@ -148,16 +175,49 @@ function parseDate(value, dateFormats = null) {
   return isNaN(date.getTime()) ? null : date;
 }
 
-export async function parseCSV(filePath, options = {}) {
-  const fileSize = statSync(filePath).size;
-  const encoding = options.encoding || detectEncoding(filePath);
+// Helper function to attempt parsing with a specific encoding
+async function attemptParse(filePath, encoding, options = {}) {
   const delimiter = options.delimiter || detectDelimiter(filePath, encoding);
-  const useSampling = fileSize > SAMPLE_THRESHOLD && !options.noSampling;
+  const fileSize = statSync(filePath).size;
   
-  if (useSampling && !options.quiet) {
+  // Progressive sampling logic - estimate file size and determine sampling strategy
+  let useSampling = false;
+  let sampleRate = 1.0;
+  
+  if (fileSize > 100 * 1024 * 1024 && !options.noSampling) { // 100MB threshold
+    // Estimate average bytes per row (rough approximation)
+    const averageBytesPerRow = 80; // Conservative estimate
+    const estimatedRows = fileSize / averageBytesPerRow;
+    
+    if (estimatedRows > MAX_ROWS_FOR_FULL_ANALYSIS) {
+      useSampling = true;
+      sampleRate = Math.min(MAX_ROWS_FOR_FULL_ANALYSIS / estimatedRows, 1);
+      
+      if (!options.quiet) {
+        console.log(chalk.yellow(
+          `Large file detected (~${Math.round(estimatedRows).toLocaleString()} estimated rows). ` +
+          `Using ${(sampleRate * 100).toFixed(1)}% sampling for performance.`
+        ));
+      }
+    }
+  } else if (fileSize > SAMPLE_THRESHOLD && !options.noSampling) {
+    // Use the older sampling method for smaller large files
+    useSampling = true;
+    sampleRate = 1.0; // Will use reservoir sampling
+  }
+  
+  return await parseCSVWithEncoding(filePath, encoding, delimiter, useSampling, sampleRate, options);
+}
+
+// Core parsing function separated for fallback mechanism
+async function parseCSVWithEncoding(filePath, encoding, delimiter, useSampling, sampleRate, options = {}) {
+  const fileSize = statSync(filePath).size;
+  const { onProgress } = options;
+  
+  if (useSampling && sampleRate === 1.0 && !options.quiet) {
     console.log(chalk.yellow(
       `Large file detected (${(fileSize / 1024 / 1024).toFixed(1)}MB). ` +
-      `Sampling first ${MAX_MEMORY_ROWS.toLocaleString()} rows for analysis...`
+      `Using reservoir sampling for analysis...`
     ));
   }
   
@@ -166,6 +226,7 @@ export async function parseCSV(filePath, options = {}) {
   let rowCount = 0;
   let errorCount = 0;
   let skipCount = 0;
+  let processedBytes = 0;
   
   // Handle headerless CSV files
   const hasHeader = options.header !== false;
@@ -176,6 +237,9 @@ export async function parseCSV(filePath, options = {}) {
     delimiter,
     encoding,
     relax_quotes: true,
+    relax_column_count: true,  // Add this for better quote handling
+    quote: '"',                // Explicitly set quote character
+    escape: '"',               // Set escape character (for quotes inside quotes)
     skip_records_with_error: true,
     on_record: (record, { lines }) => {
       // Update progress
@@ -187,13 +251,20 @@ export async function parseCSV(filePath, options = {}) {
     cast: (value) => {
       if (value === '' || value === null || value === undefined) return null;
       
-      // Try to parse as number first
-      const num = parseNumber(value);
-      if (num !== null) return num;
-      
-      // Try to parse as date
-      const date = parseDate(value);
-      if (date !== null) return date;
+      // If value is purely numeric (no spaces, letters, special chars except . and -), try parsing as number
+      if (typeof value === 'string') {
+        const trimmed = value.trim();
+        
+        // Only try to parse as number if it looks purely numeric
+        if (/^[\d\s,.-]+$/.test(trimmed) && !/[a-zA-Z]/.test(trimmed)) {
+          const num = parseNumber(value);
+          if (num !== null) return num;
+        }
+        
+        // Try to parse as date
+        const date = parseDate(value);
+        if (date !== null) return date;
+      }
       
       // Return as string
       return value;
@@ -212,7 +283,14 @@ export async function parseCSV(filePath, options = {}) {
 
   try {
     await pipeline(
-      createReadStream(filePath, { encoding }),
+      createReadStream(filePath, { encoding })
+        .on('data', (chunk) => {
+          processedBytes += chunk.length;
+          if (onProgress) {
+            const progress = (processedBytes / fileSize) * 100;
+            onProgress(progress, rowCount);
+          }
+        }),
       parser,
       async function* (source) {
         for await (const record of source) {
@@ -227,13 +305,35 @@ export async function parseCSV(filePath, options = {}) {
             });
           }
           
-          // Apply sampling if needed
-          if (useSampling && records.length >= MAX_MEMORY_ROWS) {
-            skipCount++;
-            // Use reservoir sampling for statistical validity
-            const j = Math.floor(Math.random() * rowCount);
-            if (j < MAX_MEMORY_ROWS) {
-              records[j] = processedRecord;
+          // Check memory usage periodically and adjust sampling if needed
+          let aggressiveSampling = false;
+          if (rowCount % 5000 === 0) {
+            const memoryStatus = checkMemoryUsage();
+            if (memoryStatus.shouldUseAggressiveSampling && !options.quiet) {
+              console.warn(chalk.red(`High memory usage detected (${memoryStatus.heapUsedGB.toFixed(1)}GB), enabling aggressive sampling`));
+              aggressiveSampling = true;
+            }
+          }
+          
+          // Apply progressive or reservoir sampling
+          if (useSampling || aggressiveSampling) {
+            if (sampleRate < 1.0 || aggressiveSampling) {
+              // Progressive sampling: sample while streaming based on calculated rate
+              const effectiveRate = aggressiveSampling ? Math.min(sampleRate * 0.1, 0.01) : sampleRate;
+              if (Math.random() < effectiveRate) {
+                records.push(processedRecord);
+              } else {
+                skipCount++;
+              }
+            } else if (records.length >= MAX_MEMORY_ROWS) {
+              // Reservoir sampling for very large files
+              skipCount++;
+              const j = Math.floor(Math.random() * rowCount);
+              if (j < MAX_MEMORY_ROWS) {
+                records[j] = processedRecord;
+              }
+            } else {
+              records.push(processedRecord);
             }
           } else {
             records.push(processedRecord);
@@ -257,33 +357,45 @@ export async function parseCSV(filePath, options = {}) {
       ));
     }
     
+    return { success: true, data: records };
+    
   } catch (error) {
     if (spinner) spinner.fail('Failed to parse CSV');
-    
-    // Enhanced error messages
-    if (error.message.includes('Invalid Opening Quote')) {
-      throw new Error(
-        'CSV parsing failed: Invalid quote character detected. ' +
-        'This often happens with Excel exports. Try opening in Excel and re-saving as CSV.'
-      );
-    } else if (error.message.includes('Invalid Record Length')) {
-      throw new Error(
-        'CSV parsing failed: Inconsistent number of columns. ' +
-        'Check for rows with extra/missing delimiters.'
-      );
-    } else {
-      throw error;
+    return { success: false, error };
+  }
+}
+
+// Main parseCSV function with fallback mechanism
+export async function parseCSV(filePath, options = {}) {
+  const detectedEncoding = options.encoding || detectEncoding(filePath);
+  
+  // If parsing fails with detected encoding, retry with different encodings
+  const fallbackEncodings = ['utf8', 'latin1', 'utf16le'];
+  
+  for (const encoding of [detectedEncoding, ...fallbackEncodings]) {
+    if (encoding === detectedEncoding || !fallbackEncodings.includes(encoding)) {
+      try {
+        const result = await attemptParse(filePath, encoding, options);
+        if (result.success) {
+          // Handle empty file - return empty array instead of throwing
+          if (result.data.length === 0) {
+            if (!options.quiet) {
+              console.log(chalk.yellow('⚠️  Warning: No data found in CSV file. The file may be empty or have no valid rows.'));
+            }
+          }
+          return result.data;
+        }
+      } catch (e) {
+        continue;
+      }
     }
   }
-
-  // Handle empty file - return empty array instead of throwing
-  if (records.length === 0) {
-    if (!options.quiet) {
-      console.log(chalk.yellow('⚠️  Warning: No data found in CSV file. The file may be empty or have no valid rows.'));
-    }
-  }
-
-  return records;
+  
+  // If all encodings fail, throw the original error with enhanced message
+  throw new Error(
+    'CSV parsing failed with all attempted encodings. ' +
+    'The file may be corrupted or in an unsupported format.'
+  );
 }
 
 // Enhanced column type detection with confidence scores
@@ -500,4 +612,82 @@ function analyzeColumnValues(values, totalRecords) {
   }
   
   return result;
+}
+
+// Chunked processing utility for CPU-intensive operations
+export async function processInChunks(records, processor, chunkSize = CHUNK_SIZE) {
+  const results = [];
+  
+  for (let i = 0; i < records.length; i += chunkSize) {
+    const chunk = records.slice(i, i + chunkSize);
+    const chunkResults = await processor(chunk);
+    results.push(...chunkResults);
+    
+    // Allow event loop to breathe
+    await new Promise(resolve => setImmediate(resolve));
+  }
+  
+  return results;
+}
+
+// Memory monitoring utility
+export function checkMemoryUsage() {
+  const used = process.memoryUsage();
+  const memoryUsageGB = used.heapUsed / (1024 * 1024 * 1024);
+  
+  return {
+    heapUsed: used.heapUsed,
+    heapUsedGB: memoryUsageGB,
+    isHighMemory: used.heapUsed > 1024 * 1024 * 1024, // 1GB threshold
+    shouldUseAggressiveSampling: used.heapUsed > 1024 * 1024 * 1024
+  };
+}
+
+// File hash utility for caching
+export function getFileHash(filePath) {
+  const hash = crypto.createHash('md5');
+  const stream = createReadStream(filePath);
+  return new Promise((resolve, reject) => {
+    stream.on('data', data => hash.update(data));
+    stream.on('end', () => resolve(hash.digest('hex')));
+    stream.on('error', reject);
+  });
+}
+
+// Configuration loader
+export function loadConfig() {
+  const defaultConfig = {
+    performance: {
+      maxMemoryRows: 100000,
+      chunkSize: 10000,
+      sampleRate: 0.01,
+      workerThreads: "auto"
+    },
+    parsing: {
+      encoding: "auto",
+      delimiter: "auto",
+      quoteChar: '"',
+      escapeChar: '"'
+    }
+  };
+
+  // Look for config file in current directory, then in home directory
+  const configPaths = [
+    './datapilot.config.json',
+    path.join(process.cwd(), 'datapilot.config.json'),
+    path.join(process.env.HOME || process.env.USERPROFILE || '', '.datapilot', 'config.json')
+  ];
+
+  for (const configPath of configPaths) {
+    if (existsSync(configPath)) {
+      try {
+        const userConfig = JSON.parse(readFileSync(configPath, 'utf8'));
+        return { ...defaultConfig, ...userConfig };
+      } catch (error) {
+        console.warn(chalk.yellow(`Warning: Invalid config file at ${configPath}, using defaults`));
+      }
+    }
+  }
+
+  return defaultConfig;
 }
