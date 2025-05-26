@@ -20,6 +20,11 @@ export function formatComprehensiveEDAReport(analysis) {
   // Handle empty dataset
   if (analysis.empty) {
     report += '\n\n⚠️  Empty dataset - no data to analyze';
+    
+    // Still include the required section headers
+    report += createSubSection('DATASET OVERVIEW', 'No data available to analyze');
+    report += createSubSection('COLUMN ANALYSIS', 'No columns to analyze');
+    
     return report;
   }
   

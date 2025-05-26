@@ -7,3 +7,4 @@ tests/fixtures/test.txt
 .env
 *.tmp
 coverage/
+*. Datapilot

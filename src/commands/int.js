@@ -49,8 +49,12 @@ export async function integrity(filePath, options = {}) {
     
     // Handle empty dataset
     if (data.length === 0) {
-      const report = createSection('DATA INTEGRITY REPORT',
+      let report = createSection('DATA INTEGRITY REPORT',
         `Dataset: ${fileName}\nGenerated: ${formatTimestamp()}\n\n⚠️  Empty dataset - no data to check`);
+      
+      // Still include the required section header
+      report += createSubSection('DATA QUALITY METRICS', 'No data available to analyze');
+      
       console.log(report);
       outputHandler.finalize();
       return;
@@ -223,8 +227,8 @@ ${group.records.slice(0, 3).map(r =>
     report += generateAustralianValidationReport(results.australianValidation);
   }
 
-  // Data Quality Scorecard
-  report += createSubSection('DATA QUALITY SCORECARD',
+  // Data Quality Metrics
+  report += createSection('DATA QUALITY METRICS',
     `Overall Score: ${score.overallScore}/100 (${score.grade.letter})
 
 Dimensional Breakdown:

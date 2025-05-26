@@ -46,8 +46,12 @@ export async function llmContext(filePath, options = {}) {
     
     // Handle empty dataset
     if (records.length === 0) {
-      const report = createSection('LLM-READY CONTEXT',
+      let report = createSection('LLM-READY CONTEXT',
         `Dataset: ${fileName}\nGenerated: ${formatTimestamp()}\n\n⚠️  Empty dataset - no context to generate`);
+      
+      // Still include the required section header
+      report += createSubSection('DATASET SUMMARY FOR AI ANALYSIS', 'No data available for analysis');
+      
       console.log(report);
       outputHandler.finalize();
       return;

@@ -51,7 +51,7 @@ export async function comprehensiveLLMAnalysis(records, headers, filePath, optio
   
   try {
     const fileName = basename(filePath);
-    const columnTypes = detectColumnTypes(records);
+    const columnTypes = records.length > 0 ? detectColumnTypes(records) : {};
     const columns = Object.keys(columnTypes);
     
     // Check cache
@@ -286,7 +286,7 @@ async function runEngAnalysis(records, headers, filePath, options) {
 // Generate original context data for compatibility
 async function generateOriginalContext(records, columns, columnTypes, fileName, options) {
   // This maintains compatibility with the original LLM format
-  const dateColumns = columns.filter(col => columnTypes[col].type === 'date');
+  const dateColumns = columns.filter(col => columnTypes[col] && columnTypes[col].type === 'date');
   const dateRange = getDateRange(records, dateColumns);
   const dataType = inferDataType(columns, columnTypes);
   

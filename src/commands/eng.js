@@ -33,8 +33,13 @@ class ArchaeologyEngine {
     if (records.length === 0) {
       if (spinner) spinner.fail('Empty dataset - no data to analyze');
       const tableName = basename(csvPath, '.csv');
-      return createSection('🏛️ DATA ENGINEERING ARCHAEOLOGY REPORT',
+      let report = createSection('🏛️ DATA ENGINEERING ARCHAEOLOGY REPORT',
         `Dataset: ${tableName}.csv\nAnalysis Date: ${formatTimestamp()}\n\n⚠️  Empty dataset - no archaeology to perform`);
+      
+      // Still include the required section header
+      report += createSubSection('🗄️ SCHEMA RECOMMENDATIONS', 'No data available for schema analysis');
+      
+      return report;
     }
     
     if (spinner) spinner.text = 'Detecting cross-table patterns...';

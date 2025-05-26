@@ -34,8 +34,12 @@ export async function visualize(filePath, options = {}) {
     
     // Handle empty dataset
     if (records.length === 0) {
-      const report = createSection('VISUALISATION ANALYSIS',
+      let report = createSection('VISUALISATION ANALYSIS',
         `Dataset: ${fileName}\nGenerated: ${formatTimestamp()}\n\n⚠️  Empty dataset - no visualizations to recommend`);
+      
+      // Still include the required section header
+      report += createSubSection('RECOMMENDED VISUALISATIONS', 'No data available for visualization recommendations');
+      
       console.log(report);
       outputHandler.finalize();
       return;
@@ -150,7 +154,7 @@ Size Category: ${dataProfile.dimensions.sizeCategory}`);
     });
     
     // Recommended visualizations
-    report += createSubSection('RECOMMENDED VISUALISATION SEQUENCE', '');
+    report += createSection('RECOMMENDED VISUALISATIONS', '');
     
     visualizationPlans.forEach((plan, idx) => {
       const viz = plan.visualization;

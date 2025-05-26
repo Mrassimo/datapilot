@@ -115,7 +115,7 @@ function validateOutput(command, file, output) {
   
   // Command-specific validations
   if (command === 'eda' && file !== 'empty.csv') {
-    if (!output.includes('Statistics:') && !output.includes('Data type:')) {
+    if (!output.includes('CENTRAL TENDENCY:') && !output.includes('Type:') && !output.includes('SPREAD:')) {
       return { valid: false, error: 'Missing statistical analysis' };
     }
   }
