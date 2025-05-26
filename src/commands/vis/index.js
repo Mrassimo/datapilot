@@ -17,6 +17,9 @@ export async function visualize(filePath, options = {}) {
   const outputHandler = new OutputHandler(options);
   const spinner = options.quiet ? null : ora('Reading CSV file...').start();
   
+  // Structured data mode for LLM consumption
+  const structuredMode = options.structuredOutput || options.llmMode;
+  
   try {
     // Use preloaded data if available
     let records, columnTypes;
@@ -126,6 +129,50 @@ export async function visualize(filePath, options = {}) {
         { colorblindSafe: true, printFriendly: options.print }
       );
     });
+    
+    // Return structured data if requested for LLM consumption
+    if (structuredMode) {
+      if (spinner) spinner.succeed('Visualization analysis complete!');
+      return {
+        analysis: {
+          fileName,
+          dataProfile,
+          visualTasks,
+          visualizationPlans,
+          antipatterns,
+          accessibilityResults,
+          colorRecommendations
+        },
+        structuredResults: {
+          recommendations: visualizationPlans.map(p => ({
+            priority: p.priority,
+            type: p.visualization.type,
+            purpose: p.visualization.recommendation.purpose,
+            effectiveness: p.visualization.perceptualScore.overall
+          })),
+          dashboardRecommendation: {
+            layout: 'F-pattern',
+            primaryChart: visualizationPlans[0]?.visualization.type,
+            secondaryCharts: visualizationPlans.slice(1, 3).map(p => p.visualization.type)
+          },
+          antiPatterns: antipatterns.map(ap => ({
+            issue: ap.issue,
+            severity: ap.severity,
+            alternative: ap.alternative
+          })),
+          taskAnalysis: {
+            primaryTasks: visualTasks.slice(0, 3).map(t => t.type),
+            dataCharacteristics: dataProfile.dimensions
+          },
+          perceptualAnalysis: {
+            overallScore: visualizationPlans.reduce((sum, p) => sum + p.visualization.perceptualScore.overall, 0) / visualizationPlans.length,
+            accessibilityScore: accessibilityResults.score
+          },
+          multivariatePatterns: dataProfile.patterns || {},
+          interactiveRecommendations: visualizationPlans.flatMap(p => p.visualization.recommendation.interactions || [])
+        }
+      };
+    }
     
     // Build comprehensive report
     let report = createSection('VISUALISATION ANALYSIS',

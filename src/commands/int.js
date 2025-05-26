@@ -30,6 +30,9 @@ export async function integrity(filePath, options = {}) {
   const outputHandler = new OutputHandler(options);
   const spinner = options.quiet ? null : ora('Reading CSV file...').start();
   
+  // Structured data mode for LLM consumption
+  const structuredMode = options.structuredOutput || options.llmMode;
+  
   try {
     // Load data
     let data, headers, columnTypes;
@@ -126,6 +129,37 @@ export async function integrity(filePath, options = {}) {
     analysisResults.fixes.sql = generateSQLFixes(analysisResults);
     analysisResults.fixes.python = generatePythonFixes(analysisResults, fileName);
 
+    // Return structured data if requested for LLM consumption
+    if (structuredMode) {
+      if (spinner) spinner.succeed('Data integrity analysis complete!');
+      return {
+        analysis: analysisResults,
+        structuredResults: {
+          overallQuality: {
+            score: analysisResults.qualityScore.overallScore,
+            grade: analysisResults.qualityScore.grade.letter,
+            trend: 'stable'
+          },
+          validationResults: [],
+          businessRules: analysisResults.businessRules || [],
+          referentialIntegrity: [],
+          patternAnomalies: analysisResults.anomalies || [],
+          suggestedFixes: [
+            ...(analysisResults.fixes.sql ? ['SQL automated fixes available'] : []),
+            ...(analysisResults.fixes.python ? ['Python automated fixes available'] : [])
+          ],
+          dimensions: {
+            completeness: analysisResults.dimensions.completeness,
+            accuracy: analysisResults.dimensions.accuracy,
+            consistency: analysisResults.dimensions.consistency,
+            validity: analysisResults.dimensions.validity,
+            uniqueness: analysisResults.dimensions.uniqueness,
+            timeliness: analysisResults.dimensions.timeliness
+          }
+        }
+      };
+    }
+    
     // Generate report
     if (spinner) spinner.succeed('Data integrity analysis complete!');
     

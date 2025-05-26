@@ -27,7 +27,7 @@ console.log(banner);
 program
   .name('datapilot')
   .description('CSV analysis tool optimized for LLM consumption')
-  .version('1.0.0');
+  .version('1.1.0');
 
 // Helper to validate file exists
 function validateFile(filePath) {

@@ -30,6 +30,9 @@ export async function edaComprehensive(filePath, options = {}) {
   const outputHandler = new OutputHandler(options);
   const spinner = options.quiet ? null : ora('Performing comprehensive EDA analysis...').start();
   
+  // Structured data mode for LLM consumption
+  const structuredMode = options.structuredOutput || options.llmMode;
+  
   try {
     // Use preloaded data if available
     let records, columnTypes;
@@ -246,6 +249,35 @@ export async function edaComprehensive(filePath, options = {}) {
       const stats = columnAnalyses[col];
       return stats && (1 - stats.nonNullRatio) > 0.1;
     }).length;
+    
+    // Return structured data if requested for LLM consumption
+    if (structuredMode) {
+      if (spinner) spinner.succeed('Comprehensive EDA analysis complete!');
+      return {
+        analysis,
+        structuredResults: {
+          statisticalInsights: analysis.insights || [],
+          dataQuality: {
+            completeness: analysis.completeness,
+            duplicateRows: analysis.duplicateCount / analysis.rowCount,
+            outlierPercentage: analysis.outlierRate || 0
+          },
+          correlations: analysis.correlationAnalysis?.correlations || [],
+          distributions: analysis.distributionAnalysis ? 
+            Object.entries(analysis.distributionAnalysis).map(([col, dist]) => ({
+              column: col,
+              ...dist
+            })) : [],
+          timeSeries: analysis.timeSeriesAnalysis || null,
+          summaryStats: analysis.columns.reduce((acc, col) => {
+            acc[col.name] = col.stats;
+            return acc;
+          }, {}),
+          mlReadiness: analysis.mlReadiness || { overallScore: 0.8, majorIssues: [] },
+          columns: analysis.columns.map(col => col.name)
+        }
+      };
+    }
     
     // Format and output report
     const report = formatComprehensiveEDAReport(analysis);

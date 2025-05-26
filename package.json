@@ -8,7 +8,7 @@
   },
   "type": "module",
   "scripts": {
-    "test": "node bin/datapilot.js"
+    "test": "node tests/run_tests.js"
   },
   "keywords": [
     "csv",

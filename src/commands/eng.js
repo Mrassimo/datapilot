@@ -19,6 +19,9 @@ class ArchaeologyEngine {
     
     const spinner = options.quiet ? null : ora('Reading CSV file...').start();
     
+    // Structured data mode for LLM consumption
+    const structuredMode = options.structuredOutput || options.llmMode;
+    
     let records, columnTypes;
     if (options.preloadedData) {
       records = options.preloadedData.records;
@@ -71,6 +74,26 @@ class ArchaeologyEngine {
       if (!options.quiet) {
         console.log(chalk.green(`✓ Analysis saved to: ${outputPath}`));
       }
+    }
+    
+    // Return structured data if requested for LLM consumption
+    if (structuredMode) {
+      if (spinner) spinner.succeed('Data archaeology complete!');
+      return {
+        analysis: enhanced,
+        structuredResults: {
+          schemaRecommendations: enhanced.schema_recommendations || [],
+          performanceAnalysis: {
+            dataVolume: enhanced.row_count,
+            queryPatterns: patterns.issues || [],
+            joinComplexity: enhanced.relationships?.length > 3 ? 'high' : 'moderate'
+          },
+          etlAnalysis: enhanced.etl_recommendations || {},
+          technicalDebt: [{ hours: enhanced.tech_debt_hours, type: 'cleanup' }],
+          relationships: enhanced.relationships || [],
+          warehouseKnowledge: knowledge
+        }
+      };
     }
     
     if (spinner) spinner.succeed('Data archaeology complete!');
@@ -421,57 +444,93 @@ NEXT_INVESTIGATE: [what tables to analyze next]`;
     return insights;
   }
 
-  // Enhanced analysis methods
+  // Enhanced analysis methods with advanced pattern recognition
   detectPotentialRelationships(columns, columnTypes) {
     const relationships = [];
     
-    // Analyze potential foreign key relationships
+    // Advanced foreign key pattern analysis
     columns.forEach(column => {
       const type = columnTypes[column];
       const colLower = column.toLowerCase();
       
-      // Look for ID patterns
+      // Sophisticated ID pattern detection
       if (colLower.includes('_id') || colLower.endsWith('id')) {
-        const tableHint = colLower.replace(/_?id$/, '');
+        const tableHint = this.extractTableFromId(colLower);
+        const confidence = this.calculateFKConfidence(column, type, tableHint);
         
-        if (tableHint && tableHint !== column.toLowerCase()) {
+        if (tableHint && confidence > 0.5) {
           relationships.push({
             type: 'foreign_key',
             column: column,
-            confidence: 0.85,
-            target_table: `${tableHint}s`,
+            confidence: confidence,
+            target_table: this.pluralizeTableName(tableHint),
             target_column: 'id',
-            evidence: 'Naming convention suggests foreign key relationship'
+            evidence: this.buildFKEvidence(column, type, tableHint, confidence)
           });
         }
       }
       
-      // Look for code/reference patterns
-      if (colLower.includes('code') && type.type === 'categorical') {
+      // Enhanced code/reference pattern analysis
+      if ((colLower.includes('code') || colLower.includes('cd')) && type.type === 'categorical') {
+        const domain = this.extractDomainFromCode(colLower);
+        const confidence = this.calculateCodeConfidence(column, type);
+        
         relationships.push({
           type: 'lookup_reference',
           column: column,
-          confidence: 0.7,
-          target_table: `ref_${colLower.replace('_code', '')}_codes`,
+          confidence: confidence,
+          target_table: `ref_${domain}_codes`,
           target_column: 'code',
-          evidence: 'Code pattern suggests lookup table relationship'
+          evidence: `Code pattern (${type.categories?.length || 'unknown'} distinct values) suggests lookup table relationship`
         });
       }
       
-      // Look for type/category patterns
-      if ((colLower.includes('type') || colLower.includes('category')) && type.type === 'categorical') {
+      // Advanced categorical pattern analysis
+      if ((colLower.includes('type') || colLower.includes('category') || colLower.includes('status')) && type.type === 'categorical') {
+        const confidence = this.calculateCategoricalConfidence(column, type);
+        
         relationships.push({
           type: 'enum_reference',
           column: column,
-          confidence: 0.6,
-          target_table: `ref_${colLower}s`,
+          confidence: confidence,
+          target_table: `ref_${colLower.replace(/[^a-z]/g, '_')}s`,
           target_column: 'name',
-          evidence: 'Categorical type suggests enumeration reference'
+          evidence: `Categorical field (${type.categories?.length || 'unknown'} values) suggests enumeration reference`
+        });
+      }
+      
+      // Geographic relationship detection
+      if (this.isGeographicColumn(colLower, type)) {
+        const geoType = this.detectGeographicType(colLower, type);
+        relationships.push({
+          type: 'geographic_reference',
+          column: column,
+          confidence: 0.8,
+          target_table: `ref_${geoType}`,
+          target_column: geoType === 'countries' ? 'country_code' : 'name',
+          evidence: `Geographic pattern suggests ${geoType} reference table`
+        });
+      }
+      
+      // Temporal relationship detection
+      if (type.type === 'date' || colLower.includes('date') || colLower.includes('time')) {
+        const timeGrain = this.detectTimeGrain(colLower);
+        relationships.push({
+          type: 'temporal_dimension',
+          column: column,
+          confidence: 0.9,
+          target_table: `dim_${timeGrain}`,
+          target_column: `${timeGrain}_key`,
+          evidence: `Temporal column suggests ${timeGrain} dimension relationship`
         });
       }
     });
     
-    return relationships;
+    // Cross-column relationship analysis
+    const crossColumnRels = this.detectCrossColumnRelationships(columns, columnTypes);
+    relationships.push(...crossColumnRels);
+    
+    return relationships.sort((a, b) => b.confidence - a.confidence);
   }
 
   detectTablePatterns(columns, records, columnTypes) {
@@ -480,147 +539,478 @@ NEXT_INVESTIGATE: [what tables to analyze next]`;
       issues: [],
       table_type: 'unknown',
       granularity: 'unknown',
-      quality_flags: []
+      quality_flags: [],
+      statistical_profile: {},
+      complexity_score: 0
     };
     
-    // Analyze table type patterns
-    const measures = columns.filter(col => {
-      const type = columnTypes[col];
-      return ['integer', 'float'].includes(type?.type) &&
-        (col.toLowerCase().includes('amount') || 
-         col.toLowerCase().includes('count') ||
-         col.toLowerCase().includes('total') ||
-         col.toLowerCase().includes('quantity') ||
-         col.toLowerCase().includes('value'));
+    // Enhanced table type analysis with statistical backing
+    const measures = this.identifyMeasureColumns(columns, columnTypes, records);
+    const dimensions = this.identifyDimensionColumns(columns, columnTypes, records);
+    const hasTimestamp = columns.some(c => columnTypes[c]?.type === 'date');
+    const hasPrimaryKey = this.detectPrimaryKey(columns, columnTypes, records);
+    
+    // Advanced table type classification with confidence scoring
+    const tableClassification = this.classifyTableType(measures, dimensions, hasTimestamp, hasPrimaryKey, columns.length, records.length);
+    patterns.table_type = tableClassification.type;
+    patterns.granularity = tableClassification.granularity;
+    patterns.naming.push({
+      pattern: tableClassification.pattern,
+      confidence: tableClassification.confidence,
+      evidence: tableClassification.evidence
     });
     
-    const dimensions = columns.filter(col => 
-      col.toLowerCase().includes('_id') || 
-      col.toLowerCase().includes('type') ||
-      col.toLowerCase().includes('category') ||
-      col.toLowerCase().includes('status')
-    );
+    // Statistical profiling for pattern detection
+    patterns.statistical_profile = this.generateStatisticalProfile(columns, columnTypes, records);
     
-    const hasTimestamp = columns.some(c => columnTypes[c]?.type === 'date');
-    const hasPrimaryKey = columns.some(c => 
-      c.toLowerCase() === 'id' || 
-      c.toLowerCase().endsWith('_id') && 
-      !c.toLowerCase().includes('customer') &&
-      !c.toLowerCase().includes('product')
-    );
+    // Advanced naming convention analysis
+    const namingAnalysis = this.analyzeNamingConventions(columns);
+    patterns.naming.push(...namingAnalysis);
     
-    // Determine table type
-    if (measures.length >= 2 && hasTimestamp && dimensions.length >= 1) {
-      patterns.table_type = 'fact_table';
-      patterns.granularity = hasTimestamp ? 'transactional' : 'aggregate';
-      patterns.naming.push({
-        pattern: 'Fact table pattern',
-        confidence: 0.9,
-        evidence: `${measures.length} measures, timestamp, ${dimensions.length} dimensions`
-      });
-    } else if (dimensions.length >= 2 && measures.length <= 1 && hasPrimaryKey) {
-      patterns.table_type = 'dimension_table';
-      patterns.granularity = 'entity';
-      patterns.naming.push({
-        pattern: 'Dimension table pattern',
-        confidence: 0.8,
-        evidence: `${dimensions.length} dimensional attributes with primary key`
-      });
-    } else if (columns.length <= 5 && hasPrimaryKey) {
-      patterns.table_type = 'reference_table';
-      patterns.granularity = 'lookup';
-      patterns.naming.push({
-        pattern: 'Reference/lookup table pattern',
-        confidence: 0.7,
-        evidence: `Small table (${columns.length} columns) with primary key`
-      });
-    } else if (dimensions.length >= 3 && !hasPrimaryKey) {
-      patterns.table_type = 'bridge_table';
-      patterns.granularity = 'relationship';
-      patterns.naming.push({
-        pattern: 'Bridge/junction table pattern',
-        confidence: 0.6,
-        evidence: `Multiple foreign keys without clear primary key`
-      });
-    }
-    
-    // Analyze naming conventions
-    const snakeCase = columns.filter(c => c.includes('_')).length;
-    const camelCase = columns.filter(c => /[a-z][A-Z]/.test(c)).length;
-    const allLower = columns.filter(c => c === c.toLowerCase()).length;
-    
-    if (snakeCase > columns.length * 0.7) {
-      patterns.naming.push({
-        pattern: 'snake_case naming convention',
-        confidence: 0.9,
-        evidence: `${snakeCase}/${columns.length} columns use snake_case`
-      });
-    } else if (camelCase > columns.length * 0.7) {
-      patterns.naming.push({
-        pattern: 'camelCase naming convention',
-        confidence: 0.9,
-        evidence: `${camelCase}/${columns.length} columns use camelCase`
-      });
-    }
-    
-    // Quality and normalization issues
+    // Complex data quality analysis
     if (records.length > 0) {
-      // Check for potential normalization issues
-      const textColumns = columns.filter(col => 
-        ['string', 'categorical'].includes(columnTypes[col]?.type)
-      );
-      
-      textColumns.forEach(col => {
-        const values = records.map(r => r[col]).filter(v => v);
-        const uniqueRatio = new Set(values).size / values.length;
-        
-        if (uniqueRatio < 0.1 && values.length > 50) {
-          patterns.issues.push({
-            type: 'normalization',
-            column: col,
-            severity: 'medium',
-            description: `Column '${col}' has low cardinality (${(uniqueRatio * 100).toFixed(1)}% unique) - consider separate dimension`
-          });
-        }
-        
-        // Check for potential denormalization (repeated patterns)
-        if (col.includes('_') && uniqueRatio > 0.8 && values.length > 100) {
-          const prefix = col.split('_')[0];
-          const relatedCols = columns.filter(c => c.startsWith(prefix + '_'));
-          if (relatedCols.length > 2) {
-            patterns.issues.push({
-              type: 'denormalization',
-              columns: relatedCols,
-              severity: 'low',
-              description: `Multiple '${prefix}_*' columns suggest potential entity that could be normalized`
-            });
-          }
-        }
-      });
-      
-      // Check for data quality flags
-      const nullCounts = {};
-      records.forEach(record => {
-        columns.forEach(col => {
-          if (!nullCounts[col]) nullCounts[col] = 0;
-          if (!record[col] || record[col] === '') nullCounts[col]++;
-        });
-      });
-      
-      Object.entries(nullCounts).forEach(([col, nullCount]) => {
-        const nullRatio = nullCount / records.length;
-        if (nullRatio > 0.5) {
-          patterns.quality_flags.push({
-            type: 'high_nulls',
-            column: col,
-            value: nullRatio,
-            description: `Column '${col}' has ${(nullRatio * 100).toFixed(1)}% null values`
-          });
-        }
-      });
+      patterns.issues.push(...this.detectAdvancedDataIssues(columns, columnTypes, records));
+      patterns.quality_flags.push(...this.generateQualityFlags(columns, columnTypes, records));
+      patterns.complexity_score = this.calculateComplexityScore(columns, columnTypes, records, patterns);
     }
     
     return patterns;
+  }
+  
+  identifyMeasureColumns(columns, columnTypes, records) {
+    return columns.filter(col => {
+      const type = columnTypes[col];
+      const colLower = col.toLowerCase();
+      
+      // Type-based identification
+      if (!['integer', 'float'].includes(type?.type)) return false;
+      
+      // Semantic identification
+      const measureKeywords = ['amount', 'count', 'total', 'quantity', 'value', 'sum', 'avg', 'price', 'cost', 'revenue', 'profit'];
+      const isMeasureByName = measureKeywords.some(keyword => colLower.includes(keyword));
+      
+      // Statistical identification (high cardinality numeric)
+      if (records.length > 0) {
+        const values = records.map(r => r[col]).filter(v => v !== null && v !== undefined);
+        const uniqueRatio = new Set(values).size / values.length;
+        const isHighCardinality = uniqueRatio > 0.8;
+        
+        return isMeasureByName || (isHighCardinality && values.length > 10);
+      }
+      
+      return isMeasureByName;
+    });
+  }
+  
+  identifyDimensionColumns(columns, columnTypes, records) {
+    return columns.filter(col => {
+      const colLower = col.toLowerCase();
+      const type = columnTypes[col];
+      
+      // Clear dimensional indicators
+      if (colLower.includes('_id') || colLower.includes('type') || 
+          colLower.includes('category') || colLower.includes('status') ||
+          colLower.includes('code')) return true;
+      
+      // Categorical columns with reasonable cardinality
+      if (type?.type === 'categorical' && records.length > 0) {
+        const values = records.map(r => r[col]).filter(v => v);
+        const uniqueCount = new Set(values).size;
+        return uniqueCount >= 2 && uniqueCount <= Math.min(values.length * 0.5, 100);
+      }
+      
+      return false;
+    });
+  }
+  
+  detectPrimaryKey(columns, columnTypes, records) {
+    // Look for explicit primary key patterns
+    const pkCandidates = columns.filter(col => {
+      const colLower = col.toLowerCase();
+      return colLower === 'id' || colLower === 'pk' || colLower.endsWith('_pk');
+    });
+    
+    if (pkCandidates.length > 0) return pkCandidates[0];
+    
+    // Analyze uniqueness if we have data
+    if (records.length > 0) {
+      for (const col of columns) {
+        const values = records.map(r => r[col]).filter(v => v !== null && v !== undefined);
+        const isUnique = new Set(values).size === values.length;
+        const isNotNull = values.length === records.length;
+        
+        if (isUnique && isNotNull && columnTypes[col]?.type === 'identifier') {
+          return col;
+        }
+      }
+    }
+    
+    return null;
+  }
+  
+  classifyTableType(measures, dimensions, hasTimestamp, hasPrimaryKey, columnCount, recordCount) {
+    const scores = {
+      fact_table: 0,
+      dimension_table: 0,
+      reference_table: 0,
+      bridge_table: 0,
+      event_log: 0
+    };
+    
+    // Fact table scoring
+    scores.fact_table += measures.length * 0.3;
+    if (hasTimestamp) scores.fact_table += 0.4;
+    if (dimensions.length >= 2) scores.fact_table += 0.2;
+    if (recordCount > 1000) scores.fact_table += 0.1;
+    
+    // Dimension table scoring
+    if (hasPrimaryKey) scores.dimension_table += 0.4;
+    scores.dimension_table += Math.min(dimensions.length * 0.1, 0.3);
+    if (measures.length <= 1) scores.dimension_table += 0.2;
+    if (columnCount > 5) scores.dimension_table += 0.1;
+    
+    // Reference table scoring
+    if (columnCount <= 5) scores.reference_table += 0.3;
+    if (hasPrimaryKey) scores.reference_table += 0.3;
+    if (recordCount < 1000) scores.reference_table += 0.2;
+    if (measures.length === 0) scores.reference_table += 0.2;
+    
+    // Bridge table scoring
+    if (dimensions.length >= 3) scores.bridge_table += 0.4;
+    if (!hasPrimaryKey && dimensions.length >= 2) scores.bridge_table += 0.3;
+    if (measures.length === 0) scores.bridge_table += 0.2;
+    if (columnCount <= 8) scores.bridge_table += 0.1;
+    
+    // Event log scoring
+    if (hasTimestamp) scores.event_log += 0.3;
+    if (recordCount > 10000) scores.event_log += 0.2;
+    if (measures.length <= 2) scores.event_log += 0.2;
+    
+    // Find the highest scoring type
+    const bestType = Object.entries(scores).reduce((a, b) => scores[a[0]] > scores[b[0]] ? a : b);
+    const confidence = Math.min(bestType[1], 0.95);
+    
+    const classifications = {
+      fact_table: {
+        granularity: hasTimestamp ? 'transactional' : 'aggregate',
+        pattern: 'Fact table pattern',
+        evidence: `${measures.length} measures, ${hasTimestamp ? 'timestamped, ' : ''}${dimensions.length} dimensions`
+      },
+      dimension_table: {
+        granularity: 'entity',
+        pattern: 'Dimension table pattern',
+        evidence: `${dimensions.length} dimensional attributes${hasPrimaryKey ? ' with primary key' : ''}`
+      },
+      reference_table: {
+        granularity: 'lookup',
+        pattern: 'Reference/lookup table pattern',
+        evidence: `Small table (${columnCount} columns)${hasPrimaryKey ? ' with primary key' : ''}`
+      },
+      bridge_table: {
+        granularity: 'relationship',
+        pattern: 'Bridge/junction table pattern',
+        evidence: `Multiple foreign keys (${dimensions.length}) managing relationships`
+      },
+      event_log: {
+        granularity: 'temporal',
+        pattern: 'Event log pattern',
+        evidence: `Time-series data with ${recordCount} events`
+      }
+    };
+    
+    return {
+      type: bestType[0],
+      confidence,
+      ...classifications[bestType[0]]
+    };
+  }
+  
+  generateStatisticalProfile(columns, columnTypes, records) {
+    if (records.length === 0) return {};
+    
+    const profile = {
+      row_count: records.length,
+      column_count: columns.length,
+      density: 0,
+      cardinality_distribution: {},
+      type_distribution: {},
+      null_distribution: {}
+    };
+    
+    let totalCells = 0;
+    let nonNullCells = 0;
+    
+    columns.forEach(col => {
+      const values = records.map(r => r[col]);
+      const nonNullValues = values.filter(v => v !== null && v !== undefined && v !== '');
+      const uniqueCount = new Set(nonNullValues).size;
+      
+      totalCells += values.length;
+      nonNullCells += nonNullValues.length;
+      
+      profile.cardinality_distribution[col] = {
+        unique_count: uniqueCount,
+        unique_ratio: nonNullValues.length > 0 ? uniqueCount / nonNullValues.length : 0
+      };
+      
+      profile.null_distribution[col] = {
+        null_count: values.length - nonNullValues.length,
+        null_ratio: (values.length - nonNullValues.length) / values.length
+      };
+      
+      const type = columnTypes[col]?.type || 'unknown';
+      profile.type_distribution[type] = (profile.type_distribution[type] || 0) + 1;
+    });
+    
+    profile.density = totalCells > 0 ? nonNullCells / totalCells : 0;
+    
+    return profile;
+  }
+  
+  analyzeNamingConventions(columns) {
+    const conventions = [];
+    
+    // Pattern analysis
+    const snakeCase = columns.filter(c => /^[a-z]+(_[a-z0-9]+)*$/.test(c)).length;
+    const camelCase = columns.filter(c => /^[a-z]+([A-Z][a-z0-9]*)*$/.test(c)).length;
+    const pascalCase = columns.filter(c => /^[A-Z][a-z0-9]*([A-Z][a-z0-9]*)*$/.test(c)).length;
+    const allUpper = columns.filter(c => c === c.toUpperCase()).length;
+    const total = columns.length;
+    
+    if (snakeCase > total * 0.7) {
+      conventions.push({
+        pattern: 'snake_case naming convention',
+        confidence: Math.min(0.9, snakeCase / total),
+        evidence: `${snakeCase}/${total} columns follow snake_case pattern`
+      });
+    }
+    
+    if (camelCase > total * 0.7) {
+      conventions.push({
+        pattern: 'camelCase naming convention',
+        confidence: Math.min(0.9, camelCase / total),
+        evidence: `${camelCase}/${total} columns follow camelCase pattern`
+      });
+    }
+    
+    if (pascalCase > total * 0.7) {
+      conventions.push({
+        pattern: 'PascalCase naming convention',
+        confidence: Math.min(0.9, pascalCase / total),
+        evidence: `${pascalCase}/${total} columns follow PascalCase pattern`
+      });
+    }
+    
+    if (allUpper > total * 0.7) {
+      conventions.push({
+        pattern: 'UPPER_CASE naming convention',
+        confidence: Math.min(0.9, allUpper / total),
+        evidence: `${allUpper}/${total} columns follow UPPER_CASE pattern`
+      });
+    }
+    
+    // Semantic patterns
+    const prefixGroups = this.analyzePrefixPatterns(columns);
+    const suffixGroups = this.analyzeSuffixPatterns(columns);
+    
+    Object.entries(prefixGroups).forEach(([prefix, count]) => {
+      if (count >= 2) {
+        conventions.push({
+          pattern: `Prefix pattern: ${prefix}_*`,
+          confidence: 0.7,
+          evidence: `${count} columns share prefix '${prefix}'`
+        });
+      }
+    });
+    
+    Object.entries(suffixGroups).forEach(([suffix, count]) => {
+      if (count >= 2) {
+        conventions.push({
+          pattern: `Suffix pattern: *_${suffix}`,
+          confidence: 0.7,
+          evidence: `${count} columns share suffix '${suffix}'`
+        });
+      }
+    });
+    
+    return conventions;
+  }
+  
+  analyzePrefixPatterns(columns) {
+    const prefixes = {};
+    columns.forEach(col => {
+      if (col.includes('_')) {
+        const prefix = col.split('_')[0];
+        prefixes[prefix] = (prefixes[prefix] || 0) + 1;
+      }
+    });
+    return prefixes;
+  }
+  
+  analyzeSuffixPatterns(columns) {
+    const suffixes = {};
+    columns.forEach(col => {
+      if (col.includes('_')) {
+        const parts = col.split('_');
+        const suffix = parts[parts.length - 1];
+        suffixes[suffix] = (suffixes[suffix] || 0) + 1;
+      }
+    });
+    return suffixes;
+  }
+  
+  detectAdvancedDataIssues(columns, columnTypes, records) {
+    const issues = [];
+    
+    // Enhanced normalization analysis
+    const textColumns = columns.filter(col => 
+      ['string', 'categorical'].includes(columnTypes[col]?.type)
+    );
+    
+    textColumns.forEach(col => {
+      const values = records.map(r => r[col]).filter(v => v);
+      if (values.length === 0) return;
+      
+      const uniqueRatio = new Set(values).size / values.length;
+      const avgLength = values.reduce((sum, v) => sum + String(v).length, 0) / values.length;
+      
+      // Low cardinality issues
+      if (uniqueRatio < 0.05 && values.length > 100) {
+        issues.push({
+          type: 'severe_normalization',
+          column: col,
+          severity: 'high',
+          description: `Column '${col}' has extremely low cardinality (${(uniqueRatio * 100).toFixed(2)}% unique) - strong candidate for dimension table normalization`
+        });
+      } else if (uniqueRatio < 0.15 && values.length > 50) {
+        issues.push({
+          type: 'normalization',
+          column: col,
+          severity: 'medium',
+          description: `Column '${col}' has low cardinality (${(uniqueRatio * 100).toFixed(1)}% unique) - consider separate dimension`
+        });
+      }
+      
+      // Potential denormalization patterns
+      if (col.includes('_') && uniqueRatio > 0.8 && values.length > 100) {
+        const prefix = col.split('_')[0];
+        const relatedCols = columns.filter(c => c.startsWith(prefix + '_'));
+        if (relatedCols.length > 2) {
+          issues.push({
+            type: 'denormalization',
+            columns: relatedCols,
+            severity: 'low',
+            description: `Multiple '${prefix}_*' columns suggest potential entity that could be normalized`
+          });
+        }
+      }
+      
+      // Text quality issues
+      if (avgLength > 100) {
+        issues.push({
+          type: 'text_quality',
+          column: col,
+          severity: 'low',
+          description: `Column '${col}' has long text values (avg ${avgLength.toFixed(0)} chars) - consider breaking into separate fields`
+        });
+      }
+    });
+    
+    // Identify potential composite key issues
+    const idColumns = columns.filter(col => col.toLowerCase().includes('_id'));
+    if (idColumns.length > 3) {
+      issues.push({
+        type: 'complex_relationships',
+        columns: idColumns,
+        severity: 'medium',
+        description: `Many foreign keys (${idColumns.length}) suggest complex relationships - consider simplification`
+      });
+    }
+    
+    return issues;
+  }
+  
+  generateQualityFlags(columns, columnTypes, records) {
+    const flags = [];
+    
+    // Enhanced null analysis
+    const nullCounts = {};
+    const emptyCounts = {};
+    
+    records.forEach(record => {
+      columns.forEach(col => {
+        if (!nullCounts[col]) nullCounts[col] = 0;
+        if (!emptyCounts[col]) emptyCounts[col] = 0;
+        
+        if (!record[col] || record[col] === null || record[col] === undefined) {
+          nullCounts[col]++;
+        }
+        if (record[col] === '') {
+          emptyCounts[col]++;
+        }
+      });
+    });
+    
+    Object.entries(nullCounts).forEach(([col, nullCount]) => {
+      const nullRatio = nullCount / records.length;
+      const emptyRatio = emptyCounts[col] / records.length;
+      
+      if (nullRatio > 0.8) {
+        flags.push({
+          type: 'critical_nulls',
+          column: col,
+          value: nullRatio,
+          severity: 'high',
+          description: `Column '${col}' has ${(nullRatio * 100).toFixed(1)}% null values - consider removal`
+        });
+      } else if (nullRatio > 0.5) {
+        flags.push({
+          type: 'high_nulls',
+          column: col,
+          value: nullRatio,
+          severity: 'medium',
+          description: `Column '${col}' has ${(nullRatio * 100).toFixed(1)}% null values`
+        });
+      }
+      
+      if (emptyRatio > 0.3) {
+        flags.push({
+          type: 'empty_strings',
+          column: col,
+          value: emptyRatio,
+          severity: 'low',
+          description: `Column '${col}' has ${(emptyRatio * 100).toFixed(1)}% empty strings`
+        });
+      }
+    });
+    
+    return flags;
+  }
+  
+  calculateComplexityScore(columns, columnTypes, records, patterns) {
+    let score = 0;
+    
+    // Base complexity from size
+    score += Math.min(columns.length * 0.5, 10);
+    score += Math.min(Math.log10(records.length + 1) * 2, 8);
+    
+    // Type diversity
+    const typeCount = Object.keys(patterns.statistical_profile.type_distribution || {}).length;
+    score += typeCount;
+    
+    // Relationship complexity
+    const idColumns = columns.filter(col => col.toLowerCase().includes('_id')).length;
+    score += idColumns * 0.5;
+    
+    // Quality issues
+    score += patterns.issues.length;
+    score += patterns.quality_flags.length * 0.5;
+    
+    // Naming consistency (lower complexity for consistent naming)
+    const namingPatterns = patterns.naming.filter(p => p.confidence > 0.7).length;
+    score = Math.max(score - namingPatterns, 0);
+    
+    return Math.round(score * 10) / 10;
   }
 
   generateSchemaRecommendations(columns, columnTypes, records) { 
@@ -634,120 +1024,1000 @@ NEXT_INVESTIGATE: [what tables to analyze next]`;
     
     const recommendations = [];
     
-    // Data Quality Recommendations
+    // Advanced Data Quality Analysis
+    const qualityAnalysis = this.performAdvancedQualityAnalysis(records, columns, columnTypes);
+    recommendations.push(...qualityAnalysis);
+    
+    // Performance and Scalability Analysis
+    const performanceAnalysis = this.analyzePerformanceRequirements(records, columns, columnTypes);
+    recommendations.push(...performanceAnalysis);
+    
+    // Data Architecture Recommendations
+    const architectureAnalysis = this.generateArchitectureRecommendations(records, columns, columnTypes);
+    recommendations.push(...architectureAnalysis);
+    
+    // Security and Compliance Analysis
+    const securityAnalysis = this.analyzeSecurityRequirements(records, columns, columnTypes);
+    recommendations.push(...securityAnalysis);
+    
+    // Data Lineage and Governance
+    const governanceAnalysis = this.generateGovernanceRecommendations(records, columns, columnTypes);
+    recommendations.push(...governanceAnalysis);
+    
+    // ML/Analytics Readiness Assessment
+    const analyticsAnalysis = this.assessAnalyticsReadiness(records, columns, columnTypes);
+    recommendations.push(...analyticsAnalysis);
+    
+    // Format recommendations as structured output
+    return this.formatETLRecommendations(recommendations);
+  }
+  
+  performAdvancedQualityAnalysis(records, columns, columnTypes) {
+    const recommendations = [];
     const qualityIssues = analyzeDataQuality(records, columnTypes);
+    
+    // Null value analysis with smart handling strategies
     if (qualityIssues.nullIssues > records.length * 0.1) {
+      const nullStrategies = this.generateNullHandlingStrategies(records, columns, columnTypes);
       recommendations.push({
         category: 'Data Quality',
         priority: 'High',
-        action: 'Implement null value handling',
-        details: `${qualityIssues.nullIssues} null values detected. Consider default value strategies or null indicators.`
+        action: 'Implement intelligent null value handling',
+        details: `${qualityIssues.nullIssues} null values detected. Recommended strategies: ${nullStrategies.join(', ')}`
       });
     }
     
-    if (qualityIssues.typeConversions > 0) {
+    // Data consistency and validation rules
+    const consistencyIssues = this.detectConsistencyIssues(records, columns, columnTypes);
+    if (consistencyIssues.length > 0) {
       recommendations.push({
-        category: 'Data Types',
+        category: 'Data Quality',
         priority: 'Medium',
-        action: 'Add type validation and conversion',
-        details: `${qualityIssues.typeConversions} type conversion issues. Implement robust parsing with error handling.`
+        action: 'Add data validation rules',
+        details: `Consistency issues detected: ${consistencyIssues.join(', ')}. Implement validation pipeline.`
       });
     }
     
-    // Performance Recommendations
-    if (records.length > 100000) {
-      const dateColumns = columns.filter(col => columnTypes[col]?.type === 'date');
-      if (dateColumns.length > 0) {
-        recommendations.push({
-          category: 'Performance',
-          priority: 'High',
-          action: 'Implement partitioning strategy',
-          details: `Large dataset (${formatNumber(records.length)} rows). Partition by ${dateColumns[0]} for better query performance.`
-        });
-      }
-      
+    // Outlier detection and handling
+    const outlierAnalysis = this.analyzeOutliers(records, columns, columnTypes);
+    if (outlierAnalysis.outlierColumns.length > 0) {
+      recommendations.push({
+        category: 'Data Quality',
+        priority: 'Medium',
+        action: 'Implement outlier detection',
+        details: `Potential outliers in: ${outlierAnalysis.outlierColumns.join(', ')}. Consider ${outlierAnalysis.strategy} strategy.`
+      });
+    }
+    
+    return recommendations;
+  }
+  
+  analyzePerformanceRequirements(records, columns, columnTypes) {
+    const recommendations = [];
+    const rowCount = records.length;
+    const columnCount = columns.length;
+    
+    // Partitioning strategy based on data patterns
+    const partitioningAnalysis = this.analyzePartitioningStrategy(records, columns, columnTypes);
+    if (partitioningAnalysis.recommended) {
+      recommendations.push({
+        category: 'Performance',
+        priority: partitioningAnalysis.priority,
+        action: 'Implement partitioning strategy',
+        details: `${partitioningAnalysis.strategy}. Expected performance improvement: ${partitioningAnalysis.improvement}`
+      });
+    }
+    
+    // Indexing recommendations
+    const indexingStrategy = this.generateIndexingStrategy(records, columns, columnTypes);
+    if (indexingStrategy.indexes.length > 0) {
       recommendations.push({
         category: 'Performance',
         priority: 'Medium',
-        action: 'Enable compression',
-        details: 'Large dataset benefits from compression. Estimate 3:1 compression ratio.'
+        action: 'Create strategic indexes',
+        details: `Recommended indexes: ${indexingStrategy.indexes.join(', ')}. Query performance boost: ${indexingStrategy.benefit}`
       });
     }
     
-    // Schema Evolution Recommendations
-    const categoricalCols = columns.filter(col => columnTypes[col]?.type === 'categorical');
-    categoricalCols.forEach(col => {
-      const type = columnTypes[col];
-      if (type.categories && type.categories.length > 10) {
-        recommendations.push({
-          category: 'Schema Design',
-          priority: 'Low',
-          action: 'Consider lookup table normalization',
-          details: `Column '${col}' has ${type.categories.length} categories. Consider separate reference table.`
-        });
-      }
+    // Memory and storage optimization
+    const storageAnalysis = this.analyzeStorageOptimization(records, columns, columnTypes);
+    recommendations.push({
+      category: 'Performance',
+      priority: 'Low',
+      action: 'Optimize storage format',
+      details: `Current size estimate: ${storageAnalysis.currentSize}. Optimized: ${storageAnalysis.optimizedSize} (${storageAnalysis.savings} savings)`
     });
     
-    // Data Freshness Recommendations
-    const hasTimestamp = columns.some(c => columnTypes[c]?.type === 'date');
-    if (hasTimestamp) {
+    return recommendations;
+  }
+  
+  generateArchitectureRecommendations(records, columns, columnTypes) {
+    const recommendations = [];
+    
+    // Table design patterns
+    const tableType = this.detectTableType(columns, columnTypes, records);
+    const designPattern = this.getDesignPattern(tableType, records.length, columns.length);
+    
+    recommendations.push({
+      category: 'Architecture',
+      priority: 'High',
+      action: `Implement ${designPattern.pattern} pattern`,
+      details: `Table classified as ${tableType}. ${designPattern.reasoning}. Performance characteristics: ${designPattern.performance}`
+    });
+    
+    // Normalization recommendations
+    const normalizationAnalysis = this.analyzeNormalizationOpportunities(records, columns, columnTypes);
+    if (normalizationAnalysis.opportunities.length > 0) {
       recommendations.push({
-        category: 'Data Pipeline',
+        category: 'Architecture',
         priority: 'Medium',
-        action: 'Implement incremental loading',
-        details: 'Timestamp columns detected. Use incremental loading based on modification dates to improve ETL performance.'
+        action: 'Consider normalization',
+        details: `Normalization opportunities: ${normalizationAnalysis.opportunities.join(', ')}. Benefits: ${normalizationAnalysis.benefits}`
       });
     }
     
-    // Security and Compliance
-    const piiColumns = columns.filter(col => 
-      col.toLowerCase().includes('email') ||
-      col.toLowerCase().includes('phone') ||
-      col.toLowerCase().includes('ssn') ||
-      columnTypes[col]?.type === 'email'
-    );
+    // Data modeling recommendations
+    const modelingStrategy = this.generateDataModelingStrategy(records, columns, columnTypes);
+    recommendations.push({
+      category: 'Architecture',
+      priority: 'Medium',
+      action: 'Adopt data modeling strategy',
+      details: `Recommended approach: ${modelingStrategy.approach}. Rationale: ${modelingStrategy.rationale}`
+    });
     
-    if (piiColumns.length > 0) {
+    return recommendations;
+  }
+  
+  analyzeSecurityRequirements(records, columns, columnTypes) {
+    const recommendations = [];
+    
+    // PII detection with classification levels
+    const piiAnalysis = this.classifyPIIColumns(columns, columnTypes, records);
+    if (piiAnalysis.length > 0) {
+      piiAnalysis.forEach(pii => {
+        recommendations.push({
+          category: 'Security',
+          priority: pii.riskLevel,
+          action: `Protect ${pii.classification} data`,
+          details: `Column '${pii.column}' contains ${pii.classification}. Recommended protection: ${pii.protection}`
+        });
+      });
+    }
+    
+    // Data masking strategies
+    const maskingStrategy = this.generateMaskingStrategy(columns, columnTypes, records);
+    if (maskingStrategy.required) {
       recommendations.push({
         category: 'Security',
         priority: 'High',
-        action: 'Implement PII protection',
-        details: `PII detected in columns: ${piiColumns.join(', ')}. Consider encryption, masking, or tokenization.`
+        action: 'Implement data masking',
+        details: `Masking required for: ${maskingStrategy.columns.join(', ')}. Strategy: ${maskingStrategy.method}`
       });
     }
     
-    // Format recommendations as readable text
+    // Access control recommendations
+    const accessControl = this.generateAccessControlStrategy(columns, columnTypes);
+    recommendations.push({
+      category: 'Security',
+      priority: 'Medium',
+      action: 'Define access controls',
+      details: `Recommended access levels: ${accessControl.levels.join(', ')}. Implementation: ${accessControl.method}`
+    });
+    
+    return recommendations;
+  }
+  
+  generateGovernanceRecommendations(records, columns, columnTypes) {
+    const recommendations = [];
+    
+    // Data lineage tracking
+    const lineageStrategy = this.generateLineageStrategy(columns, columnTypes);
+    recommendations.push({
+      category: 'Governance',
+      priority: 'Medium',
+      action: 'Implement data lineage tracking',
+      details: `Track lineage for: ${lineageStrategy.criticalColumns.join(', ')}. Method: ${lineageStrategy.method}`
+    });
+    
+    // Data quality monitoring
+    const monitoringStrategy = this.generateMonitoringStrategy(records, columns, columnTypes);
+    recommendations.push({
+      category: 'Governance',
+      priority: 'High',
+      action: 'Set up quality monitoring',
+      details: `Monitor: ${monitoringStrategy.metrics.join(', ')}. Frequency: ${monitoringStrategy.frequency}`
+    });
+    
+    // Retention and archival policies
+    const retentionStrategy = this.generateRetentionStrategy(records, columns, columnTypes);
+    recommendations.push({
+      category: 'Governance',
+      priority: 'Low',
+      action: 'Define retention policy',
+      details: `Recommended retention: ${retentionStrategy.period}. Archival strategy: ${retentionStrategy.archival}`
+    });
+    
+    return recommendations;
+  }
+  
+  assessAnalyticsReadiness(records, columns, columnTypes) {
+    const recommendations = [];
+    
+    // Feature engineering opportunities
+    const featureAnalysis = this.analyzeFeatureEngineering(records, columns, columnTypes);
+    if (featureAnalysis.opportunities.length > 0) {
+      recommendations.push({
+        category: 'Analytics',
+        priority: 'Medium',
+        action: 'Implement feature engineering',
+        details: `Opportunities: ${featureAnalysis.opportunities.join(', ')}. ML readiness score: ${featureAnalysis.readinessScore}/10`
+      });
+    }
+    
+    // Data preparation for analytics
+    const prepAnalysis = this.analyzeDataPreparation(records, columns, columnTypes);
+    recommendations.push({
+      category: 'Analytics',
+      priority: 'Medium',
+      action: 'Prepare data for analytics',
+      details: `Required steps: ${prepAnalysis.steps.join(', ')}. Complexity: ${prepAnalysis.complexity}`
+    });
+    
+    // Real-time vs batch processing
+    const processingStrategy = this.recommendProcessingStrategy(records, columns, columnTypes);
+    recommendations.push({
+      category: 'Analytics',
+      priority: 'Low',
+      action: `Implement ${processingStrategy.type} processing`,
+      details: `Recommended: ${processingStrategy.type}. Rationale: ${processingStrategy.rationale}`
+    });
+    
+    return recommendations;
+  }
+  
+  formatETLRecommendations(recommendations) {
     if (recommendations.length === 0) {
       return 'No specific ETL recommendations - data appears well-structured';
     }
     
-    let output = 'ETL IMPLEMENTATION RECOMMENDATIONS:\n\n';
+    let output = 'ADVANCED ETL IMPLEMENTATION RECOMMENDATIONS:\n\n';
     
+    // Group by category and priority
     const groupedRecs = recommendations.reduce((acc, rec) => {
-      if (!acc[rec.category]) acc[rec.category] = [];
-      acc[rec.category].push(rec);
+      if (!acc[rec.category]) acc[rec.category] = { High: [], Medium: [], Low: [] };
+      acc[rec.category][rec.priority].push(rec);
       return acc;
     }, {});
     
-    Object.entries(groupedRecs).forEach(([category, recs]) => {
-      output += `${category}:\n`;
-      recs.forEach(rec => {
-        output += `  • [${rec.priority}] ${rec.action}\n`;
-        output += `    ${rec.details}\n\n`;
+    Object.entries(groupedRecs).forEach(([category, priorities]) => {
+      output += `${category.toUpperCase()}:\n`;
+      
+      ['High', 'Medium', 'Low'].forEach(priority => {
+        if (priorities[priority].length > 0) {
+          priorities[priority].forEach(rec => {
+            output += `  🔸 [${priority}] ${rec.action}\n`;
+            output += `     ${rec.details}\n\n`;
+          });
+        }
       });
     });
     
+    // Add implementation priority summary
+    const highPriority = recommendations.filter(r => r.priority === 'High').length;
+    const mediumPriority = recommendations.filter(r => r.priority === 'Medium').length;
+    const lowPriority = recommendations.filter(r => r.priority === 'Low').length;
+    
+    output += `IMPLEMENTATION SUMMARY:\n`;
+    output += `  High Priority: ${highPriority} items (implement first)\n`;
+    output += `  Medium Priority: ${mediumPriority} items (implement next)\n`;
+    output += `  Low Priority: ${lowPriority} items (implement when resources allow)\n`;
+    
     return output;
   }
-  findRelatedTables(analysis, knowledge) { return []; }
-  classifyIntoDomain(analysis, knowledge) { return analysis.domain; }
+  // Helper methods for advanced relationship detection
+  extractTableFromId(columnName) {
+    // Remove common ID suffixes and clean the name
+    let tableName = columnName
+      .replace(/_id$|_key$|id$/, '')
+      .replace(/^fk_/, '')
+      .replace(/[^a-z]/g, '_');
+    
+    // Handle common patterns
+    if (tableName === 'cust' || tableName === 'customer') return 'customer';
+    if (tableName === 'prod' || tableName === 'product') return 'product';
+    if (tableName === 'order' || tableName === 'ord') return 'order';
+    if (tableName === 'user' || tableName === 'usr') return 'user';
+    
+    return tableName;
+  }
+  
+  calculateFKConfidence(column, type, tableHint) {
+    let confidence = 0.5;
+    
+    // Boost confidence for standard patterns
+    if (column.toLowerCase().endsWith('_id')) confidence += 0.3;
+    if (type.type === 'integer' || type.type === 'identifier') confidence += 0.2;
+    if (tableHint && tableHint.length > 2) confidence += 0.1;
+    
+    // Penalize for very generic names
+    if (['id', 'key', 'ref'].includes(tableHint)) confidence -= 0.2;
+    
+    return Math.min(confidence, 0.95);
+  }
+  
+  extractDomainFromCode(columnName) {
+    return columnName
+      .replace(/_?code$|_?cd$/, '')
+      .replace(/[^a-z]/g, '_');
+  }
+  
+  calculateCodeConfidence(column, type) {
+    let confidence = 0.6;
+    
+    // Higher confidence for fewer categories (more likely to be lookup)
+    if (type.categories && type.categories.length <= 20) confidence += 0.2;
+    if (type.categories && type.categories.length <= 10) confidence += 0.1;
+    
+    // Pattern-based confidence boosts
+    if (column.toLowerCase().includes('status')) confidence += 0.1;
+    if (column.toLowerCase().includes('type')) confidence += 0.1;
+    
+    return Math.min(confidence, 0.9);
+  }
+  
+  calculateCategoricalConfidence(column, type) {
+    let confidence = 0.5;
+    
+    // More categories = higher chance of being a separate reference
+    if (type.categories && type.categories.length > 5) confidence += 0.2;
+    if (type.categories && type.categories.length > 15) confidence += 0.2;
+    
+    return Math.min(confidence, 0.85);
+  }
+  
+  isGeographicColumn(columnName, type) {
+    const geoKeywords = ['country', 'state', 'province', 'region', 'city', 'location', 'zip', 'postal'];
+    return geoKeywords.some(keyword => columnName.includes(keyword)) ||
+           (type.type === 'postcode');
+  }
+  
+  detectGeographicType(columnName, type) {
+    if (columnName.includes('country')) return 'countries';
+    if (columnName.includes('state') || columnName.includes('province')) return 'states';
+    if (columnName.includes('city')) return 'cities';
+    if (columnName.includes('zip') || columnName.includes('postal') || type.type === 'postcode') return 'postal_codes';
+    return 'locations';
+  }
+  
+  detectTimeGrain(columnName) {
+    if (columnName.includes('year')) return 'year';
+    if (columnName.includes('quarter')) return 'quarter';
+    if (columnName.includes('month')) return 'month';
+    if (columnName.includes('week')) return 'week';
+    if (columnName.includes('day') || columnName.includes('date')) return 'date';
+    return 'time';
+  }
+  
+  pluralizeTableName(tableName) {
+    // Simple pluralization rules
+    if (tableName.endsWith('y')) return tableName.slice(0, -1) + 'ies';
+    if (tableName.endsWith('s') || tableName.endsWith('x') || tableName.endsWith('z')) return tableName + 'es';
+    return tableName + 's';
+  }
+  
+  buildFKEvidence(column, type, tableHint, confidence) {
+    const factors = [];
+    
+    if (column.toLowerCase().endsWith('_id')) factors.push('standard naming convention');
+    if (type.type === 'integer') factors.push('integer type');
+    if (type.type === 'identifier') factors.push('identifier pattern');
+    if (confidence > 0.8) factors.push('high pattern match');
+    
+    return `Foreign key indicators: ${factors.join(', ')}`;
+  }
+  
+  detectCrossColumnRelationships(columns, columnTypes) {
+    const relationships = [];
+    
+    // Look for composite key patterns
+    const idColumns = columns.filter(col => 
+      col.toLowerCase().includes('_id') || col.toLowerCase().endsWith('id')
+    );
+    
+    if (idColumns.length >= 2) {
+      relationships.push({
+        type: 'composite_key',
+        columns: idColumns,
+        confidence: 0.7,
+        target_table: 'bridge_table',
+        target_column: 'composite_key',
+        evidence: `Multiple ID columns (${idColumns.join(', ')}) suggest many-to-many relationship bridge`
+      });
+    }
+    
+    // Look for hierarchical patterns (parent_id, level, etc.)
+    const hierarchyIndicators = columns.filter(col => {
+      const colLower = col.toLowerCase();
+      return colLower.includes('parent') || colLower.includes('level') || colLower.includes('hierarchy');
+    });
+    
+    if (hierarchyIndicators.length > 0) {
+      relationships.push({
+        type: 'hierarchical_relationship',
+        columns: hierarchyIndicators,
+        confidence: 0.8,
+        target_table: 'self_reference',
+        target_column: 'parent_key',
+        evidence: `Hierarchical indicators (${hierarchyIndicators.join(', ')}) suggest self-referencing hierarchy`
+      });
+    }
+    
+    return relationships;
+  }
+  
+  // ETL Analysis Helper Methods
+  generateNullHandlingStrategies(records, columns, columnTypes) {
+    const strategies = [];
+    
+    columns.forEach(col => {
+      const values = records.map(r => r[col]);
+      const nullCount = values.filter(v => v === null || v === undefined || v === '').length;
+      const nullRatio = nullCount / records.length;
+      
+      if (nullRatio > 0.1) {
+        const type = columnTypes[col]?.type;
+        if (type === 'categorical') strategies.push('mode imputation');
+        else if (['integer', 'float'].includes(type)) strategies.push('median imputation');
+        else strategies.push('forward fill');
+      }
+    });
+    
+    return [...new Set(strategies)];
+  }
+  
+  detectConsistencyIssues(records, columns, columnTypes) {
+    const issues = [];
+    
+    columns.forEach(col => {
+      const type = columnTypes[col];
+      if (type?.type === 'categorical' && type.categories) {
+        // Check for case inconsistencies
+        const values = records.map(r => r[col]).filter(v => v);
+        const caseIssues = values.filter(v => {
+          const lower = String(v).toLowerCase();
+          return type.categories.some(cat => String(cat).toLowerCase() === lower && cat !== v);
+        });
+        
+        if (caseIssues.length > 0) {
+          issues.push(`${col}: case inconsistencies`);
+        }
+      }
+    });
+    
+    return issues;
+  }
+  
+  analyzeOutliers(records, columns, columnTypes) {
+    const outlierColumns = [];
+    let strategy = 'IQR-based detection';
+    
+    columns.forEach(col => {
+      const type = columnTypes[col];
+      if (['integer', 'float'].includes(type?.type)) {
+        const values = records.map(r => r[col]).filter(v => typeof v === 'number' && !isNaN(v));
+        if (values.length > 10) {
+          values.sort((a, b) => a - b);
+          const q1 = values[Math.floor(values.length * 0.25)];
+          const q3 = values[Math.floor(values.length * 0.75)];
+          const iqr = q3 - q1;
+          const outliers = values.filter(v => v < q1 - 1.5 * iqr || v > q3 + 1.5 * iqr);
+          
+          if (outliers.length > values.length * 0.05) {
+            outlierColumns.push(col);
+          }
+        }
+      }
+    });
+    
+    if (outlierColumns.length > 3) strategy = 'statistical modeling';
+    
+    return { outlierColumns, strategy };
+  }
+  
+  analyzePartitioningStrategy(records, columns, columnTypes) {
+    const dateColumns = columns.filter(col => columnTypes[col]?.type === 'date');
+    const rowCount = records.length;
+    
+    if (rowCount > 100000 && dateColumns.length > 0) {
+      return {
+        recommended: true,
+        strategy: `Monthly partitioning by ${dateColumns[0]}`,
+        priority: 'High',
+        improvement: '60-80% query performance boost'
+      };
+    } else if (rowCount > 50000) {
+      const idColumns = columns.filter(col => col.toLowerCase().includes('_id'));
+      if (idColumns.length > 0) {
+        return {
+          recommended: true,
+          strategy: `Hash partitioning by ${idColumns[0]}`,
+          priority: 'Medium',
+          improvement: '30-50% query performance boost'
+        };
+      }
+    }
+    
+    return { recommended: false };
+  }
+  
+  generateIndexingStrategy(records, columns, columnTypes) {
+    const indexes = [];
+    const idColumns = columns.filter(col => col.toLowerCase().includes('_id') || col.toLowerCase() === 'id');
+    const dateColumns = columns.filter(col => columnTypes[col]?.type === 'date');
+    const categoricalColumns = columns.filter(col => columnTypes[col]?.type === 'categorical');
+    
+    // Primary indexes
+    indexes.push(...idColumns.map(col => `${col} (primary)`));
+    
+    // Temporal indexes
+    if (dateColumns.length > 0) {
+      indexes.push(`${dateColumns[0]} (temporal queries)`);
+    }
+    
+    // Categorical indexes for filtering
+    const highCardinalityCategorical = categoricalColumns.filter(col => {
+      const type = columnTypes[col];
+      return type.categories && type.categories.length <= 20;
+    });
+    indexes.push(...highCardinalityCategorical.map(col => `${col} (filtering)`));
+    
+    return {
+      indexes,
+      benefit: indexes.length > 3 ? '50-70%' : '20-40%'
+    };
+  }
+  
+  analyzeStorageOptimization(records, columns, columnTypes) {
+    let currentSize = records.length * columns.length * 50; // Rough estimate in bytes
+    let optimizedSize = currentSize;
+    
+    // Compression estimates
+    const categoricalRatio = columns.filter(col => columnTypes[col]?.type === 'categorical').length / columns.length;
+    const compressionRatio = categoricalRatio > 0.5 ? 4 : 3;
+    
+    optimizedSize = Math.floor(currentSize / compressionRatio);
+    
+    const savings = Math.round((1 - optimizedSize / currentSize) * 100);
+    
+    return {
+      currentSize: this.formatBytes(currentSize),
+      optimizedSize: this.formatBytes(optimizedSize),
+      savings: `${savings}%`
+    };
+  }
+  
+  formatBytes(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return Math.round(bytes / 1024) + ' KB';
+    if (bytes < 1024 * 1024 * 1024) return Math.round(bytes / (1024 * 1024)) + ' MB';
+    return Math.round(bytes / (1024 * 1024 * 1024)) + ' GB';
+  }
+  
+  detectTableType(columns, columnTypes, records) {
+    const measures = this.identifyMeasureColumns(columns, columnTypes, records);
+    const dimensions = this.identifyDimensionColumns(columns, columnTypes, records);
+    const hasTimestamp = columns.some(c => columnTypes[c]?.type === 'date');
+    
+    if (measures.length >= 2 && hasTimestamp) return 'fact';
+    if (dimensions.length >= 2 && measures.length <= 1) return 'dimension';
+    if (columns.length <= 5) return 'reference';
+    return 'operational';
+  }
+  
+  getDesignPattern(tableType, rowCount, columnCount) {
+    const patterns = {
+      fact: {
+        pattern: 'Star Schema Fact Table',
+        reasoning: 'Optimized for analytical queries with measures and foreign keys',
+        performance: 'Excellent for aggregations, partition-friendly'
+      },
+      dimension: {
+        pattern: 'Slowly Changing Dimension',
+        reasoning: 'Descriptive data that changes slowly over time',
+        performance: 'Good for lookups, consider Type 2 SCD for history'
+      },
+      reference: {
+        pattern: 'Reference/Lookup Table',
+        reasoning: 'Static data for normalization and validation',
+        performance: 'Cache-friendly, minimal storage overhead'
+      },
+      operational: {
+        pattern: 'Operational Data Store',
+        reasoning: 'Business process data requiring normalization',
+        performance: 'Optimize for transactions, consider read replicas'
+      }
+    };
+    
+    return patterns[tableType] || patterns.operational;
+  }
+  
+  analyzeNormalizationOpportunities(records, columns, columnTypes) {
+    const opportunities = [];
+    const benefits = [];
+    
+    // Look for repeated value patterns
+    columns.forEach(col => {
+      const type = columnTypes[col];
+      if (type?.type === 'categorical' && type.categories && type.categories.length > 10) {
+        opportunities.push(`${col} lookup table`);
+        benefits.push('reduced storage');
+      }
+    });
+    
+    // Look for composite data
+    const addressColumns = columns.filter(col => 
+      col.toLowerCase().includes('address') || 
+      col.toLowerCase().includes('city') || 
+      col.toLowerCase().includes('state')
+    );
+    
+    if (addressColumns.length >= 2) {
+      opportunities.push('address normalization');
+      benefits.push('data consistency');
+    }
+    
+    return {
+      opportunities,
+      benefits: [...new Set(benefits)].join(', ')
+    };
+  }
+  
+  generateDataModelingStrategy(records, columns, columnTypes) {
+    const rowCount = records.length;
+    const columnCount = columns.length;
+    const hasTimestamp = columns.some(c => columnTypes[c]?.type === 'date');
+    
+    if (rowCount > 100000 && hasTimestamp) {
+      return {
+        approach: 'Time-series optimized data model',
+        rationale: 'Large temporal dataset benefits from time-partitioned architecture'
+      };
+    } else if (columnCount > 20) {
+      return {
+        approach: 'Normalized relational model',
+        rationale: 'Wide table suggests normalization opportunities for better maintainability'
+      };
+    } else {
+      return {
+        approach: 'Denormalized analytical model',
+        rationale: 'Compact dataset suitable for analytical workloads'
+      };
+    }
+  }
+  
+  classifyPIIColumns(columns, columnTypes, records) {
+    const piiColumns = [];
+    
+    columns.forEach(col => {
+      const colLower = col.toLowerCase();
+      const type = columnTypes[col];
+      
+      if (colLower.includes('email') || type?.type === 'email') {
+        piiColumns.push({
+          column: col,
+          classification: 'email',
+          riskLevel: 'High',
+          protection: 'encryption + tokenization'
+        });
+      } else if (colLower.includes('phone')) {
+        piiColumns.push({
+          column: col,
+          classification: 'phone number',
+          riskLevel: 'Medium',
+          protection: 'masking + encryption'
+        });
+      } else if (colLower.includes('ssn') || colLower.includes('social')) {
+        piiColumns.push({
+          column: col,
+          classification: 'SSN',
+          riskLevel: 'High',
+          protection: 'tokenization + restricted access'
+        });
+      } else if (colLower.includes('name') && type?.type === 'string') {
+        piiColumns.push({
+          column: col,
+          classification: 'personal name',
+          riskLevel: 'Medium',
+          protection: 'pseudonymization'
+        });
+      }
+    });
+    
+    return piiColumns;
+  }
+  
+  generateMaskingStrategy(columns, columnTypes, records) {
+    const sensitiveColumns = columns.filter(col => {
+      const colLower = col.toLowerCase();
+      return colLower.includes('email') || colLower.includes('phone') || 
+             colLower.includes('ssn') || colLower.includes('credit');
+    });
+    
+    if (sensitiveColumns.length > 0) {
+      return {
+        required: true,
+        columns: sensitiveColumns,
+        method: 'format-preserving encryption with role-based unmasking'
+      };
+    }
+    
+    return { required: false };
+  }
+  
+  generateAccessControlStrategy(columns, columnTypes) {
+    const idColumns = columns.filter(col => col.toLowerCase().includes('_id'));
+    const sensitiveColumns = columns.filter(col => {
+      const colLower = col.toLowerCase();
+      return colLower.includes('email') || colLower.includes('salary') || 
+             colLower.includes('phone') || colLower.includes('address');
+    });
+    
+    const levels = ['public'];
+    if (idColumns.length > 0) levels.push('internal');
+    if (sensitiveColumns.length > 0) levels.push('restricted');
+    
+    return {
+      levels,
+      method: 'row-level security with column-level permissions'
+    };
+  }
+  
+  generateLineageStrategy(columns, columnTypes) {
+    const criticalColumns = columns.filter(col => {
+      const colLower = col.toLowerCase();
+      return colLower.includes('_id') || colLower.includes('amount') || 
+             colLower.includes('date') || colLower.includes('status');
+    });
+    
+    return {
+      criticalColumns,
+      method: 'automated lineage tracking with data flow documentation'
+    };
+  }
+  
+  generateMonitoringStrategy(records, columns, columnTypes) {
+    const metrics = ['completeness', 'uniqueness'];
+    
+    if (columns.some(col => ['integer', 'float'].includes(columnTypes[col]?.type))) {
+      metrics.push('statistical drift');
+    }
+    
+    if (columns.some(col => columnTypes[col]?.type === 'categorical')) {
+      metrics.push('domain consistency');
+    }
+    
+    const frequency = records.length > 100000 ? 'daily' : 'weekly';
+    
+    return { metrics, frequency };
+  }
+  
+  generateRetentionStrategy(records, columns, columnTypes) {
+    const hasTimestamp = columns.some(c => columnTypes[c]?.type === 'date');
+    const hasPII = columns.some(col => {
+      const colLower = col.toLowerCase();
+      return colLower.includes('email') || colLower.includes('phone') || colLower.includes('name');
+    });
+    
+    let period = '7 years';
+    let archival = 'cold storage after 2 years';
+    
+    if (hasPII) {
+      period = '3 years (compliance-driven)';
+      archival = 'encrypted archival with anonymization option';
+    } else if (!hasTimestamp) {
+      period = 'indefinite (reference data)';
+      archival = 'periodic backup only';
+    }
+    
+    return { period, archival };
+  }
+  
+  analyzeFeatureEngineering(records, columns, columnTypes) {
+    const opportunities = [];
+    let readinessScore = 5;
+    
+    // Date feature engineering
+    const dateColumns = columns.filter(col => columnTypes[col]?.type === 'date');
+    if (dateColumns.length > 0) {
+      opportunities.push('temporal features (day/month/year)');
+      readinessScore += 1;
+    }
+    
+    // Categorical encoding
+    const categoricalColumns = columns.filter(col => columnTypes[col]?.type === 'categorical');
+    if (categoricalColumns.length > 0) {
+      opportunities.push('categorical encoding');
+      readinessScore += 1;
+    }
+    
+    // Numerical scaling
+    const numericColumns = columns.filter(col => ['integer', 'float'].includes(columnTypes[col]?.type));
+    if (numericColumns.length > 1) {
+      opportunities.push('feature scaling/normalization');
+      readinessScore += 1;
+    }
+    
+    // Interaction features
+    if (numericColumns.length >= 2) {
+      opportunities.push('interaction features');
+      readinessScore += 1;
+    }
+    
+    return {
+      opportunities,
+      readinessScore: Math.min(readinessScore, 10)
+    };
+  }
+  
+  analyzeDataPreparation(records, columns, columnTypes) {
+    const steps = [];
+    let complexity = 'Low';
+    
+    // Check for missing values
+    const nullCounts = {};
+    records.forEach(record => {
+      columns.forEach(col => {
+        if (!nullCounts[col]) nullCounts[col] = 0;
+        if (!record[col]) nullCounts[col]++;
+      });
+    });
+    
+    const hasNulls = Object.values(nullCounts).some(count => count > 0);
+    if (hasNulls) {
+      steps.push('missing value imputation');
+      complexity = 'Medium';
+    }
+    
+    // Check for categorical variables
+    const categoricalColumns = columns.filter(col => columnTypes[col]?.type === 'categorical');
+    if (categoricalColumns.length > 0) {
+      steps.push('categorical encoding');
+    }
+    
+    // Check for skewed distributions
+    const numericColumns = columns.filter(col => ['integer', 'float'].includes(columnTypes[col]?.type));
+    if (numericColumns.length > 0) {
+      steps.push('distribution analysis');
+      if (numericColumns.length > 5) complexity = 'High';
+    }
+    
+    if (steps.length === 0) steps.push('data validation only');
+    
+    return { steps, complexity };
+  }
+  
+  recommendProcessingStrategy(records, columns, columnTypes) {
+    const rowCount = records.length;
+    const hasTimestamp = columns.some(c => columnTypes[c]?.type === 'date');
+    
+    if (rowCount > 500000 && hasTimestamp) {
+      return {
+        type: 'streaming',
+        rationale: 'Large temporal dataset benefits from real-time processing'
+      };
+    } else if (rowCount > 100000) {
+      return {
+        type: 'micro-batch',
+        rationale: 'Balanced approach for medium-scale data with good latency'
+      };
+    } else {
+      return {
+        type: 'batch',
+        rationale: 'Simple batch processing sufficient for dataset size'
+      };
+    }
+  }
+  
+  findRelatedTables(analysis, knowledge) { 
+    const relatedTables = [];
+    
+    if (!knowledge.warehouse || !knowledge.warehouse.tables) {
+      return relatedTables;
+    }
+    
+    const currentColumns = analysis.columns.map(c => c.name.toLowerCase());
+    
+    // Find tables with shared column patterns
+    Object.entries(knowledge.warehouse.tables).forEach(([tableName, tableInfo]) => {
+      if (tableName === analysis.table_name) return; // Skip self
+      
+      const tableColumns = (tableInfo.columns || []).map(c => c.name?.toLowerCase() || c.toLowerCase());
+      const sharedColumns = currentColumns.filter(col => tableColumns.includes(col));
+      
+      if (sharedColumns.length > 0) {
+        const relationshipStrength = sharedColumns.length / Math.min(currentColumns.length, tableColumns.length);
+        
+        relatedTables.push({
+          name: tableName,
+          sharedColumns,
+          relationshipStrength,
+          confidence: Math.min(relationshipStrength * 0.8, 0.9)
+        });
+      }
+    });
+    
+    // Sort by relationship strength
+    return relatedTables
+      .sort((a, b) => b.relationshipStrength - a.relationshipStrength)
+      .slice(0, 5); // Top 5 related tables
+  }
+  classifyIntoDomain(analysis, knowledge) { 
+    // Use existing domain knowledge to classify new tables
+    if (!knowledge.warehouse?.domains) {
+      return analysis.domain;
+    }
+    
+    const currentColumns = analysis.columns.map(c => c.name.toLowerCase());
+    const domainScores = {};
+    
+    // Score against existing domains
+    Object.entries(knowledge.warehouse.domains).forEach(([domain, domainInfo]) => {
+      const domainColumns = (domainInfo.common_columns || []).map(c => c.toLowerCase());
+      const overlap = currentColumns.filter(col => domainColumns.includes(col)).length;
+      
+      if (overlap > 0) {
+        domainScores[domain] = overlap / domainColumns.length;
+      }
+    });
+    
+    // Find best matching domain
+    const bestDomain = Object.entries(domainScores).reduce((best, [domain, score]) => {
+      return score > (best.score || 0) ? { domain, score } : best;
+    }, {});
+    
+    // Return best match if confidence is high enough, otherwise use analysis result
+    return bestDomain.score > 0.3 ? bestDomain.domain : analysis.domain;
+  }
   generateCrossReferences(analysis, knowledge, patterns) { 
     const refs = [];
+    
+    // Pattern-based cross-references
     patterns.naming_patterns.forEach(pattern => {
       if (pattern.frequency > 1) {
         refs.push(`"${pattern.pattern}" matches pattern found in ${pattern.frequency} other tables`);
       }
     });
+    
+    // Relationship-based cross-references
+    if (analysis.relationships && analysis.relationships.length > 0) {
+      analysis.relationships.forEach(rel => {
+        if (rel.confidence > 0.7) {
+          refs.push(`${rel.column} likely references ${rel.target_table}.${rel.target_column}`);
+        }
+      });
+    }
+    
+    // Domain-based cross-references
+    if (knowledge.warehouse?.domains && knowledge.warehouse.domains[analysis.domain]) {
+      const domainTables = knowledge.warehouse.domains[analysis.domain].tables || [];
+      if (domainTables.length > 1) {
+        refs.push(`Part of ${analysis.domain} domain with ${domainTables.length - 1} other tables`);
+      }
+    }
+    
+    // Quality pattern cross-references
+    if (analysis.patterns?.issues && analysis.patterns.issues.length > 0) {
+      const commonIssues = analysis.patterns.issues.filter(issue => {
+        return knowledge.patterns?.common_issues?.some(common => 
+          common.type === issue.type
+        );
+      });
+      
+      if (commonIssues.length > 0) {
+        refs.push(`Shares ${commonIssues.length} common data quality issues with other tables`);
+      }
+    }
+    
     return refs;
   }
   buildContextFromRelated(relatedTables) { return '- Related tables: ' + relatedTables.map(t => t.name).join(', '); }

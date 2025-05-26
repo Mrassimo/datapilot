@@ -22,10 +22,14 @@ export function extractIntSummary(intResults, options = {}) {
   }
 
   // Extract critical data quality issues
-  if (intResults.validationResults) {
-    const criticalValidations = intResults.validationResults
+  const validationResults = Array.isArray(intResults.validationResults) ? 
+    intResults.validationResults : 
+    (intResults.validationResults ? [intResults.validationResults] : []);
+    
+  if (validationResults.length > 0) {
+    const criticalValidations = validationResults
       .filter(v => v.severity === 'critical' || v.failureRate > 0.1)
-      .sort((a, b) => b.recordsAffected - a.recordsAffected)
+      .sort((a, b) => (b.recordsAffected || 0) - (a.recordsAffected || 0))
       .slice(0, 5);
     
     summary.criticalIssues.push(...criticalValidations.map(validation => ({
@@ -39,9 +43,13 @@ export function extractIntSummary(intResults, options = {}) {
   }
 
   // Extract detected business rules
-  if (intResults.businessRules) {
-    const highConfidenceRules = intResults.businessRules
-      .filter(rule => rule.confidence > 0.95)
+  const businessRules = Array.isArray(intResults.businessRules) ? 
+    intResults.businessRules : 
+    (intResults.businessRules ? [intResults.businessRules] : []);
+    
+  if (businessRules.length > 0) {
+    const highConfidenceRules = businessRules
+      .filter(rule => (rule.confidence || 0) > 0.95)
       .slice(0, 5)
       .map(rule => ({
         rule: rule.description,
@@ -70,16 +78,20 @@ export function extractIntSummary(intResults, options = {}) {
     summary.criticalIssues.push(...orphanedRecords);
   }
 
-  // Extract pattern anomalies
-  if (intResults.patternAnomalies) {
-    const significantAnomalies = intResults.patternAnomalies
+  // Extract pattern anomalies - handle both array and object formats
+  const patternAnomalies = Array.isArray(intResults.patternAnomalies) ? 
+    intResults.patternAnomalies : 
+    (intResults.patternAnomalies ? [intResults.patternAnomalies] : []);
+    
+  if (patternAnomalies.length > 0) {
+    const significantAnomalies = patternAnomalies
       .filter(anomaly => anomaly.severity === 'high' || anomaly.count > 100)
       .slice(0, 3)
       .map(anomaly => ({
         type: 'pattern_anomaly',
         column: anomaly.column,
-        issue: anomaly.description,
-        impact: `${anomaly.count} records deviate from expected pattern`,
+        issue: anomaly.description || anomaly.issue,
+        impact: `${anomaly.count || 0} records deviate from expected pattern`,
         fixAvailable: anomaly.suggestedFix ? true : false,
         confidence: anomaly.confidence || 0.9
       }));
@@ -88,9 +100,13 @@ export function extractIntSummary(intResults, options = {}) {
   }
 
   // Extract automated fixes available
-  if (intResults.suggestedFixes) {
-    const automatedFixes = intResults.suggestedFixes
-      .filter(fix => fix.automatable && fix.confidence > 0.9)
+  const suggestedFixes = Array.isArray(intResults.suggestedFixes) ? 
+    intResults.suggestedFixes : 
+    (intResults.suggestedFixes ? [intResults.suggestedFixes] : []);
+    
+  if (suggestedFixes.length > 0) {
+    const automatedFixes = suggestedFixes
+      .filter(fix => fix.automatable && (fix.confidence || 0) > 0.9)
       .slice(0, 5)
       .map(fix => ({
         issue: fix.issue,
