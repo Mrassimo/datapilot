@@ -102,7 +102,7 @@ class ArchaeologyEngine {
       domain: this.guessDomain(fileName, columns),
       likely_purpose: this.guessTablePurpose(fileName, columns, columnTypes),
       relationships: this.detectPotentialRelationships(columns, columnTypes),
-      patterns: this.detectTablePatterns(columns, records),
+      patterns: this.detectTablePatterns(columns, records, columnTypes),
       schema_recommendations: this.generateSchemaRecommendations(columns, columnTypes, records),
       etl_recommendations: this.generateETLRecommendations(records, columns, columnTypes),
       warehouse_design: generateWarehouseDesign(columns, columnTypes, records),
@@ -421,13 +421,324 @@ NEXT_INVESTIGATE: [what tables to analyze next]`;
     return insights;
   }
 
-  // Stub methods - basic implementation
-  detectPotentialRelationships(columns, columnTypes) { return []; }
-  detectTablePatterns(columns, records) { return { naming: [], issues: [] }; }
+  // Enhanced analysis methods
+  detectPotentialRelationships(columns, columnTypes) {
+    const relationships = [];
+    
+    // Analyze potential foreign key relationships
+    columns.forEach(column => {
+      const type = columnTypes[column];
+      const colLower = column.toLowerCase();
+      
+      // Look for ID patterns
+      if (colLower.includes('_id') || colLower.endsWith('id')) {
+        const tableHint = colLower.replace(/_?id$/, '');
+        
+        if (tableHint && tableHint !== column.toLowerCase()) {
+          relationships.push({
+            type: 'foreign_key',
+            column: column,
+            confidence: 0.85,
+            target_table: `${tableHint}s`,
+            target_column: 'id',
+            evidence: 'Naming convention suggests foreign key relationship'
+          });
+        }
+      }
+      
+      // Look for code/reference patterns
+      if (colLower.includes('code') && type.type === 'categorical') {
+        relationships.push({
+          type: 'lookup_reference',
+          column: column,
+          confidence: 0.7,
+          target_table: `ref_${colLower.replace('_code', '')}_codes`,
+          target_column: 'code',
+          evidence: 'Code pattern suggests lookup table relationship'
+        });
+      }
+      
+      // Look for type/category patterns
+      if ((colLower.includes('type') || colLower.includes('category')) && type.type === 'categorical') {
+        relationships.push({
+          type: 'enum_reference',
+          column: column,
+          confidence: 0.6,
+          target_table: `ref_${colLower}s`,
+          target_column: 'name',
+          evidence: 'Categorical type suggests enumeration reference'
+        });
+      }
+    });
+    
+    return relationships;
+  }
+
+  detectTablePatterns(columns, records, columnTypes) {
+    const patterns = {
+      naming: [],
+      issues: [],
+      table_type: 'unknown',
+      granularity: 'unknown',
+      quality_flags: []
+    };
+    
+    // Analyze table type patterns
+    const measures = columns.filter(col => {
+      const type = columnTypes[col];
+      return ['integer', 'float'].includes(type?.type) &&
+        (col.toLowerCase().includes('amount') || 
+         col.toLowerCase().includes('count') ||
+         col.toLowerCase().includes('total') ||
+         col.toLowerCase().includes('quantity') ||
+         col.toLowerCase().includes('value'));
+    });
+    
+    const dimensions = columns.filter(col => 
+      col.toLowerCase().includes('_id') || 
+      col.toLowerCase().includes('type') ||
+      col.toLowerCase().includes('category') ||
+      col.toLowerCase().includes('status')
+    );
+    
+    const hasTimestamp = columns.some(c => columnTypes[c]?.type === 'date');
+    const hasPrimaryKey = columns.some(c => 
+      c.toLowerCase() === 'id' || 
+      c.toLowerCase().endsWith('_id') && 
+      !c.toLowerCase().includes('customer') &&
+      !c.toLowerCase().includes('product')
+    );
+    
+    // Determine table type
+    if (measures.length >= 2 && hasTimestamp && dimensions.length >= 1) {
+      patterns.table_type = 'fact_table';
+      patterns.granularity = hasTimestamp ? 'transactional' : 'aggregate';
+      patterns.naming.push({
+        pattern: 'Fact table pattern',
+        confidence: 0.9,
+        evidence: `${measures.length} measures, timestamp, ${dimensions.length} dimensions`
+      });
+    } else if (dimensions.length >= 2 && measures.length <= 1 && hasPrimaryKey) {
+      patterns.table_type = 'dimension_table';
+      patterns.granularity = 'entity';
+      patterns.naming.push({
+        pattern: 'Dimension table pattern',
+        confidence: 0.8,
+        evidence: `${dimensions.length} dimensional attributes with primary key`
+      });
+    } else if (columns.length <= 5 && hasPrimaryKey) {
+      patterns.table_type = 'reference_table';
+      patterns.granularity = 'lookup';
+      patterns.naming.push({
+        pattern: 'Reference/lookup table pattern',
+        confidence: 0.7,
+        evidence: `Small table (${columns.length} columns) with primary key`
+      });
+    } else if (dimensions.length >= 3 && !hasPrimaryKey) {
+      patterns.table_type = 'bridge_table';
+      patterns.granularity = 'relationship';
+      patterns.naming.push({
+        pattern: 'Bridge/junction table pattern',
+        confidence: 0.6,
+        evidence: `Multiple foreign keys without clear primary key`
+      });
+    }
+    
+    // Analyze naming conventions
+    const snakeCase = columns.filter(c => c.includes('_')).length;
+    const camelCase = columns.filter(c => /[a-z][A-Z]/.test(c)).length;
+    const allLower = columns.filter(c => c === c.toLowerCase()).length;
+    
+    if (snakeCase > columns.length * 0.7) {
+      patterns.naming.push({
+        pattern: 'snake_case naming convention',
+        confidence: 0.9,
+        evidence: `${snakeCase}/${columns.length} columns use snake_case`
+      });
+    } else if (camelCase > columns.length * 0.7) {
+      patterns.naming.push({
+        pattern: 'camelCase naming convention',
+        confidence: 0.9,
+        evidence: `${camelCase}/${columns.length} columns use camelCase`
+      });
+    }
+    
+    // Quality and normalization issues
+    if (records.length > 0) {
+      // Check for potential normalization issues
+      const textColumns = columns.filter(col => 
+        ['string', 'categorical'].includes(columnTypes[col]?.type)
+      );
+      
+      textColumns.forEach(col => {
+        const values = records.map(r => r[col]).filter(v => v);
+        const uniqueRatio = new Set(values).size / values.length;
+        
+        if (uniqueRatio < 0.1 && values.length > 50) {
+          patterns.issues.push({
+            type: 'normalization',
+            column: col,
+            severity: 'medium',
+            description: `Column '${col}' has low cardinality (${(uniqueRatio * 100).toFixed(1)}% unique) - consider separate dimension`
+          });
+        }
+        
+        // Check for potential denormalization (repeated patterns)
+        if (col.includes('_') && uniqueRatio > 0.8 && values.length > 100) {
+          const prefix = col.split('_')[0];
+          const relatedCols = columns.filter(c => c.startsWith(prefix + '_'));
+          if (relatedCols.length > 2) {
+            patterns.issues.push({
+              type: 'denormalization',
+              columns: relatedCols,
+              severity: 'low',
+              description: `Multiple '${prefix}_*' columns suggest potential entity that could be normalized`
+            });
+          }
+        }
+      });
+      
+      // Check for data quality flags
+      const nullCounts = {};
+      records.forEach(record => {
+        columns.forEach(col => {
+          if (!nullCounts[col]) nullCounts[col] = 0;
+          if (!record[col] || record[col] === '') nullCounts[col]++;
+        });
+      });
+      
+      Object.entries(nullCounts).forEach(([col, nullCount]) => {
+        const nullRatio = nullCount / records.length;
+        if (nullRatio > 0.5) {
+          patterns.quality_flags.push({
+            type: 'high_nulls',
+            column: col,
+            value: nullRatio,
+            description: `Column '${col}' has ${(nullRatio * 100).toFixed(1)}% null values`
+          });
+        }
+      });
+    }
+    
+    return patterns;
+  }
+
   generateSchemaRecommendations(columns, columnTypes, records) { 
     return this.generateLegacySchemaSection(columns, columnTypes, records); 
   }
-  generateETLRecommendations(records, columns, columnTypes) { return ''; }
+
+  generateETLRecommendations(records, columns, columnTypes) {
+    if (!records || records.length === 0) {
+      return 'No data available for ETL analysis';
+    }
+    
+    const recommendations = [];
+    
+    // Data Quality Recommendations
+    const qualityIssues = analyzeDataQuality(records, columnTypes);
+    if (qualityIssues.nullIssues > records.length * 0.1) {
+      recommendations.push({
+        category: 'Data Quality',
+        priority: 'High',
+        action: 'Implement null value handling',
+        details: `${qualityIssues.nullIssues} null values detected. Consider default value strategies or null indicators.`
+      });
+    }
+    
+    if (qualityIssues.typeConversions > 0) {
+      recommendations.push({
+        category: 'Data Types',
+        priority: 'Medium',
+        action: 'Add type validation and conversion',
+        details: `${qualityIssues.typeConversions} type conversion issues. Implement robust parsing with error handling.`
+      });
+    }
+    
+    // Performance Recommendations
+    if (records.length > 100000) {
+      const dateColumns = columns.filter(col => columnTypes[col]?.type === 'date');
+      if (dateColumns.length > 0) {
+        recommendations.push({
+          category: 'Performance',
+          priority: 'High',
+          action: 'Implement partitioning strategy',
+          details: `Large dataset (${formatNumber(records.length)} rows). Partition by ${dateColumns[0]} for better query performance.`
+        });
+      }
+      
+      recommendations.push({
+        category: 'Performance',
+        priority: 'Medium',
+        action: 'Enable compression',
+        details: 'Large dataset benefits from compression. Estimate 3:1 compression ratio.'
+      });
+    }
+    
+    // Schema Evolution Recommendations
+    const categoricalCols = columns.filter(col => columnTypes[col]?.type === 'categorical');
+    categoricalCols.forEach(col => {
+      const type = columnTypes[col];
+      if (type.categories && type.categories.length > 10) {
+        recommendations.push({
+          category: 'Schema Design',
+          priority: 'Low',
+          action: 'Consider lookup table normalization',
+          details: `Column '${col}' has ${type.categories.length} categories. Consider separate reference table.`
+        });
+      }
+    });
+    
+    // Data Freshness Recommendations
+    const hasTimestamp = columns.some(c => columnTypes[c]?.type === 'date');
+    if (hasTimestamp) {
+      recommendations.push({
+        category: 'Data Pipeline',
+        priority: 'Medium',
+        action: 'Implement incremental loading',
+        details: 'Timestamp columns detected. Use incremental loading based on modification dates to improve ETL performance.'
+      });
+    }
+    
+    // Security and Compliance
+    const piiColumns = columns.filter(col => 
+      col.toLowerCase().includes('email') ||
+      col.toLowerCase().includes('phone') ||
+      col.toLowerCase().includes('ssn') ||
+      columnTypes[col]?.type === 'email'
+    );
+    
+    if (piiColumns.length > 0) {
+      recommendations.push({
+        category: 'Security',
+        priority: 'High',
+        action: 'Implement PII protection',
+        details: `PII detected in columns: ${piiColumns.join(', ')}. Consider encryption, masking, or tokenization.`
+      });
+    }
+    
+    // Format recommendations as readable text
+    if (recommendations.length === 0) {
+      return 'No specific ETL recommendations - data appears well-structured';
+    }
+    
+    let output = 'ETL IMPLEMENTATION RECOMMENDATIONS:\n\n';
+    
+    const groupedRecs = recommendations.reduce((acc, rec) => {
+      if (!acc[rec.category]) acc[rec.category] = [];
+      acc[rec.category].push(rec);
+      return acc;
+    }, {});
+    
+    Object.entries(groupedRecs).forEach(([category, recs]) => {
+      output += `${category}:\n`;
+      recs.forEach(rec => {
+        output += `  • [${rec.priority}] ${rec.action}\n`;
+        output += `    ${rec.details}\n\n`;
+      });
+    });
+    
+    return output;
+  }
   findRelatedTables(analysis, knowledge) { return []; }
   classifyIntoDomain(analysis, knowledge) { return analysis.domain; }
   generateCrossReferences(analysis, knowledge, patterns) { 

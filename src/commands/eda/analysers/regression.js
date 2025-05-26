@@ -199,11 +199,9 @@ function performMultipleRegression(data, predictors, target) {
     y.push(d.target);
   });
   
-  // Calculate coefficients using normal equation
-  const XtX = matrixMultiply(transpose(X), X);
-  const XtXinv = matrixInverse(XtX);
-  const Xty = matrixMultiply(transpose(X), y.map(v => [v]));
-  const coefficients = matrixMultiply(XtXinv, Xty).map(row => row[0]);
+  // Use robust QR decomposition instead of normal equation
+  const qrResult = qrDecomposition(X);
+  const coefficients = solveQR(qrResult, y);
   
   // Calculate predictions and residuals
   const predicted = X.map(row => 
@@ -221,11 +219,27 @@ function performMultipleRegression(data, predictors, target) {
   const p = predictors.length;
   const adjustedR2 = 1 - (1 - r2) * (n - 1) / (n - p - 1);
   
-  // Calculate standard errors
+  // Calculate standard errors using QR approach
   const mse = ssResidual / (n - p - 1);
   const rmse = Math.sqrt(mse);
-  const covMatrix = XtXinv.map(row => row.map(val => val * mse));
-  const stdErrors = covMatrix.map((row, i) => Math.sqrt(row[i]));
+  
+  // Calculate covariance matrix from QR decomposition: (R^T R)^-1 * mse
+  const { R } = qrResult;
+  const RtR = Array(p + 1).fill(null).map(() => Array(p + 1).fill(0));
+  
+  // Compute R^T * R
+  for (let i = 0; i < p + 1; i++) {
+    for (let j = 0; j < p + 1; j++) {
+      for (let k = Math.max(i, j); k < p + 1; k++) {
+        RtR[i][j] += R[k][i] * R[k][j];
+      }
+    }
+  }
+  
+  // Invert R^T * R (small matrix, safe to invert)
+  const RtR_inv = matrixInverse(RtR);
+  const covMatrix = RtR_inv.map(row => row.map(val => val * mse));
+  const stdErrors = covMatrix.map((row, i) => Math.sqrt(Math.abs(row[i])));
   
   // Calculate t-statistics and p-values
   const coefficientStats = coefficients.map((coef, i) => {
@@ -530,6 +544,96 @@ function matrixMultiply(a, b) {
   return result;
 }
 
+// Robust QR decomposition for numerical stability
+function qrDecomposition(A) {
+  const m = A.length;     // rows
+  const n = A[0].length;  // columns
+  
+  // Copy matrix A
+  const Q = Array(m).fill(null).map(() => Array(n).fill(0));
+  const R = Array(n).fill(null).map(() => Array(n).fill(0));
+  const A_copy = A.map(row => [...row]);
+  
+  // Modified Gram-Schmidt process for better numerical stability
+  for (let j = 0; j < n; j++) {
+    // Get column j
+    let v = Array(m);
+    for (let i = 0; i < m; i++) {
+      v[i] = A_copy[i][j];
+    }
+    
+    // Orthogonalize against previous columns
+    for (let k = 0; k < j; k++) {
+      // R[k][j] = Q_k^T * v
+      let dot = 0;
+      for (let i = 0; i < m; i++) {
+        dot += Q[i][k] * v[i];
+      }
+      R[k][j] = dot;
+      
+      // v = v - R[k][j] * Q_k
+      for (let i = 0; i < m; i++) {
+        v[i] -= R[k][j] * Q[i][k];
+      }
+    }
+    
+    // Normalize v to get Q_j
+    let norm = 0;
+    for (let i = 0; i < m; i++) {
+      norm += v[i] * v[i];
+    }
+    norm = Math.sqrt(norm);
+    
+    if (norm < 1e-12) {
+      // Handle near-zero columns (rank deficiency)
+      R[j][j] = 0;
+      for (let i = 0; i < m; i++) {
+        Q[i][j] = 0;
+      }
+    } else {
+      R[j][j] = norm;
+      for (let i = 0; i < m; i++) {
+        Q[i][j] = v[i] / norm;
+      }
+    }
+  }
+  
+  return { Q, R, rank: n }; // Simplified rank calculation
+}
+
+function solveQR(qrResult, b) {
+  const { Q, R } = qrResult;
+  const m = Q.length;
+  const n = R.length;
+  
+  // Solve Q^T * b = c
+  const c = Array(n);
+  for (let i = 0; i < n; i++) {
+    c[i] = 0;
+    for (let j = 0; j < m; j++) {
+      c[i] += Q[j][i] * b[j];
+    }
+  }
+  
+  // Solve R * x = c using back substitution
+  const x = Array(n).fill(0);
+  for (let i = n - 1; i >= 0; i--) {
+    if (Math.abs(R[i][i]) < 1e-12) {
+      // Handle singular matrix
+      x[i] = 0;
+      continue;
+    }
+    
+    x[i] = c[i];
+    for (let j = i + 1; j < n; j++) {
+      x[i] -= R[i][j] * x[j];
+    }
+    x[i] /= R[i][i];
+  }
+  
+  return x;
+}
+
 function matrixInverse(matrix) {
   // Simplified 2x2 or 3x3 matrix inversion
   // In practice, use a proper linear algebra library
@@ -596,15 +700,31 @@ function calculateVIF(X, predictors) {
 }
 
 function calculateR2ForVIF(X, y) {
-  // Simplified R-squared calculation
-  const meanY = ss.mean(y);
-  const ssTotal = y.reduce((sum, val) => sum + Math.pow(val - meanY, 2), 0);
-  
-  // Use mean as prediction (simplified)
-  const predicted = X.map(() => meanY);
-  const ssResidual = y.reduce((sum, val, i) => sum + Math.pow(val - predicted[i], 2), 0);
-  
-  return Math.max(0, 1 - ssResidual / ssTotal);
+  // Robust R-squared calculation using QR decomposition
+  try {
+    const qrResult = qrDecomposition(X);
+    const coefficients = solveQR(qrResult, y);
+    
+    // Calculate predictions
+    const predicted = X.map(row => 
+      row.reduce((sum, x, i) => sum + x * coefficients[i], 0)
+    );
+    
+    // Calculate R-squared
+    const meanY = ss.mean(y);
+    const ssTotal = y.reduce((sum, val) => sum + Math.pow(val - meanY, 2), 0);
+    const ssResidual = y.reduce((sum, val, i) => sum + Math.pow(val - predicted[i], 2), 0);
+    
+    return Math.max(0, Math.min(1, 1 - ssResidual / ssTotal));
+  } catch (error) {
+    // Fallback to correlation-based estimate if QR fails
+    const correlations = X[0].map((_, col) => {
+      const xCol = X.map(row => row[col]);
+      return ss.sampleCorrelation(xCol, y);
+    });
+    
+    return Math.max(...correlations.map(r => r * r));
+  }
 }
 
 function calculateWeightedRegression(weightedData, predictors) {
