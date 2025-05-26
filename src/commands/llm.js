@@ -4,22 +4,41 @@ import { createSection, createSubSection, formatTimestamp, formatNumber, formatP
 import { OutputHandler } from '../utils/output.js';
 import { basename } from 'path';
 import ora from 'ora';
+import { comprehensiveLLMAnalysis } from './llm/index.js';
 
 export async function llmContext(filePath, options = {}) {
   const outputHandler = new OutputHandler(options);
   const spinner = options.quiet ? null : ora('Reading CSV file...').start();
   
   try {
+    // Check if we should use comprehensive analysis
+    const useComprehensive = options.comprehensive !== false; // Default to true
+    
     // Use preloaded data if available
-    let records, columnTypes;
+    let records, columnTypes, headers;
     if (options.preloadedData) {
       records = options.preloadedData.records;
       columnTypes = options.preloadedData.columnTypes;
+      headers = Object.keys(columnTypes);
     } else {
       // Parse CSV
       records = await parseCSV(filePath, { quiet: options.quiet, header: options.header });
       if (spinner) spinner.text = 'Generating LLM context...';
       columnTypes = detectColumnTypes(records);
+      headers = Object.keys(columnTypes);
+    }
+    
+    // Use comprehensive analysis if enabled
+    if (useComprehensive && records.length > 0) {
+      try {
+        const result = await comprehensiveLLMAnalysis(records, headers, filePath, options);
+        console.log(result.output);
+        outputHandler.finalize();
+        return;
+      } catch (error) {
+        // Fall back to original implementation if comprehensive fails
+        console.error('Comprehensive analysis failed, using original:', error.message);
+      }
     }
     
     const fileName = basename(filePath);
@@ -234,7 +253,7 @@ export async function llmContext(filePath, options = {}) {
   }
 }
 
-function getDateRange(records, dateColumns) {
+export function getDateRange(records, dateColumns) {
   if (dateColumns.length === 0) return null;
   
   const dates = records
@@ -257,7 +276,7 @@ function formatDate(date) {
   return `${months[date.getMonth()]} ${date.getFullYear()}`;
 }
 
-function inferDataType(columns, columnTypes) {
+export function inferDataType(columns, columnTypes) {
   const columnNames = columns.map(c => c.toLowerCase()).join(' ');
   
   if (columnNames.includes('transaction') || columnNames.includes('order') || columnNames.includes('sale')) {
@@ -348,7 +367,7 @@ function getTopCategoricalValues(values, limit) {
   return sorted.join(', ') + (Object.keys(counts).length > limit ? ', ...' : '');
 }
 
-function analyzeSeasonality(records, dateColumn, columns, columnTypes) {
+export function analyzeSeasonality(records, dateColumn, columns, columnTypes) {
   const numericColumns = columns.filter(c => ['integer', 'float'].includes(columnTypes[c].type));
   if (numericColumns.length === 0) return null;
   
@@ -387,7 +406,7 @@ function analyzeSeasonality(records, dateColumn, columns, columnTypes) {
   return null;
 }
 
-function analyzeSegments(records, columns, columnTypes) {
+export function analyzeSegments(records, columns, columnTypes) {
   const segmentColumns = columns.filter(c => 
     c.toLowerCase().includes('segment') || 
     c.toLowerCase().includes('tier') ||
@@ -443,7 +462,7 @@ function analyzeSegments(records, columns, columnTypes) {
   return null;
 }
 
-function analyzeCategoryPerformance(records, columns, columnTypes) {
+export function analyzeCategoryPerformance(records, columns, columnTypes) {
   const categoryColumns = columns.filter(c => 
     (c.toLowerCase().includes('category') || c.toLowerCase().includes('product')) &&
     columnTypes[c].type === 'categorical'
@@ -500,7 +519,7 @@ function analyzeCategoryPerformance(records, columns, columnTypes) {
   return null;
 }
 
-function analyzePricing(records, columns, columnTypes) {
+export function analyzePricing(records, columns, columnTypes) {
   const priceColumns = columns.filter(c => 
     c.toLowerCase().includes('price') &&
     ['integer', 'float'].includes(columnTypes[c].type)
@@ -550,7 +569,7 @@ function analyzePricing(records, columns, columnTypes) {
   return null;
 }
 
-function detectAnomalies(records, columns, columnTypes) {
+export function detectAnomalies(records, columns, columnTypes) {
   const anomalies = [];
   
   // Check for zero amounts
@@ -601,7 +620,7 @@ function detectAnomalies(records, columns, columnTypes) {
   return anomalies;
 }
 
-function calculateDataQuality(records, columns) {
+export function calculateDataQuality(records, columns) {
   const totalCells = records.length * columns.length;
   let missingCells = 0;
   const missingByColumn = {};
@@ -645,7 +664,7 @@ function findDuplicateRows(records) {
   return duplicates;
 }
 
-function generateSummaryStatistics(records, columns, columnTypes) {
+export function generateSummaryStatistics(records, columns, columnTypes) {
   const stats = [];
   
   // Total value statistics
@@ -723,7 +742,7 @@ function generateSummaryStatistics(records, columns, columnTypes) {
   return stats;
 }
 
-function findSignificantCorrelations(records, columns, columnTypes) {
+export function findSignificantCorrelations(records, columns, columnTypes) {
   const numericColumns = columns.filter(c => ['integer', 'float'].includes(columnTypes[c].type));
   const correlations = [];
   
@@ -746,7 +765,7 @@ function findSignificantCorrelations(records, columns, columnTypes) {
   return correlations.slice(0, 5);
 }
 
-function generateAnalysisSuggestions(columns, columnTypes, records) {
+export function generateAnalysisSuggestions(columns, columnTypes, records) {
   const suggestions = [];
   
   // Check for customer analysis potential
@@ -796,7 +815,7 @@ function generateAnalysisSuggestions(columns, columnTypes, records) {
   return suggestions;
 }
 
-function generateDataQuestions(columns, columnTypes, dataType, records) {
+export function generateDataQuestions(columns, columnTypes, dataType, records) {
   const questions = [];
   
   // Generic questions based on data type
@@ -842,7 +861,7 @@ function generateDataQuestions(columns, columnTypes, dataType, records) {
   return questions.slice(0, 8);
 }
 
-function generateTechnicalNotes(records, columns, columnTypes) {
+export function generateTechnicalNotes(records, columns, columnTypes) {
   const notes = [];
   
   // Check for skewed distributions
