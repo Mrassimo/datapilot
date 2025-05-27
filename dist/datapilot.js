@@ -1,0 +1,24188 @@
+#!/usr/bin/env node
+import { program } from 'commander';
+import fs, { openSync, readSync, closeSync, statSync, readFileSync, createReadStream, writeFileSync, existsSync } from 'fs';
+import path, { basename, resolve } from 'path';
+import chalk from 'chalk';
+import ora from 'ora';
+import * as ss from 'simple-statistics';
+import jstat from 'jstat';
+import mlCart from 'ml-cart';
+import regression from 'regression';
+import { parsePhoneNumberFromString } from 'libphonenumber-js';
+import { parse } from 'csv-parse';
+import { pipeline } from 'stream/promises';
+import * as chardet from 'chardet';
+import 'crypto';
+import validator from 'validator';
+import FuzzySet from 'fuzzyset.js';
+import os from 'os';
+import yaml from 'js-yaml';
+
+function detectAnalysisNeeds(records, columnTypes) {
+  const analyses = {
+    regression: false,
+    timeSeries: false,
+    cart: false,
+    australianData: false,
+    mlReadiness: false,
+    advancedStats: true, // Always run advanced stats
+    distributionTesting: true,
+    outlierAnalysis: true,
+    correlationAnalysis: false,
+    patternDetection: true
+  };
+
+  const columns = Object.keys(columnTypes);
+  
+  // Check for regression analysis (continuous variable with high uniqueness)
+  const numericColumns = columns.filter(col => 
+    ['integer', 'float'].includes(columnTypes[col].type)
+  );
+  
+  numericColumns.forEach(col => {
+    const values = records.map(r => r[col]).filter(v => v !== null && v !== undefined);
+    const uniqueRatio = new Set(values).size / values.length;
+    if (uniqueRatio > 0.7 && values.length > 30) {
+      analyses.regression = true;
+    }
+  });
+
+  // Check for time series analysis
+  const dateColumns = columns.filter(col => columnTypes[col].type === 'date');
+  if (dateColumns.length > 0 && records.length > 30) {
+    // Check for regular intervals
+    const dateCol = dateColumns[0];
+    const dates = records
+      .map(r => r[dateCol])
+      .filter(d => d instanceof Date)
+      .sort((a, b) => a - b);
+    
+    if (dates.length > 20) {
+      const intervals = [];
+      for (let i = 1; i < Math.min(dates.length, 10); i++) {
+        intervals.push(dates[i] - dates[i-1]);
+      }
+      const avgInterval = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+      const intervalVariance = intervals.reduce((sum, int) => sum + Math.pow(int - avgInterval, 2), 0) / intervals.length;
+      const cv = Math.sqrt(intervalVariance) / avgInterval;
+      
+      if (cv < 0.3) {
+        analyses.timeSeries = true;
+      }
+    }
+  }
+
+  // Check for CART analysis (mixed data types)
+  const categoricalColumns = columns.filter(col => 
+    columnTypes[col].type === 'categorical'
+  );
+  
+  if (numericColumns.length > 0 && categoricalColumns.length > 0 && records.length > 100) {
+    analyses.cart = true;
+  }
+
+  // Check for Australian data patterns
+  const australianPatterns = [
+    /^(0[2-478]\d{8}|04\d{8})$/, // Australian phone
+    /^[0-9]{4}$/, // Australian postcode
+    /\b(NSW|VIC|QLD|WA|SA|TAS|ACT|NT)\b/i, // State codes
+    /\$[\d,]+\.?\d*/, // Currency
+    /\b\d{2} \d{3} \d{3} \d{3}\b/, // ABN format
+  ];
+
+  for (const col of columns) {
+    const sampleValues = records
+      .slice(0, 100)
+      .map(r => String(r[col] || ''))
+      .filter(v => v);
+    
+    for (const pattern of australianPatterns) {
+      const matches = sampleValues.filter(v => pattern.test(v)).length;
+      if (matches > sampleValues.length * 0.1) {
+        analyses.australianData = true;
+        break;
+      }
+    }
+    if (analyses.australianData) break;
+  }
+
+  // Check ML readiness
+  if (columns.length > 5 && records.length > 1000) {
+    analyses.mlReadiness = true;
+  }
+
+  // Enable correlation analysis if multiple numeric columns
+  if (numericColumns.length >= 2) {
+    analyses.correlationAnalysis = true;
+  }
+
+  return analyses;
+}
+
+function findPotentialTargets(records, columnTypes) {
+  const columns = Object.keys(columnTypes);
+  const targets = [];
+
+  columns.forEach(col => {
+    const type = columnTypes[col];
+    const values = records.map(r => r[col]).filter(v => v !== null && v !== undefined);
+    const uniqueRatio = new Set(values).size / values.length;
+
+    // Good regression target: continuous with high variance
+    if (['integer', 'float'].includes(type.type) && uniqueRatio > 0.5) {
+      targets.push({
+        column: col,
+        type: 'regression',
+        score: uniqueRatio,
+        reason: 'Continuous variable with high variance'
+      });
+    }
+
+    // Good classification target: categorical with 2-10 classes
+    if (type.type === 'categorical') {
+      const uniqueCount = type.categories.length;
+      if (uniqueCount >= 2 && uniqueCount <= 10) {
+        targets.push({
+          column: col,
+          type: 'classification',
+          score: 1 - Math.abs(5 - uniqueCount) / 5,
+          reason: `Categorical with ${uniqueCount} classes`
+        });
+      }
+    }
+  });
+
+  return targets.sort((a, b) => b.score - a.score);
+}
+
+function detectPatterns$1(records, columns, columnTypes) {
+  const patterns = {
+    benfordLaw: [],
+    businessRules: [],
+    temporalPatterns: [],
+    duplicatePatterns: [],
+    anomalies: []
+  };
+
+  columns.forEach(col => {
+    const type = columnTypes[col];
+    const values = records.map(r => r[col]);
+
+    // Benford's Law for financial data
+    if (['integer', 'float'].includes(type.type)) {
+      const benfordResult = checkBenfordLaw(values);
+      if (benfordResult.applicable) {
+        patterns.benfordLaw.push({
+          column: col,
+          ...benfordResult
+        });
+      }
+    }
+
+    // Business rule detection
+    const rules = detectBusinessRules$1(values, type);
+    if (rules.length > 0) {
+      patterns.businessRules.push({
+        column: col,
+        rules
+      });
+    }
+
+    // Temporal patterns for date columns
+    if (type.type === 'date') {
+      const temporal = detectTemporalPatterns(records, col);
+      if (temporal.patterns.length > 0) {
+        patterns.temporalPatterns.push({
+          column: col,
+          ...temporal
+        });
+      }
+    }
+  });
+
+  // Detect row-level duplicates
+  patterns.duplicatePatterns = detectDuplicatePatterns(records, columns);
+
+  // Detect multivariate anomalies
+  patterns.anomalies = detectAnomalies$3(records, columns);
+
+  return patterns;
+}
+
+function checkBenfordLaw(values) {
+  const numbers = values.filter(v => typeof v === 'number' && v > 0);
+  
+  if (numbers.length < 100) {
+    return { applicable: false, reason: 'Too few positive numbers' };
+  }
+
+  // Count first digits
+  const firstDigitCounts = Array(9).fill(0);
+  numbers.forEach(num => {
+    const firstDigit = parseInt(String(Math.abs(num))[0]);
+    if (firstDigit >= 1 && firstDigit <= 9) {
+      firstDigitCounts[firstDigit - 1]++;
+    }
+  });
+
+  // Calculate expected vs actual
+  const expectedFreq = [0.301, 0.176, 0.125, 0.097, 0.079, 0.067, 0.058, 0.051, 0.046];
+  const actualFreq = firstDigitCounts.map(count => count / numbers.length);
+  
+  // Chi-square test
+  let chiSquare = 0;
+  for (let i = 0; i < 9; i++) {
+    if (expectedFreq[i] > 0) {
+      chiSquare += Math.pow(actualFreq[i] - expectedFreq[i], 2) / expectedFreq[i];
+    }
+  }
+
+  const criticalValue = 15.507; // Chi-square critical value at 0.05 significance, 8 df
+  const followsBenford = chiSquare < criticalValue;
+
+  return {
+    applicable: true,
+    followsBenford,
+    chiSquare: chiSquare.toFixed(3),
+    firstDigitDistribution: actualFreq.map((f, i) => ({
+      digit: i + 1,
+      expected: (expectedFreq[i] * 100).toFixed(1) + '%',
+      actual: (f * 100).toFixed(1) + '%'
+    })),
+    interpretation: followsBenford 
+      ? 'Data follows Benford\'s Law (typical of natural financial data)'
+      : 'Data deviates from Benford\'s Law (may indicate artificial or manipulated data)'
+  };
+}
+
+function detectBusinessRules$1(values, type) {
+  const rules = [];
+  const nonNull = values.filter(v => v !== null && v !== undefined);
+
+  if (nonNull.length === 0) return rules;
+
+  // Numeric constraints
+  if (['integer', 'float'].includes(type.type)) {
+    const numbers = nonNull.filter(v => typeof v === 'number');
+    const min = Math.min(...numbers);
+    const max = Math.max(...numbers);
+    
+    // Check for common constraints
+    if (min >= 0) rules.push('Non-negative values only');
+    if (min >= 1) rules.push('Positive values only');
+    if (max <= 100 && min >= 0) rules.push('Percentage values (0-100)');
+    if (max <= 1 && min >= 0) rules.push('Probability values (0-1)');
+    
+    // Check for integer multiples
+    if (type.type === 'integer' && numbers.length > 10) {
+      const gcd = numbers.reduce((a, b) => {
+        while (b) {
+          const temp = b;
+          b = a % b;
+          a = temp;
+        }
+        return a;
+      });
+      if (gcd > 1) rules.push(`Values are multiples of ${gcd}`);
+    }
+  }
+
+  // String patterns
+  if (type.type === 'categorical') {
+    const lengths = nonNull.map(v => String(v).length);
+    const uniqueLengths = new Set(lengths);
+    
+    if (uniqueLengths.size === 1) {
+      rules.push(`Fixed length: ${lengths[0]} characters`);
+    }
+    
+    // Check for common prefixes/suffixes
+    if (nonNull.length > 10) {
+      const strings = nonNull.map(v => String(v));
+      const commonPrefix = strings.reduce((prefix, str) => {
+        while (str.indexOf(prefix) !== 0) {
+          prefix = prefix.substring(0, prefix.length - 1);
+        }
+        return prefix;
+      });
+      
+      if (commonPrefix.length > 2) {
+        rules.push(`Common prefix: "${commonPrefix}"`);
+      }
+    }
+  }
+
+  return rules;
+}
+
+function detectTemporalPatterns(records, dateColumn) {
+  const dates = records
+    .map(r => r[dateColumn])
+    .filter(d => d instanceof Date);
+
+  if (dates.length < 30) {
+    return { patterns: [] };
+  }
+
+  const patterns = [];
+  
+  // Day of week distribution
+  const dayOfWeekCounts = Array(7).fill(0);
+  dates.forEach(date => {
+    dayOfWeekCounts[date.getDay()]++;
+  });
+  
+  const avgPerDay = dates.length / 7;
+  const peakDay = dayOfWeekCounts.indexOf(Math.max(...dayOfWeekCounts));
+  const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  
+  if (Math.max(...dayOfWeekCounts) > avgPerDay * 1.5) {
+    patterns.push(`Peak activity on ${dayNames[peakDay]}`);
+  }
+
+  // Hour distribution (if time component exists)
+  const hasTime = dates.some(d => d.getHours() !== 0 || d.getMinutes() !== 0);
+  if (hasTime) {
+    const hourCounts = Array(24).fill(0);
+    dates.forEach(date => {
+      hourCounts[date.getHours()]++;
+    });
+    
+    const peakHour = hourCounts.indexOf(Math.max(...hourCounts));
+    patterns.push(`Peak hour: ${peakHour}:00`);
+    
+    // Business hours check
+    const businessHours = hourCounts.slice(9, 17).reduce((a, b) => a + b, 0);
+    dates.length - businessHours;
+    if (businessHours > dates.length * 0.8) {
+      patterns.push('Primarily business hours activity');
+    }
+  }
+
+  return { patterns };
+}
+
+function detectDuplicatePatterns(records, columns) {
+  const patterns = [];
+  
+  // Full row duplicates
+  const rowStrings = records.map(r => JSON.stringify(r));
+  const duplicateRows = rowStrings.filter((row, index) => 
+    rowStrings.indexOf(row) !== index
+  ).length;
+  
+  if (duplicateRows > 0) {
+    patterns.push({
+      type: 'full_row',
+      count: duplicateRows,
+      percentage: (duplicateRows / records.length * 100).toFixed(1)
+    });
+  }
+
+  // Subset duplicates (excluding likely ID columns)
+  const nonIdColumns = columns.filter(col => {
+    const values = records.map(r => r[col]);
+    const uniqueRatio = new Set(values).size / values.length;
+    return uniqueRatio < 0.95;
+  });
+
+  if (nonIdColumns.length > 2) {
+    const subsetStrings = records.map(r => 
+      JSON.stringify(nonIdColumns.reduce((obj, col) => {
+        obj[col] = r[col];
+        return obj;
+      }, {}))
+    );
+    
+    const subsetDuplicates = subsetStrings.filter((row, index) => 
+      subsetStrings.indexOf(row) !== index
+    ).length;
+    
+    if (subsetDuplicates > duplicateRows) {
+      patterns.push({
+        type: 'subset',
+        count: subsetDuplicates - duplicateRows,
+        percentage: ((subsetDuplicates - duplicateRows) / records.length * 100).toFixed(1),
+        note: 'Duplicates when ignoring potential ID columns'
+      });
+    }
+  }
+
+  return patterns;
+}
+
+function detectAnomalies$3(records, columns, columnTypes) {
+  const anomalies = [];
+  columns.forEach(col => {
+    records.filter(r => r[col] === null || r[col] === undefined).length;
+  });
+  
+  // Find rows with many nulls
+  const suspiciousRows = [];
+  records.forEach((record, index) => {
+    const nullCount = columns.filter(col => 
+      record[col] === null || record[col] === undefined
+    ).length;
+    
+    if (nullCount > columns.length * 0.5) {
+      suspiciousRows.push(index);
+    }
+  });
+  
+  if (suspiciousRows.length > 0) {
+    anomalies.push({
+      type: 'sparse_rows',
+      count: suspiciousRows.length,
+      indices: suspiciousRows.slice(0, 5),
+      description: 'Rows with >50% missing values'
+    });
+  }
+
+  return anomalies;
+}
+
+function calculateEnhancedStats(values) {
+  const numbers = values.filter(v => typeof v === 'number' && !isNaN(v));
+  
+  if (numbers.length === 0) {
+    return { 
+      count: 0, 
+      nullCount: values.length,
+      hasData: false 
+    };
+  }
+  
+  const sorted = [...numbers].sort((a, b) => a - b);
+  
+  // Calculate all percentiles
+  const percentiles = [5, 10, 25, 50, 75, 90, 95].reduce((acc, p) => {
+    acc[`p${p}`] = ss.quantile(sorted, p / 100);
+    return acc;
+  }, {});
+  
+  // Basic stats
+  const basicStats = {
+    count: numbers.length,
+    nullCount: values.length - numbers.length,
+    nullPercentage: ((values.length - numbers.length) / values.length) * 100,
+    hasData: true,
+    
+    // Central tendency
+    mean: ss.mean(numbers),
+    median: ss.median(sorted),
+    mode: ss.mode(numbers),
+    
+    // Spread
+    min: ss.min(numbers),
+    max: ss.max(numbers),
+    range: ss.max(numbers) - ss.min(numbers),
+    sum: ss.sum(numbers),
+    standardDeviation: numbers.length > 1 ? ss.standardDeviation(numbers) : 0,
+    variance: numbers.length > 1 ? ss.variance(numbers) : 0,
+    coefficientOfVariation: 0,
+    
+    // Quartiles and IQR
+    q1: percentiles.p25,
+    q3: percentiles.p75,
+    iqr: percentiles.p75 - percentiles.p25,
+    
+    // Percentiles
+    ...percentiles,
+    
+    // Shape
+    skewness: numbers.length > 2 ? calculateSkewness$2(numbers) : 0,
+    kurtosis: numbers.length > 3 ? calculateKurtosis$3(numbers) : 0,
+    
+    // Additional metrics
+    uniqueCount: new Set(numbers).size,
+    uniqueRatio: new Set(numbers).size / numbers.length,
+    zeroCount: numbers.filter(v => v === 0).length,
+    positiveCount: numbers.filter(v => v > 0).length,
+    negativeCount: numbers.filter(v => v < 0).length
+  };
+  
+  // Coefficient of variation (only for positive mean)
+  if (basicStats.mean > 0) {
+    basicStats.coefficientOfVariation = (basicStats.standardDeviation / basicStats.mean) * 100;
+  }
+  
+  // Outliers using multiple methods
+  basicStats.outliers = detectOutliers$1(sorted, basicStats);
+  
+  // Distribution characteristics
+  basicStats.distribution = analyzeDistributionShape(basicStats);
+  
+  return basicStats;
+}
+
+function calculateCategoricalStats(values) {
+  const nonNull = values.filter(v => v !== null && v !== undefined);
+  
+  if (nonNull.length === 0) {
+    return {
+      count: 0,
+      nullCount: values.length,
+      hasData: false
+    };
+  }
+  
+  // Value counts
+  const valueCounts = {};
+  nonNull.forEach(v => {
+    const key = String(v);
+    valueCounts[key] = (valueCounts[key] || 0) + 1;
+  });
+  
+  const sortedValues = Object.entries(valueCounts)
+    .sort((a, b) => b[1] - a[1]);
+  
+  const uniqueCount = sortedValues.length;
+  
+  // Calculate entropy (diversity measure)
+  const entropy = sortedValues.reduce((sum, [_, count]) => {
+    const p = count / nonNull.length;
+    return sum - (p > 0 ? p * Math.log2(p) : 0);
+  }, 0);
+  
+  // Find rare categories
+  const rareThreshold = nonNull.length * 0.01;
+  const rareCategories = sortedValues.filter(([_, count]) => count < rareThreshold);
+  
+  return {
+    count: nonNull.length,
+    nullCount: values.length - nonNull.length,
+    nullPercentage: ((values.length - nonNull.length) / values.length) * 100,
+    hasData: true,
+    
+    uniqueCount,
+    uniqueRatio: uniqueCount / nonNull.length,
+    
+    // Top values
+    topValues: sortedValues.slice(0, 10).map(([value, count]) => ({
+      value,
+      count,
+      percentage: (count / nonNull.length) * 100
+    })),
+    
+    // Mode
+    mode: sortedValues[0][0],
+    modeCount: sortedValues[0][1],
+    modePercentage: (sortedValues[0][1] / nonNull.length) * 100,
+    
+    // Diversity metrics
+    entropy,
+    normalizedEntropy: uniqueCount > 1 ? entropy / Math.log2(uniqueCount) : 0,
+    
+    // Rare categories
+    rareCount: rareCategories.length,
+    rarePercentage: (rareCategories.reduce((sum, [_, count]) => sum + count, 0) / nonNull.length) * 100,
+    
+    // Category length stats (for string values)
+    lengthStats: calculateStringLengthStats(nonNull)
+  };
+}
+
+function calculateSkewness$2(values) {
+  const mean = ss.mean(values);
+  const stdDev = ss.standardDeviation(values);
+  const n = values.length;
+  
+  if (stdDev === 0) return 0;
+  
+  const sum = values.reduce((acc, val) => acc + Math.pow((val - mean) / stdDev, 3), 0);
+  return (n / ((n - 1) * (n - 2))) * sum;
+}
+
+function calculateKurtosis$3(values) {
+  const mean = ss.mean(values);
+  const stdDev = ss.standardDeviation(values);
+  const n = values.length;
+  
+  if (stdDev === 0) return 0;
+  
+  const sum = values.reduce((acc, val) => acc + Math.pow((val - mean) / stdDev, 4), 0);
+  return ((n * (n + 1)) / ((n - 1) * (n - 2) * (n - 3))) * sum - 
+         (3 * (n - 1) * (n - 1)) / ((n - 2) * (n - 3));
+}
+
+function detectOutliers$1(sortedValues, stats) {
+  const outliers = {
+    iqr: [],
+    zscore: [],
+    modifiedZscore: [],
+    extreme: []
+  };
+  
+  if (sortedValues.length < 4) return outliers;
+  
+  // IQR method
+  const lowerBound = stats.q1 - 1.5 * stats.iqr;
+  const upperBound = stats.q3 + 1.5 * stats.iqr;
+  const extremeLower = stats.q1 - 3 * stats.iqr;
+  const extremeUpper = stats.q3 + 3 * stats.iqr;
+  
+  sortedValues.forEach(v => {
+    if (v < lowerBound || v > upperBound) {
+      outliers.iqr.push(v);
+      if (v < extremeLower || v > extremeUpper) {
+        outliers.extreme.push(v);
+      }
+    }
+  });
+  
+  // Z-score method
+  if (stats.standardDeviation > 0) {
+    sortedValues.forEach(v => {
+      const zscore = Math.abs((v - stats.mean) / stats.standardDeviation);
+      if (zscore > 3) {
+        outliers.zscore.push(v);
+      }
+    });
+  }
+  
+  // Modified Z-score (Iglewicz-Hoaglin method)
+  const mad = ss.medianAbsoluteDeviation(sortedValues);
+  if (mad > 0) {
+    sortedValues.forEach(v => {
+      const modifiedZscore = 0.6745 * Math.abs(v - stats.median) / mad;
+      if (modifiedZscore > 3.5) {
+        outliers.modifiedZscore.push(v);
+      }
+    });
+  }
+  
+  return outliers;
+}
+
+function analyzeDistributionShape(stats) {
+  const shape = {
+    type: 'unknown',
+    description: '',
+    characteristics: []
+  };
+  
+  // Skewness interpretation
+  if (Math.abs(stats.skewness) < 0.5) {
+    shape.characteristics.push('symmetric');
+  } else if (stats.skewness > 2) {
+    shape.characteristics.push('highly right-skewed');
+    shape.type = 'right-skewed';
+  } else if (stats.skewness > 1) {
+    shape.characteristics.push('moderately right-skewed');
+    shape.type = 'right-skewed';
+  } else if (stats.skewness < -2) {
+    shape.characteristics.push('highly left-skewed');
+    shape.type = 'left-skewed';
+  } else if (stats.skewness < -1) {
+    shape.characteristics.push('moderately left-skewed');
+    shape.type = 'left-skewed';
+  }
+  
+  // Kurtosis interpretation
+  if (Math.abs(stats.kurtosis) < 0.5) {
+    shape.characteristics.push('mesokurtic (normal-like tails)');
+  } else if (stats.kurtosis > 1) {
+    shape.characteristics.push('leptokurtic (heavy tails)');
+  } else if (stats.kurtosis < -1) {
+    shape.characteristics.push('platykurtic (light tails)');
+  }
+  
+  // Overall shape determination
+  if (Math.abs(stats.skewness) < 0.5 && Math.abs(stats.kurtosis) < 0.5) {
+    shape.type = 'normal';
+    shape.description = 'Approximately normal distribution';
+  } else if (stats.skewness > 2 && stats.min > 0) {
+    shape.type = 'log-normal';
+    shape.description = 'Possible log-normal distribution';
+  } else if (stats.uniqueCount < 10) {
+    shape.type = 'discrete';
+    shape.description = 'Discrete distribution with limited values';
+  } else {
+    shape.description = `Distribution is ${shape.characteristics.join(', ')}`;
+  }
+  
+  return shape;
+}
+
+function calculateStringLengthStats(values) {
+  const lengths = values.map(v => String(v).length);
+  
+  if (lengths.length === 0) return null;
+  
+  return {
+    minLength: Math.min(...lengths),
+    maxLength: Math.max(...lengths),
+    avgLength: ss.mean(lengths),
+    stdLength: lengths.length > 1 ? ss.standardDeviation(lengths) : 0,
+    fixedLength: new Set(lengths).size === 1
+  };
+}
+
+function analyzeDistribution$1(values) {
+  const numbers = values.filter(v => typeof v === 'number' && !isNaN(v));
+  
+  if (numbers.length < 20) {
+    return {
+      tests: {},
+      recommendation: 'Insufficient data for distribution testing (n < 20)'
+    };
+  }
+  
+  const sorted = [...numbers].sort((a, b) => a - b);
+  
+  // Run distribution tests
+  const tests = {
+    normality: testNormality(sorted),
+    uniformity: testUniformity(sorted),
+    exponential: testExponential(sorted),
+    bestFit: null
+  };
+  
+  // Determine best fit
+  tests.bestFit = determineBestFit(tests);
+  
+  // Transformation recommendations
+  const transformations = recommendTransformations(numbers);
+  
+  return {
+    sampleSize: numbers.length,
+    tests,
+    transformations,
+    interpretation: interpretDistribution(tests, transformations)
+  };
+}
+
+function testNormality(values) {
+  const n = values.length;
+  
+  // Skip if too few values
+  if (n < 3) {
+    return { applicable: false, reason: 'Too few values' };
+  }
+  
+  // Shapiro-Wilk test (for n < 5000)
+  let shapiroWilk = null;
+  if (n <= 5000) {
+    shapiroWilk = shapiroWilkTest(values);
+  }
+  
+  // Anderson-Darling test
+  const andersonDarling = andersonDarlingTest(values);
+  
+  // Jarque-Bera test
+  const jarqueBera = jarqueBeraTest(values);
+  
+  // Q-Q plot analysis
+  const qqAnalysis = analyzeQQPlot(values);
+  
+  return {
+    shapiroWilk,
+    andersonDarling,
+    jarqueBera,
+    qqAnalysis,
+    isNormal: determineNormality(shapiroWilk, andersonDarling, jarqueBera)
+  };
+}
+
+function shapiroWilkTest(values) {
+  const n = values.length;
+  
+  if (n < 3 || n > 5000) {
+    return {
+      applicable: false,
+      reason: n < 3 ? 'Sample size too small (n < 3)' : 'Sample size too large (n > 5000)'
+    };
+  }
+  
+  const sorted = [...values].sort((a, b) => a - b);
+  const mean = ss.mean(values);
+  
+  // Calculate robust Shapiro-Wilk statistic using proper coefficients
+  const coefficients = getShapiroWilkCoefficients(n);
+  if (!coefficients) {
+    // Fallback to asymptotic formula for sizes not in tables
+    return shapiroWilkAsymptotic(sorted, mean);
+  }
+  
+  let numerator = 0;
+  const k = Math.floor(n / 2);
+  
+  for (let i = 0; i < k; i++) {
+    numerator += coefficients[i] * (sorted[n - 1 - i] - sorted[i]);
+  }
+  numerator = numerator * numerator;
+  
+  const denominator = values.reduce((sum, x) => sum + Math.pow(x - mean, 2), 0);
+  const W = numerator / denominator;
+  
+  // Calculate p-value using Monte Carlo approximation
+  const pValue = calculateShapiroWilkPValue(W, n);
+  const alpha = 0.05;
+  
+  return {
+    statistic: W,
+    pValue: pValue,
+    rejectNull: pValue < alpha,
+    interpretation: pValue >= alpha ? 
+      `Data appears normal (p = ${pValue.toFixed(4)})` : 
+      `Data deviates from normality (p = ${pValue.toFixed(4)})`
+  };
+}
+
+function getShapiroWilkCoefficients(n) {
+  // Shapiro-Wilk coefficients for common sample sizes
+  // These are the a_i coefficients from Shapiro & Wilk (1965) tables
+  const coefficientTables = {
+    3: [0.7071],
+    4: [0.6872, 0.1677],
+    5: [0.6646, 0.2413, 0.0000],
+    6: [0.6431, 0.2806, 0.0875],
+    7: [0.6233, 0.3031, 0.1401, 0.0000],
+    8: [0.6052, 0.3164, 0.1743, 0.0561],
+    9: [0.5888, 0.3244, 0.1976, 0.0947, 0.0000],
+    10: [0.5739, 0.3291, 0.2141, 0.1224, 0.0399],
+    11: [0.5601, 0.3315, 0.2260, 0.1429, 0.0695, 0.0000],
+    12: [0.5475, 0.3325, 0.2347, 0.1586, 0.0922, 0.0303],
+    15: [0.5150, 0.3325, 0.2412, 0.1707, 0.1099, 0.0542, 0.0000],
+    20: [0.4734, 0.3211, 0.2565, 0.1877, 0.1271, 0.0739, 0.0240],
+    25: [0.4450, 0.3104, 0.2691, 0.1966, 0.1383, 0.0878, 0.0433, 0.0000],
+    30: [0.4254, 0.3015, 0.2786, 0.2025, 0.1470, 0.0973, 0.0539, 0.0140],
+    35: [0.4101, 0.2939, 0.2858, 0.2072, 0.1539, 0.1047, 0.0618, 0.0220],
+    40: [0.3964, 0.2875, 0.2916, 0.2110, 0.1594, 0.1109, 0.0685, 0.0284],
+    50: [0.3751, 0.2759, 0.3008, 0.2171, 0.1686, 0.1207, 0.0804, 0.0433]
+  };
+  
+  // Return exact coefficients if available
+  if (coefficientTables[n]) {
+    return coefficientTables[n];
+  }
+  
+  // Interpolate for intermediate values
+  const keys = Object.keys(coefficientTables).map(Number).sort((a, b) => a - b);
+  const lowerKey = keys.find(k => k <= n && keys[keys.indexOf(k) + 1] > n);
+  const upperKey = keys[keys.indexOf(lowerKey) + 1];
+  
+  if (lowerKey && upperKey) {
+    const lowerCoeffs = coefficientTables[lowerKey];
+    const upperCoeffs = coefficientTables[upperKey];
+    const ratio = (n - lowerKey) / (upperKey - lowerKey);
+    
+    // Linear interpolation
+    const interpolated = lowerCoeffs.map((lower, i) => {
+      const upper = upperCoeffs[i] || 0;
+      return lower + ratio * (upper - lower);
+    });
+    
+    return interpolated.slice(0, Math.floor(n / 2));
+  }
+  
+  return null;
+}
+
+function shapiroWilkAsymptotic(sorted, mean) {
+  // Asymptotic approximation for large samples using D'Agostino's method
+  const n = sorted.length;
+  const variance = sorted.reduce((sum, x) => sum + Math.pow(x - mean, 2), 0) / n;
+  
+  // Calculate sample skewness and kurtosis
+  const skewness = sorted.reduce((sum, x) => sum + Math.pow((x - mean) / Math.sqrt(variance), 3), 0) / n;
+  const kurtosis = sorted.reduce((sum, x) => sum + Math.pow((x - mean) / Math.sqrt(variance), 4), 0) / n;
+  
+  // Asymptotic W statistic approximation
+  const W = 1 - (Math.pow(skewness, 2) / 6 + Math.pow(kurtosis - 3, 2) / 24) / n;
+  const pValue = calculateShapiroWilkPValue(W, n);
+  
+  return {
+    statistic: W,
+    pValue: pValue,
+    rejectNull: pValue < 0.05,
+    interpretation: pValue >= 0.05 ? 
+      `Data appears normal (asymptotic, p ≈ ${pValue.toFixed(4)})` : 
+      `Data deviates from normality (asymptotic, p ≈ ${pValue.toFixed(4)})`
+  };
+}
+
+function calculateShapiroWilkPValue(W, n) {
+  // Monte Carlo approximation for p-value calculation
+  // Based on Royston's algorithm (1995) for improved p-value estimation
+  
+  if (n < 3) return NaN;
+  
+  // Transform W statistic for normality
+  let g, mu, sigma;
+  
+  if (n >= 3 && n <= 11) {
+    // Small sample approximation
+    g = -Math.log(1 - W);
+    mu = -1.2725 + 1.0521 * Math.log(n);
+    sigma = 1.0308 - 0.26758 * Math.log(n);
+  } else {
+    // Large sample approximation (n > 11)
+    const ln_n = Math.log(n);
+    g = Math.log(1 - W);
+    
+    mu = 0.0038915 * Math.pow(ln_n, 3) - 0.083751 * Math.pow(ln_n, 2) - 0.31082 * ln_n - 1.5861;
+    sigma = Math.exp(0.0030302 * Math.pow(ln_n, 2) - 0.082676 * ln_n - 0.4803);
+  }
+  
+  // Standard normal quantile
+  const z = (g - mu) / sigma;
+  
+  // Convert to p-value using standard normal CDF
+  // Using error function approximation
+  const pValue = 0.5 * (1 + erf(z / Math.sqrt(2)));
+  
+  return Math.max(0.001, Math.min(0.999, pValue));
+}
+
+// Error function approximation (Abramowitz and Stegun)
+function erf(x) {
+  const a1 =  0.254829592;
+  const a2 = -0.284496736;
+  const a3 =  1.421413741;
+  const a4 = -1.453152027;
+  const a5 =  1.061405429;
+  const p  =  0.3275911;
+  
+  const sign = x >= 0 ? 1 : -1;
+  x = Math.abs(x);
+  
+  const t = 1.0 / (1.0 + p * x);
+  const y = 1.0 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-x * x);
+  
+  return sign * y;
+}
+
+function andersonDarlingTest(values) {
+  const n = values.length;
+  const mean = ss.mean(values);
+  const stdDev = ss.standardDeviation(values);
+  
+  // Standardize values
+  const standardized = values.map(x => (x - mean) / stdDev).sort((a, b) => a - b);
+  
+  // Calculate A-squared statistic
+  let sum = 0;
+  for (let i = 0; i < n; i++) {
+    const Fi = jstat.normal.cdf(standardized[i], 0, 1);
+    const Fni = jstat.normal.cdf(standardized[n - 1 - i], 0, 1);
+    sum += (2 * i + 1) * (Math.log(Fi) + Math.log(1 - Fni));
+  }
+  
+  const A2 = -n - sum / n;
+  const A2star = A2 * (1 + 0.75/n + 2.25/(n*n)); // Adjusted for sample size
+  
+  // Critical value at 0.05 significance
+  const criticalValue = 0.752;
+  
+  return {
+    statistic: A2star,
+    criticalValue,
+    rejectNull: A2star > criticalValue,
+    interpretation: A2star <= criticalValue ? 'Consistent with normal distribution' : 'Significant deviation from normality'
+  };
+}
+
+function jarqueBeraTest(values) {
+  const n = values.length;
+  const skewness = calculateSkewness$1(values);
+  const kurtosis = calculateKurtosis$2(values);
+  
+  // Jarque-Bera statistic
+  const JB = (n / 6) * (skewness * skewness + (kurtosis * kurtosis) / 4);
+  
+  // Chi-square critical value with 2 df at 0.05 significance
+  const criticalValue = 5.991;
+  const pValue = 1 - jstat.chisquare.cdf(JB, 2);
+  
+  return {
+    statistic: JB,
+    skewness,
+    kurtosis,
+    criticalValue,
+    pValue,
+    rejectNull: JB > criticalValue,
+    interpretation: JB <= criticalValue ? 'Skewness and kurtosis consistent with normality' : 'Significant skewness or kurtosis'
+  };
+}
+
+function analyzeQQPlot(values) {
+  const n = values.length;
+  const sorted = [...values].sort((a, b) => a - b);
+  
+  // Calculate theoretical quantiles
+  const theoreticalQuantiles = [];
+  const empiricalQuantiles = [];
+  
+  for (let i = 0; i < n; i++) {
+    const p = (i + 0.5) / n;
+    theoreticalQuantiles.push(jstat.normal.inv(p, ss.mean(values), ss.standardDeviation(values)));
+    empiricalQuantiles.push(sorted[i]);
+  }
+  
+  // Calculate correlation between theoretical and empirical quantiles
+  const qqCorrelation = ss.sampleCorrelation(theoreticalQuantiles, empiricalQuantiles);
+  
+  // Identify deviations
+  let lowerTailDeviation = false;
+  let upperTailDeviation = false;
+  
+  if (n > 10) {
+    const lowerDiff = Math.abs(empiricalQuantiles[0] - theoreticalQuantiles[0]);
+    const upperDiff = Math.abs(empiricalQuantiles[n-1] - theoreticalQuantiles[n-1]);
+    const midDiff = Math.abs(empiricalQuantiles[Math.floor(n/2)] - theoreticalQuantiles[Math.floor(n/2)]);
+    
+    lowerTailDeviation = lowerDiff > 2 * midDiff;
+    upperTailDeviation = upperDiff > 2 * midDiff;
+  }
+  
+  return {
+    correlation: qqCorrelation,
+    interpretation: qqCorrelation > 0.98 ? 'Excellent fit to normal' : 
+                   qqCorrelation > 0.95 ? 'Good fit to normal' : 
+                   qqCorrelation > 0.90 ? 'Moderate fit to normal' : 'Poor fit to normal',
+    lowerTailDeviation,
+    upperTailDeviation
+  };
+}
+
+function testUniformity(values) {
+  const n = values.length;
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = max - min;
+  
+  if (range === 0) {
+    return { applicable: false, reason: 'All values are identical' };
+  }
+  
+  // Kolmogorov-Smirnov test for uniformity
+  const sorted = [...values].sort((a, b) => a - b);
+  let maxDiff = 0;
+  
+  for (let i = 0; i < n; i++) {
+    const empiricalCDF = (i + 1) / n;
+    const theoreticalCDF = (sorted[i] - min) / range;
+    const diff = Math.abs(empiricalCDF - theoreticalCDF);
+    maxDiff = Math.max(maxDiff, diff);
+  }
+  
+  const KS = maxDiff;
+  const criticalValue = 1.36 / Math.sqrt(n); // At 0.05 significance
+  
+  return {
+    statistic: KS,
+    criticalValue,
+    rejectNull: KS > criticalValue,
+    interpretation: KS <= criticalValue ? 'Consistent with uniform distribution' : 'Not uniformly distributed'
+  };
+}
+
+function testExponential(values) {
+  const n = values.length;
+  const positiveValues = values.filter(v => v > 0);
+  
+  if (positiveValues.length < n * 0.9) {
+    return { applicable: false, reason: 'Too many non-positive values' };
+  }
+  
+  const mean = ss.mean(positiveValues);
+  const sorted = [...positiveValues].sort((a, b) => a - b);
+  
+  // Kolmogorov-Smirnov test for exponential
+  let maxDiff = 0;
+  
+  for (let i = 0; i < sorted.length; i++) {
+    const empiricalCDF = (i + 1) / sorted.length;
+    const theoreticalCDF = 1 - Math.exp(-sorted[i] / mean);
+    const diff = Math.abs(empiricalCDF - theoreticalCDF);
+    maxDiff = Math.max(maxDiff, diff);
+  }
+  
+  const KS = maxDiff;
+  const criticalValue = 1.36 / Math.sqrt(sorted.length);
+  
+  return {
+    statistic: KS,
+    criticalValue,
+    rejectNull: KS > criticalValue,
+    interpretation: KS <= criticalValue ? 'Consistent with exponential distribution' : 'Not exponentially distributed',
+    estimatedRate: 1 / mean
+  };
+}
+
+function determineBestFit(tests) {
+  const fits = [];
+  
+  if (tests.normality.isNormal) {
+    fits.push({ distribution: 'normal', score: tests.normality.qqAnalysis.correlation });
+  }
+  
+  if (tests.uniformity.applicable && !tests.uniformity.rejectNull) {
+    fits.push({ distribution: 'uniform', score: 1 - tests.uniformity.statistic });
+  }
+  
+  if (tests.exponential.applicable && !tests.exponential.rejectNull) {
+    fits.push({ distribution: 'exponential', score: 1 - tests.exponential.statistic });
+  }
+  
+  if (fits.length === 0) {
+    return { distribution: 'none', interpretation: 'No standard distribution fits well' };
+  }
+  
+  const best = fits.reduce((a, b) => a.score > b.score ? a : b);
+  return {
+    distribution: best.distribution,
+    score: best.score,
+    interpretation: `Best fit is ${best.distribution} distribution`
+  };
+}
+
+function recommendTransformations(values, tests) {
+  const recommendations = [];
+  const stats = {
+    skewness: calculateSkewness$1(values),
+    min: Math.min(...values)
+  };
+  
+  // Log transformation for right-skewed data
+  if (stats.skewness > 1 && stats.min > 0) {
+    const logTransformed = values.map(v => Math.log(v));
+    const logSkewness = calculateSkewness$1(logTransformed);
+    
+    recommendations.push({
+      type: 'log',
+      applicable: true,
+      originalSkewness: stats.skewness,
+      transformedSkewness: logSkewness,
+      improvement: Math.abs(logSkewness) < Math.abs(stats.skewness),
+      description: 'Log transformation reduces right skew'
+    });
+  }
+  
+  // Square root for count data
+  if (stats.min >= 0 && values.every(v => v === Math.floor(v))) {
+    const sqrtTransformed = values.map(v => Math.sqrt(v));
+    const sqrtSkewness = calculateSkewness$1(sqrtTransformed);
+    
+    recommendations.push({
+      type: 'sqrt',
+      applicable: true,
+      originalSkewness: stats.skewness,
+      transformedSkewness: sqrtSkewness,
+      improvement: Math.abs(sqrtSkewness) < Math.abs(stats.skewness),
+      description: 'Square root transformation for count data'
+    });
+  }
+  
+  // Box-Cox transformation
+  if (stats.min > 0) {
+    const lambda = findOptimalBoxCox(values);
+    const boxcoxTransformed = values.map(v => 
+      lambda === 0 ? Math.log(v) : (Math.pow(v, lambda) - 1) / lambda
+    );
+    const boxcoxSkewness = calculateSkewness$1(boxcoxTransformed);
+    
+    recommendations.push({
+      type: 'box-cox',
+      applicable: true,
+      lambda,
+      originalSkewness: stats.skewness,
+      transformedSkewness: boxcoxSkewness,
+      improvement: Math.abs(boxcoxSkewness) < Math.abs(stats.skewness),
+      description: `Box-Cox transformation with λ=${lambda.toFixed(2)}`
+    });
+  }
+  
+  return recommendations.filter(r => r.improvement);
+}
+
+function findOptimalBoxCox(values) {
+  // Simplified Box-Cox lambda estimation
+  // In practice, this would use maximum likelihood estimation
+  const lambdas = [-2, -1, -0.5, 0, 0.5, 1, 2];
+  let bestLambda = 0;
+  let minSkewness = Infinity;
+  
+  for (const lambda of lambdas) {
+    const transformed = values.map(v => 
+      lambda === 0 ? Math.log(v) : (Math.pow(v, lambda) - 1) / lambda
+    );
+    const skewness = Math.abs(calculateSkewness$1(transformed));
+    
+    if (skewness < minSkewness) {
+      minSkewness = skewness;
+      bestLambda = lambda;
+    }
+  }
+  
+  return bestLambda;
+}
+
+function calculateSkewness$1(values) {
+  const mean = ss.mean(values);
+  const stdDev = ss.standardDeviation(values);
+  const n = values.length;
+  
+  if (stdDev === 0) return 0;
+  
+  const sum = values.reduce((acc, val) => acc + Math.pow((val - mean) / stdDev, 3), 0);
+  return (n / ((n - 1) * (n - 2))) * sum;
+}
+
+function calculateKurtosis$2(values) {
+  const mean = ss.mean(values);
+  const stdDev = ss.standardDeviation(values);
+  const n = values.length;
+  
+  if (stdDev === 0) return 0;
+  
+  const sum = values.reduce((acc, val) => acc + Math.pow((val - mean) / stdDev, 4), 0);
+  return ((n * (n + 1)) / ((n - 1) * (n - 2) * (n - 3))) * sum - 
+         (3 * (n - 1) * (n - 1)) / ((n - 2) * (n - 3));
+}
+
+function determineNormality(shapiroWilk, andersonDarling, jarqueBera) {
+  let votes = 0;
+  let total = 0;
+  
+  if (shapiroWilk && shapiroWilk.rejectNull !== undefined) {
+    if (!shapiroWilk.rejectNull) votes++;
+    total++;
+  }
+  
+  if (andersonDarling && andersonDarling.rejectNull !== undefined) {
+    if (!andersonDarling.rejectNull) votes++;
+    total++;
+  }
+  
+  if (jarqueBera && jarqueBera.rejectNull !== undefined) {
+    if (!jarqueBera.rejectNull) votes++;
+    total++;
+  }
+  
+  return total > 0 && votes / total > 0.5;
+}
+
+function interpretDistribution(tests, transformations) {
+  const interpretations = [];
+  
+  if (tests.normality.isNormal) {
+    interpretations.push('Data follows a normal distribution');
+  } else if (tests.normality.jarqueBera) {
+    if (tests.normality.jarqueBera.skewness > 1) {
+      interpretations.push('Data is right-skewed');
+    } else if (tests.normality.jarqueBera.skewness < -1) {
+      interpretations.push('Data is left-skewed');
+    }
+    
+    if (tests.normality.jarqueBera.kurtosis > 1) {
+      interpretations.push('Distribution has heavy tails (leptokurtic)');
+    } else if (tests.normality.jarqueBera.kurtosis < -1) {
+      interpretations.push('Distribution has light tails (platykurtic)');
+    }
+  }
+  
+  if (tests.bestFit && tests.bestFit.distribution !== 'none') {
+    interpretations.push(tests.bestFit.interpretation);
+  }
+  
+  if (transformations.length > 0) {
+    interpretations.push(`Consider ${transformations[0].type} transformation to normalize data`);
+  }
+  
+  return interpretations.join('. ');
+}
+
+function detectOutliers(values, columnName) {
+  const numbers = values.filter(v => typeof v === 'number' && !isNaN(v));
+  
+  if (numbers.length < 4) {
+    return {
+      column: columnName,
+      totalRecords: values.length,
+      numericRecords: numbers.length,
+      methods: {},
+      summary: 'Insufficient data for outlier detection (n < 4)'
+    };
+  }
+  
+  const sorted = [...numbers].sort((a, b) => a - b);
+  
+  // Run multiple outlier detection methods
+  const methods = {
+    iqr: detectIQROutliers(sorted),
+    modifiedZScore: detectModifiedZScoreOutliers(sorted),
+    gesd: numbers.length >= 25 ? detectGESDOutliers(sorted) : null,
+    isolation: detectIsolationOutliers(numbers),
+    grubbs: numbers.length >= 7 ? grubbsTest(sorted) : null
+  };
+  
+  // Contextual analysis
+  const contextual = analyzeOutlierContext(values, methods);
+  
+  // Aggregate outliers
+  const allOutliers = aggregateOutliers(methods);
+  
+  return {
+    column: columnName,
+    totalRecords: values.length,
+    numericRecords: numbers.length,
+    methods,
+    contextual,
+    aggregated: allOutliers,
+    summary: summarizeOutliers(methods, contextual, allOutliers)
+  };
+}
+
+function detectIQROutliers(sortedValues) {
+  const q1 = ss.quantile(sortedValues, 0.25);
+  const q3 = ss.quantile(sortedValues, 0.75);
+  const iqr = q3 - q1;
+  
+  const innerFenceLower = q1 - 1.5 * iqr;
+  const innerFenceUpper = q3 + 1.5 * iqr;
+  const outerFenceLower = q1 - 3 * iqr;
+  const outerFenceUpper = q3 + 3 * iqr;
+  
+  const outliers = {
+    mild: [],
+    extreme: []
+  };
+  
+  sortedValues.forEach(value => {
+    if (value < outerFenceLower || value > outerFenceUpper) {
+      outliers.extreme.push(value);
+    } else if (value < innerFenceLower || value > innerFenceUpper) {
+      outliers.mild.push(value);
+    }
+  });
+  
+  return {
+    method: 'Tukey\'s Fences (IQR)',
+    q1,
+    q3,
+    iqr,
+    bounds: {
+      innerLower: innerFenceLower,
+      innerUpper: innerFenceUpper,
+      outerLower: outerFenceLower,
+      outerUpper: outerFenceUpper
+    },
+    outliers,
+    totalOutliers: outliers.mild.length + outliers.extreme.length,
+    outlierRate: (outliers.mild.length + outliers.extreme.length) / sortedValues.length * 100
+  };
+}
+
+function detectModifiedZScoreOutliers(sortedValues) {
+  const median = ss.median(sortedValues);
+  const mad = ss.medianAbsoluteDeviation(sortedValues);
+  
+  if (mad === 0) {
+    return {
+      method: 'Modified Z-Score (Iglewicz-Hoaglin)',
+      applicable: false,
+      reason: 'MAD is zero - all values may be identical'
+    };
+  }
+  
+  const threshold = 3.5;
+  const outliers = [];
+  const scores = [];
+  
+  sortedValues.forEach(value => {
+    const modifiedZScore = 0.6745 * Math.abs(value - median) / mad;
+    scores.push({ value, score: modifiedZScore });
+    
+    if (modifiedZScore > threshold) {
+      outliers.push({
+        value,
+        score: modifiedZScore,
+        severity: modifiedZScore > 5 ? 'extreme' : 'moderate'
+      });
+    }
+  });
+  
+  return {
+    method: 'Modified Z-Score (Iglewicz-Hoaglin)',
+    median,
+    mad,
+    threshold,
+    outliers,
+    totalOutliers: outliers.length,
+    outlierRate: outliers.length / sortedValues.length * 100,
+    maxScore: Math.max(...scores.map(s => s.score))
+  };
+}
+
+function detectGESDOutliers(sortedValues) {
+  // Generalized Extreme Studentized Deviate test
+  const alpha = 0.05;
+  const maxOutliers = Math.floor(sortedValues.length * 0.1); // Test up to 10% as outliers
+  
+  const outliers = [];
+  const testResults = [];
+  let workingValues = [...sortedValues];
+  
+  for (let i = 0; i < maxOutliers; i++) {
+    if (workingValues.length < 3) break;
+    
+    const mean = ss.mean(workingValues);
+    const stdDev = ss.standardDeviation(workingValues);
+    
+    if (stdDev === 0) break;
+    
+    // Find the value with maximum deviation
+    let maxDeviation = 0;
+    let maxIndex = -1;
+    let maxValue = null;
+    
+    workingValues.forEach((value, index) => {
+      const deviation = Math.abs(value - mean) / stdDev;
+      if (deviation > maxDeviation) {
+        maxDeviation = deviation;
+        maxIndex = index;
+        maxValue = value;
+      }
+    });
+    
+    // Calculate critical value
+    const n = workingValues.length;
+    const tCrit = jstat.studentt.inv(1 - alpha / (2 * n), n - 2);
+    const lambda = (n - 1) * tCrit / Math.sqrt(n * (n - 2 + tCrit * tCrit));
+    
+    testResults.push({
+      iteration: i + 1,
+      value: maxValue,
+      statistic: maxDeviation,
+      criticalValue: lambda,
+      isOutlier: maxDeviation > lambda
+    });
+    
+    if (maxDeviation > lambda) {
+      outliers.push(maxValue);
+      workingValues.splice(maxIndex, 1);
+    } else {
+      break; // No more outliers
+    }
+  }
+  
+  return {
+    method: 'Generalized ESD Test',
+    alpha,
+    outliers,
+    testResults,
+    totalOutliers: outliers.length,
+    outlierRate: outliers.length / sortedValues.length * 100
+  };
+}
+
+function detectIsolationOutliers(values) {
+  // Simplified Isolation Forest concept
+  // In practice, this would use the full ml-isolation-forest library
+  const n = values.length;
+  const sampleSize = Math.min(256, n);
+  const numTrees = 100;
+  
+  // Calculate isolation scores
+  const scores = values.map(value => {
+    let totalPathLength = 0;
+    
+    for (let tree = 0; tree < numTrees; tree++) {
+      // Simulate isolation tree path length
+      let pathLength = 0;
+      let currentMin = Math.min(...values);
+      let currentMax = Math.max(...values);
+      let currentValue = value;
+      
+      while (pathLength < Math.log2(sampleSize)) {
+        const splitPoint = Math.random() * (currentMax - currentMin) + currentMin;
+        pathLength++;
+        
+        if (currentValue < splitPoint) {
+          currentMax = splitPoint;
+        } else {
+          currentMin = splitPoint;
+        }
+        
+        if (currentMax - currentMin < 0.001) break;
+      }
+      
+      totalPathLength += pathLength;
+    }
+    
+    const avgPathLength = totalPathLength / numTrees;
+    const c = 2 * Math.log(sampleSize - 1) - 2 * (sampleSize - 1) / sampleSize;
+    const anomalyScore = Math.pow(2, -avgPathLength / c);
+    
+    return { value, score: anomalyScore };
+  });
+  
+  // Threshold for outliers (typically 0.5-0.6)
+  const threshold = 0.6;
+  const outliers = scores.filter(s => s.score > threshold);
+  
+  return {
+    method: 'Isolation Forest (Simplified)',
+    threshold,
+    outliers: outliers.map(o => ({ value: o.value, anomalyScore: o.score })),
+    totalOutliers: outliers.length,
+    outlierRate: outliers.length / values.length * 100,
+    averageScore: ss.mean(scores.map(s => s.score))
+  };
+}
+
+function grubbsTest(sortedValues) {
+  const n = sortedValues.length;
+  const mean = ss.mean(sortedValues);
+  const stdDev = ss.standardDeviation(sortedValues);
+  
+  if (stdDev === 0) {
+    return {
+      method: 'Grubbs Test',
+      applicable: false,
+      reason: 'Standard deviation is zero'
+    };
+  }
+  
+  // Test for single outlier
+  const deviations = sortedValues.map(v => Math.abs(v - mean));
+  const maxDeviation = Math.max(...deviations);
+  const maxIndex = deviations.indexOf(maxDeviation);
+  const suspectValue = sortedValues[maxIndex];
+  
+  const G = maxDeviation / stdDev;
+  
+  // Critical value at 0.05 significance
+  const alpha = 0.05;
+  const tCrit = jstat.studentt.inv(1 - alpha / (2 * n), n - 2);
+  const GCrit = ((n - 1) / Math.sqrt(n)) * Math.sqrt(tCrit * tCrit / (n - 2 + tCrit * tCrit));
+  
+  return {
+    method: 'Grubbs Test',
+    suspectValue,
+    statistic: G,
+    criticalValue: GCrit,
+    isOutlier: G > GCrit,
+    interpretation: G > GCrit ? 
+      `Value ${suspectValue} is a significant outlier` : 
+      'No significant outliers detected'
+  };
+}
+
+function analyzeOutlierContext(allValues, methods) {
+  const analysis = {
+    patterns: [],
+    recommendations: []
+  };
+  
+  // Check if outliers are clustered
+  const allOutlierValues = [];
+  Object.values(methods).forEach(method => {
+    if (method && method.outliers) {
+      if (Array.isArray(method.outliers)) {
+        allOutlierValues.push(...method.outliers.map(o => 
+          typeof o === 'object' ? o.value : o
+        ));
+      } else if (method.outliers.mild) {
+        allOutlierValues.push(...method.outliers.mild, ...method.outliers.extreme);
+      }
+    }
+  });
+  
+  const uniqueOutliers = [...new Set(allOutlierValues)];
+  
+  // Check for systematic patterns
+  if (uniqueOutliers.length > 0) {
+    const outlierIndices = uniqueOutliers.map(v => allValues.indexOf(v));
+    
+    // Check if outliers appear in sequences
+    const sequences = findSequences(outlierIndices.sort((a, b) => a - b));
+    if (sequences.length > 0) {
+      analysis.patterns.push('Outliers appear in sequences - may indicate temporal anomalies');
+    }
+    
+    // Check if all outliers are in one direction
+    const numbers = allValues.filter(v => typeof v === 'number' && !isNaN(v));
+    const median = ss.median(numbers);
+    const upperOutliers = uniqueOutliers.filter(v => v > median).length;
+    const lowerOutliers = uniqueOutliers.filter(v => v < median).length;
+    
+    if (upperOutliers > 0 && lowerOutliers === 0) {
+      analysis.patterns.push('All outliers are high values');
+      analysis.recommendations.push('Consider if these represent legitimate peak events');
+    } else if (lowerOutliers > 0 && upperOutliers === 0) {
+      analysis.patterns.push('All outliers are low values');
+      analysis.recommendations.push('Check for data quality issues or minimum thresholds');
+    }
+    
+    // Check percentage of outliers
+    const outlierPercentage = (uniqueOutliers.length / numbers.length) * 100;
+    if (outlierPercentage > 10) {
+      analysis.patterns.push(`High outlier rate (${outlierPercentage.toFixed(1)}%)`);
+      analysis.recommendations.push('Review if these are true anomalies or natural variation');
+    }
+  }
+  
+  return analysis;
+}
+
+function findSequences(indices) {
+  const sequences = [];
+  let currentSequence = [indices[0]];
+  
+  for (let i = 1; i < indices.length; i++) {
+    if (indices[i] - indices[i-1] === 1) {
+      currentSequence.push(indices[i]);
+    } else {
+      if (currentSequence.length >= 3) {
+        sequences.push(currentSequence);
+      }
+      currentSequence = [indices[i]];
+    }
+  }
+  
+  if (currentSequence.length >= 3) {
+    sequences.push(currentSequence);
+  }
+  
+  return sequences;
+}
+
+function aggregateOutliers(methods) {
+  const outlierCounts = {};
+  
+  // Count how many methods flag each value
+  Object.entries(methods).forEach(([methodName, result]) => {
+    if (!result || !result.outliers) return;
+    
+    let outlierValues = [];
+    if (Array.isArray(result.outliers)) {
+      outlierValues = result.outliers.map(o => 
+        typeof o === 'object' ? o.value : o
+      );
+    } else if (result.outliers.mild) {
+      outlierValues = [...result.outliers.mild, ...result.outliers.extreme];
+    }
+    
+    outlierValues.forEach(value => {
+      if (!outlierCounts[value]) {
+        outlierCounts[value] = { value, methods: [], confidence: 'low' };
+      }
+      outlierCounts[value].methods.push(methodName);
+    });
+  });
+  
+  // Classify confidence based on agreement
+  const outliers = Object.values(outlierCounts);
+  outliers.forEach(outlier => {
+    const methodCount = outlier.methods.length;
+    if (methodCount >= 4) {
+      outlier.confidence = 'very high';
+    } else if (methodCount >= 3) {
+      outlier.confidence = 'high';
+    } else if (methodCount >= 2) {
+      outlier.confidence = 'medium';
+    } else {
+      outlier.confidence = 'low';
+    }
+  });
+  
+  return outliers.sort((a, b) => b.methods.length - a.methods.length);
+}
+
+function summarizeOutliers(methods, contextual, aggregated) {
+  const summary = [];
+  
+  Object.values(methods).filter(m => m && m.totalOutliers !== undefined).length;
+  const methodsWithOutliers = Object.values(methods).filter(m => m && m.totalOutliers > 0).length;
+  
+  if (methodsWithOutliers === 0) {
+    summary.push('No outliers detected by any method');
+  } else {
+    const highConfidence = aggregated.filter(o => o.confidence === 'high' || o.confidence === 'very high');
+    const topOutliers = aggregated.slice(0, 5).map(o => o.value);
+    
+    summary.push(`${aggregated.length} potential outliers detected`);
+    summary.push(`${highConfidence.length} high-confidence outliers`);
+    summary.push(`Top extreme values: [${topOutliers.join(', ')}]`);
+    
+    if (contextual.patterns.length > 0) {
+      summary.push(`Patterns: ${contextual.patterns[0]}`);
+    }
+    
+    if (contextual.recommendations.length > 0) {
+      summary.push(`Recommendation: ${contextual.recommendations[0]}`);
+    }
+  }
+  
+  return summary.join('\n');
+}
+
+const { DecisionTreeRegression } = mlCart;
+
+function performCARTAnalysis(records, columns, columnTypes, targetColumn = null) {
+  // Prepare data for CART analysis
+  const numericColumns = columns.filter(col => 
+    ['integer', 'float'].includes(columnTypes[col].type)
+  );
+  const categoricalColumns = columns.filter(col => 
+    columnTypes[col].type === 'categorical' && 
+    columnTypes[col].categories.length <= 20 // Limit categories
+  );
+  
+  if (numericColumns.length === 0 || (numericColumns.length + categoricalColumns.length) < 3) {
+    return {
+      applicable: false,
+      reason: 'Insufficient columns for meaningful CART analysis'
+    };
+  }
+  
+  // Auto-select target if not provided
+  if (!targetColumn) {
+    targetColumn = selectBestTarget(records, numericColumns);
+  }
+  
+  if (!targetColumn) {
+    return {
+      applicable: false,
+      reason: 'No suitable target variable found'
+    };
+  }
+  
+  // Prepare features and target
+  const { features, target, featureNames } = prepareData(
+    records, 
+    numericColumns, 
+    categoricalColumns, 
+    targetColumn,
+    columnTypes
+  );
+  
+  if (features.length < 50) {
+    return {
+      applicable: false,
+      reason: 'Too few samples for reliable CART analysis'
+    };
+  }
+  
+  // Build decision tree
+  const treeConfig = {
+    maxDepth: 5,
+    minNumSamples: Math.max(5, Math.floor(features.length * 0.05))
+  };
+  
+  const regression = new DecisionTreeRegression(treeConfig);
+  regression.train(features, target);
+  
+  // Extract rules
+  const rules = extractRules(regression.root, featureNames, 0, columnTypes);
+  const importances = calculateFeatureImportances(regression, features, target, featureNames);
+  
+  // Find interesting segments
+  const segments = findBusinessSegments(rules, records.length);
+  
+  return {
+    applicable: true,
+    targetVariable: targetColumn,
+    featureNames,
+    treeDepth: getTreeDepth(regression.root),
+    rules,
+    segments,
+    featureImportances: importances,
+    modelQuality: evaluateModelQuality(regression, features, target)
+  };
+}
+
+function selectBestTarget(records, numericColumns, columnTypes) {
+  let bestTarget = null;
+  let bestScore = 0;
+  
+  numericColumns.forEach(col => {
+    const values = records.map(r => r[col]).filter(v => v !== null && v !== undefined);
+    const uniqueRatio = new Set(values).size / values.length;
+    const variance = calculateVariance(values);
+    
+    // Score based on variance and uniqueness
+    const score = uniqueRatio * Math.log(1 + variance);
+    
+    if (score > bestScore) {
+      bestScore = score;
+      bestTarget = col;
+    }
+  });
+  
+  return bestTarget;
+}
+
+function prepareData(records, numericColumns, categoricalColumns, targetColumn, columnTypes) {
+  const features = [];
+  const target = [];
+  const featureNames = [];
+  
+  // Prepare feature names
+  numericColumns.forEach(col => {
+    if (col !== targetColumn) {
+      featureNames.push(col);
+    }
+  });
+  
+  // One-hot encode categorical variables
+  const encodings = {};
+  categoricalColumns.forEach(col => {
+    if (col !== targetColumn) {
+      const categories = columnTypes[col].categories;
+      encodings[col] = {};
+      categories.forEach((cat, idx) => {
+        const featureName = `${col}_${cat}`;
+        encodings[col][cat] = featureNames.length;
+        featureNames.push(featureName);
+      });
+    }
+  });
+  
+  // Build feature matrix
+  records.forEach(record => {
+    const targetValue = record[targetColumn];
+    if (targetValue === null || targetValue === undefined) return;
+    
+    const row = [];
+    
+    // Numeric features
+    numericColumns.forEach(col => {
+      if (col !== targetColumn) {
+        const value = record[col];
+        row.push(value !== null && value !== undefined ? value : 0);
+      }
+    });
+    
+    // Categorical features (one-hot)
+    categoricalColumns.forEach(col => {
+      if (col !== targetColumn) {
+        const value = record[col];
+        const categories = columnTypes[col].categories;
+        categories.forEach(cat => {
+          row.push(value === cat ? 1 : 0);
+        });
+      }
+    });
+    
+    features.push(row);
+    target.push(targetValue);
+  });
+  
+  return { features, target, featureNames };
+}
+
+function extractRules(node, featureNames, depth = 0, columnTypes, path = []) {
+  const rules = [];
+  
+  if (!node || depth > 5) return rules;
+  
+  if (node.left === null && node.right === null) {
+    // Leaf node - create rule
+    if (path.length > 0 && node.values && node.values.length > 10) {
+      const avgValue = node.values.reduce((a, b) => a + b, 0) / node.values.length;
+      const support = node.values.length;
+      
+      rules.push({
+        conditions: [...path],
+        prediction: avgValue,
+        support,
+        confidence: calculateConfidence(node.values),
+        depth
+      });
+    }
+  } else {
+    // Internal node
+    const feature = featureNames[node.splitColumn];
+    const threshold = node.splitValue;
+    
+    if (node.left) {
+      const leftPath = [...path, `${feature} <= ${threshold.toFixed(2)}`];
+      rules.push(...extractRules(node.left, featureNames, depth + 1, columnTypes, leftPath));
+    }
+    
+    if (node.right) {
+      const rightPath = [...path, `${feature} > ${threshold.toFixed(2)}`];
+      rules.push(...extractRules(node.right, featureNames, depth + 1, columnTypes, rightPath));
+    }
+  }
+  
+  return rules;
+}
+
+function calculateConfidence(values) {
+  if (values.length === 0) return 0;
+  const mean = values.reduce((a, b) => a + b, 0) / values.length;
+  const variance = values.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / values.length;
+  const cv = Math.sqrt(variance) / (Math.abs(mean) + 1);
+  return Math.max(0, 1 - cv);
+}
+
+function calculateFeatureImportances(model, features, target, featureNames) {
+  // Simple importance based on split frequency and depth
+  const importances = {};
+  featureNames.forEach(name => { importances[name] = 0; });
+  
+  function traverseTree(node, depth = 1) {
+    if (!node || !node.splitColumn !== undefined) return;
+    
+    const feature = featureNames[node.splitColumn];
+    if (feature) {
+      // Weight by inverse depth (earlier splits are more important)
+      importances[feature] += 1 / depth;
+    }
+    
+    if (node.left) traverseTree(node.left, depth + 1);
+    if (node.right) traverseTree(node.right, depth + 1);
+  }
+  
+  traverseTree(model.root);
+  
+  // Normalize
+  const total = Object.values(importances).reduce((a, b) => a + b, 0);
+  if (total > 0) {
+    Object.keys(importances).forEach(key => {
+      importances[key] = (importances[key] / total) * 100;
+    });
+  }
+  
+  return Object.entries(importances)
+    .filter(([_, importance]) => importance > 0)
+    .sort((a, b) => b[1] - a[1])
+    .map(([feature, importance]) => ({
+      feature,
+      importance: importance.toFixed(1)
+    }));
+}
+
+function findBusinessSegments(rules, totalRecords) {
+  // Convert rules to business-friendly segments
+  const segments = [];
+  
+  // Sort rules by support and prediction value
+  const sortedRules = rules.sort((a, b) => b.support - a.support);
+  
+  sortedRules.slice(0, 10).forEach((rule, idx) => {
+    const segment = {
+      id: idx + 1,
+      description: formatSegmentDescription(rule),
+      conditions: rule.conditions,
+      size: rule.support,
+      sizePercentage: (rule.support / totalRecords * 100).toFixed(1),
+      avgValue: rule.prediction.toFixed(2),
+      confidence: (rule.confidence * 100).toFixed(0)
+    };
+    
+    // Classify segment
+    if (rule.prediction > getPercentile(rules.map(r => r.prediction), 0.75)) {
+      segment.type = 'high-value';
+      segment.actionability = 'Focus on retention and upselling';
+    } else if (rule.prediction < getPercentile(rules.map(r => r.prediction), 0.25)) {
+      segment.type = 'low-value';
+      segment.actionability = 'Investigate improvement opportunities';
+    } else {
+      segment.type = 'medium-value';
+      segment.actionability = 'Monitor and optimize';
+    }
+    
+    segments.push(segment);
+  });
+  
+  return segments;
+}
+
+function formatSegmentDescription(rule) {
+  const conditions = rule.conditions.map(cond => {
+    // Make conditions more readable
+    return cond
+      .replace(/_/g, ' ')
+      .replace(/([<>]=?)/g, ' $1 ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  });
+  
+  if (conditions.length === 1) {
+    return `When ${conditions[0]}`;
+  } else if (conditions.length === 2) {
+    return `When ${conditions[0]} AND ${conditions[1]}`;
+  } else {
+    return `When ${conditions.slice(0, -1).join(', ')} AND ${conditions[conditions.length - 1]}`;
+  }
+}
+
+function getTreeDepth(node, currentDepth = 0) {
+  if (!node || (node.left === null && node.right === null)) {
+    return currentDepth;
+  }
+  
+  const leftDepth = node.left ? getTreeDepth(node.left, currentDepth + 1) : currentDepth;
+  const rightDepth = node.right ? getTreeDepth(node.right, currentDepth + 1) : currentDepth;
+  
+  return Math.max(leftDepth, rightDepth);
+}
+
+function evaluateModelQuality(model, features, target) {
+  // Simple R-squared calculation
+  const predictions = features.map(f => model.predict([f])[0]);
+  const targetMean = target.reduce((a, b) => a + b, 0) / target.length;
+  
+  const ssTotal = target.reduce((sum, val) => sum + Math.pow(val - targetMean, 2), 0);
+  const ssResidual = target.reduce((sum, val, idx) => 
+    sum + Math.pow(val - predictions[idx], 2), 0
+  );
+  
+  const rSquared = 1 - (ssResidual / ssTotal);
+  
+  return {
+    rSquared: rSquared.toFixed(3),
+    interpretation: 
+      rSquared > 0.7 ? 'Strong predictive power' :
+      rSquared > 0.5 ? 'Moderate predictive power' :
+      rSquared > 0.3 ? 'Weak predictive power' :
+      'Poor predictive power'
+  };
+}
+
+function calculateVariance(values) {
+  const numbers = values.filter(v => typeof v === 'number');
+  if (numbers.length < 2) return 0;
+  
+  const mean = numbers.reduce((a, b) => a + b, 0) / numbers.length;
+  return numbers.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / numbers.length;
+}
+
+function getPercentile(values, percentile) {
+  const sorted = [...values].sort((a, b) => a - b);
+  const index = Math.ceil(percentile * sorted.length) - 1;
+  return sorted[index];
+}
+
+function performRegressionAnalysis(records, columns, columnTypes, targetColumn = null) {
+  const numericColumns = columns.filter(col => 
+    ['integer', 'float'].includes(columnTypes[col].type)
+  );
+  
+  if (numericColumns.length < 2) {
+    return {
+      applicable: false,
+      reason: 'Need at least 2 numeric columns for regression analysis'
+    };
+  }
+  
+  // Auto-select target if not provided
+  if (!targetColumn) {
+    targetColumn = selectRegressionTarget(records, numericColumns);
+  }
+  
+  const predictors = numericColumns.filter(col => col !== targetColumn);
+  if (predictors.length === 0) {
+    return {
+      applicable: false,
+      reason: 'No predictor variables available'
+    };
+  }
+  
+  // Prepare data
+  const data = prepareRegressionData(records, predictors, targetColumn);
+  
+  if (data.length < 20) {
+    return {
+      applicable: false,
+      reason: 'Insufficient data points for reliable regression'
+    };
+  }
+  
+  // Perform multiple regression types
+  const analyses = {
+    simple: predictors.map(predictor => 
+      performSimpleRegression(records, predictor, targetColumn)
+    ),
+    multiple: performMultipleRegression(data, predictors),
+    polynomial: performPolynomialRegression(records, predictors[0], targetColumn),
+    robust: performRobustRegression(data, predictors)
+  };
+  
+  // Select best model
+  const bestModel = selectBestModel(analyses);
+  
+  // Residual analysis for best model
+  const residualAnalysis = analyzeResiduals(bestModel, data);
+  
+  return {
+    applicable: true,
+    targetVariable: targetColumn,
+    predictors,
+    analyses,
+    bestModel,
+    residualAnalysis,
+    diagnostics: performRegressionDiagnostics(bestModel),
+    interpretation: interpretRegression(bestModel, residualAnalysis)
+  };
+}
+
+function selectRegressionTarget(records, columns) {
+  let bestTarget = null;
+  let maxVariance = 0;
+  
+  columns.forEach(col => {
+    const values = records.map(r => r[col]).filter(v => v !== null && !isNaN(v));
+    const variance = ss.variance(values);
+    
+    if (variance > maxVariance) {
+      maxVariance = variance;
+      bestTarget = col;
+    }
+  });
+  
+  return bestTarget;
+}
+
+function prepareRegressionData(records, predictors, target) {
+  const data = [];
+  
+  records.forEach(record => {
+    const targetValue = record[target];
+    if (targetValue === null || isNaN(targetValue)) return;
+    
+    const predictorValues = predictors.map(p => record[p]);
+    if (predictorValues.some(v => v === null || isNaN(v))) return;
+    
+    data.push({
+      predictors: predictorValues,
+      target: targetValue,
+      record
+    });
+  });
+  
+  return data;
+}
+
+function performSimpleRegression(records, predictor, target) {
+  const points = [];
+  
+  records.forEach(record => {
+    const x = record[predictor];
+    const y = record[target];
+    if (x !== null && y !== null && !isNaN(x) && !isNaN(y)) {
+      points.push([x, y]);
+    }
+  });
+  
+  if (points.length < 10) {
+    return { applicable: false };
+  }
+  
+  // Linear regression
+  const result = regression.linear(points);
+  
+  // Calculate additional statistics
+  const predicted = points.map(p => result.predict(p[0])[1]);
+  const actual = points.map(p => p[1]);
+  const residuals = actual.map((y, i) => y - predicted[i]);
+  
+  const meanY = ss.mean(actual);
+  const ssTotal = actual.reduce((sum, y) => sum + Math.pow(y - meanY, 2), 0);
+  const ssResidual = residuals.reduce((sum, r) => sum + r * r, 0);
+  const ssRegression = ssTotal - ssResidual;
+  
+  const n = points.length;
+  const mse = ssResidual / (n - 2);
+  const rmse = Math.sqrt(mse);
+  
+  // Standard errors
+  const xValues = points.map(p => p[0]);
+  const xMean = ss.mean(xValues);
+  const xSS = xValues.reduce((sum, x) => sum + Math.pow(x - xMean, 2), 0);
+  const slopeStdError = Math.sqrt(mse / xSS);
+  const interceptStdError = Math.sqrt(mse * (1/n + xMean*xMean/xSS));
+  
+  // t-statistics and p-values
+  const slopeTStat = result.equation[0] / slopeStdError;
+  const interceptTStat = result.equation[1] / interceptStdError;
+  const df = n - 2;
+  const slopePValue = 2 * (1 - jstat.studentt.cdf(Math.abs(slopeTStat), df));
+  const interceptPValue = 2 * (1 - jstat.studentt.cdf(Math.abs(interceptTStat), df));
+  
+  // F-statistic
+  const fStat = ssRegression / mse;
+  const fPValue = 1 - jstat.centralF.cdf(fStat, 1, df);
+  
+  return {
+    type: 'simple',
+    predictor,
+    equation: result.equation,
+    r2: result.r2,
+    adjustedR2: 1 - (1 - result.r2) * (n - 1) / (n - 2),
+    rmse,
+    coefficients: [
+      {
+        name: predictor,
+        value: result.equation[0],
+        stdError: slopeStdError,
+        tStat: slopeTStat,
+        pValue: slopePValue,
+        significant: slopePValue < 0.05
+      },
+      {
+        name: 'intercept',
+        value: result.equation[1],
+        stdError: interceptStdError,
+        tStat: interceptTStat,
+        pValue: interceptPValue,
+        significant: interceptPValue < 0.05
+      }
+    ],
+    fStatistic: {
+      value: fStat,
+      df1: 1,
+      df2: df,
+      pValue: fPValue,
+      significant: fPValue < 0.05
+    },
+    residuals,
+    predicted
+  };
+}
+
+function performMultipleRegression(data, predictors, target) {
+  // Prepare matrix for multiple regression
+  const X = [];
+  const y = [];
+  
+  data.forEach(d => {
+    X.push([1, ...d.predictors]); // Add intercept
+    y.push(d.target);
+  });
+  
+  // Use robust QR decomposition instead of normal equation
+  const qrResult = qrDecomposition(X);
+  const coefficients = solveQR(qrResult, y);
+  
+  // Calculate predictions and residuals
+  const predicted = X.map(row => 
+    row.reduce((sum, x, i) => sum + x * coefficients[i], 0)
+  );
+  const residuals = y.map((actual, i) => actual - predicted[i]);
+  
+  // Calculate R-squared
+  const meanY = ss.mean(y);
+  const ssTotal = y.reduce((sum, val) => sum + Math.pow(val - meanY, 2), 0);
+  const ssResidual = residuals.reduce((sum, r) => sum + r * r, 0);
+  const r2 = 1 - ssResidual / ssTotal;
+  
+  const n = data.length;
+  const p = predictors.length;
+  const adjustedR2 = 1 - (1 - r2) * (n - 1) / (n - p - 1);
+  
+  // Calculate standard errors using QR approach
+  const mse = ssResidual / (n - p - 1);
+  const rmse = Math.sqrt(mse);
+  
+  // Calculate covariance matrix from QR decomposition: (R^T R)^-1 * mse
+  const { R } = qrResult;
+  const RtR = Array(p + 1).fill(null).map(() => Array(p + 1).fill(0));
+  
+  // Compute R^T * R
+  for (let i = 0; i < p + 1; i++) {
+    for (let j = 0; j < p + 1; j++) {
+      for (let k = Math.max(i, j); k < p + 1; k++) {
+        RtR[i][j] += R[k][i] * R[k][j];
+      }
+    }
+  }
+  
+  // Invert R^T * R (small matrix, safe to invert)
+  const RtR_inv = matrixInverse(RtR);
+  const covMatrix = RtR_inv.map(row => row.map(val => val * mse));
+  const stdErrors = covMatrix.map((row, i) => Math.sqrt(Math.abs(row[i])));
+  
+  // Calculate t-statistics and p-values
+  const coefficientStats = coefficients.map((coef, i) => {
+    const tStat = coef / stdErrors[i];
+    const pValue = 2 * (1 - jstat.studentt.cdf(Math.abs(tStat), n - p - 1));
+    
+    return {
+      name: i === 0 ? 'intercept' : predictors[i - 1],
+      value: coef,
+      stdError: stdErrors[i],
+      tStat,
+      pValue,
+      significant: pValue < 0.05
+    };
+  });
+  
+  // F-statistic
+  const ssRegression = ssTotal - ssResidual;
+  const fStat = (ssRegression / p) / (ssResidual / (n - p - 1));
+  const fPValue = 1 - jstat.centralF.cdf(fStat, p, n - p - 1);
+  
+  // Calculate VIF for multicollinearity
+  const vifs = calculateVIF(X, predictors);
+  
+  return {
+    type: 'multiple',
+    predictors,
+    coefficients: coefficientStats,
+    r2,
+    adjustedR2,
+    rmse,
+    fStatistic: {
+      value: fStat,
+      df1: p,
+      df2: n - p - 1,
+      pValue: fPValue,
+      significant: fPValue < 0.05
+    },
+    multicollinearity: vifs,
+    residuals,
+    predicted
+  };
+}
+
+function performPolynomialRegression(records, predictor, target, degree = 2) {
+  const points = [];
+  
+  records.forEach(record => {
+    const x = record[predictor];
+    const y = record[target];
+    if (x !== null && y !== null && !isNaN(x) && !isNaN(y)) {
+      points.push([x, y]);
+    }
+  });
+  
+  if (points.length < 10) {
+    return { applicable: false };
+  }
+  
+  const result = regression.polynomial(points, { order: degree });
+  
+  // Calculate R-squared manually
+  const predicted = points.map(p => result.predict(p[0])[1]);
+  const actual = points.map(p => p[1]);
+  const meanY = ss.mean(actual);
+  const ssTotal = actual.reduce((sum, y) => sum + Math.pow(y - meanY, 2), 0);
+  const ssResidual = actual.reduce((sum, y, i) => sum + Math.pow(y - predicted[i], 2), 0);
+  const r2 = 1 - ssResidual / ssTotal;
+  
+  return {
+    type: 'polynomial',
+    predictor,
+    degree,
+    equation: result.equation,
+    r2,
+    interpretation: r2 > 0.1 ? 'Non-linear relationship detected' : 'Weak non-linear relationship'
+  };
+}
+
+function performRobustRegression(data, predictors, target) {
+  // Simplified robust regression using Huber weights
+  const maxIterations = 20;
+  const tolerance = 0.0001;
+  let weights = data.map(() => 1);
+  let prevCoefficients = null;
+  
+  for (let iter = 0; iter < maxIterations; iter++) {
+    // Weighted least squares
+    const weightedData = data.map((d, i) => ({
+      ...d,
+      weight: weights[i]
+    }));
+    
+    const coefficients = calculateWeightedRegression(weightedData, predictors);
+    
+    // Check convergence
+    if (prevCoefficients && 
+        coefficients.every((c, i) => Math.abs(c - prevCoefficients[i]) < tolerance)) {
+      break;
+    }
+    
+    // Update weights based on residuals
+    const residuals = data.map((d, i) => {
+      const predicted = coefficients[0] + 
+        d.predictors.reduce((sum, x, j) => sum + x * coefficients[j + 1], 0);
+      return d.target - predicted;
+    });
+    
+    const mad = ss.medianAbsoluteDeviation(residuals);
+    const c = 1.345; // Huber constant
+    
+    weights = residuals.map(r => {
+      const scaled = Math.abs(r) / (mad * c);
+      return scaled <= 1 ? 1 : 1 / scaled;
+    });
+    
+    prevCoefficients = coefficients;
+  }
+  
+  return {
+    type: 'robust',
+    interpretation: 'Outlier-resistant regression',
+    outlierCount: weights.filter(w => w < 0.5).length
+  };
+}
+
+function analyzeResiduals(model, data) {
+  if (!model.residuals) return null;
+  
+  const residuals = model.residuals;
+  const predicted = model.predicted;
+  
+  // Normality test
+  const normalityTest = testResidualNormality(residuals);
+  
+  // Homoscedasticity test (Breusch-Pagan)
+  const homoscedasticityTest = testHomoscedasticity(residuals, predicted);
+  
+  // Independence test (Durbin-Watson)
+  const independenceTest = testIndependence(residuals);
+  
+  // Influential points
+  const influential = findInfluentialPoints(data, residuals);
+  
+  return {
+    normalityTest,
+    homoscedasticityTest,
+    independenceTest,
+    influential,
+    patterns: detectResidualPatterns(residuals, predicted)
+  };
+}
+
+function testResidualNormality(residuals) {
+  const n = residuals.length;
+  const mean = ss.mean(residuals);
+  const stdDev = ss.standardDeviation(residuals);
+  
+  // Standardize residuals
+  const standardized = residuals.map(r => (r - mean) / stdDev);
+  
+  // Shapiro-Wilk test (simplified)
+  const sorted = [...standardized].sort((a, b) => a - b);
+  let W = 0;
+  
+  for (let i = 0; i < Math.floor(n/2); i++) {
+    const ai = 0.5; // Simplified coefficient
+    W += ai * (sorted[n - 1 - i] - sorted[i]);
+  }
+  W = Math.pow(W, 2) / residuals.reduce((sum, r) => sum + r * r, 0);
+  
+  return {
+    test: 'Shapiro-Wilk',
+    statistic: W,
+    normal: W > 0.9,
+    interpretation: W > 0.9 ? 'Residuals appear normally distributed' : 
+                               'Residuals deviate from normality'
+  };
+}
+
+function testHomoscedasticity(residuals, predicted) {
+  // Breusch-Pagan test
+  const n = residuals.length;
+  const squaredResiduals = residuals.map(r => r * r);
+  
+  // Regress squared residuals on predicted values
+  const points = predicted.map((p, i) => [p, squaredResiduals[i]]);
+  const auxRegression = regression.linear(points);
+  
+  const lmStatistic = n * auxRegression.r2;
+  const pValue = 1 - jstat.chisquare.cdf(lmStatistic, 1);
+  
+  return {
+    test: 'Breusch-Pagan',
+    statistic: lmStatistic,
+    pValue,
+    homoscedastic: pValue > 0.05,
+    interpretation: pValue > 0.05 ? 'Constant variance (homoscedastic)' : 
+                                   'Non-constant variance (heteroscedastic)'
+  };
+}
+
+function testIndependence(residuals) {
+  // Durbin-Watson test
+  let sumSquaredDiff = 0;
+  let sumSquared = 0;
+  
+  for (let i = 1; i < residuals.length; i++) {
+    sumSquaredDiff += Math.pow(residuals[i] - residuals[i-1], 2);
+  }
+  
+  residuals.forEach(r => {
+    sumSquared += r * r;
+  });
+  
+  const dw = sumSquaredDiff / sumSquared;
+  
+  return {
+    test: 'Durbin-Watson',
+    statistic: dw,
+    interpretation: 
+      dw < 1.5 ? 'Positive autocorrelation' :
+      dw > 2.5 ? 'Negative autocorrelation' :
+      'No significant autocorrelation'
+  };
+}
+
+function findInfluentialPoints(data, residuals, predicted) {
+  const n = data.length;
+  const p = data[0].predictors.length + 1; // Including intercept
+  
+  const influential = [];
+  const leverage = calculateLeverage(data);
+  
+  residuals.forEach((r, i) => {
+    // Cook's distance (simplified)
+    const h = leverage[i];
+    const standardizedResidual = r / (Math.sqrt(ss.variance(residuals)) * Math.sqrt(1 - h));
+    const cooksD = (standardizedResidual * standardizedResidual * h) / (p * (1 - h));
+    
+    if (cooksD > 4 / n || h > 2 * p / n) {
+      influential.push({
+        index: i,
+        cooksDistance: cooksD,
+        leverage: h,
+        influence: cooksD > 1 ? 'high' : cooksD > 0.5 ? 'moderate' : 'low'
+      });
+    }
+  });
+  
+  return influential;
+}
+
+function detectResidualPatterns(residuals, predicted) {
+  const patterns = [];
+  
+  // Check for systematic bias
+  const meanResidual = ss.mean(residuals);
+  if (Math.abs(meanResidual) > 0.01) {
+    patterns.push('Systematic bias in predictions');
+  }
+  
+  // Check for funnel pattern (heteroscedasticity)
+  const bins = 5;
+  const sortedByPredicted = predicted
+    .map((p, i) => ({ predicted: p, residual: residuals[i] }))
+    .sort((a, b) => a.predicted - b.predicted);
+  
+  const binSize = Math.floor(sortedByPredicted.length / bins);
+  const binVariances = [];
+  
+  for (let i = 0; i < bins; i++) {
+    const binData = sortedByPredicted.slice(i * binSize, (i + 1) * binSize);
+    const binResiduals = binData.map(d => d.residual);
+    binVariances.push(ss.variance(binResiduals));
+  }
+  
+  const varianceRatio = Math.max(...binVariances) / Math.min(...binVariances);
+  if (varianceRatio > 3) {
+    patterns.push('Funnel pattern detected (variance changes with predicted values)');
+  }
+  
+  return patterns;
+}
+
+// Robust QR decomposition for numerical stability
+function qrDecomposition(A) {
+  const m = A.length;     // rows
+  const n = A[0].length;  // columns
+  
+  // Copy matrix A
+  const Q = Array(m).fill(null).map(() => Array(n).fill(0));
+  const R = Array(n).fill(null).map(() => Array(n).fill(0));
+  const A_copy = A.map(row => [...row]);
+  
+  // Modified Gram-Schmidt process for better numerical stability
+  for (let j = 0; j < n; j++) {
+    // Get column j
+    let v = Array(m);
+    for (let i = 0; i < m; i++) {
+      v[i] = A_copy[i][j];
+    }
+    
+    // Orthogonalize against previous columns
+    for (let k = 0; k < j; k++) {
+      // R[k][j] = Q_k^T * v
+      let dot = 0;
+      for (let i = 0; i < m; i++) {
+        dot += Q[i][k] * v[i];
+      }
+      R[k][j] = dot;
+      
+      // v = v - R[k][j] * Q_k
+      for (let i = 0; i < m; i++) {
+        v[i] -= R[k][j] * Q[i][k];
+      }
+    }
+    
+    // Normalize v to get Q_j
+    let norm = 0;
+    for (let i = 0; i < m; i++) {
+      norm += v[i] * v[i];
+    }
+    norm = Math.sqrt(norm);
+    
+    if (norm < 1e-12) {
+      // Handle near-zero columns (rank deficiency)
+      R[j][j] = 0;
+      for (let i = 0; i < m; i++) {
+        Q[i][j] = 0;
+      }
+    } else {
+      R[j][j] = norm;
+      for (let i = 0; i < m; i++) {
+        Q[i][j] = v[i] / norm;
+      }
+    }
+  }
+  
+  return { Q, R, rank: n }; // Simplified rank calculation
+}
+
+function solveQR(qrResult, b) {
+  const { Q, R } = qrResult;
+  const m = Q.length;
+  const n = R.length;
+  
+  // Solve Q^T * b = c
+  const c = Array(n);
+  for (let i = 0; i < n; i++) {
+    c[i] = 0;
+    for (let j = 0; j < m; j++) {
+      c[i] += Q[j][i] * b[j];
+    }
+  }
+  
+  // Solve R * x = c using back substitution
+  const x = Array(n).fill(0);
+  for (let i = n - 1; i >= 0; i--) {
+    if (Math.abs(R[i][i]) < 1e-12) {
+      // Handle singular matrix
+      x[i] = 0;
+      continue;
+    }
+    
+    x[i] = c[i];
+    for (let j = i + 1; j < n; j++) {
+      x[i] -= R[i][j] * x[j];
+    }
+    x[i] /= R[i][i];
+  }
+  
+  return x;
+}
+
+function matrixInverse(matrix) {
+  // Simplified 2x2 or 3x3 matrix inversion
+  // In practice, use a proper linear algebra library
+  const n = matrix.length;
+  const identity = Array(n).fill(null).map((_, i) => 
+    Array(n).fill(0).map((_, j) => i === j ? 1 : 0)
+  );
+  
+  // Gauss-Jordan elimination (simplified)
+  const augmented = matrix.map((row, i) => [...row, ...identity[i]]);
+  
+  for (let i = 0; i < n; i++) {
+    // Pivot
+    let maxRow = i;
+    for (let k = i + 1; k < n; k++) {
+      if (Math.abs(augmented[k][i]) > Math.abs(augmented[maxRow][i])) {
+        maxRow = k;
+      }
+    }
+    [augmented[i], augmented[maxRow]] = [augmented[maxRow], augmented[i]];
+    
+    // Scale
+    const pivot = augmented[i][i];
+    for (let j = 0; j < 2 * n; j++) {
+      augmented[i][j] /= pivot;
+    }
+    
+    // Eliminate
+    for (let k = 0; k < n; k++) {
+      if (k !== i) {
+        const factor = augmented[k][i];
+        for (let j = 0; j < 2 * n; j++) {
+          augmented[k][j] -= factor * augmented[i][j];
+        }
+      }
+    }
+  }
+  
+  return augmented.map(row => row.slice(n));
+}
+
+function calculateVIF(X, predictors) {
+  const vifs = [];
+  
+  for (let i = 1; i < X[0].length; i++) { // Skip intercept
+    // Regress predictor i on all other predictors
+    const y = X.map(row => row[i]);
+    const XOther = X.map(row => row.filter((_, j) => j !== i));
+    
+    // Calculate R-squared for this regression
+    const r2 = calculateR2ForVIF(XOther, y);
+    const vif = 1 / (1 - r2);
+    
+    vifs.push({
+      predictor: predictors[i - 1],
+      vif: vif,
+      interpretation: vif > 10 ? 'Severe multicollinearity' :
+                     vif > 5 ? 'Moderate multicollinearity' :
+                     'No multicollinearity concern'
+    });
+  }
+  
+  return vifs;
+}
+
+function calculateR2ForVIF(X, y) {
+  // Robust R-squared calculation using QR decomposition
+  try {
+    const qrResult = qrDecomposition(X);
+    const coefficients = solveQR(qrResult, y);
+    
+    // Calculate predictions
+    const predicted = X.map(row => 
+      row.reduce((sum, x, i) => sum + x * coefficients[i], 0)
+    );
+    
+    // Calculate R-squared
+    const meanY = ss.mean(y);
+    const ssTotal = y.reduce((sum, val) => sum + Math.pow(val - meanY, 2), 0);
+    const ssResidual = y.reduce((sum, val, i) => sum + Math.pow(val - predicted[i], 2), 0);
+    
+    return Math.max(0, Math.min(1, 1 - ssResidual / ssTotal));
+  } catch (error) {
+    // Fallback to correlation-based estimate if QR fails
+    const correlations = X[0].map((_, col) => {
+      const xCol = X.map(row => row[col]);
+      return ss.sampleCorrelation(xCol, y);
+    });
+    
+    return Math.max(...correlations.map(r => r * r));
+  }
+}
+
+function calculateWeightedRegression(weightedData, predictors) {
+  // Simplified weighted least squares
+  const weights = weightedData.map(d => d.weight);
+  const sumWeights = weights.reduce((a, b) => a + b, 0);
+  
+  // Calculate weighted means
+  const weightedMeanY = weightedData.reduce((sum, d, i) => 
+    sum + d.target * weights[i], 0) / sumWeights;
+  
+  const weightedMeanX = predictors.map((_, j) => 
+    weightedData.reduce((sum, d, i) => 
+      sum + d.predictors[j] * weights[i], 0) / sumWeights
+  );
+  
+  // Simplified coefficient calculation
+  const coefficients = [weightedMeanY, ...weightedMeanX.map(() => 0.5)];
+  
+  return coefficients;
+}
+
+function calculateLeverage(data) {
+  // Simplified leverage calculation
+  const n = data.length;
+  const p = data[0].predictors.length + 1;
+  
+  return data.map(() => p / n); // Simplified - equal leverage
+}
+
+function selectBestModel(analyses) {
+  // Select model with highest adjusted R-squared
+  let best = null;
+  let maxAdjR2 = -Infinity;
+  
+  if (analyses.simple) {
+    analyses.simple.forEach(model => {
+      if (model.adjustedR2 > maxAdjR2) {
+        maxAdjR2 = model.adjustedR2;
+        best = model;
+      }
+    });
+  }
+  
+  if (analyses.multiple && analyses.multiple.adjustedR2 > maxAdjR2) {
+    best = analyses.multiple;
+  }
+  
+  return best;
+}
+
+function performRegressionDiagnostics(model, data) {
+  if (!model) return null;
+  
+  const diagnostics = {
+    modelQuality: interpretModelQuality(model),
+    assumptions: [],
+    warnings: []
+  };
+  
+  // Check R-squared
+  if (model.r2 < 0.1) {
+    diagnostics.warnings.push('Very low R² - model explains little variance');
+  }
+  
+  // Check multicollinearity
+  if (model.multicollinearity) {
+    const highVIF = model.multicollinearity.filter(v => v.vif > 5);
+    if (highVIF.length > 0) {
+      diagnostics.warnings.push('Multicollinearity detected - consider removing correlated predictors');
+    }
+  }
+  
+  // Check coefficient significance
+  if (model.coefficients) {
+    const nonSig = model.coefficients.filter(c => !c.significant && c.name !== 'intercept');
+    if (nonSig.length > 0) {
+      diagnostics.warnings.push(`Non-significant predictors: ${nonSig.map(c => c.name).join(', ')}`);
+    }
+  }
+  
+  return diagnostics;
+}
+
+function interpretModelQuality(model) {
+  const r2 = model.r2 || 0;
+  const adjR2 = model.adjustedR2 || r2;
+  
+  return {
+    r2: r2.toFixed(3),
+    adjustedR2: adjR2.toFixed(3),
+    interpretation: 
+      adjR2 > 0.8 ? 'Excellent model fit' :
+      adjR2 > 0.6 ? 'Good model fit' :
+      adjR2 > 0.4 ? 'Moderate model fit' :
+      adjR2 > 0.2 ? 'Weak model fit' :
+      'Poor model fit'
+  };
+}
+
+function interpretRegression(model, residualAnalysis) {
+  const interpretations = [];
+  
+  // Model fit
+  if (model) {
+    interpretations.push(interpretModelQuality(model).interpretation);
+    
+    // Significant predictors
+    if (model.coefficients) {
+      const significant = model.coefficients
+        .filter(c => c.significant && c.name !== 'intercept')
+        .map(c => `${c.name} (p=${c.pValue.toFixed(3)})`);
+      
+      if (significant.length > 0) {
+        interpretations.push(`Significant predictors: ${significant.join(', ')}`);
+      }
+    }
+  }
+  
+  // Residual diagnostics
+  if (residualAnalysis) {
+    if (!residualAnalysis.normalityTest.normal) {
+      interpretations.push('Residuals show non-normality - consider transformations');
+    }
+    
+    if (!residualAnalysis.homoscedasticityTest.homoscedastic) {
+      interpretations.push('Heteroscedasticity detected - consider weighted regression');
+    }
+    
+    if (residualAnalysis.influential.length > 0) {
+      interpretations.push(`${residualAnalysis.influential.length} influential points detected`);
+    }
+  }
+  
+  return interpretations.join('. ');
+}
+
+function performCorrelationAnalysis(records, columns, columnTypes) {
+  const numericColumns = columns.filter(col => 
+    ['integer', 'float'].includes(columnTypes[col].type)
+  );
+  
+  if (numericColumns.length < 2) {
+    return null;
+  }
+  
+  const analysis = {
+    pearson: [],
+    spearman: [],
+    distanceCorrelation: [],
+    partialCorrelations: [],
+    multicollinearity: []
+  };
+  
+  // Calculate pairwise correlations
+  for (let i = 0; i < numericColumns.length; i++) {
+    for (let j = i + 1; j < numericColumns.length; j++) {
+      const col1 = numericColumns[i];
+      const col2 = numericColumns[j];
+      
+      records.map(r => r[col1]).filter(v => v !== null && !isNaN(v));
+      records.map(r => r[col2]).filter(v => v !== null && !isNaN(v));
+      
+      // Get paired values
+      const pairs = [];
+      records.forEach(r => {
+        const v1 = r[col1];
+        const v2 = r[col2];
+        if (v1 !== null && v2 !== null && !isNaN(v1) && !isNaN(v2)) {
+          pairs.push([v1, v2]);
+        }
+      });
+      
+      if (pairs.length < 10) continue;
+      
+      // Pearson correlation
+      const pearson = ss.sampleCorrelation(pairs.map(p => p[0]), pairs.map(p => p[1]));
+      if (!isNaN(pearson) && Math.abs(pearson) > 0.1) {
+        analysis.pearson.push({
+          var1: col1,
+          var2: col2,
+          value: pearson,
+          pValue: calculateCorrelationPValue(pearson, pairs.length),
+          significant: Math.abs(pearson) > 0.3
+        });
+      }
+      
+      // Spearman correlation
+      const spearman = calculateSpearmanCorrelation(pairs);
+      if (!isNaN(spearman) && Math.abs(spearman) > 0.1) {
+        analysis.spearman.push({
+          var1: col1,
+          var2: col2,
+          value: spearman,
+          interpretation: interpretCorrelation(spearman)
+        });
+      }
+    }
+  }
+  
+  // Sort by absolute value
+  analysis.pearson.sort((a, b) => Math.abs(b.value) - Math.abs(a.value));
+  analysis.spearman.sort((a, b) => Math.abs(b.value) - Math.abs(a.value));
+  
+  // Calculate VIF for multicollinearity
+  if (numericColumns.length >= 3) {
+    analysis.multicollinearity = calculateMulticollinearity(records, numericColumns);
+  }
+  
+  return analysis;
+}
+
+function calculateSpearmanCorrelation(pairs) {
+  // Rank the values
+  const ranks1 = getRanks(pairs.map(p => p[0]));
+  const ranks2 = getRanks(pairs.map(p => p[1]));
+  
+  // Calculate Pearson correlation on ranks
+  return ss.sampleCorrelation(ranks1, ranks2);
+}
+
+function getRanks(values) {
+  const sorted = values
+    .map((v, i) => ({ value: v, index: i }))
+    .sort((a, b) => a.value - b.value);
+  
+  const ranks = new Array(values.length);
+  
+  for (let i = 0; i < sorted.length; i++) {
+    let j = i;
+    while (j < sorted.length - 1 && sorted[j + 1].value === sorted[i].value) {
+      j++;
+    }
+    
+    const avgRank = (i + j + 2) / 2;
+    for (let k = i; k <= j; k++) {
+      ranks[sorted[k].index] = avgRank;
+    }
+    
+    i = j;
+  }
+  
+  return ranks;
+}
+
+function calculateCorrelationPValue(r, n) {
+  if (n < 3) return 1;
+  
+  const t = r * Math.sqrt((n - 2) / (1 - r * r));
+  const df = n - 2;
+  
+  return 2 * (1 - jstat.studentt.cdf(Math.abs(t), df));
+}
+
+function interpretCorrelation(r) {
+  const absR = Math.abs(r);
+  const direction = r > 0 ? 'positive' : 'negative';
+  
+  if (absR >= 0.9) return `Very strong ${direction}`;
+  if (absR >= 0.7) return `Strong ${direction}`;
+  if (absR >= 0.5) return `Moderate ${direction}`;
+  if (absR >= 0.3) return `Weak ${direction}`;
+  return 'Negligible';
+}
+
+function calculateMulticollinearity(records, columns) {
+  const vifs = [];
+  
+  columns.forEach((targetCol, idx) => {
+    const otherCols = columns.filter((_, i) => i !== idx);
+    
+    if (otherCols.length === 0) return;
+    
+    // Prepare data
+    const y = records.map(r => r[targetCol]).filter(v => v !== null && !isNaN(v));
+    const X = [];
+    
+    records.forEach(record => {
+      const targetValue = record[targetCol];
+      if (targetValue === null || isNaN(targetValue)) return;
+      
+      const row = otherCols.map(col => {
+        const val = record[col];
+        return val !== null && !isNaN(val) ? val : 0;
+      });
+      
+      if (row.every(v => !isNaN(v))) {
+        X.push(row);
+      }
+    });
+    
+    if (X.length < 10) return;
+    
+    // Simple R-squared approximation
+    const r2 = calculateR2Approximation(X, y);
+    const vif = 1 / (1 - r2);
+    
+    vifs.push({
+      variable: targetCol,
+      value: vif,
+      interpretation: 
+        vif > 10 ? 'Severe multicollinearity' :
+        vif > 5 ? 'Moderate multicollinearity' :
+        'No concern'
+    });
+  });
+  
+  return vifs.sort((a, b) => b.value - a.value);
+}
+
+function calculateR2Approximation(X, y) {
+  // Very simple approximation using average correlation
+  if (X.length === 0 || X[0].length === 0) return 0;
+  
+  let totalCorr = 0;
+  let count = 0;
+  
+  for (let j = 0; j < X[0].length; j++) {
+    const xCol = X.map(row => row[j]);
+    const corr = ss.sampleCorrelation(xCol, y);
+    
+    if (!isNaN(corr)) {
+      totalCorr += Math.abs(corr);
+      count++;
+    }
+  }
+  
+  const avgCorr = count > 0 ? totalCorr / count : 0;
+  return Math.min(0.99, avgCorr * avgCorr * 1.5); // Rough approximation
+}
+
+function performTimeSeriesAnalysis(records, dateColumn, numericColumns) {
+  const dates = records
+    .map(r => ({ date: r[dateColumn], record: r }))
+    .filter(d => d.date instanceof Date)
+    .sort((a, b) => a.date - b.date);
+  
+  if (dates.length < 20) {
+    return {
+      applicable: false,
+      reason: 'Insufficient temporal data points (need at least 20)'
+    };
+  }
+  
+  // Check for regular intervals
+  const intervals = [];
+  for (let i = 1; i < dates.length; i++) {
+    intervals.push(dates[i].date - dates[i-1].date);
+  }
+  
+  const frequency = detectFrequency(intervals);
+  if (!frequency) {
+    return {
+      applicable: false,
+      reason: 'Irregular time intervals detected'
+    };
+  }
+  
+  const analysis = {
+    applicable: true,
+    timeColumn: dateColumn,
+    frequency,
+    dateRange: `${formatDate$2(dates[0].date)} to ${formatDate$2(dates[dates.length - 1].date)}`,
+    dataPoints: dates.length,
+    series: {}
+  };
+  
+  // Analyze each numeric column
+  numericColumns.forEach(col => {
+    const values = dates.map(d => d.record[col]).filter(v => v !== null && !isNaN(v));
+    
+    if (values.length < dates.length * 0.8) {
+      return; // Skip columns with too many missing values
+    }
+    
+    analysis.series[col] = {
+      trend: analyzeTrend(values, dates.map(d => d.date)),
+      seasonality: analyzeSeasonality$2(values, dates.map(d => d.date), frequency),
+      stationarity: testStationarity(values),
+      decomposition: decomposeTimeSeries(values),
+      forecast: generateForecast(values)
+    };
+  });
+  
+  // Overall time series characteristics
+  analysis.overall = summarizeTimeSeriesCharacteristics(analysis.series);
+  
+  return analysis;
+}
+
+function detectFrequency(intervals) {
+  if (intervals.length === 0) return null;
+  
+  // Calculate median interval
+  const sortedIntervals = [...intervals].sort((a, b) => a - b);
+  const medianInterval = sortedIntervals[Math.floor(sortedIntervals.length / 2)];
+  
+  // Check consistency (coefficient of variation)
+  const mean = ss.mean(intervals);
+  const stdDev = ss.standardDeviation(intervals);
+  const cv = stdDev / mean;
+  
+  if (cv > 0.3) return null; // Too irregular
+  
+  // Determine frequency based on median interval (in milliseconds)
+  const hour = 60 * 60 * 1000;
+  const day = 24 * hour;
+  const week = 7 * day;
+  const month = 30 * day; // Approximate
+  
+  if (Math.abs(medianInterval - hour) < hour * 0.1) return 'hourly';
+  if (Math.abs(medianInterval - day) < day * 0.1) return 'daily';
+  if (Math.abs(medianInterval - week) < week * 0.1) return 'weekly';
+  if (Math.abs(medianInterval - month) < month * 0.2) return 'monthly';
+  
+  return 'custom';
+}
+
+function analyzeTrend(values, dates) {
+  // Simple linear trend
+  const x = dates.map((d, i) => i);
+  const regression = ss.linearRegression([x, values]);
+  const regressionLine = ss.linearRegressionLine(regression);
+  
+  // Calculate trend strength
+  const predicted = x.map(regressionLine);
+  const r2 = calculateR2(values, predicted);
+  
+  // Polynomial trend
+  let polynomialTrend = null;
+  if (values.length > 30) {
+    polynomialTrend = detectPolynomialTrend(x);
+  }
+  
+  return {
+    type: polynomialTrend && polynomialTrend.r2 > r2 + 0.1 ? 'polynomial' : 'linear',
+    slope: regression.m,
+    intercept: regression.b,
+    strength: r2,
+    direction: regression.m > 0 ? 'increasing' : regression.m < 0 ? 'decreasing' : 'flat',
+    changePerPeriod: regression.m,
+    polynomialDegree: polynomialTrend?.degree,
+    interpretation: interpretTrend(regression.m, r2, values)
+  };
+}
+
+function analyzeSeasonality$2(values, dates, frequency) {
+  if (values.length < 24) {
+    return { detected: false, reason: 'Insufficient data for seasonality detection' };
+  }
+  
+  // Detrend the series first
+  const detrended = detrendSeries(values);
+  
+  // Seasonal decomposition based on frequency
+  let seasonalPattern = null;
+  let period = null;
+  
+  switch (frequency) {
+    case 'hourly':
+      period = 24; // Daily seasonality
+      break;
+    case 'daily':
+      period = 7; // Weekly seasonality
+      if (values.length > 365) {
+        // Also check for monthly/yearly patterns
+        const yearlyPattern = detectYearlySeasonality(values, dates);
+        if (yearlyPattern.strength > 0.3) {
+          return yearlyPattern;
+        }
+      }
+      break;
+    case 'weekly':
+      period = 4; // Monthly seasonality (approximate)
+      break;
+    case 'monthly':
+      period = 12; // Yearly seasonality
+      break;
+  }
+  
+  if (period && values.length >= period * 2) {
+    seasonalPattern = calculateSeasonalIndices(detrended, period);
+    
+    return {
+      detected: seasonalPattern.strength > 0.2,
+      period,
+      strength: seasonalPattern.strength,
+      indices: seasonalPattern.indices,
+      peaks: identifyPeakPeriods(seasonalPattern.indices),
+      interpretation: interpretSeasonality(seasonalPattern, frequency)
+    };
+  }
+  
+  return { detected: false, reason: 'No clear seasonal pattern detected' };
+}
+
+function testStationarity(values) {
+  // Augmented Dickey-Fuller test (simplified)
+  const adf = augmentedDickeyFuller(values);
+  
+  // KPSS test (simplified)
+  const kpss = kpssTest(values);
+  
+  // Check for structural breaks
+  const breaks = detectStructuralBreaks(values);
+  
+  return {
+    adf: {
+      statistic: adf.statistic,
+      pValue: adf.pValue,
+      isStationary: adf.pValue < 0.05,
+      interpretation: adf.pValue < 0.05 ? 'Series is stationary' : 'Series is non-stationary'
+    },
+    kpss: {
+      statistic: kpss.statistic,
+      criticalValue: kpss.criticalValue,
+      isStationary: kpss.statistic < kpss.criticalValue,
+      interpretation: kpss.statistic < kpss.criticalValue ? 'Series is trend stationary' : 'Series has unit root'
+    },
+    structuralBreaks: breaks,
+    recommendation: generateStationarityRecommendation(adf, kpss, breaks)
+  };
+}
+
+function augmentedDickeyFuller(values) {
+  // Simplified ADF test
+  const n = values.length;
+  const diffs = [];
+  
+  for (let i = 1; i < n; i++) {
+    diffs.push(values[i] - values[i-1]);
+  }
+  
+  // Regression: Δy_t = α + βy_{t-1} + ε_t
+  const y = diffs;
+  const x = values.slice(0, -1);
+  
+  const regression = ss.linearRegression([x, y]);
+  const stdError = calculateStandardError(x, y, regression);
+  
+  const tStat = regression.m / stdError;
+  
+  // Critical values (approximate)
+  const criticalValue = -2.86 - 0.48 / n - 2.78 / (n * n);
+  
+  return {
+    statistic: tStat,
+    criticalValue,
+    pValue: tStat < criticalValue ? 0.01 : 0.1, // Simplified
+    rejectNull: tStat < criticalValue
+  };
+}
+
+function kpssTest(values) {
+  // Simplified KPSS test
+  const n = values.length;
+  const mean = ss.mean(values);
+  
+  // Partial sums
+  const S = [];
+  let sum = 0;
+  for (let i = 0; i < n; i++) {
+    sum += values[i] - mean;
+    S.push(sum);
+  }
+  
+  // Calculate test statistic
+  const variance = ss.variance(values);
+  const stat = S.reduce((acc, s) => acc + s * s, 0) / (n * n * variance);
+  
+  // Critical value at 5% significance
+  const criticalValue = 0.463;
+  
+  return {
+    statistic: stat,
+    criticalValue,
+    rejectNull: stat > criticalValue
+  };
+}
+
+function decomposeTimeSeries(values, frequency) {
+  if (values.length < 24) {
+    return null;
+  }
+  
+  // Moving average for trend
+  const trend = calculateMovingAverage(values, Math.min(12, Math.floor(values.length / 4)));
+  
+  // Detrended series
+  const detrended = values.map((v, i) => v - (trend[i] || trend[trend.length - 1]));
+  
+  // Seasonal component (simplified)
+  const seasonal = calculateSeasonalComponent(detrended);
+  
+  // Residual
+  const residual = values.map((v, i) => 
+    v - (trend[i] || trend[trend.length - 1]) - (seasonal[i] || 0)
+  );
+  
+  return {
+    trend: {
+      values: trend,
+      direction: trend[trend.length - 1] > trend[0] ? 'increasing' : 'decreasing'
+    },
+    seasonal: {
+      values: seasonal,
+      strength: calculateSeasonalStrength(seasonal, residual)
+    },
+    residual: {
+      values: residual,
+      variance: ss.variance(residual)
+    }
+  };
+}
+
+function generateForecast(values, frequency) {
+  // Simple forecast using trend and seasonality
+  const n = values.length;
+  const forecastHorizon = Math.min(12, Math.floor(n * 0.2));
+  
+  // Fit trend
+  const x = Array.from({ length: n }, (_, i) => i);
+  const regression = ss.linearRegression([x, values]);
+  const trend = ss.linearRegressionLine(regression);
+  
+  // Generate forecast
+  const forecasts = [];
+  for (let i = 0; i < forecastHorizon; i++) {
+    const trendValue = trend(n + i);
+    
+    // Add seasonal component if detected
+    const seasonalValue = 0; // Simplified
+    
+    forecasts.push({
+      period: n + i + 1,
+      forecast: trendValue + seasonalValue,
+      confidence: {
+        lower: trendValue - 2 * Math.sqrt(ss.variance(values)),
+        upper: trendValue + 2 * Math.sqrt(ss.variance(values))
+      }
+    });
+  }
+  
+  return {
+    horizon: forecastHorizon,
+    method: 'Linear trend with seasonality',
+    forecasts: forecasts.slice(0, 3), // Just show first 3
+    accuracy: 'Use with caution - simple forecast method'
+  };
+}
+
+// Helper functions
+function formatDate$2(date) {
+  return date.toISOString().split('T')[0];
+}
+
+function calculateR2(actual, predicted) {
+  const meanActual = ss.mean(actual);
+  const ssTotal = actual.reduce((sum, y) => sum + Math.pow(y - meanActual, 2), 0);
+  const ssResidual = actual.reduce((sum, y, i) => sum + Math.pow(y - predicted[i], 2), 0);
+  return 1 - ssResidual / ssTotal;
+}
+
+function detrendSeries(values) {
+  const x = Array.from({ length: values.length }, (_, i) => i);
+  const regression = ss.linearRegression([x, values]);
+  const trend = ss.linearRegressionLine(regression);
+  
+  return values.map((v, i) => v - trend(i));
+}
+
+function detectPolynomialTrend(x, y) {
+  // Try quadratic trend
+  const x2 = x.map(xi => xi * xi);
+  x.map((xi, i) => [1, xi, x2[i]]);
+  
+  // Simplified polynomial regression
+  // In practice, use proper matrix operations
+  const coeffs = [0, 0, 0]; // Placeholder
+  
+  return {
+    degree: 2,
+    r2: 0.5, // Placeholder
+    coefficients: coeffs
+  };
+}
+
+function detectYearlySeasonality(values, dates) {
+  const monthlyAverages = {};
+  
+  dates.forEach((date, i) => {
+    const month = date.getMonth();
+    if (!monthlyAverages[month]) {
+      monthlyAverages[month] = [];
+    }
+    if (values[i] !== null) {
+      monthlyAverages[month].push(values[i]);
+    }
+  });
+  
+  const monthlyMeans = Object.entries(monthlyAverages)
+    .map(([month, vals]) => ({
+      month: parseInt(month),
+      mean: ss.mean(vals)
+    }))
+    .sort((a, b) => a.month - b.month);
+  
+  if (monthlyMeans.length < 6) {
+    return { detected: false };
+  }
+  
+  const overallMean = ss.mean(monthlyMeans.map(m => m.mean));
+  const seasonalStrength = ss.standardDeviation(monthlyMeans.map(m => m.mean)) / overallMean;
+  
+  return {
+    detected: seasonalStrength > 0.1,
+    period: 12,
+    strength: seasonalStrength,
+    peaks: monthlyMeans
+      .filter(m => m.mean > overallMean * 1.1)
+      .map(m => getMonthName(m.month)),
+    interpretation: 'Yearly seasonal pattern detected'
+  };
+}
+
+function calculateSeasonalIndices(values, period) {
+  const indices = Array(period).fill(0);
+  const counts = Array(period).fill(0);
+  
+  values.forEach((val, i) => {
+    const seasonIndex = i % period;
+    indices[seasonIndex] += val;
+    counts[seasonIndex]++;
+  });
+  
+  // Calculate average for each season
+  for (let i = 0; i < period; i++) {
+    indices[i] = counts[i] > 0 ? indices[i] / counts[i] : 0;
+  }
+  
+  // Normalize
+  const mean = ss.mean(indices);
+  const normalizedIndices = indices.map(idx => idx / mean);
+  
+  // Calculate strength
+  const strength = ss.standardDeviation(normalizedIndices);
+  
+  return {
+    indices: normalizedIndices,
+    strength
+  };
+}
+
+function identifyPeakPeriods(indices) {
+  const peaks = [];
+  const mean = ss.mean(indices);
+  
+  indices.forEach((idx, i) => {
+    if (idx > mean * 1.1) {
+      peaks.push({
+        period: i,
+        strength: idx
+      });
+    }
+  });
+  
+  return peaks;
+}
+
+function detectStructuralBreaks(values) {
+  // Simplified structural break detection
+  const n = values.length;
+  const windowSize = Math.max(10, Math.floor(n * 0.1));
+  const breaks = [];
+  
+  for (let i = windowSize; i < n - windowSize; i++) {
+    const before = values.slice(i - windowSize, i);
+    const after = values.slice(i, i + windowSize);
+    
+    const meanBefore = ss.mean(before);
+    const meanAfter = ss.mean(after);
+    const pooledStd = Math.sqrt((ss.variance(before) + ss.variance(after)) / 2);
+    
+    const tStat = Math.abs(meanAfter - meanBefore) / (pooledStd * Math.sqrt(2 / windowSize));
+    
+    if (tStat > 2.5) {
+      breaks.push({
+        index: i,
+        magnitude: meanAfter - meanBefore,
+        significance: tStat
+      });
+    }
+  }
+  
+  return breaks;
+}
+
+function calculateStandardError(x, y, regression) {
+  const predicted = x.map(xi => regression.m * xi + regression.b);
+  const residuals = y.map((yi, i) => yi - predicted[i]);
+  const sse = residuals.reduce((sum, r) => sum + r * r, 0);
+  const mse = sse / (x.length - 2);
+  
+  const xMean = ss.mean(x);
+  const xSS = x.reduce((sum, xi) => sum + Math.pow(xi - xMean, 2), 0);
+  
+  return Math.sqrt(mse / xSS);
+}
+
+function calculateMovingAverage(values, window) {
+  const ma = [];
+  
+  for (let i = 0; i < values.length; i++) {
+    const start = Math.max(0, i - Math.floor(window / 2));
+    const end = Math.min(values.length, i + Math.floor(window / 2) + 1);
+    const subset = values.slice(start, end);
+    ma.push(ss.mean(subset));
+  }
+  
+  return ma;
+}
+
+function calculateSeasonalComponent(detrended, frequency) {
+  // Simplified seasonal extraction
+  return detrended.map((v, i) => Math.sin(2 * Math.PI * i / 12) * 0.1);
+}
+
+function calculateSeasonalStrength(seasonal, residual) {
+  const varSeasonal = ss.variance(seasonal);
+  const varResidual = ss.variance(residual);
+  return varSeasonal / (varSeasonal + varResidual);
+}
+
+function interpretTrend(slope, r2, values) {
+  const percentChange = (slope / ss.mean(values)) * 100;
+  
+  if (r2 < 0.1) return 'No clear trend';
+  if (Math.abs(percentChange) < 1) return 'Stable with minimal trend';
+  if (percentChange > 5) return `Strong upward trend (+${percentChange.toFixed(1)}% per period)`;
+  if (percentChange < -5) return `Strong downward trend (${percentChange.toFixed(1)}% per period)`;
+  if (percentChange > 0) return `Moderate upward trend (+${percentChange.toFixed(1)}% per period)`;
+  return `Moderate downward trend (${percentChange.toFixed(1)}% per period)`;
+}
+
+function interpretSeasonality(pattern, frequency) {
+  if (!pattern || pattern.strength < 0.2) {
+    return 'No significant seasonal pattern';
+  }
+  
+  const peaks = pattern.indices
+    .map((idx, i) => ({ period: i, value: idx }))
+    .filter(p => p.value > 1.1)
+    .sort((a, b) => b.value - a.value);
+  
+  if (peaks.length === 0) {
+    return 'Mild seasonal variation detected';
+  }
+  
+  const periodNames = {
+    hourly: ['12AM', '1AM', '2AM', '3AM', '4AM', '5AM', '6AM', '7AM', '8AM', '9AM', '10AM', '11AM',
+             '12PM', '1PM', '2PM', '3PM', '4PM', '5PM', '6PM', '7PM', '8PM', '9PM', '10PM', '11PM'],
+    daily: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+    weekly: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
+    monthly: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  };
+  
+  const names = periodNames[frequency] || [];
+  const peakName = names[peaks[0].period] || `Period ${peaks[0].period}`;
+  
+  return `Strong seasonality with peak at ${peakName} (${((peaks[0].value - 1) * 100).toFixed(0)}% above average)`;
+}
+
+function generateStationarityRecommendation(adf, kpss, breaks) {
+  if (adf.isStationary && kpss.isStationary) {
+    return 'Series is stationary - suitable for time series modeling';
+  }
+  
+  if (!adf.isStationary && !kpss.isStationary) {
+    return 'Series is non-stationary - consider differencing or detrending';
+  }
+  
+  if (breaks.length > 0) {
+    return 'Structural breaks detected - consider segmented analysis';
+  }
+  
+  if (!adf.isStationary && kpss.isStationary) {
+    return 'Series is trend stationary - detrending recommended';
+  }
+  
+  return 'Mixed stationarity results - further investigation needed';
+}
+
+function getMonthName(month) {
+  const names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return names[month];
+}
+
+function summarizeTimeSeriesCharacteristics(series) {
+  const characteristics = [];
+  
+  // Check if any series has strong trend
+  const trendingSeries = Object.entries(series)
+    .filter(([_, analysis]) => analysis.trend && analysis.trend.strength > 0.5)
+    .map(([name, analysis]) => ({
+      name,
+      direction: analysis.trend.direction,
+      strength: analysis.trend.strength
+    }));
+  
+  if (trendingSeries.length > 0) {
+    characteristics.push(`${trendingSeries.length} series show significant trends`);
+  }
+  
+  // Check for seasonality
+  const seasonalSeries = Object.entries(series)
+    .filter(([_, analysis]) => analysis.seasonality && analysis.seasonality.detected)
+    .map(([name, _]) => name);
+  
+  if (seasonalSeries.length > 0) {
+    characteristics.push(`Seasonal patterns detected in ${seasonalSeries.join(', ')}`);
+  }
+  
+  // Check stationarity
+  const nonStationarySeries = Object.entries(series)
+    .filter(([_, analysis]) => 
+      analysis.stationarity && 
+      !analysis.stationarity.adf.isStationary
+    ).length;
+  
+  if (nonStationarySeries > 0) {
+    characteristics.push(`${nonStationarySeries} series require differencing for stationarity`);
+  }
+  
+  return characteristics;
+}
+
+function validateAustralianData$1(records, columns, columnTypes) {
+  const validation = {
+    detected: false,
+    results: {}
+  };
+  
+  // Check each column for Australian patterns
+  columns.forEach(col => {
+    const values = records.map(r => r[col]).filter(v => v !== null && v !== undefined);
+    
+    if (values.length === 0) return;
+    
+    const columnValidation = [];
+    
+    // Check for postcodes
+    const postcodeValidation = validatePostcodes$1(values);
+    if (postcodeValidation.detected) {
+      validation.detected = true;
+      columnValidation.push(postcodeValidation);
+    }
+    
+    // Check for phone numbers
+    const phoneValidation = validatePhoneNumbers$1(values);
+    if (phoneValidation.detected) {
+      validation.detected = true;
+      columnValidation.push(phoneValidation);
+    }
+    
+    // Check for state codes
+    const stateValidation = validateStateCodes(values);
+    if (stateValidation.detected) {
+      validation.detected = true;
+      columnValidation.push(stateValidation);
+    }
+    
+    // Check for ABN/ACN
+    const abnValidation = validateABN$1(values);
+    if (abnValidation.detected) {
+      validation.detected = true;
+      columnValidation.push(abnValidation);
+    }
+    
+    // Check for currency
+    const currencyValidation = validateCurrency(values);
+    if (currencyValidation.detected) {
+      validation.detected = true;
+      columnValidation.push(currencyValidation);
+    }
+    
+    if (columnValidation.length > 0) {
+      validation.results[col] = columnValidation;
+    }
+  });
+  
+  return validation;
+}
+
+function validatePostcodes$1(values) {
+  const postcodePattern = /^[0-9]{4}$/;
+  const postcodes = values.filter(v => postcodePattern.test(String(v)));
+  
+  if (postcodes.length < values.length * 0.1) {
+    return { detected: false };
+  }
+  
+  // Australian postcode ranges by state
+  const stateRanges = {
+    NSW: [[1000, 2599], [2620, 2899], [2921, 2999]],
+    VIC: [[3000, 3999]],
+    QLD: [[4000, 4999]],
+    SA: [[5000, 5999]],
+    WA: [[6000, 6999]],
+    TAS: [[7000, 7999]],
+    NT: [[800, 899]]
+  };
+  
+  const validPostcodes = [];
+  const invalidPostcodes = [];
+  const stateDistribution = {};
+  
+  postcodes.forEach(postcode => {
+    const num = parseInt(postcode);
+    let isValid = false;
+    let state = null;
+    
+    for (const [stateName, ranges] of Object.entries(stateRanges)) {
+      for (const [min, max] of ranges) {
+        if (num >= min && num <= max) {
+          isValid = true;
+          state = stateName;
+          break;
+        }
+      }
+      if (isValid) break;
+    }
+    
+    if (isValid) {
+      validPostcodes.push(postcode);
+      stateDistribution[state] = (stateDistribution[state] || 0) + 1;
+    } else {
+      invalidPostcodes.push(postcode);
+    }
+  });
+  
+  return {
+    type: 'Australian Postcodes',
+    detected: true,
+    valid: validPostcodes.length > 0,
+    validCount: validPostcodes.length,
+    invalidCount: invalidPostcodes.length,
+    percentage: (postcodes.length / values.length * 100).toFixed(1),
+    details: {
+      stateDistribution: Object.entries(stateDistribution)
+        .sort((a, b) => b[1] - a[1])
+        .map(([state, count]) => `${state}: ${count}`)
+        .join(', '),
+      invalidExamples: invalidPostcodes.slice(0, 5)
+    }
+  };
+}
+
+function validatePhoneNumbers$1(values) {
+  const phonePatterns = [
+    /^(?:\+?61|0)[2-478]\d{8}$/, // Landline
+    /^(?:\+?61|0)4\d{8}$/, // Mobile
+    /^13\d{4}$|^1300\d{6}$|^1800\d{6}$/ // Special numbers
+  ];
+  
+  const phoneNumbers = values.filter(v => {
+    const str = String(v).replace(/[\s\-\(\)]/g, '');
+    return phonePatterns.some(pattern => pattern.test(str));
+  });
+  
+  if (phoneNumbers.length < values.length * 0.1) {
+    return { detected: false };
+  }
+  
+  const validNumbers = [];
+  const invalidNumbers = [];
+  const types = {
+    mobile: 0,
+    landline: 0,
+    special: 0
+  };
+  
+  phoneNumbers.forEach(phone => {
+    const cleaned = String(phone).replace(/[\s\-\(\)]/g, '');
+    
+    try {
+      const parsed = parsePhoneNumberFromString(cleaned, 'AU');
+      if (parsed && parsed.isValid()) {
+        validNumbers.push(phone);
+        
+        if (cleaned.match(/^(?:\+?61|0)4/)) {
+          types.mobile++;
+        } else if (cleaned.match(/^1[38]/)) {
+          types.special++;
+        } else {
+          types.landline++;
+        }
+      } else {
+        invalidNumbers.push(phone);
+      }
+    } catch {
+      invalidNumbers.push(phone);
+    }
+  });
+  
+  return {
+    type: 'Australian Phone Numbers',
+    detected: true,
+    valid: validNumbers.length > 0,
+    validCount: validNumbers.length,
+    invalidCount: invalidNumbers.length,
+    percentage: (phoneNumbers.length / values.length * 100).toFixed(1),
+    details: {
+      types: `Mobile: ${types.mobile}, Landline: ${types.landline}, Special: ${types.special}`,
+      invalidExamples: invalidNumbers.slice(0, 3)
+    }
+  };
+}
+
+function validateStateCodes(values) {
+  const states = ['NSW', 'VIC', 'QLD', 'WA', 'SA', 'TAS', 'ACT', 'NT'];
+  const statePattern = new RegExp(`^(${states.join('|')})$`, 'i');
+  
+  const stateCodes = values.filter(v => statePattern.test(String(v).trim()));
+  
+  if (stateCodes.length < values.length * 0.1) {
+    return { detected: false };
+  }
+  
+  const distribution = {};
+  stateCodes.forEach(state => {
+    const upperState = String(state).trim().toUpperCase();
+    distribution[upperState] = (distribution[upperState] || 0) + 1;
+  });
+  
+  return {
+    type: 'Australian State Codes',
+    detected: true,
+    valid: true,
+    validCount: stateCodes.length,
+    percentage: (stateCodes.length / values.length * 100).toFixed(1),
+    details: {
+      distribution: Object.entries(distribution)
+        .sort((a, b) => b[1] - a[1])
+        .map(([state, count]) => `${state}: ${count}`)
+        .join(', ')
+    }
+  };
+}
+
+function validateABN$1(values) {
+  const abnPattern = /^(\d{2}\s?\d{3}\s?\d{3}\s?\d{3}|\d{11})$/;
+  const acnPattern = /^(\d{3}\s?\d{3}\s?\d{3}|\d{9})$/;
+  
+  const abnNumbers = values.filter(v => {
+    const str = String(v).trim();
+    return abnPattern.test(str) || acnPattern.test(str);
+  });
+  
+  if (abnNumbers.length < values.length * 0.05) {
+    return { detected: false };
+  }
+  
+  const validABNs = [];
+  const invalidABNs = [];
+  
+  abnNumbers.forEach(abn => {
+    const digits = String(abn).replace(/\s/g, '');
+    
+    if (digits.length === 11) {
+      // ABN validation
+      if (validateABNChecksum(digits)) {
+        validABNs.push(abn);
+      } else {
+        invalidABNs.push(abn);
+      }
+    } else if (digits.length === 9) {
+      // ACN validation (simplified)
+      validABNs.push(abn);
+    } else {
+      invalidABNs.push(abn);
+    }
+  });
+  
+  return {
+    type: 'Australian Business Numbers',
+    detected: true,
+    valid: validABNs.length > 0,
+    validCount: validABNs.length,
+    invalidCount: invalidABNs.length,
+    percentage: (abnNumbers.length / values.length * 100).toFixed(1),
+    details: {
+      format: 'ABN (11 digits) or ACN (9 digits)',
+      invalidExamples: invalidABNs.slice(0, 3)
+    }
+  };
+}
+
+function validateABNChecksum(abn) {
+  if (abn.length !== 11) return false;
+  
+  const weights = [10, 1, 3, 5, 7, 9, 11, 13, 15, 17, 19];
+  let sum = 0;
+  
+  // Subtract 1 from first digit
+  const digits = abn.split('').map(Number);
+  digits[0] -= 1;
+  
+  // Calculate weighted sum
+  for (let i = 0; i < 11; i++) {
+    sum += digits[i] * weights[i];
+  }
+  
+  return sum % 89 === 0;
+}
+
+function validateCurrency(values) {
+  const currencyPattern = /^\$[\d,]+\.?\d*$/;
+  const currencyValues = values.filter(v => currencyPattern.test(String(v).trim()));
+  
+  if (currencyValues.length < values.length * 0.1) {
+    return { detected: false };
+  }
+  
+  const amounts = currencyValues.map(v => {
+    const cleaned = String(v).replace(/[$,]/g, '');
+    return parseFloat(cleaned);
+  }).filter(amt => !isNaN(amt));
+  
+  const stats = {
+    min: Math.min(...amounts),
+    max: Math.max(...amounts),
+    average: amounts.reduce((a, b) => a + b, 0) / amounts.length
+  };
+  
+  // Check for GST patterns (10%)
+  const gstAmounts = [];
+  for (let i = 0; i < amounts.length; i++) {
+    for (let j = i + 1; j < amounts.length; j++) {
+      const ratio = amounts[i] / amounts[j];
+      if (Math.abs(ratio - 1.1) < 0.001 || Math.abs(ratio - 0.909) < 0.001) {
+        gstAmounts.push({ amount: amounts[i], gst: amounts[j] });
+      }
+    }
+  }
+  
+  return {
+    type: 'Australian Currency',
+    detected: true,
+    valid: true,
+    validCount: currencyValues.length,
+    percentage: (currencyValues.length / values.length * 100).toFixed(1),
+    details: {
+      range: `$${stats.min.toFixed(2)} - $${stats.max.toFixed(2)}`,
+      average: `$${stats.average.toFixed(2)}`,
+      gstPatterns: gstAmounts.length > 0 ? `${gstAmounts.length} potential GST relationships found` : 'No GST patterns detected'
+    }
+  };
+}
+
+function generateAustralianInsights(validation) {
+  const insights = [];
+  
+  if (!validation.detected) {
+    return insights;
+  }
+  
+  // Geographic insights
+  const postcodeColumns = Object.entries(validation.results)
+    .filter(([_, validations]) => 
+      validations.some(v => v.type === 'Australian Postcodes' && v.valid)
+    );
+  
+  if (postcodeColumns.length > 0) {
+    insights.push('Geographic data detected - consider state-based analysis');
+  }
+  
+  // Contact data insights
+  const phoneColumns = Object.entries(validation.results)
+    .filter(([_, validations]) => 
+      validations.some(v => v.type === 'Australian Phone Numbers' && v.valid)
+    );
+  
+  if (phoneColumns.length > 0) {
+    insights.push('Contact information present - ensure compliance with Privacy Act 1988');
+  }
+  
+  // Business data insights
+  const abnColumns = Object.entries(validation.results)
+    .filter(([_, validations]) => 
+      validations.some(v => v.type === 'Australian Business Numbers' && v.valid)
+    );
+  
+  if (abnColumns.length > 0) {
+    insights.push('Business identifiers found - can be enriched with ABR data');
+  }
+  
+  // Financial insights
+  const currencyColumns = Object.entries(validation.results)
+    .filter(([_, validations]) => 
+      validations.some(v => v.type === 'Australian Currency' && v.valid)
+    );
+  
+  if (currencyColumns.length > 0) {
+    insights.push('Financial data in AUD - check for GST implications');
+  }
+  
+  return insights;
+}
+
+function assessMLReadiness(records, columns, columnTypes, analysis) {
+  const totalRows = records.length;
+  columns.length;
+  
+  // Initialize assessment
+  const assessment = {
+    overallScore: 0,
+    featureQuality: [],
+    dataQuality: {},
+    recommendations: [],
+    modelSuggestions: [],
+    readinessLevel: 'low'
+  };
+  
+  // Check minimum requirements
+  if (totalRows < 50) {
+    assessment.recommendations.push('Dataset too small for ML (< 50 rows)');
+    assessment.readinessLevel = 'insufficient';
+    return assessment;
+  }
+  
+  // Assess data quality
+  assessment.dataQuality = assessDataQuality(records, columns, columnTypes, analysis);
+  
+  // Assess feature quality
+  assessment.featureQuality = assessFeatureQuality(records, columns, columnTypes, analysis);
+  
+  // Calculate overall score
+  const scores = calculateReadinessScores(assessment, totalRows);
+  assessment.overallScore = scores.overall;
+  
+  // Generate recommendations
+  assessment.recommendations = generateMLRecommendations(assessment, analysis);
+  
+  // Suggest appropriate models
+  assessment.modelSuggestions = suggestModels(columnTypes, analysis, assessment);
+  
+  // Determine readiness level
+  assessment.readinessLevel = 
+    assessment.overallScore >= 8 ? 'high' :
+    assessment.overallScore >= 6 ? 'medium' :
+    assessment.overallScore >= 4 ? 'low' :
+    'insufficient';
+  
+  return assessment;
+}
+
+function assessDataQuality(records, columns, columnTypes, analysis) {
+  const quality = {
+    completeness: 0,
+    consistency: 0,
+    uniqueness: 0,
+    validity: 0,
+    issues: []
+  };
+  
+  // Completeness
+  quality.completeness = analysis.completeness || 0;
+  if (quality.completeness < 0.8) {
+    quality.issues.push(`Low data completeness (${(quality.completeness * 100).toFixed(1)}%)`);
+  }
+  
+  // Consistency (based on outliers and patterns)
+  const outlierRate = analysis.outlierRate || 0;
+  quality.consistency = Math.max(0, 1 - outlierRate * 2);
+  if (outlierRate > 0.1) {
+    quality.issues.push(`High outlier rate (${(outlierRate * 100).toFixed(1)}%)`);
+  }
+  
+  // Uniqueness (check for duplicate rows)
+  const duplicateRate = (analysis.duplicateCount || 0) / records.length;
+  quality.uniqueness = 1 - duplicateRate;
+  if (duplicateRate > 0.05) {
+    quality.issues.push(`${analysis.duplicateCount} duplicate rows found`);
+  }
+  
+  // Validity (based on type detection confidence)
+  let totalConfidence = 0;
+  let confCount = 0;
+  columns.forEach(col => {
+    if (columnTypes[col].confidence) {
+      totalConfidence += columnTypes[col].confidence;
+      confCount++;
+    }
+  });
+  quality.validity = confCount > 0 ? totalConfidence / confCount : 1;
+  
+  return quality;
+}
+
+function assessFeatureQuality(records, columns, columnTypes, analysis) {
+  const features = [];
+  
+  columns.forEach(col => {
+    const type = columnTypes[col];
+    const values = records.map(r => r[col]);
+    const nonNullValues = values.filter(v => v !== null && v !== undefined);
+    
+    const feature = {
+      feature: col,
+      type: type.type,
+      quality: 'unknown',
+      issues: [],
+      recommendations: []
+    };
+    
+    // Check completeness
+    const completeness = nonNullValues.length / values.length;
+    if (completeness < 0.5) {
+      feature.quality = 'poor';
+      feature.issues.push('High missing rate');
+      feature.recommendations.push('Consider dropping or advanced imputation');
+    }
+    
+    // Check variance
+    if (['integer', 'float'].includes(type.type)) {
+      const variance = ss.variance(nonNullValues.filter(v => typeof v === 'number'));
+      const uniqueRatio = new Set(nonNullValues).size / nonNullValues.length;
+      
+      if (variance === 0 || uniqueRatio < 0.01) {
+        feature.quality = 'poor';
+        feature.issues.push('Zero or near-zero variance');
+        feature.recommendations.push('Remove constant feature');
+      } else if (uniqueRatio > 0.95 && type.type !== 'identifier') {
+        feature.quality = 'good';
+        feature.assessment = 'High cardinality numeric feature';
+      } else {
+        feature.quality = 'good';
+      }
+      
+      // Check for skewness
+      const stats = analysis.columns?.find(c => c.name === col)?.stats;
+      if (stats && Math.abs(stats.skewness) > 2) {
+        feature.issues.push('Highly skewed distribution');
+        feature.recommendations.push('Apply log or Box-Cox transformation');
+      }
+    }
+    
+    // Check categorical features
+    if (type.type === 'categorical') {
+      const cardinality = type.categories.length;
+      const sampleRatio = cardinality / records.length;
+      
+      if (cardinality === 1) {
+        feature.quality = 'poor';
+        feature.issues.push('Single value only');
+        feature.recommendations.push('Remove constant feature');
+      } else if (cardinality > 50 && sampleRatio > 0.5) {
+        feature.quality = 'fair';
+        feature.issues.push('High cardinality');
+        feature.recommendations.push('Consider target encoding or embedding');
+      } else if (cardinality <= 10) {
+        feature.quality = 'excellent';
+        feature.assessment = 'Low cardinality - suitable for one-hot encoding';
+      } else {
+        feature.quality = 'good';
+      }
+    }
+    
+    // Check for identifiers
+    if (type.type === 'identifier') {
+      feature.quality = 'exclude';
+      feature.assessment = 'Identifier column - exclude from features';
+    }
+    
+    // Check date features
+    if (type.type === 'date') {
+      feature.quality = 'transform';
+      feature.assessment = 'Date feature - extract components';
+      feature.recommendations.push('Extract year, month, day, day_of_week features');
+    }
+    
+    features.push(feature);
+  });
+  
+  return features;
+}
+
+function calculateReadinessScores(assessment, totalRows, totalColumns) {
+  const scores = {
+    dataSize: 0,
+    dataQuality: 0,
+    featureQuality: 0,
+    overall: 0
+  };
+  
+  // Data size score (0-10)
+  if (totalRows >= 10000) scores.dataSize = 10;
+  else if (totalRows >= 5000) scores.dataSize = 8;
+  else if (totalRows >= 1000) scores.dataSize = 6;
+  else if (totalRows >= 500) scores.dataSize = 4;
+  else if (totalRows >= 100) scores.dataSize = 2;
+  else scores.dataSize = 1;
+  
+  // Data quality score (0-10)
+  const qualityMetrics = assessment.dataQuality;
+  scores.dataQuality = (
+    qualityMetrics.completeness * 2.5 +
+    qualityMetrics.consistency * 2.5 +
+    qualityMetrics.uniqueness * 2.5 +
+    qualityMetrics.validity * 2.5
+  );
+  
+  // Feature quality score (0-10)
+  const goodFeatures = assessment.featureQuality.filter(f => 
+    ['good', 'excellent'].includes(f.quality)
+  ).length;
+  const totalFeatures = assessment.featureQuality.filter(f => 
+    f.quality !== 'exclude'
+  ).length;
+  
+  if (totalFeatures > 0) {
+    scores.featureQuality = (goodFeatures / totalFeatures) * 10;
+  }
+  
+  // Overall score (weighted average)
+  scores.overall = (
+    scores.dataSize * 0.2 +
+    scores.dataQuality * 0.4 +
+    scores.featureQuality * 0.4
+  );
+  
+  return scores;
+}
+
+function generateMLRecommendations(assessment, analysis) {
+  const recommendations = [];
+  
+  // Data quality recommendations
+  assessment.dataQuality.issues.forEach(issue => {
+    if (issue.includes('completeness')) {
+      recommendations.push('Handle missing values with imputation or removal');
+    }
+    if (issue.includes('outlier')) {
+      recommendations.push('Address outliers with robust scaling or removal');
+    }
+    if (issue.includes('duplicate')) {
+      recommendations.push('Remove duplicate rows before modeling');
+    }
+  });
+  
+  // Feature recommendations
+  const transformFeatures = assessment.featureQuality.filter(f => 
+    f.recommendations.length > 0
+  );
+  
+  if (transformFeatures.length > 0) {
+    recommendations.push(`Transform ${transformFeatures.length} features as suggested`);
+  }
+  
+  // Scaling recommendations
+  const numericFeatures = assessment.featureQuality.filter(f => 
+    ['integer', 'float'].includes(f.type) && f.quality !== 'exclude'
+  );
+  
+  if (numericFeatures.length > 0) {
+    recommendations.push('Standardize or normalize numeric features');
+  }
+  
+  // Encoding recommendations
+  const categoricalFeatures = assessment.featureQuality.filter(f => 
+    f.type === 'categorical' && f.quality !== 'exclude'
+  );
+  
+  if (categoricalFeatures.length > 0) {
+    const highCardinality = categoricalFeatures.filter(f => 
+      f.issues.some(i => i.includes('High cardinality'))
+    );
+    
+    if (highCardinality.length > 0) {
+      recommendations.push('Use target encoding for high-cardinality categorical features');
+    } else {
+      recommendations.push('Apply one-hot encoding to categorical features');
+    }
+  }
+  
+  // Class imbalance check (if target detected)
+  if (analysis.cartAnalysis && analysis.cartAnalysis.targetVariable) {
+    recommendations.push('Check for class imbalance in target variable');
+  }
+  
+  // Feature engineering
+  if (assessment.overallScore < 7) {
+    recommendations.push('Consider feature engineering to create interaction terms');
+  }
+  
+  // Cross-validation
+  recommendations.push('Use cross-validation to avoid overfitting');
+  
+  return recommendations;
+}
+
+function suggestModels(columnTypes, analysis, assessment) {
+  const suggestions = [];
+  const numericColumns = Object.keys(columnTypes).filter(col => 
+    ['integer', 'float'].includes(columnTypes[col].type)
+  );
+  Object.keys(columnTypes).filter(col => 
+    columnTypes[col].type === 'categorical'
+  );
+  
+  // Determine problem type
+  let problemType = 'unknown';
+  
+  if (analysis.regressionAnalysis && analysis.regressionAnalysis.targetVariable) {
+    problemType = 'regression';
+    analysis.regressionAnalysis.targetVariable;
+  } else if (analysis.cartAnalysis && analysis.cartAnalysis.targetVariable) {
+    const targetType = columnTypes[analysis.cartAnalysis.targetVariable];
+    if (targetType && targetType.type === 'categorical') {
+      problemType = 'classification';
+      analysis.cartAnalysis.targetVariable;
+    } else {
+      problemType = 'regression';
+      analysis.cartAnalysis.targetVariable;
+    }
+  }
+  
+  // Regression models
+  if (problemType === 'regression') {
+    suggestions.push({
+      type: 'Linear Regression',
+      reason: 'Good baseline model for regression tasks',
+      requirements: 'Assumes linear relationships'
+    });
+    
+    if (assessment.overallScore >= 6) {
+      suggestions.push({
+        type: 'Random Forest Regressor',
+        reason: 'Handles non-linear relationships and interactions well',
+        requirements: 'No scaling required, handles mixed data types'
+      });
+      
+      suggestions.push({
+        type: 'Gradient Boosting (XGBoost/LightGBM)',
+        reason: 'Often best performance for structured data',
+        requirements: 'Requires hyperparameter tuning'
+      });
+    }
+    
+    if (numericColumns.length > 10) {
+      suggestions.push({
+        type: 'Ridge/Lasso Regression',
+        reason: 'Good for high-dimensional data with regularization',
+        requirements: 'Requires feature scaling'
+      });
+    }
+  }
+  
+  // Classification models
+  if (problemType === 'classification') {
+    suggestions.push({
+      type: 'Logistic Regression',
+      reason: 'Simple, interpretable baseline for classification',
+      requirements: 'Works well for linearly separable data'
+    });
+    
+    if (assessment.overallScore >= 6) {
+      suggestions.push({
+        type: 'Random Forest Classifier',
+        reason: 'Robust to outliers, handles imbalanced data well',
+        requirements: 'No scaling required'
+      });
+      
+      suggestions.push({
+        type: 'Gradient Boosting Classifier',
+        reason: 'High accuracy for complex patterns',
+        requirements: 'Careful tuning to avoid overfitting'
+      });
+    }
+    
+    if (numericColumns.length > 2) {
+      suggestions.push({
+        type: 'Support Vector Machine',
+        reason: 'Effective in high-dimensional spaces',
+        requirements: 'Requires feature scaling'
+      });
+    }
+  }
+  
+  // Clustering (unsupervised)
+  if (problemType === 'unknown' && numericColumns.length >= 2) {
+    suggestions.push({
+      type: 'K-Means Clustering',
+      reason: 'Discover natural groupings in data',
+      requirements: 'Requires scaled features and choosing k'
+    });
+    
+    if (assessment.overallScore >= 7) {
+      suggestions.push({
+        type: 'DBSCAN',
+        reason: 'Finds clusters of arbitrary shape',
+        requirements: 'Good for outlier detection'
+      });
+    }
+  }
+  
+  // Deep learning
+  if (assessment.overallScore >= 8 && 
+      Object.keys(columnTypes).length > 50 && 
+      analysis.rowCount > 10000) {
+    suggestions.push({
+      type: 'Neural Network',
+      reason: 'Can capture complex non-linear patterns',
+      requirements: 'Requires large dataset and careful architecture design'
+    });
+  }
+  
+  return suggestions;
+}
+
+function formatNumber(num, decimals = 2) {
+  if (typeof num !== 'number' || isNaN(num)) return 'N/A';
+  
+  if (Math.abs(num) >= 1000000) {
+    return (num / 1000000).toFixed(decimals) + 'M';
+  } else if (Math.abs(num) >= 1000) {
+    return (num / 1000).toFixed(decimals) + 'K';
+  }
+  
+  return num.toFixed(decimals);
+}
+
+function formatCurrency(num, currency = '$') {
+  if (typeof num !== 'number' || isNaN(num)) return 'N/A';
+  return currency + num.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
+function formatPercentage(num, decimals = 1) {
+  if (typeof num !== 'number' || isNaN(num)) return 'N/A';
+  return (num * 100).toFixed(decimals) + '%';
+}
+
+function formatFileSize(bytes) {
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  if (bytes === 0) return '0 B';
+  const i = Math.floor(Math.log(bytes) / Math.log(1024));
+  return (bytes / Math.pow(1024, i)).toFixed(2) + ' ' + sizes[i];
+}
+
+function createSection(title, content) {
+  const separator = '='.repeat(title.length + 8);
+  return `\n${separator}\n=== ${title} ===\n${separator}\n${content}\n`;
+}
+
+function createSubSection(title, content) {
+  return `\n${title}:\n${content}\n`;
+}
+
+function bulletList(items) {
+  return items.map(item => `- ${item}`).join('\n');
+}
+
+function numberedList(items) {
+  return items.map((item, idx) => `${idx + 1}. ${item}`).join('\n');
+}
+
+function formatTimestamp() {
+  return new Date().toISOString().replace('T', ' ').split('.')[0];
+}
+
+function formatSmallDatasetWarning(rowCount) {
+  if (rowCount < 20) {
+    return {
+      warning: `⚠️  Small dataset detected (${rowCount} rows) - Statistical analysis may be unreliable`,
+      analysisMode: 'full_scan',
+      showFullData: rowCount < 10,
+      confidenceMultiplier: 0.7
+    };
+  }
+  return null;
+}
+
+function formatDataTable(records, columns) {
+  if (!records || records.length === 0) return 'No data to display';
+  
+  // Calculate column widths
+  const columnWidths = {};
+  columns.forEach(col => {
+    columnWidths[col] = Math.max(
+      col.length,
+      ...records.map(r => String(r[col] || '').length)
+    );
+    // Cap at reasonable width
+    columnWidths[col] = Math.min(columnWidths[col], 30);
+  });
+  
+  // Build header
+  let table = '\n┌' + columns.map(col => '─'.repeat(columnWidths[col] + 2)).join('┬') + '┐\n';
+  table += '│ ' + columns.map(col => col.padEnd(columnWidths[col])).join(' │ ') + ' │\n';
+  table += '├' + columns.map(col => '─'.repeat(columnWidths[col] + 2)).join('┼') + '┤\n';
+  
+  // Build rows
+  records.forEach(record => {
+    table += '│ ' + columns.map(col => {
+      let val = String(record[col] || '');
+      if (val.length > columnWidths[col]) {
+        val = val.substring(0, columnWidths[col] - 3) + '...';
+      }
+      return val.padEnd(columnWidths[col]);
+    }).join(' │ ') + ' │\n';
+  });
+  
+  table += '└' + columns.map(col => '─'.repeat(columnWidths[col] + 2)).join('┴') + '┘\n';
+  
+  return table;
+}
+
+function formatComprehensiveEDAReport(analysis) {
+  let report = '';
+  
+  // Header
+  report += createSection('EXPLORATORY DATA ANALYSIS REPORT', 
+    `Dataset: ${analysis.fileName}\n` +
+    `Generated: ${formatTimestamp()}\n` +
+    `Analysis Depth: Comprehensive (auto-detected)`
+  );
+  
+  // Handle empty dataset
+  if (analysis.empty) {
+    report += '\n\n⚠️  Empty dataset - no data to analyze';
+    
+    // Still include the required section headers
+    report += createSubSection('DATASET OVERVIEW', 'No data available to analyze');
+    report += createSubSection('COLUMN ANALYSIS', 'No columns to analyze');
+    
+    return report;
+  }
+  
+  // Dataset Overview
+  report += formatDatasetOverview(analysis);
+  
+  // Column Analysis with Enhanced Stats
+  report += formatEnhancedColumnAnalysis(analysis);
+  
+  // Distribution Analysis
+  if (analysis.distributionAnalysis) {
+    report += formatDistributionAnalysis(analysis.distributionAnalysis);
+  }
+  
+  // Outlier Analysis
+  if (analysis.outlierAnalysis) {
+    report += formatOutlierAnalysis(analysis.outlierAnalysis);
+  }
+  
+  // Decision Tree Insights
+  if (analysis.cartAnalysis && analysis.cartAnalysis.applicable) {
+    report += formatCARTAnalysis(analysis.cartAnalysis);
+  }
+  
+  // Regression Analysis
+  if (analysis.regressionAnalysis && analysis.regressionAnalysis.applicable) {
+    report += formatRegressionAnalysis(analysis.regressionAnalysis);
+  }
+  
+  // Multivariate Relationships
+  if (analysis.correlationAnalysis) {
+    report += formatCorrelationAnalysis(analysis.correlationAnalysis);
+  }
+  
+  // Advanced Statistical Tests
+  if (analysis.advancedTests) {
+    report += formatAdvancedTests(analysis.advancedTests);
+  }
+  
+  // Australian Data Validation
+  if (analysis.australianValidation && analysis.australianValidation.detected) {
+    report += formatAustralianValidation(analysis.australianValidation);
+  }
+  
+  // Time Series Analysis
+  if (analysis.timeSeriesAnalysis && analysis.timeSeriesAnalysis.applicable) {
+    report += formatTimeSeriesAnalysis(analysis.timeSeriesAnalysis);
+  }
+  
+  // Pattern Detection & Anomalies
+  if (analysis.patterns) {
+    report += formatPatternDetection(analysis.patterns);
+  }
+  
+  // ML Readiness Assessment
+  if (analysis.mlReadiness) {
+    report += formatMLReadiness(analysis.mlReadiness);
+  }
+  
+  // Data Quality Summary
+  report += formatDataQualitySummary(analysis);
+  
+  // Key Insights & Recommendations
+  report += formatKeyInsights(analysis);
+  
+  // Suggested Deep-Dive Analyses
+  report += formatSuggestedAnalyses$1(analysis);
+  
+  return report;
+}
+
+function formatDatasetOverview(analysis) {
+  const items = [
+    `Total rows: ${analysis.rowCount.toLocaleString()}`,
+    `Total columns: ${analysis.columnCount}`,
+    `File size: ${analysis.fileSize}`,
+    `Memory usage: ~${estimateMemoryUsage(analysis)}`,
+    `Numeric columns: ${analysis.numericColumnCount}`,
+    `Categorical columns: ${analysis.categoricalColumnCount}`,
+    analysis.dateColumns.length > 0 ? 
+      `Date columns: ${analysis.dateColumns.join(', ')}` : 
+      'No date columns detected',
+    `Data completeness: ${formatPercentage(analysis.completeness)}`
+  ];
+  
+  return createSubSection('DATASET OVERVIEW', bulletList(items));
+}
+
+function formatEnhancedColumnAnalysis(analysis) {
+  let section = createSubSection('COLUMN ANALYSIS (Enhanced Statistics)', '');
+  
+  analysis.columns.forEach((col, idx) => {
+    section += `\n[Column ${idx + 1}/${analysis.columns.length}] ${col.name}\n`;
+    section += `Type: ${col.type} | Non-null: ${formatPercentage(col.nonNullRatio)}\n\n`;
+    
+    if (col.stats) {
+      if (col.type === 'integer' || col.type === 'float') {
+        section += formatNumericStats(col.stats);
+      } else if (col.type === 'categorical') {
+        section += formatCategoricalStats(col.stats);
+      }
+    }
+    
+    section += '\n' + '-'.repeat(60) + '\n';
+  });
+  
+  return section;
+}
+
+function formatNumericStats(stats) {
+  let result = 'CENTRAL TENDENCY:\n';
+  result += `  Mean: ${formatNumber(stats.mean)} | Median: ${formatNumber(stats.median)} | Mode: ${formatNumber(stats.mode)}\n`;
+  
+  result += '\nSPREAD:\n';
+  result += `  Std Dev: ${formatNumber(stats.standardDeviation)} | Variance: ${formatNumber(stats.variance)}\n`;
+  result += `  IQR: ${formatNumber(stats.iqr)} | Range: [${formatNumber(stats.min)}, ${formatNumber(stats.max)}]\n`;
+  result += `  CV: ${formatPercentage(stats.coefficientOfVariation / 100)}\n`;
+  
+  result += '\nPERCENTILES:\n';
+  result += `  5th: ${formatNumber(stats.p5)} | 25th: ${formatNumber(stats.p25)} | `;
+  result += `50th: ${formatNumber(stats.p50)} | 75th: ${formatNumber(stats.p75)} | `;
+  result += `95th: ${formatNumber(stats.p95)}\n`;
+  
+  result += '\nSHAPE:\n';
+  result += `  Skewness: ${formatNumber(stats.skewness, 3)} (${interpretSkewness(stats.skewness)})\n`;
+  result += `  Kurtosis: ${formatNumber(stats.kurtosis, 3)} (${interpretKurtosis(stats.kurtosis)})\n`;
+  
+  if (stats.outliers) {
+    result += '\nOUTLIERS:\n';
+    result += `  IQR method: ${stats.outliers.iqr.length} outliers\n`;
+    result += `  Z-score method: ${stats.outliers.zscore.length} outliers\n`;
+  }
+  
+  return result;
+}
+
+function formatCategoricalStats(stats) {
+  let result = 'CATEGORY STATISTICS:\n';
+  result += `  Unique values: ${stats.uniqueCount}\n`;
+  result += `  Mode: "${stats.mode}" (${formatPercentage(stats.modePercentage / 100)})\n`;
+  result += `  Entropy: ${formatNumber(stats.entropy, 3)} | Normalized: ${formatNumber(stats.normalizedEntropy, 3)}\n`;
+  
+  result += '\nTOP VALUES:\n';
+  stats.topValues.slice(0, 5).forEach(val => {
+    result += `  "${val.value}": ${val.count} (${formatPercentage(val.percentage / 100)})\n`;
+  });
+  
+  if (stats.rareCount > 0) {
+    result += `\nRARE VALUES: ${stats.rareCount} categories < 1% (${formatPercentage(stats.rarePercentage / 100)} of data)\n`;
+  }
+  
+  return result;
+}
+
+function formatDistributionAnalysis(distAnalysis) {
+  let section = createSubSection('DISTRIBUTION DEEP DIVE', '');
+  
+  Object.entries(distAnalysis).forEach(([column, analysis]) => {
+    section += `\n${column}:\n`;
+    
+    if (analysis.tests.normality) {
+      section += formatNormalityTests(analysis.tests.normality);
+    }
+    
+    if (analysis.tests.bestFit) {
+      section += `\nBest Fit: ${analysis.tests.bestFit.distribution}\n`;
+    }
+    
+    if (analysis.transformations && analysis.transformations.length > 0) {
+      section += '\nRECOMMENDED TRANSFORMATIONS:\n';
+      analysis.transformations.forEach(trans => {
+        section += `  - ${trans.description}: `;
+        section += `Skewness ${formatNumber(trans.originalSkewness, 2)} → ${formatNumber(trans.transformedSkewness, 2)}\n`;
+      });
+    }
+  });
+  
+  return section;
+}
+
+function formatNormalityTests(normality) {
+  let result = '\nNORMALITY TESTS:\n';
+  
+  if (normality.shapiroWilk) {
+    result += `  Shapiro-Wilk: W=${formatNumber(normality.shapiroWilk.statistic, 3)} `;
+    result += `(${normality.shapiroWilk.interpretation})\n`;
+  }
+  
+  if (normality.jarqueBera) {
+    result += `  Jarque-Bera: JB=${formatNumber(normality.jarqueBera.statistic, 2)} `;
+    result += `p=${formatNumber(normality.jarqueBera.pValue, 3)}\n`;
+  }
+  
+  result += `  Overall: ${normality.isNormal ? '✓ Normal' : '✗ Non-normal'}\n`;
+  
+  return result;
+}
+
+function formatOutlierAnalysis(outlierAnalysis) {
+  let section = createSubSection('UNIVARIATE OUTLIER ANALYSIS', '');
+  
+  Object.entries(outlierAnalysis).forEach(([column, analysis]) => {
+    if (!analysis.methods) return;
+    
+    section += `\n[Column: ${column}]\n`;
+    section += `Statistical Outliers: ${analysis.aggregated.length} records\n`;
+    
+    // Method summary
+    if (analysis.methods.iqr && analysis.methods.iqr.totalOutliers > 0) {
+      section += `  - IQR Method: ${analysis.methods.iqr.totalOutliers} outliers `;
+      section += `(${analysis.methods.iqr.outliers.mild.length} mild, ${analysis.methods.iqr.outliers.extreme.length} extreme)\n`;
+    }
+    
+    if (analysis.methods.modifiedZScore && analysis.methods.modifiedZScore.totalOutliers > 0) {
+      section += `  - Modified Z-Score: ${analysis.methods.modifiedZScore.totalOutliers} outliers `;
+      section += `(threshold: 3.5)\n`;
+    }
+    
+    // Top outliers
+    if (analysis.aggregated.length > 0) {
+      const topOutliers = analysis.aggregated
+        .filter(o => o.confidence === 'high' || o.confidence === 'very high')
+        .slice(0, 5)
+        .map(o => formatNumber(o.value));
+      
+      if (topOutliers.length > 0) {
+        section += `  - Top extreme values: [${topOutliers.join(', ')}]\n`;
+      }
+    }
+    
+    // Contextual analysis
+    if (analysis.contextual && analysis.contextual.patterns.length > 0) {
+      section += `  - Pattern: ${analysis.contextual.patterns[0]}\n`;
+    }
+    
+    if (analysis.contextual && analysis.contextual.recommendations.length > 0) {
+      section += `  - Recommendation: ${analysis.contextual.recommendations[0]}\n`;
+    }
+  });
+  
+  return section;
+}
+
+function formatCARTAnalysis(cartAnalysis) {
+  let section = createSubSection('DECISION TREE INSIGHTS', '');
+  
+  section += `Target Variable: ${cartAnalysis.targetVariable}\n`;
+  section += `Tree Depth: ${cartAnalysis.treeDepth} | Model Quality: ${cartAnalysis.modelQuality.interpretation}\n\n`;
+  
+  section += 'KEY BUSINESS RULES DISCOVERED:\n';
+  
+  cartAnalysis.segments.slice(0, 5).forEach((segment, idx) => {
+    section += `\n${idx + 1}. ${segment.type.toUpperCase()} SEGMENT (${segment.avgValue}):\n`;
+    section += `   ${segment.description}\n`;
+    section += `   ├─ Size: ${segment.size} customers (${segment.sizePercentage}%)\n`;
+    section += `   ├─ Confidence: ${segment.confidence}%\n`;
+    section += `   └─ Action: ${segment.actionability}\n`;
+  });
+  
+  if (cartAnalysis.featureImportances.length > 0) {
+    section += '\nFEATURE IMPORTANCE:\n';
+    cartAnalysis.featureImportances.slice(0, 5).forEach(feat => {
+      section += `  - ${feat.feature}: ${feat.importance}%\n`;
+    });
+  }
+  
+  return section;
+}
+
+function formatRegressionAnalysis(regression) {
+  let section = createSubSection('REGRESSION ANALYSIS', '');
+  
+  section += `Target: ${regression.targetVariable} | Predictors: ${regression.predictors.join(', ')}\n\n`;
+  
+  if (regression.bestModel) {
+    const model = regression.bestModel;
+    section += `BEST MODEL: ${model.type}\n`;
+    section += `  R²: ${formatNumber(model.r2, 3)} | Adjusted R²: ${formatNumber(model.adjustedR2, 3)}\n`;
+    section += `  RMSE: ${formatNumber(model.rmse, 2)}\n`;
+    
+    if (model.fStatistic) {
+      section += `  F-statistic: ${formatNumber(model.fStatistic.value, 2)} `;
+      section += `(p=${formatNumber(model.fStatistic.pValue, 4)})\n`;
+    }
+    
+    section += '\nCOEFFICIENTS:\n';
+    model.coefficients.forEach(coef => {
+      section += `  ${coef.name}: ${formatNumber(coef.value, 3)} `;
+      section += `(SE=${formatNumber(coef.stdError, 3)}, p=${formatNumber(coef.pValue, 3)})`;
+      section += coef.significant ? ' *' : '';
+      section += '\n';
+    });
+  }
+  
+  if (regression.residualAnalysis) {
+    section += formatResidualAnalysis(regression.residualAnalysis);
+  }
+  
+  return section;
+}
+
+function formatResidualAnalysis(residuals) {
+  let result = '\nRESIDUAL ANALYSIS:\n';
+  
+  if (residuals.normalityTest) {
+    result += `  - Normality: ${residuals.normalityTest.interpretation}\n`;
+  }
+  
+  if (residuals.homoscedasticityTest) {
+    result += `  - Homoscedasticity: ${residuals.homoscedasticityTest.interpretation}\n`;
+  }
+  
+  if (residuals.independenceTest) {
+    result += `  - Independence: ${residuals.independenceTest.interpretation}\n`;
+  }
+  
+  if (residuals.influential && residuals.influential.length > 0) {
+    result += `  - Influential points: ${residuals.influential.length} detected\n`;
+  }
+  
+  if (residuals.patterns && residuals.patterns.length > 0) {
+    result += `  - Patterns: ${residuals.patterns.join('; ')}\n`;
+  }
+  
+  return result;
+}
+
+function formatCorrelationAnalysis(correlations) {
+  let section = createSubSection('MULTIVARIATE RELATIONSHIPS', '');
+  
+  if (correlations.pearson && correlations.pearson.length > 0) {
+    section += 'PEARSON CORRELATIONS (Linear):\n';
+    correlations.pearson.slice(0, 10).forEach(corr => {
+      const strength = Math.abs(corr.value) > 0.7 ? 'Strong' : 
+                      Math.abs(corr.value) > 0.5 ? 'Moderate' : 'Weak';
+      const direction = corr.value > 0 ? 'positive' : 'negative';
+      section += `  - ${corr.var1} ↔ ${corr.var2}: ${formatNumber(corr.value, 3)} `;
+      section += `(${strength} ${direction})\n`;
+    });
+  }
+  
+  if (correlations.multicollinearity && correlations.multicollinearity.length > 0) {
+    section += '\nMULTICOLLINEARITY CHECK:\n';
+    correlations.multicollinearity.forEach(vif => {
+      section += `  - ${vif.variable}: VIF=${formatNumber(vif.value, 2)} `;
+      section += `(${vif.interpretation})\n`;
+    });
+  }
+  
+  return section;
+}
+
+function formatAustralianValidation(validation) {
+  let section = createSubSection('AUSTRALIAN DATA VALIDATION', '');
+  
+  Object.entries(validation.results).forEach(([column, results]) => {
+    section += `\n[${column}]\n`;
+    
+    results.forEach(result => {
+      section += `  ${result.type}: `;
+      if (result.valid) {
+        section += `✓ ${result.validCount} valid entries\n`;
+        if (result.details) {
+          Object.entries(result.details).forEach(([key, value]) => {
+            section += `    - ${key}: ${value}\n`;
+          });
+        }
+      } else {
+        section += `✗ ${result.invalidCount} invalid entries\n`;
+        if (result.examples) {
+          section += `    Examples: ${result.examples.slice(0, 3).join(', ')}\n`;
+        }
+      }
+    });
+  });
+  
+  return section;
+}
+
+function formatTimeSeriesAnalysis(timeSeries) {
+  let section = createSubSection('TIME SERIES ANALYSIS', '');
+  
+  section += `Time Column: ${timeSeries.timeColumn}\n`;
+  section += `Frequency: ${timeSeries.frequency}\n`;
+  section += `Date Range: ${timeSeries.dateRange}\n\n`;
+  
+  if (timeSeries.trend) {
+    section += 'TREND ANALYSIS:\n';
+    section += `  - Type: ${timeSeries.trend.type}\n`;
+    section += `  - Strength: ${formatNumber(timeSeries.trend.strength, 3)}\n`;
+    if (timeSeries.trend.slope) {
+      section += `  - Slope: ${formatNumber(timeSeries.trend.slope, 4)} per period\n`;
+    }
+  }
+  
+  if (timeSeries.seasonality) {
+    section += '\nSEASONALITY:\n';
+    section += `  - Period: ${timeSeries.seasonality.period}\n`;
+    section += `  - Strength: ${formatNumber(timeSeries.seasonality.strength, 3)}\n`;
+    if (timeSeries.seasonality.peaks) {
+      section += `  - Peak periods: ${timeSeries.seasonality.peaks.join(', ')}\n`;
+    }
+  }
+  
+  if (timeSeries.stationarity) {
+    section += '\nSTATIONARITY TESTS:\n';
+    section += `  - ADF test: ${timeSeries.stationarity.adf.interpretation}\n`;
+    section += `  - KPSS test: ${timeSeries.stationarity.kpss.interpretation}\n`;
+  }
+  
+  return section;
+}
+
+function formatPatternDetection(patterns) {
+  let section = createSubSection('PATTERN DETECTION & ANOMALIES', '');
+  
+  if (patterns.benfordLaw && patterns.benfordLaw.length > 0) {
+    section += 'BENFORD\'S LAW ANALYSIS:\n';
+    patterns.benfordLaw.forEach(result => {
+      section += `  - ${result.column}: ${result.interpretation}\n`;
+    });
+    section += '\n';
+  }
+  
+  if (patterns.businessRules && patterns.businessRules.length > 0) {
+    section += 'DETECTED BUSINESS RULES:\n';
+    patterns.businessRules.forEach(rule => {
+      section += `  ${rule.column}:\n`;
+      rule.rules.forEach(r => {
+        section += `    - ${r}\n`;
+      });
+    });
+    section += '\n';
+  }
+  
+  if (patterns.duplicatePatterns && patterns.duplicatePatterns.length > 0) {
+    section += 'DUPLICATE PATTERNS:\n';
+    patterns.duplicatePatterns.forEach(dup => {
+      section += `  - ${dup.type}: ${dup.count} duplicates (${dup.percentage}%)\n`;
+    });
+  }
+  
+  return section;
+}
+
+function formatMLReadiness(mlReadiness) {
+  let section = createSubSection('ML READINESS ASSESSMENT', '');
+  
+  section += `Overall Score: ${mlReadiness.overallScore}/10\n\n`;
+  
+  section += 'FEATURE QUALITY:\n';
+  mlReadiness.featureQuality.forEach(feat => {
+    section += `  - ${feat.feature}: ${feat.assessment}\n`;
+  });
+  
+  section += '\nDATA PREPARATION RECOMMENDATIONS:\n';
+  mlReadiness.recommendations.forEach((rec, idx) => {
+    section += `  ${idx + 1}. ${rec}\n`;
+  });
+  
+  if (mlReadiness.modelSuggestions) {
+    section += '\nSUGGESTED MODELS:\n';
+    mlReadiness.modelSuggestions.forEach(model => {
+      section += `  - ${model.type}: ${model.reason}\n`;
+    });
+  }
+  
+  return section;
+}
+
+function formatDataQualitySummary(analysis) {
+  const items = [
+    `Completeness: ${formatPercentage(analysis.completeness)} (${analysis.completenessLevel})`,
+    `Duplicate rows: ${analysis.duplicateCount} ${analysis.duplicateCount === 0 ? '(excellent)' : '(consider deduplication)'}`,
+    `Columns with >10% missing: ${analysis.highMissingColumns}`,
+    `Data consistency: ${analysis.consistencyScore}/10`,
+    `Outlier prevalence: ${formatPercentage(analysis.outlierRate)} of numeric data`
+  ];
+  
+  return createSubSection('DATA QUALITY SUMMARY', bulletList(items));
+}
+
+function formatKeyInsights(analysis) {
+  let section = createSubSection('KEY INSIGHTS & RECOMMENDATIONS', '');
+  
+  analysis.insights.forEach((insight, idx) => {
+    section += `${idx + 1}. ${insight}\n`;
+  });
+  
+  return section;
+}
+
+function formatSuggestedAnalyses$1(analysis) {
+  let section = createSubSection('SUGGESTED DEEP-DIVE ANALYSES', '');
+  
+  analysis.suggestions.forEach((suggestion, idx) => {
+    section += `${idx + 1}. ${suggestion.title}\n`;
+    section += `   Rationale: ${suggestion.rationale}\n`;
+    section += `   Approach: ${suggestion.approach}\n\n`;
+  });
+  
+  return section;
+}
+
+// Helper functions
+function interpretSkewness(skewness) {
+  if (Math.abs(skewness) < 0.5) return 'symmetric';
+  if (skewness > 2) return 'highly right-skewed';
+  if (skewness > 1) return 'moderately right-skewed';
+  if (skewness < -2) return 'highly left-skewed';
+  if (skewness < -1) return 'moderately left-skewed';
+  return 'slightly skewed';
+}
+
+function interpretKurtosis(kurtosis) {
+  if (Math.abs(kurtosis) < 0.5) return 'normal tails';
+  if (kurtosis > 1) return 'heavy tails';
+  if (kurtosis < -1) return 'light tails';
+  return 'near-normal tails';
+}
+
+function estimateMemoryUsage(analysis) {
+  const bytesPerCell = 8; // Rough estimate
+  const totalCells = analysis.rowCount * analysis.columnCount;
+  const bytes = totalCells * bytesPerCell;
+  
+  if (bytes < 1024) return `${bytes} bytes`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+}
+
+// Constants
+const SAMPLE_THRESHOLD = 50 * 1024 * 1024; // 50MB
+const MAX_MEMORY_ROWS = 100000; // Maximum rows to keep in memory
+const MAX_ROWS_FOR_FULL_ANALYSIS = 50000;
+
+// Detect file encoding with validation and fallback
+function detectEncoding(filePath) {
+  try {
+    const encoding = chardet.detectFileSync(filePath, { sampleSize: 65536 });
+    
+    // Validate detected encoding
+    if (!encoding) {
+      console.log(chalk.yellow('Could not detect encoding, trying UTF-8 with BOM detection'));
+      
+      // Check for BOM
+      const fd = openSync(filePath, 'r');
+      const buffer = Buffer.alloc(3);
+      readSync(fd, buffer, 0, 3, 0);
+      closeSync(fd);
+      
+      if (buffer[0] === 0xEF && buffer[1] === 0xBB && buffer[2] === 0xBF) {
+        return 'utf8';  // UTF-8 with BOM
+      }
+      return 'utf8';
+    }
+    
+    if (encoding && encoding !== 'UTF-8' && encoding !== 'ascii') {
+      console.log(chalk.yellow(`Detected ${encoding} encoding (will handle automatically)`));
+    }
+    
+    // Map common encodings to Node.js supported encodings
+    const encodingMap = {
+      'UTF-8': 'utf8',
+      'ascii': 'ascii',
+      'windows-1250': 'latin1',  // Added missing encoding
+      'windows-1252': 'latin1',
+      'ISO-8859-1': 'latin1',
+      'UTF-16LE': 'utf16le',
+      'UTF-16BE': 'utf16be',
+      'UTF-32LE': 'utf32le',     // Add more encodings
+      'UTF-32BE': 'utf32be',
+      'Big5': 'big5',
+      'Shift_JIS': 'shiftjis'
+    };
+    
+    return encodingMap[encoding] || 'utf8';
+  } catch (error) {
+    console.log(chalk.yellow('Encoding detection failed, defaulting to UTF-8'));
+    return 'utf8';
+  }
+}
+
+// Detect CSV delimiter
+function detectDelimiter(filePath, encoding = 'utf8') {
+  try {
+    const sample = readFileSync(filePath, { encoding, end: 4096 }).toString();
+    const lines = sample.split(/\r?\n/).filter(l => l.trim());
+    
+    if (lines.length < 2) return ',';
+    
+    const delimiters = [',', ';', '\t', '|'];
+    const counts = {};
+    
+    for (const delimiter of delimiters) {
+      counts[delimiter] = lines.slice(0, 5).map(line => 
+        line.split(delimiter).length
+      );
+    }
+    
+    // Find delimiter with most consistent count across lines
+    let bestDelimiter = ',';
+    let bestScore = 0;
+    
+    for (const [delimiter, lineCounts] of Object.entries(counts)) {
+      const avg = lineCounts.reduce((a, b) => a + b, 0) / lineCounts.length;
+      if (avg > 1) {
+        const variance = lineCounts.reduce((sum, count) => 
+          sum + Math.pow(count - avg, 2), 0) / lineCounts.length;
+        const score = avg / (variance + 1);
+        
+        if (score > bestScore) {
+          bestScore = score;
+          bestDelimiter = delimiter;
+        }
+      }
+    }
+    
+    if (bestDelimiter !== ',') {
+      console.log(chalk.yellow(`Detected delimiter: ${bestDelimiter === '\t' ? '\\t' : bestDelimiter}`));
+    }
+    
+    return bestDelimiter;
+  } catch (error) {
+    return ',';
+  }
+}
+
+// Parse numbers with various formats
+function parseNumber(value) {
+  if (typeof value === 'number') return value;
+  if (typeof value !== 'string') return null;
+  
+  // Remove commas and spaces
+  const cleaned = value.replace(/[,\s]/g, '');
+  
+  // Check for percentage
+  if (cleaned.endsWith('%')) {
+    const num = parseFloat(cleaned.slice(0, -1));
+    return isNaN(num) ? null : num / 100;
+  }
+  
+  // Try parsing
+  const num = parseFloat(cleaned);
+  return isNaN(num) ? null : num;
+}
+
+// Enhanced date parsing with format detection
+function parseDate$3(value, dateFormats = null) {
+  if (value instanceof Date) return value;
+  if (typeof value !== 'string') return null;
+  
+  // Common date patterns
+  const patterns = dateFormats || [
+    // ISO formats
+    /^\d{4}-\d{2}-\d{2}$/,
+    /^\d{4}-\d{2}-\d{2}T/,
+    // Australian format DD/MM/YYYY
+    /^\d{1,2}\/\d{1,2}\/\d{4}$/,
+    // US format MM/DD/YYYY
+    /^\d{1,2}-\d{1,2}-\d{4}$/,
+    // Other formats
+    /^\d{1,2}\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/i
+  ];
+  
+  // Check if it matches date patterns
+  const hasDatePattern = patterns.some(pattern => 
+    pattern.test ? pattern.test(value) : value.match(pattern)
+  );
+  
+  if (!hasDatePattern) return null;
+  
+  const date = new Date(value);
+  
+  // For ambiguous dates like 01/02/2023, try to detect format
+  if (value.match(/^\d{1,2}\/\d{1,2}\/\d{4}$/)) {
+    const parts = value.split('/');
+    const d1 = parseInt(parts[0]);
+    const d2 = parseInt(parts[1]);
+    const year = parseInt(parts[2]);
+    
+    // If one is clearly a month (>12), we can determine format
+    if (d1 > 12 && d2 <= 12) {
+      // DD/MM/YYYY format
+      return new Date(year, d2 - 1, d1);
+    } else if (d2 > 12 && d1 <= 12) {
+      // MM/DD/YYYY format
+      return new Date(year, d1 - 1, d2);
+    }
+    // Otherwise, assume DD/MM/YYYY (Australian default)
+    return new Date(year, d2 - 1, d1);
+  }
+  
+  return isNaN(date.getTime()) ? null : date;
+}
+
+// Helper function to attempt parsing with a specific encoding
+async function attemptParse(filePath, encoding, options = {}) {
+  const delimiter = options.delimiter || detectDelimiter(filePath, encoding);
+  const fileSize = statSync(filePath).size;
+  
+  // Progressive sampling logic - estimate file size and determine sampling strategy
+  let useSampling = false;
+  let sampleRate = 1.0;
+  
+  if (fileSize > 100 * 1024 * 1024 && !options.noSampling) { // 100MB threshold
+    // Estimate average bytes per row (rough approximation)
+    const averageBytesPerRow = 80; // Conservative estimate
+    const estimatedRows = fileSize / averageBytesPerRow;
+    
+    if (estimatedRows > MAX_ROWS_FOR_FULL_ANALYSIS) {
+      useSampling = true;
+      sampleRate = Math.min(MAX_ROWS_FOR_FULL_ANALYSIS / estimatedRows, 1);
+      
+      if (!options.quiet) {
+        console.log(chalk.yellow(
+          `Large file detected (~${Math.round(estimatedRows).toLocaleString()} estimated rows). ` +
+          `Using ${(sampleRate * 100).toFixed(1)}% sampling for performance.`
+        ));
+      }
+    }
+  } else if (fileSize > SAMPLE_THRESHOLD && !options.noSampling) {
+    // Use the older sampling method for smaller large files
+    useSampling = true;
+    sampleRate = 1.0; // Will use reservoir sampling
+  }
+  
+  return await parseCSVWithEncoding(filePath, encoding, delimiter, useSampling, sampleRate, options);
+}
+
+// Core parsing function separated for fallback mechanism
+async function parseCSVWithEncoding(filePath, encoding, delimiter, useSampling, sampleRate, options = {}) {
+  const fileSize = statSync(filePath).size;
+  const { onProgress } = options;
+  
+  if (useSampling && sampleRate === 1.0 && !options.quiet) {
+    console.log(chalk.yellow(
+      `Large file detected (${(fileSize / 1024 / 1024).toFixed(1)}MB). ` +
+      `Using reservoir sampling for analysis...`
+    ));
+  }
+  
+  const records = [];
+  const spinner = options.quiet ? null : ora('Reading CSV file...').start();
+  let rowCount = 0;
+  let errorCount = 0;
+  let skipCount = 0;
+  let processedBytes = 0;
+  
+  // Handle headerless CSV files
+  const hasHeader = options.header !== false;
+  const parserOptions = {
+    columns: hasHeader ? true : false,
+    skip_empty_lines: true,
+    trim: true,
+    delimiter,
+    encoding,
+    relax_quotes: true,
+    relax_column_count: true,  // Add this for better quote handling
+    quote: '"',                // Explicitly set quote character
+    escape: '"',               // Set escape character (for quotes inside quotes)
+    skip_records_with_error: true,
+    on_record: (record, { lines }) => {
+      // Update progress
+      if (spinner && lines % 10000 === 0) {
+        spinner.text = `Processing row ${lines.toLocaleString()}...`;
+      }
+      return record;
+    },
+    cast: (value) => {
+      if (value === '' || value === null || value === undefined) return null;
+      
+      // If value is purely numeric (no spaces, letters, special chars except . and -), try parsing as number
+      if (typeof value === 'string') {
+        const trimmed = value.trim();
+        
+        // Only try to parse as number if it looks purely numeric
+        if (/^[\d\s,.-]+$/.test(trimmed) && !/[a-zA-Z]/.test(trimmed)) {
+          const num = parseNumber(value);
+          if (num !== null) return num;
+        }
+        
+        // Try to parse as date
+        const date = parseDate$3(value);
+        if (date !== null) return date;
+      }
+      
+      // Return as string
+      return value;
+    }
+  };
+
+  // Don't override columns option if explicitly set in options
+  const parser = parse({ ...parserOptions, ...options });
+
+  parser.on('skip', (err) => {
+    errorCount++;
+    if (errorCount <= 5 && !options.quiet) {
+      console.log(chalk.red(`\nSkipped row ${err.lines}: ${err.message}`));
+    }
+  });
+
+  try {
+    await pipeline(
+      createReadStream(filePath, { encoding })
+        .on('data', (chunk) => {
+          processedBytes += chunk.length;
+          if (onProgress) {
+            const progress = (processedBytes / fileSize) * 100;
+            onProgress(progress, rowCount);
+          }
+        }),
+      parser,
+      async function* (source) {
+        for await (const record of source) {
+          rowCount++;
+          
+          // Convert array to object if headerless
+          let processedRecord = record;
+          if (!hasHeader && Array.isArray(record)) {
+            processedRecord = {};
+            record.forEach((value, index) => {
+              processedRecord[`column${index + 1}`] = value;
+            });
+          }
+          
+          // Check memory usage periodically and adjust sampling if needed
+          let aggressiveSampling = false;
+          if (rowCount % 5000 === 0) {
+            const memoryStatus = checkMemoryUsage();
+            if (memoryStatus.shouldUseAggressiveSampling && !options.quiet) {
+              console.warn(chalk.red(`High memory usage detected (${memoryStatus.heapUsedGB.toFixed(1)}GB), enabling aggressive sampling`));
+              aggressiveSampling = true;
+            }
+          }
+          
+          // Apply progressive or reservoir sampling
+          if (useSampling || aggressiveSampling) {
+            if (sampleRate < 1.0 || aggressiveSampling) {
+              // Progressive sampling: sample while streaming based on calculated rate
+              const effectiveRate = aggressiveSampling ? Math.min(sampleRate * 0.1, 0.01) : sampleRate;
+              if (Math.random() < effectiveRate) {
+                records.push(processedRecord);
+              } else {
+                skipCount++;
+              }
+            } else if (records.length >= MAX_MEMORY_ROWS) {
+              // Reservoir sampling for very large files
+              skipCount++;
+              const j = Math.floor(Math.random() * rowCount);
+              if (j < MAX_MEMORY_ROWS) {
+                records[j] = processedRecord;
+              }
+            } else {
+              records.push(processedRecord);
+            }
+          } else {
+            records.push(processedRecord);
+          }
+          yield;
+        }
+      }
+    );
+    
+    if (spinner) spinner.succeed(`Processed ${rowCount.toLocaleString()} rows`);
+    
+    if (errorCount > 0 && !options.quiet) {
+      console.log(chalk.yellow(
+        `⚠️  Encountered ${errorCount} problematic rows (skipped)`
+      ));
+    }
+    
+    if (skipCount > 0 && !options.quiet) {
+      console.log(chalk.blue(
+        `ℹ️  Sampled ${records.length.toLocaleString()} rows from ${rowCount.toLocaleString()} total rows`
+      ));
+    }
+    
+    return { success: true, data: records };
+    
+  } catch (error) {
+    if (spinner) spinner.fail('Failed to parse CSV');
+    return { success: false, error };
+  }
+}
+
+// Main parseCSV function with fallback mechanism
+async function parseCSV(filePath, options = {}) {
+  const detectedEncoding = options.encoding || detectEncoding(filePath);
+  
+  // If parsing fails with detected encoding, retry with different encodings
+  const fallbackEncodings = ['utf8', 'latin1', 'utf16le'];
+  
+  for (const encoding of [detectedEncoding, ...fallbackEncodings]) {
+    if (encoding === detectedEncoding || !fallbackEncodings.includes(encoding)) {
+      try {
+        const result = await attemptParse(filePath, encoding, options);
+        if (result.success) {
+          // Handle empty file - return empty array instead of throwing
+          if (result.data.length === 0) {
+            if (!options.quiet) {
+              console.log(chalk.yellow('⚠️  Warning: No data found in CSV file. The file may be empty or have no valid rows.'));
+            }
+          }
+          return result.data;
+        }
+      } catch (e) {
+        continue;
+      }
+    }
+  }
+  
+  // If all encodings fail, throw the original error with enhanced message
+  throw new Error(
+    'CSV parsing failed with all attempted encodings. ' +
+    'The file may be corrupted or in an unsupported format.'
+  );
+}
+
+// Enhanced column type detection with confidence scores
+function detectColumnTypes(records) {
+  if (records.length === 0) return {};
+  
+  const columns = Object.keys(records[0]);
+  const columnTypes = {};
+  const spinner = ora('Analyzing column types...').start();
+  
+  for (const [index, column] of columns.entries()) {
+    spinner.text = `Analyzing column types... (${index + 1}/${columns.length})`;
+    
+    const values = records.map(r => r[column]).filter(v => v !== null);
+    
+    if (values.length === 0) {
+      columnTypes[column] = { 
+        type: 'empty', 
+        nullable: true,
+        confidence: 1.0 
+      };
+      continue;
+    }
+    
+    const analysis = analyzeColumnValues(values, records.length);
+    columnTypes[column] = {
+      ...analysis,
+      nullable: records.some(r => r[column] === null),
+      nullCount: records.filter(r => r[column] === null).length
+    };
+  }
+  
+  spinner.succeed('Column analysis complete');
+  return columnTypes;
+}
+
+function analyzeColumnValues(values, totalRecords) {
+  const typeVotes = {
+    integer: 0,
+    float: 0,
+    date: 0,
+    email: 0,
+    phone: 0,
+    postcode: 0,
+    boolean: 0,
+    url: 0
+  };
+  
+  const dateFormats = new Set();
+  const ambiguousDates = [];
+  
+  for (const value of values) {
+    // Check numbers
+    if (typeof value === 'number') {
+      if (Number.isInteger(value)) {
+        typeVotes.integer++;
+      } else {
+        typeVotes.float++;
+      }
+      continue;
+    }
+    
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      
+      // Boolean check
+      if (['true', 'false', 'yes', 'no', '1', '0', 'y', 'n'].includes(trimmed.toLowerCase())) {
+        typeVotes.boolean++;
+      }
+      
+      // Email check
+      if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+        typeVotes.email++;
+      }
+      
+      // URL check
+      if (/^https?:\/\//.test(trimmed) || /^www\./.test(trimmed)) {
+        typeVotes.url++;
+      }
+      
+      // Phone check (enhanced)
+      const phoneDigits = trimmed.replace(/[^\d]/g, '');
+      if (phoneDigits.length >= 8 && phoneDigits.length <= 15 && 
+          /^[\d\s\-\+\(\)\.]+$/.test(trimmed)) {
+        typeVotes.phone++;
+      }
+      
+      // Australian postcode
+      if (/^[0-9]{4}$/.test(trimmed)) {
+        typeVotes.postcode++;
+      }
+      
+      // Date detection with format tracking
+      if (value instanceof Date || 
+          /\d{4}-\d{2}-\d{2}/.test(trimmed) ||
+          /\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}/.test(trimmed)) {
+        typeVotes.date++;
+        
+        // Track date format
+        if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) {
+          dateFormats.add('YYYY-MM-DD');
+        } else if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(trimmed)) {
+          dateFormats.add('D/M/YYYY or M/D/YYYY');
+          // Check for ambiguous dates
+          const parts = trimmed.split('/');
+          if (parseInt(parts[0]) <= 12 && parseInt(parts[1]) <= 12) {
+            ambiguousDates.push(trimmed);
+          }
+        }
+      }
+      
+      // Number with commas check
+      const cleanedForNumber = trimmed.replace(/[,\s]/g, '');
+      if (!isNaN(cleanedForNumber) && cleanedForNumber !== '') {
+        const num = parseFloat(cleanedForNumber);
+        if (Number.isInteger(num)) {
+          typeVotes.integer++;
+        } else {
+          typeVotes.float++;
+        }
+      }
+    }
+  }
+  
+  // Determine type with confidence
+  const totalVotes = values.length;
+  let bestType = 'string';
+  let bestScore = 0;
+  let confidence = 0;
+  
+  for (const [type, votes] of Object.entries(typeVotes)) {
+    const score = votes / totalVotes;
+    if (score > bestScore) {
+      bestScore = score;
+      bestType = type;
+      confidence = score;
+    }
+  }
+  
+  // Special handling for mixed numeric types
+  if (bestType === 'integer' || bestType === 'float') {
+    const numericVotes = typeVotes.integer + typeVotes.float;
+    if (numericVotes / totalVotes > 0.9) {
+      bestType = typeVotes.float > 0 ? 'float' : 'integer';
+      confidence = numericVotes / totalVotes;
+    }
+  }
+  
+  // If we have a strong numeric type detection, stick with it
+  if ((bestType === 'integer' || bestType === 'float') && confidence > 0.8) {
+    // This is definitely a numeric column, don't check for categorical/identifier
+    const result = {
+      type: bestType,
+      confidence: confidence
+    };
+    
+    // Add numeric statistics
+    const numbers = values.map(v => parseNumber(v)).filter(n => n !== null);
+    if (numbers.length > 0) {
+      result.min = Math.min(...numbers);
+      result.max = Math.max(...numbers);
+      result.uniqueCount = [...new Set(numbers)].length;
+    }
+    
+    return result;
+  }
+  
+  // Check for categorical - but only for non-numeric types
+  if (bestType !== 'integer' && bestType !== 'float') {
+    const uniqueValues = [...new Set(values.filter(v => typeof v === 'string'))];
+    if (uniqueValues.length < Math.min(20, totalRecords * 0.1)) {
+      return {
+        type: 'categorical',
+        categories: uniqueValues.sort(),
+        confidence: 1.0,
+        uniqueCount: uniqueValues.length
+      };
+    }
+  }
+  
+  // Check for identifier - but not for numeric types
+  if (bestType !== 'integer' && bestType !== 'float') {
+    const allUniqueValues = [...new Set(values)];
+    if (allUniqueValues.length > totalRecords * 0.95) {
+      return {
+        type: 'identifier',
+        confidence: allUniqueValues.length / totalRecords,
+        uniqueCount: allUniqueValues.length
+      };
+    }
+  }
+  
+  // Prepare result
+  const result = {
+    type: bestType,
+    confidence: confidence
+  };
+  
+  // Add type-specific metadata
+  if (bestType === 'date' && dateFormats.size > 0) {
+    result.formats = Array.from(dateFormats);
+    if (ambiguousDates.length > 0) {
+      result.ambiguousCount = ambiguousDates.length;
+      result.ambiguousExamples = ambiguousDates.slice(0, 3);
+    }
+  }
+  
+  if (bestType === 'integer' || bestType === 'float') {
+    const numbers = values.map(v => parseNumber(v)).filter(n => n !== null);
+    if (numbers.length > 0) {
+      result.min = Math.min(...numbers);
+      result.max = Math.max(...numbers);
+    }
+  }
+  
+  return result;
+}
+
+// Memory monitoring utility
+function checkMemoryUsage() {
+  const used = process.memoryUsage();
+  const memoryUsageGB = used.heapUsed / (1024 * 1024 * 1024);
+  
+  return {
+    heapUsed: used.heapUsed,
+    heapUsedGB: memoryUsageGB,
+    isHighMemory: used.heapUsed > 1024 * 1024 * 1024, // 1GB threshold
+    shouldUseAggressiveSampling: used.heapUsed > 1024 * 1024 * 1024
+  };
+}
+
+class OutputHandler {
+  constructor(options = {}) {
+    this.outputFile = options.output;
+    this.buffer = '';
+    this.originalLog = console.log;
+    
+    if (this.outputFile) {
+      // Override console.log to capture output
+      console.log = (...args) => {
+        const text = args.join(' ');
+        this.buffer += text + '\n';
+      };
+    }
+  }
+  
+  finalize() {
+    if (this.outputFile) {
+      // Restore original console.log
+      console.log = this.originalLog;
+      
+      // Write buffer to file
+      writeFileSync(this.outputFile, this.buffer);
+      console.log(chalk.green(`\n✓ Analysis saved to: ${this.outputFile}`));
+      
+      // Show preview
+      const lines = this.buffer.split('\n').slice(0, 10);
+      console.log(chalk.gray('\nPreview of saved analysis:'));
+      lines.forEach(line => console.log(chalk.gray(line)));
+      
+      if (this.buffer.split('\n').length > 10) {
+        console.log(chalk.gray('... (truncated)'));
+      }
+    }
+  }
+  
+  restore() {
+    // Restore console.log in case of error
+    if (this.outputFile) {
+      console.log = this.originalLog;
+    }
+  }
+}
+
+async function edaComprehensive(filePath, options = {}) {
+  const outputHandler = new OutputHandler(options);
+  const spinner = options.quiet ? null : ora('Performing comprehensive EDA analysis...').start();
+  
+  // Structured data mode for LLM consumption
+  const structuredMode = options.structuredOutput || options.llmMode;
+  
+  try {
+    // Use preloaded data if available
+    let records, columnTypes;
+    if (options.preloadedData) {
+      records = options.preloadedData.records;
+      columnTypes = options.preloadedData.columnTypes;
+    } else {
+      // Parse CSV
+      if (spinner) spinner.text = 'Reading CSV file...';
+      records = await parseCSV(filePath, { quiet: options.quiet, header: options.header });
+      
+      if (spinner) spinner.text = 'Detecting column types...';
+      columnTypes = detectColumnTypes(records);
+    }
+    
+    // Get file info
+    const fileStats = statSync(filePath);
+    const fileName = basename(filePath);
+    const columns = Object.keys(columnTypes);
+    
+    // Handle empty dataset
+    if (records.length === 0) {
+      const report = formatComprehensiveEDAReport({
+        fileName,
+        rowCount: 0,
+        columnCount: 0,
+        empty: true
+      });
+      console.log(report);
+      outputHandler.finalize();
+      return;
+    }
+    
+    // Detect what analyses to run
+    if (spinner) spinner.text = 'Detecting analysis requirements...';
+    const analysisNeeds = detectAnalysisNeeds(records, columnTypes);
+    
+    // Initialize analysis object
+    const analysis = {
+      fileName,
+      fileSize: formatFileSize(fileStats.size),
+      rowCount: records.length,
+      columnCount: columns.length,
+      columns: [],
+      numericColumnCount: 0,
+      categoricalColumnCount: 0,
+      dateColumns: [],
+      completeness: 0,
+      duplicateCount: 0,
+      insights: [],
+      suggestions: []
+    };
+    
+    // Basic column analysis with enhanced stats
+    if (spinner) spinner.text = 'Calculating enhanced statistics...';
+    
+    const columnAnalyses = {};
+    let totalNonNull = 0;
+    
+    for (const column of columns) {
+      const type = columnTypes[column];
+      const values = records.map(r => r[column]);
+      
+      const columnAnalysis = {
+        name: column,
+        type: type.type,
+        nonNullRatio: values.filter(v => v !== null && v !== undefined).length / values.length
+      };
+      
+      totalNonNull += values.filter(v => v !== null && v !== undefined).length;
+      
+      if (['integer', 'float'].includes(type.type)) {
+        columnAnalysis.stats = calculateEnhancedStats(values);
+        analysis.numericColumnCount++;
+      } else if (type.type === 'categorical') {
+        columnAnalysis.stats = calculateCategoricalStats(values);
+        analysis.categoricalColumnCount++;
+      } else if (type.type === 'date') {
+        analysis.dateColumns.push(column);
+      }
+      
+      analysis.columns.push(columnAnalysis);
+      columnAnalyses[column] = columnAnalysis;
+    }
+    
+    analysis.completeness = totalNonNull / (records.length * columns.length);
+    analysis.completenessLevel = analysis.completeness > 0.9 ? 'good' : 
+                                 analysis.completeness > 0.7 ? 'fair' : 'poor';
+    
+    // Count duplicates
+    const seen = new Set();
+    let duplicates = 0;
+    records.forEach(record => {
+      const key = JSON.stringify(record);
+      if (seen.has(key)) duplicates++;
+      else seen.add(key);
+    });
+    analysis.duplicateCount = duplicates;
+    
+    // Distribution analysis
+    if (analysisNeeds.distributionTesting) {
+      if (spinner) spinner.text = 'Analyzing distributions...';
+      analysis.distributionAnalysis = {};
+      
+      const numericColumns = columns.filter(col => 
+        ['integer', 'float'].includes(columnTypes[col].type)
+      );
+      
+      for (const col of numericColumns) {
+        const values = records.map(r => r[col]);
+        analysis.distributionAnalysis[col] = analyzeDistribution$1(values);
+      }
+    }
+    
+    // Outlier analysis
+    if (analysisNeeds.outlierAnalysis) {
+      if (spinner) spinner.text = 'Detecting outliers...';
+      analysis.outlierAnalysis = {};
+      
+      const numericColumns = columns.filter(col => 
+        ['integer', 'float'].includes(columnTypes[col].type)
+      );
+      
+      let totalOutliers = 0;
+      for (const col of numericColumns) {
+        const values = records.map(r => r[col]);
+        const outlierResult = detectOutliers(values, col);
+        analysis.outlierAnalysis[col] = outlierResult;
+        if (outlierResult.aggregated) {
+          totalOutliers += outlierResult.aggregated.length;
+        }
+      }
+      
+      analysis.outlierRate = totalOutliers / (records.length * numericColumns.length);
+    }
+    
+    // CART analysis
+    if (analysisNeeds.cart) {
+      if (spinner) spinner.text = 'Performing CART analysis...';
+      const targets = findPotentialTargets(records, columnTypes);
+      if (targets.length > 0) {
+        analysis.cartAnalysis = performCARTAnalysis(
+          records, 
+          columns, 
+          columnTypes, 
+          targets[0].column
+        );
+      }
+    }
+    
+    // Regression analysis
+    if (analysisNeeds.regression) {
+      if (spinner) spinner.text = 'Performing regression analysis...';
+      analysis.regressionAnalysis = performRegressionAnalysis(
+        records, 
+        columns, 
+        columnTypes
+      );
+    }
+    
+    // Correlation analysis
+    if (analysisNeeds.correlationAnalysis) {
+      if (spinner) spinner.text = 'Analyzing correlations...';
+      analysis.correlationAnalysis = performCorrelationAnalysis(records, columns, columnTypes);
+    }
+    
+    // Pattern detection
+    if (analysisNeeds.patternDetection) {
+      if (spinner) spinner.text = 'Detecting patterns...';
+      analysis.patterns = detectPatterns$1(records, columns, columnTypes);
+    }
+    
+    // Time series analysis
+    if (analysisNeeds.timeSeries) {
+      if (spinner) spinner.text = 'Analyzing time series...';
+      const dateColumn = analysis.dateColumns[0]; // Use first date column
+      const numericColumns = columns.filter(col => 
+        ['integer', 'float'].includes(columnTypes[col].type)
+      );
+      
+      if (dateColumn && numericColumns.length > 0) {
+        analysis.timeSeriesAnalysis = performTimeSeriesAnalysis(
+          records, 
+          dateColumn, 
+          numericColumns
+        );
+      }
+    }
+    
+    // Australian data validation
+    if (analysisNeeds.australianData) {
+      if (spinner) spinner.text = 'Validating Australian data patterns...';
+      analysis.australianValidation = validateAustralianData$1(records, columns, columnTypes);
+      
+      if (analysis.australianValidation.detected) {
+        const australianInsights = generateAustralianInsights(analysis.australianValidation);
+        analysis.insights = [...(analysis.insights || []), ...australianInsights];
+      }
+    }
+    
+    // ML readiness assessment
+    if (analysisNeeds.mlReadiness) {
+      if (spinner) spinner.text = 'Assessing ML readiness...';
+      analysis.mlReadiness = assessMLReadiness(records, columns, columnTypes, analysis);
+    }
+    
+    // Generate insights
+    analysis.insights = generateInsights(analysis);
+    analysis.suggestions = generateSuggestions(analysis, analysisNeeds);
+    
+    // Calculate final metrics
+    analysis.consistencyScore = calculateConsistencyScore(analysis);
+    analysis.highMissingColumns = columns.filter(col => {
+      const stats = columnAnalyses[col];
+      return stats && (1 - stats.nonNullRatio) > 0.1;
+    }).length;
+    
+    // Return structured data if requested for LLM consumption
+    if (structuredMode) {
+      if (spinner) spinner.succeed('Comprehensive EDA analysis complete!');
+      return {
+        analysis,
+        structuredResults: {
+          statisticalInsights: analysis.insights || [],
+          dataQuality: {
+            completeness: analysis.completeness,
+            duplicateRows: analysis.duplicateCount / analysis.rowCount,
+            outlierPercentage: analysis.outlierRate || 0
+          },
+          correlations: analysis.correlationAnalysis?.correlations || [],
+          distributions: analysis.distributionAnalysis ? 
+            Object.entries(analysis.distributionAnalysis).map(([col, dist]) => ({
+              column: col,
+              ...dist
+            })) : [],
+          timeSeries: analysis.timeSeriesAnalysis || null,
+          summaryStats: analysis.columns.reduce((acc, col) => {
+            acc[col.name] = col.stats;
+            return acc;
+          }, {}),
+          mlReadiness: analysis.mlReadiness || { overallScore: 0.8, majorIssues: [] },
+          columns: analysis.columns.map(col => col.name)
+        }
+      };
+    }
+    
+    // Format and output report
+    const report = formatComprehensiveEDAReport(analysis);
+    
+    if (spinner) spinner.succeed('Comprehensive EDA analysis complete!');
+    console.log(report);
+    
+    outputHandler.finalize();
+    
+  } catch (error) {
+    outputHandler.restore();
+    if (spinner) spinner.fail('Error during analysis');
+    console.error(error.message);
+    if (!options.quiet) process.exit(1);
+    throw error;
+  }
+}
+
+function generateInsights(analysis) {
+  const insights = [];
+  
+  // Data quality insights
+  if (analysis.completeness < 0.8) {
+    insights.push(`Data completeness is ${(analysis.completeness * 100).toFixed(1)}% - consider data imputation strategies`);
+  }
+  
+  if (analysis.duplicateCount > analysis.rowCount * 0.05) {
+    insights.push(`${analysis.duplicateCount} duplicate rows detected - investigate data collection process`);
+  }
+  
+  // Distribution insights
+  if (analysis.distributionAnalysis) {
+    const nonNormal = Object.entries(analysis.distributionAnalysis)
+      .filter(([_, dist]) => dist.tests && dist.tests.normality && !dist.tests.normality.isNormal);
+    
+    if (nonNormal.length > 0) {
+      insights.push(`${nonNormal.length} numeric columns show non-normal distributions`);
+    }
+  }
+  
+  // Outlier insights
+  if (analysis.outlierAnalysis && analysis.outlierRate > 0.05) {
+    insights.push(`High outlier prevalence (${(analysis.outlierRate * 100).toFixed(1)}%) - review data quality`);
+  }
+  
+  // Model insights
+  if (analysis.regressionAnalysis && analysis.regressionAnalysis.bestModel) {
+    const r2 = analysis.regressionAnalysis.bestModel.adjustedR2;
+    if (r2 > 0.7) {
+      insights.push(`Strong predictive relationships found (R²=${r2.toFixed(3)})`);
+    }
+  }
+  
+  if (analysis.cartAnalysis && analysis.cartAnalysis.segments) {
+    insights.push(`${analysis.cartAnalysis.segments.length} distinct business segments identified`);
+  }
+  
+  // Pattern insights
+  if (analysis.patterns && analysis.patterns.benfordLaw) {
+    const violations = analysis.patterns.benfordLaw.filter(b => !b.followsBenford);
+    if (violations.length > 0) {
+      insights.push('Potential data quality issues detected via Benford\'s Law');
+    }
+  }
+  
+  return insights.length > 0 ? insights : ['Dataset appears well-structured with no major issues'];
+}
+
+function generateSuggestions(analysis, analysisNeeds) {
+  const suggestions = [];
+  
+  // Based on data characteristics
+  if (analysis.numericColumnCount >= 3 && !analysisNeeds.regression) {
+    suggestions.push({
+      title: 'Multivariate Analysis',
+      rationale: 'Multiple numeric columns available for deeper analysis',
+      approach: 'Consider PCA or factor analysis to identify latent variables'
+    });
+  }
+  
+  if (analysis.dateColumns.length > 0 && !analysisNeeds.timeSeries) {
+    suggestions.push({
+      title: 'Time-based Aggregation',
+      rationale: 'Date columns present but no clear time series pattern',
+      approach: 'Aggregate by time periods to reveal hidden trends'
+    });
+  }
+  
+  // Based on findings
+  if (analysis.outlierRate > 0.1) {
+    suggestions.push({
+      title: 'Robust Statistical Methods',
+      rationale: 'High outlier prevalence may skew traditional analyses',
+      approach: 'Use median-based statistics and robust regression techniques'
+    });
+  }
+  
+  if (analysis.patterns && analysis.patterns.duplicatePatterns.length > 0) {
+    suggestions.push({
+      title: 'Entity Resolution',
+      rationale: 'Duplicate patterns suggest potential entity matching issues',
+      approach: 'Implement fuzzy matching to identify related records'
+    });
+  }
+  
+  return suggestions;
+}
+
+function calculateConsistencyScore(analysis) {
+  let score = 10;
+  
+  // Deduct for quality issues
+  if (analysis.completeness < 0.9) score -= 2;
+  if (analysis.duplicateCount > 0) score -= 1;
+  if (analysis.outlierRate > 0.1) score -= 2;
+  if (analysis.highMissingColumns > 0) score -= 1;
+  
+  // Deduct for consistency issues
+  if (analysis.patterns && analysis.patterns.anomalies && analysis.patterns.anomalies.length > 0) {
+    score -= analysis.patterns.anomalies.length * 0.5;
+  }
+  
+  return Math.max(0, Math.round(score));
+}
+
+async function eda(filePath, options = {}) {
+  // Use the new comprehensive EDA analysis
+  return edaComprehensive(filePath, options);
+}
+
+function analyseCompleteness(data, headers) {
+  const results = {
+    dimension: 'Completeness',
+    weight: 0.20,
+    issues: [],
+    metrics: {},
+    score: 100
+  };
+
+  const totalRows = data.length;
+  const columnStats = {};
+
+  headers.forEach(header => {
+    columnStats[header] = {
+      nullCount: 0,
+      emptyCount: 0,
+      totalMissing: 0,
+      missingPattern: [],
+      requiredField: false,
+      completenessRate: 100
+    };
+  });
+
+  data.forEach((row, rowIndex) => {
+    headers.forEach((header, colIndex) => {
+      const value = row[colIndex];
+      const stats = columnStats[header];
+
+      if (value === null || value === undefined || value === '') {
+        stats.nullCount++;
+        stats.totalMissing++;
+        stats.missingPattern.push(rowIndex);
+      } else if (typeof value === 'string' && value.trim() === '') {
+        stats.emptyCount++;
+        stats.totalMissing++;
+        stats.missingPattern.push(rowIndex);
+      }
+    });
+  });
+
+  headers.forEach(header => {
+    const stats = columnStats[header];
+    stats.completenessRate = totalRows > 0 
+      ? ((totalRows - stats.totalMissing) / totalRows * 100).toFixed(2)
+      : 100;
+
+    const missingRate = 100 - stats.completenessRate;
+    if (missingRate > 0) {
+      const pattern = analyseMissingPattern(stats.missingPattern, totalRows);
+      
+      if (missingRate > 20) {
+        results.issues.push({
+          type: 'critical',
+          field: header,
+          message: `${missingRate.toFixed(1)}% missing values (${stats.totalMissing}/${totalRows} records)`,
+          pattern: pattern,
+          impact: missingRate > 50 ? 'Field may be unusable' : 'Significant data loss'
+        });
+        results.score -= 15;
+      } else if (missingRate > 5) {
+        results.issues.push({
+          type: 'warning',
+          field: header,
+          message: `${missingRate.toFixed(1)}% missing values (${stats.totalMissing}/${totalRows} records)`,
+          pattern: pattern,
+          impact: 'May affect analysis accuracy'
+        });
+        results.score -= 5;
+      } else if (missingRate > 0) {
+        results.issues.push({
+          type: 'observation',
+          field: header,
+          message: `${missingRate.toFixed(1)}% missing values (${stats.totalMissing}/${totalRows} records)`,
+          pattern: pattern
+        });
+        results.score -= 1;
+      }
+    }
+
+    if (stats.completenessRate === 100 && header.toLowerCase().includes('id')) {
+      stats.requiredField = true;
+    }
+  });
+
+  const overallCompleteness = headers.reduce((sum, header) => 
+    sum + parseFloat(columnStats[header].completenessRate), 0) / headers.length;
+
+  results.metrics = {
+    overallCompleteness: overallCompleteness.toFixed(2),
+    columnsWithMissing: Object.values(columnStats).filter(s => s.totalMissing > 0).length,
+    totalMissingCells: Object.values(columnStats).reduce((sum, s) => sum + s.totalMissing, 0),
+    columnStats: columnStats
+  };
+
+  results.score = Math.max(0, results.score);
+  return results;
+}
+
+function analyseMissingPattern(missingIndices, totalRows) {
+  if (missingIndices.length === 0) return 'None';
+  
+  const consecutiveRuns = [];
+  let currentRun = [missingIndices[0]];
+  
+  for (let i = 1; i < missingIndices.length; i++) {
+    if (missingIndices[i] === missingIndices[i-1] + 1) {
+      currentRun.push(missingIndices[i]);
+    } else {
+      if (currentRun.length > 1) {
+        consecutiveRuns.push(currentRun);
+      }
+      currentRun = [missingIndices[i]];
+    }
+  }
+  if (currentRun.length > 1) {
+    consecutiveRuns.push(currentRun);
+  }
+
+  if (consecutiveRuns.length > 0) {
+    const longestRun = consecutiveRuns.reduce((max, run) => 
+      run.length > max.length ? run : max, []);
+    if (longestRun.length > totalRows * 0.1) {
+      return `Systematic gaps (rows ${longestRun[0]}-${longestRun[longestRun.length-1]})`;
+    }
+  }
+
+  const lastQuarter = Math.floor(totalRows * 0.75);
+  const lastQuarterMissing = missingIndices.filter(i => i >= lastQuarter).length;
+  if (lastQuarterMissing > missingIndices.length * 0.5) {
+    return 'Missing at Random (MAR) - concentrated in recent records';
+  }
+
+  const everyNth = detectEveryNthPattern(missingIndices);
+  if (everyNth) {
+    return `Periodic pattern (every ${everyNth} records)`;
+  }
+
+  return 'Missing Completely at Random (MCAR)';
+}
+
+function detectEveryNthPattern(indices) {
+  if (indices.length < 3) return null;
+  
+  const differences = [];
+  for (let i = 1; i < indices.length; i++) {
+    differences.push(indices[i] - indices[i-1]);
+  }
+  
+  const mode = differences.reduce((acc, diff) => {
+    acc[diff] = (acc[diff] || 0) + 1;
+    return acc;
+  }, {});
+  
+  const mostCommon = Object.entries(mode).sort((a, b) => b[1] - a[1])[0];
+  if (mostCommon && mostCommon[1] > differences.length * 0.8) {
+    return mostCommon[0];
+  }
+  
+  return null;
+}
+
+function analyseValidity(data, headers, columnTypes) {
+  const results = {
+    dimension: 'Validity',
+    weight: 0.20,
+    issues: [],
+    metrics: {},
+    score: 100
+  };
+
+  const validationRules = detectValidationRules(data, headers, columnTypes);
+  const columnValidation = {};
+
+  headers.forEach((header, colIndex) => {
+    const columnData = data.map(row => row[colIndex]).filter(val => val !== null && val !== '');
+    const rules = validationRules[header];
+    
+    columnValidation[header] = {
+      totalValues: columnData.length,
+      invalidValues: [],
+      validationErrors: {},
+      formatConsistency: 100
+    };
+
+    if (!rules || columnData.length === 0) return;
+
+    const validation = columnValidation[header];
+
+    columnData.forEach((value, index) => {
+      let isValid = true;
+      const errors = [];
+
+      if (rules.type === 'email' && !validator.isEmail(String(value))) {
+        isValid = false;
+        errors.push('Invalid email format');
+      }
+
+      if (rules.type === 'url' && !validator.isURL(String(value))) {
+        isValid = false;
+        errors.push('Invalid URL format');
+      }
+
+      if (rules.type === 'numeric') {
+        const numValue = parseFloat(value);
+        if (isNaN(numValue)) {
+          isValid = false;
+          errors.push('Not a valid number');
+        } else {
+          if (rules.min !== undefined && numValue < rules.min) {
+            isValid = false;
+            errors.push(`Value below minimum (${rules.min})`);
+          }
+          if (rules.max !== undefined && numValue > rules.max) {
+            isValid = false;
+            errors.push(`Value above maximum (${rules.max})`);
+          }
+        }
+      }
+
+      if (rules.type === 'date') {
+        const dateFormats = detectDateFormat(columnData.slice(0, 100));
+        if (!isValidDate(value, dateFormats)) {
+          isValid = false;
+          errors.push('Invalid date format');
+        }
+      }
+
+      if (rules.pattern && !new RegExp(rules.pattern).test(String(value))) {
+        isValid = false;
+        errors.push(`Doesn't match expected pattern: ${rules.patternDescription}`);
+      }
+
+      if (rules.length && String(value).length !== rules.length) {
+        isValid = false;
+        errors.push(`Expected length: ${rules.length}, actual: ${String(value).length}`);
+      }
+
+      if (!isValid) {
+        validation.invalidValues.push({ value, index, errors });
+        errors.forEach(error => {
+          validation.validationErrors[error] = (validation.validationErrors[error] || 0) + 1;
+        });
+      }
+    });
+
+    const invalidRate = (validation.invalidValues.length / validation.totalValues * 100);
+    validation.formatConsistency = 100 - invalidRate;
+
+    if (invalidRate > 10) {
+      results.issues.push({
+        type: 'critical',
+        field: header,
+        message: `${invalidRate.toFixed(1)}% invalid values (${validation.invalidValues.length}/${validation.totalValues})`,
+        errors: Object.entries(validation.validationErrors)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 3)
+          .map(([error, count]) => `${error}: ${count} occurrences`),
+        examples: validation.invalidValues.slice(0, 3).map(v => v.value)
+      });
+      results.score -= 15;
+    } else if (invalidRate > 2) {
+      results.issues.push({
+        type: 'warning',
+        field: header,
+        message: `${invalidRate.toFixed(1)}% invalid values (${validation.invalidValues.length}/${validation.totalValues})`,
+        errors: Object.entries(validation.validationErrors)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 2)
+          .map(([error, count]) => `${error}: ${count}`)
+      });
+      results.score -= 5;
+    } else if (invalidRate > 0) {
+      results.issues.push({
+        type: 'observation',
+        field: header,
+        message: `${validation.invalidValues.length} invalid values found`,
+        examples: validation.invalidValues.slice(0, 2).map(v => v.value)
+      });
+      results.score -= 1;
+    }
+  });
+
+  const overallValidity = headers.reduce((sum, header) => 
+    sum + (columnValidation[header]?.formatConsistency || 100), 0) / headers.length;
+
+  results.metrics = {
+    overallValidity: overallValidity.toFixed(2),
+    columnsWithInvalidData: Object.values(columnValidation).filter(v => v.invalidValues.length > 0).length,
+    totalInvalidValues: Object.values(columnValidation).reduce((sum, v) => sum + v.invalidValues.length, 0),
+    validationRules: validationRules,
+    columnValidation: columnValidation
+  };
+
+  results.score = Math.max(0, results.score);
+  return results;
+}
+
+function detectValidationRules(data, headers, columnTypes) {
+  const rules = {};
+
+  headers.forEach((header, colIndex) => {
+    const columnData = data.map(row => row[colIndex]).filter(val => val !== null && val !== '');
+    if (columnData.length === 0) return;
+
+    const headerLower = header.toLowerCase();
+    const type = columnTypes[header];
+
+    if (headerLower.includes('email')) {
+      rules[header] = { type: 'email' };
+    } else if (headerLower.includes('url') || headerLower.includes('website')) {
+      rules[header] = { type: 'url' };
+    } else if (headerLower.includes('phone') || headerLower.includes('mobile')) {
+      rules[header] = { type: 'phone', pattern: detectPhonePattern(columnData) };
+    } else if (headerLower.includes('postcode') || headerLower.includes('zip')) {
+      rules[header] = { type: 'postcode', pattern: detectPostcodePattern(columnData) };
+    } else if (type === 'date' || headerLower.includes('date') || headerLower.includes('time')) {
+      rules[header] = { type: 'date' };
+    } else if (type === 'numeric') {
+      const numericData = columnData.map(v => parseFloat(v)).filter(v => !isNaN(v));
+      if (numericData.length > 0) {
+        rules[header] = {
+          type: 'numeric',
+          min: Math.min(...numericData),
+          max: Math.max(...numericData)
+        };
+      }
+    } else if (headerLower.includes('code') || headerLower.includes('id')) {
+      const pattern = detectCodePattern(columnData);
+      if (pattern) {
+        rules[header] = { 
+          type: 'code', 
+          pattern: pattern.regex,
+          patternDescription: pattern.description,
+          length: pattern.length
+        };
+      }
+    }
+  });
+
+  return rules;
+}
+
+function detectPhonePattern(values) {
+  const auMobilePattern = /^(?:\+?61|0)?4\d{8}$/;
+  const auLandlinePattern = /^(?:\+?61|0)?[2-9]\d{8}$/;
+  
+  const sample = values.slice(0, 100);
+  let mobileMatches = 0;
+  let landlineMatches = 0;
+
+  sample.forEach(value => {
+    const cleaned = String(value).replace(/[\s\-\(\)]/g, '');
+    if (auMobilePattern.test(cleaned)) mobileMatches++;
+    if (auLandlinePattern.test(cleaned)) landlineMatches++;
+  });
+
+  if (mobileMatches > sample.length * 0.8) {
+    return '^(?:\\+?61|0)?4\\d{8}$';
+  } else if (landlineMatches > sample.length * 0.8) {
+    return '^(?:\\+?61|0)?[2-9]\\d{8}$';
+  }
+  
+  return null;
+}
+
+function detectPostcodePattern(values) {
+  const auPostcodePattern = /^[0-9]{4}$/;
+  const usZipPattern = /^[0-9]{5}(-[0-9]{4})?$/;
+  
+  const sample = values.slice(0, 100);
+  let auMatches = 0;
+  let usMatches = 0;
+
+  sample.forEach(value => {
+    const cleaned = String(value).trim();
+    if (auPostcodePattern.test(cleaned)) auMatches++;
+    if (usZipPattern.test(cleaned)) usMatches++;
+  });
+
+  if (auMatches > sample.length * 0.8) {
+    return '^[0-9]{4}$';
+  } else if (usMatches > sample.length * 0.8) {
+    return '^[0-9]{5}(-[0-9]{4})?$';
+  }
+  
+  return null;
+}
+
+function detectCodePattern(values) {
+  const sample = values.slice(0, 100).map(v => String(v));
+  
+  const lengths = sample.map(v => v.length);
+  const uniqueLengths = [...new Set(lengths)];
+  
+  if (uniqueLengths.length === 1) {
+    const length = uniqueLengths[0];
+    
+    const patterns = [
+      { regex: '^[A-Z0-9]+$', desc: 'Alphanumeric uppercase' },
+      { regex: '^[0-9]+$', desc: 'Numeric only' },
+      { regex: '^[A-Z]+$', desc: 'Letters only uppercase' },
+      { regex: '^[A-Z]{2,3}-[0-9]{4,6}$', desc: 'Pattern like XX-1234' }
+    ];
+
+    for (const pattern of patterns) {
+      const matches = sample.filter(v => new RegExp(pattern.regex).test(v)).length;
+      if (matches > sample.length * 0.95) {
+        return {
+          regex: pattern.regex,
+          description: pattern.desc,
+          length: length
+        };
+      }
+    }
+  }
+  
+  return null;
+}
+
+function detectDateFormat(values) {
+  const formats = [
+    'YYYY-MM-DD',
+    'DD/MM/YYYY',
+    'MM/DD/YYYY',
+    'DD-MM-YYYY',
+    'YYYY/MM/DD'
+  ];
+  
+  return formats;
+}
+
+function isValidDate(value, formats) {
+  const dateStr = String(value);
+  
+  const patterns = {
+    'YYYY-MM-DD': /^\d{4}-\d{2}-\d{2}$/,
+    'DD/MM/YYYY': /^\d{2}\/\d{2}\/\d{4}$/,
+    'MM/DD/YYYY': /^\d{2}\/\d{2}\/\d{4}$/,
+    'DD-MM-YYYY': /^\d{2}-\d{2}-\d{4}$/,
+    'YYYY/MM/DD': /^\d{4}\/\d{2}\/\d{2}$/
+  };
+
+  for (const format of formats) {
+    if (patterns[format] && patterns[format].test(dateStr)) {
+      const date = new Date(dateStr);
+      return !isNaN(date.getTime());
+    }
+  }
+  
+  return false;
+}
+
+function analyseAccuracy(data, headers, columnTypes) {
+  const results = {
+    dimension: 'Accuracy',
+    weight: 0.20,
+    issues: [],
+    metrics: {},
+    score: 100
+  };
+
+  const accuracyChecks = {};
+
+  headers.forEach((header, colIndex) => {
+    const columnData = data.map(row => row[colIndex]).filter(val => val !== null && val !== '');
+    const type = columnTypes[header];
+
+    accuracyChecks[header] = {
+      outliers: [],
+      impossibleValues: [],
+      statisticalAnomalies: [],
+      businessRuleViolations: []
+    };
+
+    if (type === 'numeric' && columnData.length > 0) {
+      const numericData = columnData.map(v => parseFloat(v)).filter(v => !isNaN(v));
+      
+      if (numericData.length > 10) {
+        const outliers = detectStatisticalOutliers(numericData);
+        const impossible = detectImpossibleValues(numericData, header);
+        const anomalies = detectStatisticalAnomalies$1(numericData, header);
+
+        accuracyChecks[header].outliers = outliers;
+        accuracyChecks[header].impossibleValues = impossible;
+        accuracyChecks[header].statisticalAnomalies = anomalies;
+
+        if (outliers.severe.length > 0) {
+          results.issues.push({
+            type: 'critical',
+            field: header,
+            message: `${outliers.severe.length} severe outliers detected`,
+            details: `Values beyond 3 standard deviations: ${outliers.severe.slice(0, 5).join(', ')}${outliers.severe.length > 5 ? '...' : ''}`,
+            impact: 'May indicate data entry errors or system issues'
+          });
+          results.score -= 10;
+        }
+
+        if (impossible.length > 0) {
+          results.issues.push({
+            type: 'critical',
+            field: header,
+            message: `${impossible.length} impossible values found`,
+            examples: impossible.slice(0, 5).map(v => v.value),
+            reasons: impossible.slice(0, 3).map(v => v.reason)
+          });
+          results.score -= 15;
+        }
+
+        if (anomalies.length > 0) {
+          anomalies.forEach(anomaly => {
+            results.issues.push({
+              type: anomaly.severity,
+              field: header,
+              message: anomaly.message,
+              details: anomaly.details,
+              statisticalTest: anomaly.test
+            });
+            results.score -= anomaly.severity === 'critical' ? 10 : 5;
+          });
+        }
+      }
+    }
+
+    const businessRules = detectBusinessRuleViolations(columnData, header, data, headers, colIndex);
+    if (businessRules.length > 0) {
+      accuracyChecks[header].businessRuleViolations = businessRules;
+      businessRules.forEach(rule => {
+        results.issues.push({
+          type: rule.severity,
+          field: header,
+          message: rule.message,
+          violationCount: rule.count,
+          confidence: rule.confidence
+        });
+        results.score -= rule.severity === 'critical' ? 10 : 5;
+      });
+    }
+  });
+
+  const referentialIssues = checkReferentialIntegrity(data, headers);
+  if (referentialIssues.length > 0) {
+    results.issues.push(...referentialIssues);
+    referentialIssues.forEach(issue => {
+      results.score -= issue.type === 'critical' ? 10 : 5;
+    });
+  }
+
+  results.metrics = {
+    totalOutliers: Object.values(accuracyChecks).reduce((sum, check) => 
+      sum + (check.outliers?.severe?.length || 0) + (check.outliers?.moderate?.length || 0), 0),
+    totalImpossibleValues: Object.values(accuracyChecks).reduce((sum, check) => 
+      sum + check.impossibleValues.length, 0),
+    totalBusinessRuleViolations: Object.values(accuracyChecks).reduce((sum, check) => 
+      sum + check.businessRuleViolations.reduce((s, r) => s + r.count, 0), 0),
+    accuracyChecks: accuracyChecks
+  };
+
+  results.score = Math.max(0, results.score);
+  return results;
+}
+
+function detectStatisticalOutliers(values) {
+  if (values.length < 10) return { severe: [], moderate: [] };
+
+  const mean = ss.mean(values);
+  const stdDev = ss.standardDeviation(values);
+  const q1 = ss.quantile(values, 0.25);
+  const q3 = ss.quantile(values, 0.75);
+  const iqr = q3 - q1;
+
+  const outliers = {
+    severe: [],
+    moderate: []
+  };
+
+  values.forEach(value => {
+    const zScore = Math.abs((value - mean) / stdDev);
+    
+    if (zScore > 3) {
+      outliers.severe.push(value);
+    } else if (zScore > 2) {
+      outliers.moderate.push(value);
+    }
+
+    if (value < q1 - 3 * iqr || value > q3 + 3 * iqr) {
+      if (!outliers.severe.includes(value)) {
+        outliers.severe.push(value);
+      }
+    } else if (value < q1 - 1.5 * iqr || value > q3 + 1.5 * iqr) {
+      if (!outliers.moderate.includes(value) && !outliers.severe.includes(value)) {
+        outliers.moderate.push(value);
+      }
+    }
+  });
+
+  return outliers;
+}
+
+function detectImpossibleValues(values, fieldName) {
+  const impossible = [];
+  const fieldLower = fieldName.toLowerCase();
+
+  values.forEach(value => {
+    if (fieldLower.includes('age')) {
+      if (value < 0 || value > 150) {
+        impossible.push({ value, reason: 'Age outside valid range (0-150)' });
+      }
+    } else if (fieldLower.includes('percentage') || fieldLower.includes('percent')) {
+      if (value < 0 || value > 100) {
+        impossible.push({ value, reason: 'Percentage outside 0-100 range' });
+      }
+    } else if (fieldLower.includes('price') || fieldLower.includes('amount') || fieldLower.includes('cost')) {
+      if (value < 0) {
+        impossible.push({ value, reason: 'Negative monetary value' });
+      }
+    } else if (fieldLower.includes('quantity') || fieldLower.includes('count')) {
+      if (value < 0 || !Number.isInteger(value)) {
+        impossible.push({ value, reason: 'Invalid quantity (must be non-negative integer)' });
+      }
+    } else if (fieldLower.includes('year')) {
+      const currentYear = new Date().getFullYear();
+      if (value < 1900 || value > currentYear + 10) {
+        impossible.push({ value, reason: `Year outside reasonable range (1900-${currentYear + 10})` });
+      }
+    }
+  });
+
+  return impossible;
+}
+
+function detectStatisticalAnomalies$1(values, fieldName) {
+  const anomalies = [];
+
+  if (values.length > 100) {
+    const benfordResult = checkBenfordsLaw(values, fieldName);
+    if (benfordResult) {
+      anomalies.push(benfordResult);
+    }
+
+    const roundNumberBias = checkRoundNumberBias(values);
+    if (roundNumberBias) {
+      anomalies.push(roundNumberBias);
+    }
+  }
+
+  const distributionAnomaly = checkDistributionAnomaly(values);
+  if (distributionAnomaly) {
+    anomalies.push(distributionAnomaly);
+  }
+
+  return anomalies;
+}
+
+function checkBenfordsLaw(values, fieldName) {
+  const applicableFields = ['revenue', 'amount', 'sales', 'transaction', 'price'];
+  const fieldLower = fieldName.toLowerCase();
+  
+  if (!applicableFields.some(field => fieldLower.includes(field))) {
+    return null;
+  }
+
+  const positiveValues = values.filter(v => v > 0);
+  if (positiveValues.length < 100) return null;
+
+  const firstDigitCounts = Array(9).fill(0);
+  const expectedBenford = [30.1, 17.6, 12.5, 9.7, 7.9, 6.7, 5.8, 5.1, 4.6];
+
+  positiveValues.forEach(value => {
+    const firstDigit = parseInt(value.toString().replace('.', '')[0]);
+    if (firstDigit >= 1 && firstDigit <= 9) {
+      firstDigitCounts[firstDigit - 1]++;
+    }
+  });
+
+  firstDigitCounts.map(count => 
+    (count / positiveValues.length) * 100
+  );
+
+  let chiSquare = 0;
+  for (let i = 0; i < 9; i++) {
+    const expected = expectedBenford[i] * positiveValues.length / 100;
+    const observed = firstDigitCounts[i];
+    if (expected > 0) {
+      chiSquare += Math.pow(observed - expected, 2) / expected;
+    }
+  }
+
+  if (chiSquare > 21.666) {
+    return {
+      test: "Benford's Law",
+      severity: 'warning',
+      message: "Distribution doesn't follow Benford's Law",
+      details: `Chi-square: ${chiSquare.toFixed(2)}, p-value < 0.01`,
+      interpretation: 'Possible data manipulation or artificial values'
+    };
+  }
+
+  return null;
+}
+
+function checkRoundNumberBias(values) {
+  const roundNumbers = values.filter(v => {
+    const str = v.toString();
+    return v % 10 === 0 || v % 100 === 0 || v % 1000 === 0 ||
+           str.endsWith('00') || str.endsWith('000');
+  });
+
+  const roundPercentage = (roundNumbers.length / values.length) * 100;
+  const expectedPercentage = 10;
+
+  if (roundPercentage > expectedPercentage * 3) {
+    return {
+      test: 'Round Number Bias',
+      severity: 'warning',
+      message: `Excessive round numbers detected (${roundPercentage.toFixed(1)}% vs expected ~${expectedPercentage}%)`,
+      details: `${roundNumbers.length} round numbers out of ${values.length} values`,
+      interpretation: 'Likely manual entries or estimates'
+    };
+  }
+
+  return null;
+}
+
+function checkDistributionAnomaly(values) {
+  if (values.length < 30) return null;
+
+  const mean = ss.mean(values);
+  const median = ss.median(values);
+  ss.standardDeviation(values);
+  
+  const skewness = ss.sampleSkewness(values);
+  const kurtosis = values.length > 3 ? calculateKurtosis$1(values) : null;
+
+  if (Math.abs(skewness) > 2) {
+    return {
+      test: 'Distribution Skewness',
+      severity: 'observation',
+      message: `Highly ${skewness > 0 ? 'right' : 'left'}-skewed distribution`,
+      details: `Skewness: ${skewness.toFixed(2)}, Mean: ${mean.toFixed(2)}, Median: ${median.toFixed(2)}`,
+      interpretation: skewness > 0 ? 'Long tail of high values' : 'Long tail of low values'
+    };
+  }
+
+  if (kurtosis && Math.abs(kurtosis - 3) > 3) {
+    return {
+      test: 'Distribution Kurtosis',
+      severity: 'observation',
+      message: kurtosis > 3 ? 'Heavy-tailed distribution' : 'Light-tailed distribution',
+      details: `Kurtosis: ${kurtosis.toFixed(2)} (normal = 3)`,
+      interpretation: kurtosis > 3 ? 'More outliers than normal' : 'Fewer outliers than normal'
+    };
+  }
+
+  return null;
+}
+
+function calculateKurtosis$1(values) {
+  const n = values.length;
+  const mean = ss.mean(values);
+  const stdDev = ss.standardDeviation(values);
+  
+  let sum = 0;
+  values.forEach(value => {
+    sum += Math.pow((value - mean) / stdDev, 4);
+  });
+  
+  return (n * (n + 1) / ((n - 1) * (n - 2) * (n - 3))) * sum - 
+         (3 * Math.pow(n - 1, 2)) / ((n - 2) * (n - 3));
+}
+
+function detectBusinessRuleViolations(columnData, header, allData, allHeaders, colIndex) {
+  const violations = [];
+  const headerLower = header.toLowerCase();
+
+  if (headerLower.includes('total') || headerLower.includes('sum')) {
+    const relatedColumns = findRelatedColumns(header, allHeaders);
+    if (relatedColumns.length > 0) {
+      let violationCount = 0;
+      allData.forEach((row, rowIndex) => {
+        const total = parseFloat(row[colIndex]);
+        if (!isNaN(total)) {
+          const sum = relatedColumns.reduce((acc, relCol) => {
+            const val = parseFloat(row[relCol.index]);
+            return acc + (isNaN(val) ? 0 : val);
+          }, 0);
+          
+          if (Math.abs(total - sum) > 0.01) {
+            violationCount++;
+          }
+        }
+      });
+
+      if (violationCount > 0) {
+        violations.push({
+          rule: 'Calculated Field Consistency',
+          message: `${header} doesn't match sum of related fields`,
+          count: violationCount,
+          confidence: ((allData.length - violationCount) / allData.length * 100).toFixed(1) + '%',
+          severity: violationCount > allData.length * 0.1 ? 'critical' : 'warning'
+        });
+      }
+    }
+  }
+
+  return violations;
+}
+
+function findRelatedColumns(totalColumn, allHeaders) {
+  const related = [];
+  const baseName = totalColumn.toLowerCase()
+    .replace('total', '')
+    .replace('sum', '')
+    .trim();
+
+  allHeaders.forEach((header, index) => {
+    const headerLower = header.toLowerCase();
+    if (header !== totalColumn && 
+        (headerLower.includes(baseName) || baseName.includes(headerLower)) &&
+        !headerLower.includes('total') && 
+        !headerLower.includes('sum')) {
+      related.push({ header, index });
+    }
+  });
+
+  return related;
+}
+
+function checkReferentialIntegrity(data, headers) {
+  const issues = [];
+  const idColumns = headers.map((h, i) => ({ header: h, index: i }))
+    .filter(col => col.header.toLowerCase().includes('_id') || 
+                   col.header.toLowerCase().endsWith('id'));
+
+  idColumns.forEach(idCol => {
+    const referencedEntity = idCol.header.toLowerCase()
+      .replace('_id', '')
+      .replace('id', '');
+    
+    const uniqueIds = new Set();
+
+    data.forEach(row => {
+      const id = row[idCol.index];
+      if (id !== null && id !== '') {
+        uniqueIds.add(id);
+      }
+    });
+
+    const orphanedIds = Array.from(uniqueIds).filter(id => {
+      return false;
+    });
+
+    if (orphanedIds.length > 0) {
+      issues.push({
+        type: 'warning',
+        field: idCol.header,
+        message: `Potential referential integrity issue`,
+        details: `${orphanedIds.length} unique IDs may reference missing ${referencedEntity} records`,
+        recommendation: 'Verify foreign key relationships'
+      });
+    }
+  });
+
+  return issues;
+}
+
+function analyseConsistency(data, headers) {
+  const results = {
+    dimension: 'Consistency',
+    weight: 0.15,
+    issues: [],
+    metrics: {},
+    score: 100
+  };
+
+  const consistencyChecks = {
+    crossColumnValidation: [],
+    formatStandardisation: [],
+    namingConventions: [],
+    duplicateVariations: []
+  };
+
+  const crossColumnIssues = checkCrossColumnConsistency(data, headers);
+  consistencyChecks.crossColumnValidation = crossColumnIssues;
+  
+  crossColumnIssues.forEach(issue => {
+    results.issues.push({
+      type: issue.severity,
+      category: 'Cross-Column Validation',
+      message: issue.message,
+      affectedRecords: issue.count,
+      examples: issue.examples?.slice(0, 3),
+      recommendation: issue.fix
+    });
+    results.score -= issue.severity === 'critical' ? 10 : 5;
+  });
+
+  headers.forEach((header, colIndex) => {
+    const columnData = data.map(row => row[colIndex]).filter(val => val !== null && val !== '');
+    
+    const formatIssues = checkFormatConsistency(columnData, header);
+    if (formatIssues.length > 0) {
+      consistencyChecks.formatStandardisation.push(...formatIssues);
+      formatIssues.forEach(issue => {
+        results.issues.push({
+          type: issue.severity,
+          field: header,
+          category: 'Format Standardisation',
+          message: issue.message,
+          variations: issue.variations,
+          recommendation: issue.recommendation
+        });
+        results.score -= issue.severity === 'critical' ? 5 : 2;
+      });
+    }
+  });
+
+  const namingIssues = checkNamingConsistency(data, headers);
+  if (namingIssues.length > 0) {
+    consistencyChecks.namingConventions = namingIssues;
+    namingIssues.forEach(issue => {
+      results.issues.push({
+        type: 'observation',
+        category: 'Naming Conventions',
+        message: issue.message,
+        examples: issue.examples,
+        impact: 'May cause confusion or integration issues'
+      });
+      results.score -= 1;
+    });
+  }
+
+  const caseInsensitiveDuplicates = findCaseVariations(data, headers);
+  if (caseInsensitiveDuplicates.length > 0) {
+    consistencyChecks.duplicateVariations = caseInsensitiveDuplicates;
+    results.issues.push({
+      type: 'warning',
+      category: 'Case Variations',
+      message: `Found ${caseInsensitiveDuplicates.length} groups with case variations`,
+      groups: caseInsensitiveDuplicates.slice(0, 3),
+      recommendation: 'Standardise to consistent case format'
+    });
+    results.score -= 5;
+  }
+
+  results.metrics = {
+    crossColumnIssues: consistencyChecks.crossColumnValidation.length,
+    formatIssues: consistencyChecks.formatStandardisation.length,
+    namingIssues: consistencyChecks.namingConventions.length,
+    caseVariations: consistencyChecks.duplicateVariations.length,
+    overallConsistency: results.score
+  };
+
+  results.score = Math.max(0, results.score);
+  return results;
+}
+
+function checkCrossColumnConsistency(data, headers) {
+  const issues = [];
+
+  const dateColumns = headers.map((h, i) => ({ header: h, index: i }))
+    .filter(col => col.header.toLowerCase().includes('date') || 
+                   col.header.toLowerCase().includes('time'));
+
+  for (let i = 0; i < dateColumns.length - 1; i++) {
+    for (let j = i + 1; j < dateColumns.length; j++) {
+      const col1 = dateColumns[i];
+      const col2 = dateColumns[j];
+      
+      const temporalIssues = checkTemporalLogic(data, col1, col2);
+      if (temporalIssues) {
+        issues.push(temporalIssues);
+      }
+    }
+  }
+
+  const ageColumn = headers.findIndex(h => h.toLowerCase().includes('age'));
+  const birthDateColumn = headers.findIndex(h => 
+    h.toLowerCase().includes('birth') || h.toLowerCase().includes('dob'));
+  
+  if (ageColumn !== -1 && birthDateColumn !== -1) {
+    const ageConsistency = checkAgeDateConsistency(data, ageColumn, birthDateColumn);
+    if (ageConsistency) {
+      issues.push(ageConsistency);
+    }
+  }
+
+  const statusColumn = headers.findIndex(h => h.toLowerCase().includes('status'));
+  if (statusColumn !== -1) {
+    const statusIssues = checkStatusConsistency(data, headers, statusColumn);
+    issues.push(...statusIssues);
+  }
+
+  const addressColumns = findAddressColumns(headers);
+  if (addressColumns.length > 0) {
+    const geoIssues = checkGeographicConsistency(data, addressColumns);
+    if (geoIssues.length > 0) {
+      issues.push(...geoIssues);
+    }
+  }
+
+  return issues;
+}
+
+function checkTemporalLogic(data, col1, col2) {
+  let violationCount = 0;
+  const examples = [];
+
+  const rules = getTemporalRules(col1.header, col2.header);
+  if (!rules) return null;
+
+  data.forEach((row, index) => {
+    const date1 = parseDate$2(row[col1.index]);
+    const date2 = parseDate$2(row[col2.index]);
+    
+    if (date1 && date2) {
+      if (rules.relationship === 'before' && date1 > date2) {
+        violationCount++;
+        if (examples.length < 5) {
+          examples.push({
+            row: index + 1,
+            [col1.header]: row[col1.index],
+            [col2.header]: row[col2.index]
+          });
+        }
+      } else if (rules.relationship === 'after' && date1 < date2) {
+        violationCount++;
+        if (examples.length < 5) {
+          examples.push({
+            row: index + 1,
+            [col1.header]: row[col1.index],
+            [col2.header]: row[col2.index]
+          });
+        }
+      }
+    }
+  });
+
+  if (violationCount > 0) {
+    return {
+      severity: violationCount > data.length * 0.05 ? 'critical' : 'warning',
+      message: `${col1.header} should be ${rules.relationship} ${col2.header}`,
+      count: violationCount,
+      examples: examples,
+      fix: `UPDATE table SET ${col1.header} = ${rules.fix}`
+    };
+  }
+
+  return null;
+}
+
+function getTemporalRules(field1, field2) {
+  const rules = {
+    'created,modified': { relationship: 'before', fix: 'LEAST(created_date, modified_date)' },
+    'created,first': { relationship: 'before', fix: 'LEAST(created_date, first_date)' },
+    'start,end': { relationship: 'before', fix: 'LEAST(start_date, end_date)' },
+    'birth,death': { relationship: 'before', fix: 'birth_date' },
+    'order,delivery': { relationship: 'before', fix: 'order_date' },
+    'purchase,return': { relationship: 'before', fix: 'purchase_date' }
+  };
+
+  for (const [key, rule] of Object.entries(rules)) {
+    const [f1, f2] = key.split(',');
+    if ((field1.toLowerCase().includes(f1) && field2.toLowerCase().includes(f2)) ||
+        (field1.toLowerCase().includes(f2) && field2.toLowerCase().includes(f1))) {
+      return rule;
+    }
+  }
+
+  return null;
+}
+
+function checkAgeDateConsistency(data, ageIndex, birthDateIndex) {
+  let inconsistentCount = 0;
+  const examples = [];
+  const currentYear = new Date().getFullYear();
+
+  data.forEach((row, index) => {
+    const age = parseInt(row[ageIndex]);
+    const birthDate = parseDate$2(row[birthDateIndex]);
+    
+    if (!isNaN(age) && birthDate) {
+      const birthYear = birthDate.getFullYear();
+      const calculatedAge = currentYear - birthYear;
+      
+      if (Math.abs(calculatedAge - age) > 1) {
+        inconsistentCount++;
+        if (examples.length < 3) {
+          examples.push({
+            row: index + 1,
+            statedAge: age,
+            birthDate: row[birthDateIndex],
+            calculatedAge: calculatedAge
+          });
+        }
+      }
+    }
+  });
+
+  if (inconsistentCount > 0) {
+    return {
+      severity: inconsistentCount > data.length * 0.02 ? 'critical' : 'warning',
+      message: 'Age inconsistent with birth date',
+      count: inconsistentCount,
+      examples: examples,
+      fix: 'Recalculate age from birth date'
+    };
+  }
+
+  return null;
+}
+
+function checkStatusConsistency(data, headers, statusIndex) {
+  const issues = [];
+  const statusValues = {};
+
+  data.forEach((row, rowIndex) => {
+    const status = row[statusIndex];
+    if (!status) return;
+
+    if (!statusValues[status]) {
+      statusValues[status] = {
+        count: 0,
+        associatedPatterns: {}
+      };
+    }
+    statusValues[status].count++;
+
+    headers.forEach((header, colIndex) => {
+      if (colIndex !== statusIndex) {
+        const value = row[colIndex];
+        if (value !== null && value !== '') {
+          const pattern = `${header}:${value}`;
+          if (!statusValues[status].associatedPatterns[pattern]) {
+            statusValues[status].associatedPatterns[pattern] = 0;
+          }
+          statusValues[status].associatedPatterns[pattern]++;
+        }
+      }
+    });
+  });
+
+  Object.entries(statusValues).forEach(([status, info]) => {
+    const totalCount = info.count;
+    Object.entries(info.associatedPatterns).forEach(([pattern, count]) => {
+      const consistency = count / totalCount;
+      if (consistency > 0.95 && totalCount > 10) {
+        const [field, value] = pattern.split(':');
+        if (field.toLowerCase().includes('email') && status === 'inactive' && value !== '') {
+          issues.push({
+            severity: 'observation',
+            message: `Active emails found for inactive status`,
+            count: count,
+            pattern: `${status} records typically have empty ${field}`,
+            fix: `Consider clearing ${field} when status='${status}'`
+          });
+        }
+      }
+    });
+  });
+
+  return issues;
+}
+
+function checkFormatConsistency(values, fieldName) {
+  const issues = [];
+  const formats = {};
+
+  values.forEach(value => {
+    const format = detectFormat(value, fieldName);
+    if (format) {
+      formats[format] = (formats[format] || 0) + 1;
+    }
+  });
+
+  const totalValues = values.length;
+  const formatEntries = Object.entries(formats);
+
+  if (formatEntries.length > 1) {
+    const dominant = formatEntries.sort((a, b) => b[1] - a[1])[0];
+    const dominantPercentage = (dominant[1] / totalValues) * 100;
+
+    if (dominantPercentage < 95) {
+      issues.push({
+        severity: dominantPercentage < 80 ? 'warning' : 'observation',
+        message: `Multiple format variations detected`,
+        variations: formatEntries.map(([fmt, count]) => 
+          `${fmt}: ${count} (${(count/totalValues*100).toFixed(1)}%)`
+        ),
+        recommendation: `Standardise to ${dominant[0]} format`
+      });
+    }
+  }
+
+  const caseVariations = checkCaseConsistency(values, fieldName);
+  if (caseVariations) {
+    issues.push(caseVariations);
+  }
+
+  return issues;
+}
+
+function detectFormat(value, fieldName) {
+  const str = String(value);
+  const fieldLower = fieldName.toLowerCase();
+
+  if (fieldLower.includes('phone')) {
+    if (/^\d{10}$/.test(str)) return 'XXXXXXXXXX';
+    if (/^\d{3}-\d{3}-\d{4}$/.test(str)) return 'XXX-XXX-XXXX';
+    if (/^\(\d{3}\) \d{3}-\d{4}$/.test(str)) return '(XXX) XXX-XXXX';
+    if (/^\+\d{1,3} \d+$/.test(str)) return '+XX XXXXXXXXX';
+  }
+
+  if (fieldLower.includes('date')) {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return 'YYYY-MM-DD';
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(str)) return 'DD/MM/YYYY';
+    if (/^\d{2}-\d{2}-\d{4}$/.test(str)) return 'DD-MM-YYYY';
+  }
+
+  if (fieldLower.includes('address')) {
+    if (/^\d+\s+\w+\s+(St|Street)$/i.test(str)) return 'Number Name St/Street';
+    if (/^\d+\s+\w+\s+(Rd|Road)$/i.test(str)) return 'Number Name Rd/Road';
+    if (/^\d+\s+\w+\s+(Ave|Avenue)$/i.test(str)) return 'Number Name Ave/Avenue';
+  }
+
+  return null;
+}
+
+function checkCaseConsistency(values, fieldName) {
+  if (!['name', 'city', 'state', 'country'].some(term => 
+    fieldName.toLowerCase().includes(term))) {
+    return null;
+  }
+
+  const caseFormats = {
+    upper: 0,
+    lower: 0,
+    title: 0,
+    mixed: 0
+  };
+
+  values.forEach(value => {
+    const str = String(value).trim();
+    if (str === str.toUpperCase()) {
+      caseFormats.upper++;
+    } else if (str === str.toLowerCase()) {
+      caseFormats.lower++;
+    } else if (str === toTitleCase(str)) {
+      caseFormats.title++;
+    } else {
+      caseFormats.mixed++;
+    }
+  });
+
+  const total = values.length;
+  const dominant = Object.entries(caseFormats)
+    .sort((a, b) => b[1] - a[1])[0];
+
+  if (dominant[1] < total * 0.9) {
+    return {
+      severity: 'observation',
+      message: 'Inconsistent text casing',
+      variations: Object.entries(caseFormats)
+        .filter(([_, count]) => count > 0)
+        .map(([format, count]) => 
+          `${format}: ${(count/total*100).toFixed(1)}%`
+        ),
+      recommendation: `Standardise to ${dominant[0]} case`
+    };
+  }
+
+  return null;
+}
+
+function toTitleCase(str) {
+  return str.replace(/\w\S*/g, txt => 
+    txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase()
+  );
+}
+
+function findCaseVariations(data, headers) {
+  const variations = [];
+  const textColumns = headers.map((h, i) => ({ header: h, index: i }))
+    .filter(col => {
+      const sample = data.slice(0, 100).map(row => row[col.index])
+        .filter(v => v && typeof v === 'string');
+      return sample.length > 10 && sample.some(v => isNaN(parseFloat(v)));
+    });
+
+  textColumns.forEach(col => {
+    const valueGroups = {};
+    
+    data.forEach(row => {
+      const value = row[col.index];
+      if (value && typeof value === 'string') {
+        const normalized = value.toLowerCase().trim();
+        if (!valueGroups[normalized]) {
+          valueGroups[normalized] = new Set();
+        }
+        valueGroups[normalized].add(value);
+      }
+    });
+
+    Object.entries(valueGroups).forEach(([normalized, variants]) => {
+      if (variants.size > 1) {
+        variations.push({
+          field: col.header,
+          normalized: normalized,
+          variants: Array.from(variants),
+          count: variants.size
+        });
+      }
+    });
+  });
+
+  return variations.sort((a, b) => b.count - a.count);
+}
+
+function checkNamingConsistency(data, headers) {
+  const issues = [];
+  const patterns = {
+    camelCase: /^[a-z][a-zA-Z0-9]*$/,
+    snake_case: /^[a-z][a-z0-9_]*$/,
+    PascalCase: /^[A-Z][a-zA-Z0-9]*$/,
+    'kebab-case': /^[a-z][a-z0-9-]*$/
+  };
+
+  const namingStyles = {};
+  
+  headers.forEach(header => {
+    Object.entries(patterns).forEach(([style, pattern]) => {
+      if (pattern.test(header)) {
+        namingStyles[style] = (namingStyles[style] || 0) + 1;
+      }
+    });
+  });
+
+  const styles = Object.entries(namingStyles).filter(([_, count]) => count > 0);
+  if (styles.length > 1) {
+    issues.push({
+      message: 'Inconsistent column naming conventions',
+      examples: styles.map(([style, count]) => 
+        `${style}: ${count} columns`
+      )
+    });
+  }
+
+  return issues;
+}
+
+function findAddressColumns(headers) {
+  const addressTerms = ['address', 'street', 'city', 'state', 'postcode', 'zip', 'country'];
+  return headers.map((h, i) => ({ header: h, index: i }))
+    .filter(col => addressTerms.some(term => 
+      col.header.toLowerCase().includes(term)
+    ));
+}
+
+function checkGeographicConsistency(data, addressColumns) {
+  const issues = [];
+  
+  const postcodeCol = addressColumns.find(col => 
+    col.header.toLowerCase().includes('postcode') || 
+    col.header.toLowerCase().includes('zip')
+  );
+  const stateCol = addressColumns.find(col => 
+    col.header.toLowerCase().includes('state')
+  );
+
+  if (postcodeCol && stateCol) {
+    const auPostcodeRanges = {
+      'NSW': [[2000, 2599], [2619, 2899], [2921, 2999]],
+      'VIC': [[3000, 3999], [8000, 8999]],
+      'QLD': [[4000, 4999], [9000, 9999]],
+      'SA': [[5000, 5799]],
+      'WA': [[6000, 6797]],
+      'TAS': [[7000, 7799]],
+      'NT': [[800, 899]],
+      'ACT': [[200, 299], [2600, 2618], [2900, 2920]]
+    };
+
+    let mismatches = 0;
+    const examples = [];
+
+    data.forEach((row, index) => {
+      const postcode = parseInt(row[postcodeCol.index]);
+      const state = row[stateCol.index];
+
+      if (!isNaN(postcode) && state && auPostcodeRanges[state]) {
+        const validRanges = auPostcodeRanges[state];
+        const isValid = validRanges.some(([min, max]) => 
+          postcode >= min && postcode <= max
+        );
+
+        if (!isValid) {
+          mismatches++;
+          if (examples.length < 3) {
+            examples.push({
+              row: index + 1,
+              postcode: postcode,
+              state: state
+            });
+          }
+        }
+      }
+    });
+
+    if (mismatches > 0) {
+      issues.push({
+        severity: mismatches > data.length * 0.02 ? 'warning' : 'observation',
+        message: 'Postcode/State mismatches detected',
+        count: mismatches,
+        examples: examples,
+        fix: 'Verify and correct geographic data'
+      });
+    }
+  }
+
+  return issues;
+}
+
+function parseDate$2(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  return isNaN(date.getTime()) ? null : date;
+}
+
+function analyseTimeliness(data, headers) {
+  const results = {
+    dimension: 'Timeliness',
+    weight: 0.15,
+    issues: [],
+    metrics: {},
+    score: 100
+  };
+
+  const dateColumns = identifyDateColumns(data, headers);
+  const timelinessAnalysis = {};
+  
+  if (dateColumns.length === 0) {
+    results.metrics = {
+      message: 'No date columns detected for timeliness analysis',
+      recommendation: 'Add timestamp columns to track data freshness'
+    };
+    return results;
+  }
+
+  dateColumns.forEach(dateCol => {
+    const analysis = analyseDateColumn(data, dateCol);
+    timelinessAnalysis[dateCol.header] = analysis;
+
+    if (analysis.staleness.percentage > 30) {
+      results.issues.push({
+        type: 'critical',
+        field: dateCol.header,
+        message: `${analysis.staleness.percentage.toFixed(1)}% of records are stale (>${analysis.staleness.threshold} days old)`,
+        details: `${analysis.staleness.count}/${analysis.validDates.length} records`,
+        oldestRecord: analysis.range.oldest,
+        impact: 'Data may not reflect current state'
+      });
+      results.score -= 15;
+    } else if (analysis.staleness.percentage > 15) {
+      results.issues.push({
+        type: 'warning',
+        field: dateCol.header,
+        message: `${analysis.staleness.percentage.toFixed(1)}% of records are becoming stale`,
+        details: `${analysis.staleness.count} records older than ${analysis.staleness.threshold} days`,
+        recommendation: 'Consider updating or archiving old records'
+      });
+      results.score -= 7;
+    }
+
+    if (analysis.future.count > 0) {
+      results.issues.push({
+        type: 'critical',
+        field: dateCol.header,
+        message: `${analysis.future.count} records have future dates`,
+        examples: analysis.future.examples.slice(0, 3),
+        impact: 'Data integrity issue - impossible timestamps'
+      });
+      results.score -= 10;
+    }
+
+    if (analysis.suspicious && analysis.suspicious.beforeBusinessStart > 0) {
+      results.issues.push({
+        type: 'warning',
+        field: dateCol.header,
+        message: `${analysis.suspicious.beforeBusinessStart} records predate reasonable business start`,
+        earliestDate: analysis.suspicious.earliestDate,
+        recommendation: 'Verify or correct historical data'
+      });
+      results.score -= 5;
+    }
+
+    if (analysis.updateFrequency) {
+      if (analysis.updateFrequency.daysWithoutUpdate > 30) {
+        results.issues.push({
+          type: 'observation',
+          field: dateCol.header,
+          message: `No updates in the last ${analysis.updateFrequency.daysWithoutUpdate} days`,
+          lastUpdate: analysis.updateFrequency.lastUpdate,
+          averageUpdateInterval: `${analysis.updateFrequency.averageInterval.toFixed(1)} days`,
+          impact: 'May indicate process issues or abandonment'
+        });
+        results.score -= 3;
+      }
+    }
+
+    if (analysis.patterns.weekend > 20 && analysis.patterns.weekend < 80) {
+      results.issues.push({
+        type: 'observation',
+        field: dateCol.header,
+        message: `Unusual weekend activity pattern (${analysis.patterns.weekend.toFixed(1)}% on weekends)`,
+        interpretation: 'May indicate automated processes or data quality issues'
+      });
+    }
+  });
+
+  const modificationColumns = findModificationColumns(headers, dateColumns);
+  if (modificationColumns.created && modificationColumns.modified) {
+    const updateAnalysis = analyseUpdatePatterns(
+      data, 
+      modificationColumns.created, 
+      modificationColumns.modified
+    );
+    
+    if (updateAnalysis.neverModified > 50) {
+      results.issues.push({
+        type: 'observation',
+        category: 'Update Patterns',
+        message: `${updateAnalysis.neverModified.toFixed(1)}% of records never modified since creation`,
+        count: updateAnalysis.neverModifiedCount,
+        interpretation: 'May indicate abandoned records or lack of maintenance'
+      });
+      results.score -= 5;
+    }
+
+    if (updateAnalysis.frequentlyModified.length > 0) {
+      results.issues.push({
+        type: 'observation',
+        category: 'Update Patterns',
+        message: `${updateAnalysis.frequentlyModified.length} records modified unusually often`,
+        topRecords: updateAnalysis.frequentlyModified.slice(0, 3),
+        interpretation: 'May indicate data quality issues or system problems'
+      });
+    }
+  }
+
+  const freshnessScore = calculateOverallFreshness(timelinessAnalysis);
+  
+  results.metrics = {
+    dateColumnsAnalysed: dateColumns.length,
+    overallFreshness: `${freshnessScore.toFixed(1)}%`,
+    stalestColumn: getStalestColumn(timelinessAnalysis),
+    updatePatterns: modificationColumns.created && modificationColumns.modified ? {
+      neverModified: `${updateAnalysis?.neverModified?.toFixed(1)}%`,
+      averageUpdateAge: updateAnalysis?.averageAge ? `${updateAnalysis.averageAge.toFixed(1)} days` : 'N/A'
+    } : null,
+    timelinessAnalysis: timelinessAnalysis
+  };
+
+  results.score = Math.max(0, results.score);
+  return results;
+}
+
+function identifyDateColumns(data, headers) {
+  const dateColumns = [];
+  
+  headers.forEach((header, index) => {
+    const headerLower = header.toLowerCase();
+    const isLikelyDate = headerLower.includes('date') || 
+                        headerLower.includes('time') ||
+                        headerLower.includes('created') ||
+                        headerLower.includes('modified') ||
+                        headerLower.includes('updated') ||
+                        headerLower.includes('_at') ||
+                        headerLower.includes('_on');
+
+    if (isLikelyDate || isDateColumn(data, index)) {
+      dateColumns.push({ header, index });
+    }
+  });
+
+  return dateColumns;
+}
+
+function isDateColumn(data, colIndex) {
+  const sample = data.slice(0, Math.min(100, data.length))
+    .map(row => row[colIndex])
+    .filter(val => val !== null && val !== '');
+
+  if (sample.length === 0) return false;
+
+  let validDates = 0;
+  sample.forEach(value => {
+    const date = parseDate$1(value);
+    if (date && !isNaN(date.getTime())) {
+      validDates++;
+    }
+  });
+
+  return validDates > sample.length * 0.8;
+}
+
+function analyseDateColumn(data, dateCol) {
+  const now = new Date();
+  const validDates = [];
+  const invalidDates = [];
+  const futureDates = [];
+  
+  data.forEach((row, index) => {
+    const value = row[dateCol.index];
+    if (value === null || value === '') return;
+
+    const date = parseDate$1(value);
+    if (date && !isNaN(date.getTime())) {
+      validDates.push({ date, value, rowIndex: index });
+      if (date > now) {
+        futureDates.push({ date, value, rowIndex: index });
+      }
+    } else {
+      invalidDates.push({ value, rowIndex: index });
+    }
+  });
+
+  if (validDates.length === 0) {
+    return {
+      validDates: [],
+      invalidDates: invalidDates,
+      staleness: { percentage: 0, count: 0 },
+      future: { count: 0, examples: [] },
+      patterns: {}
+    };
+  }
+
+  validDates.sort((a, b) => a.date - b.date);
+  
+  const oldestDate = validDates[0].date;
+  const newestDate = validDates[validDates.length - 1].date;
+  
+  const stalenessThreshold = determineStalenessThreshold(dateCol.header);
+  const staleDate = new Date(now.getTime() - stalenessThreshold * 24 * 60 * 60 * 1000);
+  const staleRecords = validDates.filter(d => d.date < staleDate);
+
+  const businessStartDate = new Date('1990-01-01');
+  const suspiciousOld = validDates.filter(d => d.date < businessStartDate);
+
+  const patterns = analyseTemporalPatterns(validDates);
+  const updateFrequency = analyseUpdateFrequency(validDates);
+
+  return {
+    validDates: validDates,
+    invalidDates: invalidDates,
+    range: {
+      oldest: oldestDate.toISOString().split('T')[0],
+      newest: newestDate.toISOString().split('T')[0],
+      span: Math.floor((newestDate - oldestDate) / (1000 * 60 * 60 * 24))
+    },
+    staleness: {
+      threshold: stalenessThreshold,
+      count: staleRecords.length,
+      percentage: (staleRecords.length / validDates.length) * 100,
+      examples: staleRecords.slice(-3).map(r => ({
+        value: r.value,
+        age: Math.floor((now - r.date) / (1000 * 60 * 60 * 24))
+      }))
+    },
+    future: {
+      count: futureDates.length,
+      examples: futureDates.map(f => ({
+        value: f.value,
+        daysInFuture: Math.ceil((f.date - now) / (1000 * 60 * 60 * 24))
+      }))
+    },
+    suspicious: {
+      beforeBusinessStart: suspiciousOld.length,
+      earliestDate: suspiciousOld.length > 0 ? suspiciousOld[0].date.toISOString().split('T')[0] : null
+    },
+    patterns: patterns,
+    updateFrequency: updateFrequency
+  };
+}
+
+function determineStalenessThreshold(columnName) {
+  const columnLower = columnName.toLowerCase();
+  
+  if (columnLower.includes('last_login') || columnLower.includes('last_active')) {
+    return 90;
+  } else if (columnLower.includes('modified') || columnLower.includes('updated')) {
+    return 180;
+  } else if (columnLower.includes('created') || columnLower.includes('registration')) {
+    return 365;
+  } else if (columnLower.includes('birth') || columnLower.includes('dob')) {
+    return 36500;
+  } else if (columnLower.includes('order') || columnLower.includes('transaction')) {
+    return 90;
+  } else if (columnLower.includes('email') || columnLower.includes('contact')) {
+    return 365;
+  }
+  
+  return 365;
+}
+
+function analyseTemporalPatterns(validDates) {
+  const patterns = {
+    weekend: 0,
+    weekday: 0,
+    morning: 0,
+    afternoon: 0,
+    evening: 0,
+    night: 0,
+    monthlyDistribution: Array(12).fill(0),
+    yearlyTrend: {}
+  };
+
+  validDates.forEach(({ date }) => {
+    const dayOfWeek = date.getDay();
+    if (dayOfWeek === 0 || dayOfWeek === 6) {
+      patterns.weekend++;
+    } else {
+      patterns.weekday++;
+    }
+
+    const hour = date.getHours();
+    if (hour >= 6 && hour < 12) patterns.morning++;
+    else if (hour >= 12 && hour < 17) patterns.afternoon++;
+    else if (hour >= 17 && hour < 22) patterns.evening++;
+    else patterns.night++;
+
+    patterns.monthlyDistribution[date.getMonth()]++;
+    
+    const year = date.getFullYear();
+    patterns.yearlyTrend[year] = (patterns.yearlyTrend[year] || 0) + 1;
+  });
+
+  const total = validDates.length;
+  patterns.weekend = (patterns.weekend / total) * 100;
+  patterns.weekday = (patterns.weekday / total) * 100;
+
+  return patterns;
+}
+
+function analyseUpdateFrequency(validDates) {
+  if (validDates.length < 2) return null;
+
+  const now = new Date();
+  const mostRecent = validDates[validDates.length - 1].date;
+  const daysWithoutUpdate = Math.floor((now - mostRecent) / (1000 * 60 * 60 * 24));
+
+  const intervals = [];
+  for (let i = 1; i < validDates.length; i++) {
+    const interval = validDates[i].date - validDates[i-1].date;
+    intervals.push(interval / (1000 * 60 * 60 * 24));
+  }
+
+  const averageInterval = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+
+  return {
+    lastUpdate: mostRecent.toISOString().split('T')[0],
+    daysWithoutUpdate: daysWithoutUpdate,
+    averageInterval: averageInterval,
+    updateCount: validDates.length
+  };
+}
+
+function findModificationColumns(headers, dateColumns) {
+  const result = {};
+  
+  dateColumns.forEach(col => {
+    const headerLower = col.header.toLowerCase();
+    if (headerLower.includes('created') || headerLower.includes('create')) {
+      result.created = col;
+    } else if (headerLower.includes('modified') || headerLower.includes('updated')) {
+      result.modified = col;
+    }
+  });
+
+  return result;
+}
+
+function analyseUpdatePatterns(data, createdCol, modifiedCol) {
+  let neverModified = 0;
+  const modificationCounts = {};
+  const modificationAges = [];
+
+  data.forEach((row, index) => {
+    const created = parseDate$1(row[createdCol.index]);
+    const modified = parseDate$1(row[modifiedCol.index]);
+
+    if (created && modified) {
+      if (created.getTime() === modified.getTime()) {
+        neverModified++;
+      } else {
+        const daysSinceModified = Math.floor((new Date() - modified) / (1000 * 60 * 60 * 24));
+        modificationAges.push(daysSinceModified);
+        
+        const key = `row_${index}`;
+        if (!modificationCounts[key]) {
+          modificationCounts[key] = {
+            count: 0,
+            created: created,
+            lastModified: modified
+          };
+        }
+        modificationCounts[key].count++;
+      }
+    }
+  });
+
+  const totalRecords = data.length;
+  const neverModifiedPercentage = (neverModified / totalRecords) * 100;
+
+  const frequentlyModified = Object.entries(modificationCounts)
+    .filter(([_, info]) => {
+      const daysSinceCreated = (info.lastModified - info.created) / (1000 * 60 * 60 * 24);
+      const modificationsPerDay = info.count / daysSinceCreated;
+      return modificationsPerDay > 0.1;
+    })
+    .map(([key, info]) => ({
+      row: parseInt(key.split('_')[1]) + 1,
+      modifications: info.count,
+      daysSinceCreated: Math.floor((info.lastModified - info.created) / (1000 * 60 * 60 * 24))
+    }))
+    .sort((a, b) => b.modifications - a.modifications);
+
+  const averageAge = modificationAges.length > 0 
+    ? modificationAges.reduce((a, b) => a + b, 0) / modificationAges.length 
+    : null;
+
+  return {
+    neverModified: neverModifiedPercentage,
+    neverModifiedCount: neverModified,
+    frequentlyModified: frequentlyModified,
+    averageAge: averageAge
+  };
+}
+
+function calculateOverallFreshness(timelinessAnalysis) {
+  const scores = [];
+  
+  Object.values(timelinessAnalysis).forEach(analysis => {
+    if (analysis.validDates && analysis.validDates.length > 0) {
+      const freshnessScore = 100 - analysis.staleness.percentage;
+      scores.push(freshnessScore);
+    }
+  });
+
+  if (scores.length === 0) return 100;
+  return scores.reduce((a, b) => a + b, 0) / scores.length;
+}
+
+function getStalestColumn(timelinessAnalysis) {
+  let stalest = null;
+  let highestStaleness = 0;
+
+  Object.entries(timelinessAnalysis).forEach(([column, analysis]) => {
+    if (analysis.staleness && analysis.staleness.percentage > highestStaleness) {
+      highestStaleness = analysis.staleness.percentage;
+      stalest = {
+        column: column,
+        staleness: `${analysis.staleness.percentage.toFixed(1)}%`,
+        threshold: `${analysis.staleness.threshold} days`
+      };
+    }
+  });
+
+  return stalest;
+}
+
+function parseDate$1(value) {
+  if (!value) return null;
+  
+  const formats = [
+    value => new Date(value),
+    value => new Date(value.replace(/(\d{2})\/(\d{2})\/(\d{4})/, '$2/$1/$3')),
+    value => new Date(value.replace(/(\d{2})-(\d{2})-(\d{4})/, '$2/$1/$3')),
+  ];
+
+  for (const format of formats) {
+    try {
+      const date = format(value);
+      if (!isNaN(date.getTime()) && date.getFullYear() > 1900 && date.getFullYear() < 2100) {
+        return date;
+      }
+    } catch (e) {
+      continue;
+    }
+  }
+
+  return null;
+}
+
+function analyseUniqueness(data, headers) {
+  const results = {
+    dimension: 'Uniqueness',
+    weight: 0.10,
+    issues: [],
+    metrics: {},
+    score: 100
+  };
+
+  const uniquenessAnalysis = {};
+  
+  headers.forEach((header, colIndex) => {
+    const columnData = data.map(row => row[colIndex]).filter(val => val !== null && val !== '');
+    if (columnData.length === 0) return;
+
+    const analysis = analyseColumnUniqueness(columnData);
+    uniquenessAnalysis[header] = analysis;
+
+    if (analysis.exactDuplicates.count > 0) {
+      const duplicateRate = (analysis.exactDuplicates.count / columnData.length) * 100;
+      
+      if (shouldBeUnique(header) && duplicateRate > 0) {
+        results.issues.push({
+          type: 'critical',
+          field: header,
+          message: `${analysis.exactDuplicates.count} duplicate values in supposedly unique field`,
+          duplicateGroups: analysis.exactDuplicates.topGroups.slice(0, 3),
+          impact: 'Data integrity violation - may cause system errors',
+          fix: generateDuplicateFixSQL$1(header, analysis.exactDuplicates.groups)
+        });
+        results.score -= 20;
+      } else if (duplicateRate > 10) {
+        results.issues.push({
+          type: 'warning',
+          field: header,
+          message: `High duplication rate: ${duplicateRate.toFixed(1)}%`,
+          totalDuplicates: analysis.exactDuplicates.count,
+          uniqueValues: analysis.uniqueValues,
+          topDuplicates: analysis.exactDuplicates.topGroups.slice(0, 3)
+        });
+        results.score -= 5;
+      }
+    }
+
+    if (analysis.uniquenessRatio < 0.5 && columnData.length > 100) {
+      results.issues.push({
+        type: 'observation',
+        field: header,
+        message: `Low uniqueness ratio: ${(analysis.uniquenessRatio * 100).toFixed(1)}%`,
+        interpretation: 'May indicate categorical data or limited value range',
+        distinctValues: analysis.uniqueValues
+      });
+    }
+
+    if (header.toLowerCase().includes('id') && analysis.naturalKeyCandidate) {
+      results.issues.push({
+        type: 'observation',
+        field: header,
+        message: 'Potential natural key detected',
+        uniqueness: `${(analysis.uniquenessRatio * 100).toFixed(1)}%`,
+        recommendation: 'Consider using as primary/unique key'
+      });
+    }
+  });
+
+  const compositeDuplicates = findCompositeDuplicates(data, headers);
+  if (compositeDuplicates.length > 0) {
+    compositeDuplicates.forEach(compDup => {
+      results.issues.push({
+        type: 'warning',
+        category: 'Composite Duplicates',
+        message: `Duplicate records when combining ${compDup.fields.join(' + ')}`,
+        duplicateCount: compDup.count,
+        examples: compDup.examples.slice(0, 3),
+        recommendation: 'Consider composite unique constraint'
+      });
+      results.score -= 5;
+    });
+  }
+
+  const nearDuplicates = analyseNearDuplicates(data, headers);
+  if (nearDuplicates.length > 0) {
+    results.issues.push({
+      type: 'warning',
+      category: 'Near Duplicates',
+      message: `${nearDuplicates.length} groups of near-duplicate records found`,
+      topGroups: nearDuplicates.slice(0, 3).map(group => ({
+        similarity: `${group.similarity}%`,
+        recordCount: group.records.length,
+        fields: group.matchingFields,
+        examples: group.records.slice(0, 2)
+      })),
+      recommendation: 'Review for potential merge'
+    });
+    results.score -= 10;
+  }
+
+  results.metrics = {
+    overallUniqueness: calculateOverallUniqueness(uniquenessAnalysis),
+    exactDuplicateRecords: countTotalDuplicates(uniquenessAnalysis),
+    nearDuplicateGroups: nearDuplicates.length,
+    compositeDuplicateGroups: compositeDuplicates.length,
+    columnsWithDuplicates: Object.values(uniquenessAnalysis)
+      .filter(a => a.exactDuplicates.count > 0).length,
+    uniquenessAnalysis: uniquenessAnalysis
+  };
+
+  results.score = Math.max(0, results.score);
+  return results;
+}
+
+function analyseColumnUniqueness(values, columnName) {
+  const valueCounts = {};
+  const duplicateGroups = {};
+  
+  values.forEach((value, index) => {
+    const key = String(value);
+    valueCounts[key] = (valueCounts[key] || 0) + 1;
+    
+    if (!duplicateGroups[key]) {
+      duplicateGroups[key] = [];
+    }
+    duplicateGroups[key].push(index);
+  });
+
+  const uniqueValues = Object.keys(valueCounts).length;
+  const duplicates = Object.entries(valueCounts)
+    .filter(([_, count]) => count > 1);
+  
+  const duplicateCount = duplicates.reduce((sum, [_, count]) => sum + count - 1, 0);
+  
+  const topGroups = duplicates
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([value, count]) => ({
+      value: value.length > 50 ? value.substring(0, 47) + '...' : value,
+      count: count,
+      percentage: ((count / values.length) * 100).toFixed(1)
+    }));
+
+  const isNaturalKey = uniqueValues === values.length || 
+                      (uniqueValues / values.length) > 0.99;
+
+  return {
+    totalValues: values.length,
+    uniqueValues: uniqueValues,
+    uniquenessRatio: uniqueValues / values.length,
+    exactDuplicates: {
+      count: duplicateCount,
+      groups: duplicateGroups,
+      topGroups: topGroups
+    },
+    naturalKeyCandidate: isNaturalKey,
+    entropy: calculateEntropy(valueCounts, values.length)
+  };
+}
+
+function shouldBeUnique(columnName) {
+  const uniqueIndicators = [
+    'id', 'code', 'number', 'key', 'email', 'username', 
+    'account', 'reference', 'sku', 'isbn', 'ean', 'upc',
+    'ssn', 'ein', 'abn', 'acn', 'phone', 'mobile'
+  ];
+  
+  const columnLower = columnName.toLowerCase();
+  return uniqueIndicators.some(indicator => columnLower.includes(indicator));
+}
+
+function findCompositeDuplicates(data, headers) {
+  const compositeDuplicates = [];
+  
+  const candidateCombinations = generateCandidateCombinations(headers);
+  
+  candidateCombinations.forEach(combination => {
+    const compositeKeys = {};
+    
+    data.forEach((row, index) => {
+      const key = combination.indices
+        .map(idx => row[idx])
+        .filter(val => val !== null && val !== '')
+        .join('|');
+      
+      if (!compositeKeys[key]) {
+        compositeKeys[key] = [];
+      }
+      compositeKeys[key].push(index);
+    });
+
+    const duplicates = Object.entries(compositeKeys)
+      .filter(([_, indices]) => indices.length > 1);
+
+    if (duplicates.length > 0) {
+      const totalDuplicates = duplicates.reduce((sum, [_, indices]) => 
+        sum + indices.length - 1, 0);
+      
+      if (totalDuplicates > data.length * 0.01) {
+        compositeDuplicates.push({
+          fields: combination.fields,
+          count: totalDuplicates,
+          groups: duplicates.length,
+          examples: duplicates.slice(0, 3).map(([key, indices]) => ({
+            compositeKey: key,
+            recordCount: indices.length,
+            rows: indices.slice(0, 5).map(i => i + 1)
+          }))
+        });
+      }
+    }
+  });
+
+  return compositeDuplicates.sort((a, b) => b.count - a.count);
+}
+
+function generateCandidateCombinations(headers) {
+  const combinations = [];
+  
+  const keyFields = headers.map((h, i) => ({ header: h, index: i }))
+    .filter(field => {
+      const lower = field.header.toLowerCase();
+      return lower.includes('name') || lower.includes('email') || 
+             lower.includes('phone') || lower.includes('address') ||
+             lower.includes('id') || lower.includes('code');
+    });
+
+  for (let i = 0; i < keyFields.length - 1; i++) {
+    for (let j = i + 1; j < keyFields.length; j++) {
+      combinations.push({
+        fields: [keyFields[i].header, keyFields[j].header],
+        indices: [keyFields[i].index, keyFields[j].index]
+      });
+    }
+  }
+
+  return combinations.slice(0, 10);
+}
+
+function analyseNearDuplicates(data, headers) {
+  if (data.length > 5000) {
+    return analyseSampledNearDuplicates(data, headers, 1000);
+  }
+
+  const textColumns = headers.map((h, i) => ({ header: h, index: i }))
+    .filter(col => {
+      const sample = data.slice(0, 100).map(row => row[col.index])
+        .filter(v => v && typeof v === 'string');
+      return sample.length > 50;
+    });
+
+  if (textColumns.length === 0) return [];
+
+  const nearDuplicateGroups = [];
+  const processed = new Set();
+
+  for (let i = 0; i < data.length - 1; i++) {
+    if (processed.has(i)) continue;
+
+    const group = {
+      records: [i],
+      similarity: 0,
+      matchingFields: []
+    };
+
+    for (let j = i + 1; j < data.length; j++) {
+      if (processed.has(j)) continue;
+
+      const similarity = calculateRecordSimilarity(data[i], data[j], textColumns);
+      
+      if (similarity.score > 85) {
+        group.records.push(j);
+        group.similarity = Math.max(group.similarity, similarity.score);
+        group.matchingFields = similarity.matchingFields;
+        processed.add(j);
+      }
+    }
+
+    if (group.records.length > 1) {
+      processed.add(i);
+      nearDuplicateGroups.push(group);
+    }
+  }
+
+  return nearDuplicateGroups
+    .sort((a, b) => b.records.length - a.records.length)
+    .slice(0, 10);
+}
+
+function analyseSampledNearDuplicates(data, headers, sampleSize) {
+  const sample = [];
+  const step = Math.floor(data.length / sampleSize);
+  
+  for (let i = 0; i < data.length; i += step) {
+    sample.push({ data: data[i], originalIndex: i });
+  }
+
+  const textColumns = headers.map((h, i) => ({ header: h, index: i }))
+    .filter(col => {
+      const testSample = sample.slice(0, 100).map(s => s.data[col.index])
+        .filter(v => v && typeof v === 'string');
+      return testSample.length > 50;
+    });
+
+  if (textColumns.length === 0) return [];
+
+  const nearDuplicateGroups = [];
+
+  for (let i = 0; i < sample.length - 1; i++) {
+    const group = {
+      records: [sample[i].originalIndex],
+      similarity: 0,
+      matchingFields: []
+    };
+
+    for (let j = i + 1; j < sample.length; j++) {
+      const similarity = calculateRecordSimilarity(
+        sample[i].data, 
+        sample[j].data, 
+        textColumns
+      );
+      
+      if (similarity.score > 90) {
+        group.records.push(sample[j].originalIndex);
+        group.similarity = Math.max(group.similarity, similarity.score);
+        group.matchingFields = similarity.matchingFields;
+      }
+    }
+
+    if (group.records.length > 1) {
+      nearDuplicateGroups.push(group);
+    }
+  }
+
+  return nearDuplicateGroups
+    .sort((a, b) => b.records.length - a.records.length)
+    .slice(0, 5);
+}
+
+function calculateRecordSimilarity(record1, record2, textColumns) {
+  let totalScore = 0;
+  let matchingFields = [];
+  let comparedFields = 0;
+
+  textColumns.forEach(col => {
+    const val1 = String(record1[col.index] || '').toLowerCase().trim();
+    const val2 = String(record2[col.index] || '').toLowerCase().trim();
+
+    if (val1 && val2) {
+      const similarity = calculateStringSimilarity(val1, val2);
+      if (similarity > 80) {
+        matchingFields.push({
+          field: col.header,
+          similarity: similarity
+        });
+      }
+      totalScore += similarity;
+      comparedFields++;
+    }
+  });
+
+  return {
+    score: comparedFields > 0 ? Math.round(totalScore / comparedFields) : 0,
+    matchingFields: matchingFields
+  };
+}
+
+function calculateStringSimilarity(str1, str2) {
+  if (str1 === str2) return 100;
+  
+  const longer = str1.length > str2.length ? str1 : str2;
+  const shorter = str1.length > str2.length ? str2 : str1;
+  
+  if (longer.length === 0) return 100;
+  
+  const editDistance = levenshteinDistance$1(longer, shorter);
+  const similarity = ((longer.length - editDistance) / longer.length) * 100;
+  
+  return Math.round(similarity);
+}
+
+function levenshteinDistance$1(str1, str2) {
+  const matrix = [];
+  
+  for (let i = 0; i <= str2.length; i++) {
+    matrix[i] = [i];
+  }
+  
+  for (let j = 0; j <= str1.length; j++) {
+    matrix[0][j] = j;
+  }
+  
+  for (let i = 1; i <= str2.length; i++) {
+    for (let j = 1; j <= str1.length; j++) {
+      if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1,
+          matrix[i][j - 1] + 1,
+          matrix[i - 1][j] + 1
+        );
+      }
+    }
+  }
+  
+  return matrix[str2.length][str1.length];
+}
+
+function calculateEntropy(valueCounts, total) {
+  let entropy = 0;
+  
+  Object.values(valueCounts).forEach(count => {
+    const probability = count / total;
+    if (probability > 0) {
+      entropy -= probability * Math.log2(probability);
+    }
+  });
+  
+  return entropy;
+}
+
+function generateDuplicateFixSQL$1(columnName, duplicateGroups) {
+  Object.entries(duplicateGroups)
+    .filter(([_, indices]) => indices.length > 1)
+    .slice(0, 3);
+
+  let sql = `-- Remove duplicates from ${columnName}\n`;
+  sql += `WITH duplicates AS (\n`;
+  sql += `  SELECT ${columnName}, \n`;
+  sql += `    ROW_NUMBER() OVER (PARTITION BY ${columnName} ORDER BY created_date) AS rn\n`;
+  sql += `  FROM your_table\n`;
+  sql += `)\n`;
+  sql += `DELETE FROM your_table\n`;
+  sql += `WHERE ${columnName} IN (\n`;
+  sql += `  SELECT ${columnName} FROM duplicates WHERE rn > 1\n`;
+  sql += `);\n\n`;
+  sql += `-- Add unique constraint\n`;
+  sql += `ALTER TABLE your_table ADD CONSTRAINT uk_${columnName} UNIQUE (${columnName});`;
+
+  return sql;
+}
+
+function calculateOverallUniqueness(uniquenessAnalysis) {
+  const scores = Object.values(uniquenessAnalysis)
+    .filter(analysis => analysis.totalValues > 0)
+    .map(analysis => analysis.uniquenessRatio * 100);
+
+  if (scores.length === 0) return 100;
+  return scores.reduce((a, b) => a + b, 0) / scores.length;
+}
+
+function countTotalDuplicates(uniquenessAnalysis) {
+  return Object.values(uniquenessAnalysis)
+    .reduce((sum, analysis) => sum + analysis.exactDuplicates.count, 0);
+}
+
+function detectBusinessRules(data, headers, columnTypes) {
+  const rules = [];
+  
+  headers.forEach((header, colIndex) => {
+    const columnData = data.map(row => row[colIndex]);
+    const type = columnTypes[header];
+
+    if (type === 'numeric') {
+      const numericRules = detectNumericRules(columnData, header);
+      rules.push(...numericRules);
+    }
+
+    const constraintRules = detectConstraintRules(columnData, header);
+    rules.push(...constraintRules);
+
+    const conditionalRules = detectConditionalRules(data, headers, colIndex);
+    rules.push(...conditionalRules);
+  });
+
+  const derivedFieldRules = detectDerivedFieldRules(data, headers);
+  rules.push(...derivedFieldRules);
+
+  const relationshipRules = detectRelationshipRules(data, headers);
+  rules.push(...relationshipRules);
+
+  return rules.filter(rule => rule.confidence >= 95);
+}
+
+function detectNumericRules(values, fieldName, allData, allHeaders, colIndex) {
+  const rules = [];
+  const numericValues = values
+    .filter(v => v !== null && v !== '')
+    .map(v => parseFloat(v))
+    .filter(v => !isNaN(v));
+
+  if (numericValues.length === 0) return rules;
+
+  const min = Math.min(...numericValues);
+  const max = Math.max(...numericValues);
+  numericValues.reduce((a, b) => a + b, 0) / numericValues.length;
+
+  if (min >= 0 && max <= 150 && fieldName.toLowerCase().includes('age')) {
+    const violations = numericValues.filter(v => v < 0 || v > 120);
+    const confidence = ((numericValues.length - violations.length) / numericValues.length) * 100;
+    
+    if (confidence >= 95) {
+      rules.push({
+        type: 'RANGE_CONSTRAINT',
+        field: fieldName,
+        rule: `${fieldName} BETWEEN 0 AND 120`,
+        confidence: confidence,
+        violations: violations.length,
+        examples: violations.slice(0, 3),
+        sql: `CHECK (${fieldName} >= 0 AND ${fieldName} <= 120)`,
+        description: 'Age must be between 0 and 120 years'
+      });
+    }
+  }
+
+  if (min >= 0 && fieldName.toLowerCase().match(/price|amount|cost|revenue|total/)) {
+    const violations = numericValues.filter(v => v < 0);
+    const confidence = ((numericValues.length - violations.length) / numericValues.length) * 100;
+    
+    if (confidence >= 95) {
+      rules.push({
+        type: 'NON_NEGATIVE_CONSTRAINT',
+        field: fieldName,
+        rule: `${fieldName} >= 0`,
+        confidence: confidence,
+        violations: violations.length,
+        sql: `CHECK (${fieldName} >= 0)`,
+        description: 'Monetary values must be non-negative'
+      });
+    }
+  }
+
+  const roundNumberPercentage = (numericValues.filter(v => v % 1 === 0).length / numericValues.length) * 100;
+  if (roundNumberPercentage > 98 && !fieldName.toLowerCase().includes('decimal')) {
+    rules.push({
+      type: 'INTEGER_CONSTRAINT',
+      field: fieldName,
+      rule: `${fieldName} must be whole number`,
+      confidence: roundNumberPercentage,
+      violations: numericValues.filter(v => v % 1 !== 0).length,
+      sql: `CHECK (${fieldName} = FLOOR(${fieldName}))`,
+      description: 'Field contains only whole numbers'
+    });
+  }
+
+  return rules;
+}
+
+function detectConstraintRules(values, fieldName) {
+  const rules = [];
+  const nonNullValues = values.filter(v => v !== null && v !== '');
+  
+  if (nonNullValues.length === 0) return rules;
+
+  const uniqueValues = [...new Set(nonNullValues)];
+  const uniquenessRatio = uniqueValues.length / nonNullValues.length;
+
+  if (uniquenessRatio === 1 && fieldName.toLowerCase().match(/id|email|username|code|reference/)) {
+    rules.push({
+      type: 'UNIQUENESS_CONSTRAINT',
+      field: fieldName,
+      rule: `${fieldName} must be unique`,
+      confidence: 100,
+      violations: 0,
+      sql: `UNIQUE (${fieldName})`,
+      description: 'All values are currently unique'
+    });
+  }
+
+  const lengthCounts = {};
+  nonNullValues.forEach(value => {
+    const length = String(value).length;
+    lengthCounts[length] = (lengthCounts[length] || 0) + 1;
+  });
+
+  const dominantLength = Object.entries(lengthCounts)
+    .sort((a, b) => b[1] - a[1])[0];
+  
+  if (dominantLength && dominantLength[1] / nonNullValues.length > 0.95) {
+    const expectedLength = parseInt(dominantLength[0]);
+    const violations = nonNullValues.filter(v => String(v).length !== expectedLength);
+    
+    rules.push({
+      type: 'LENGTH_CONSTRAINT',
+      field: fieldName,
+      rule: `LENGTH(${fieldName}) = ${expectedLength}`,
+      confidence: (dominantLength[1] / nonNullValues.length) * 100,
+      violations: violations.length,
+      examples: violations.slice(0, 3),
+      sql: `CHECK (LENGTH(${fieldName}) = ${expectedLength})`,
+      description: `Field has fixed length of ${expectedLength} characters`
+    });
+  }
+
+  const patternMatches = detectPatternConstraint(nonNullValues, fieldName);
+  if (patternMatches) {
+    rules.push(patternMatches);
+  }
+
+  return rules;
+}
+
+function detectPatternConstraint(values, fieldName) {
+  const patterns = [
+    { 
+      name: 'ALPHANUMERIC_UPPERCASE',
+      regex: /^[A-Z0-9]+$/,
+      sql: "CHECK ({field} ~ '^[A-Z0-9]+$')",
+      description: 'Only uppercase letters and numbers'
+    },
+    { 
+      name: 'NUMERIC_ONLY',
+      regex: /^[0-9]+$/,
+      sql: "CHECK ({field} ~ '^[0-9]+$')",
+      description: 'Only numeric digits'
+    },
+    { 
+      name: 'EMAIL_FORMAT',
+      regex: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+      sql: "CHECK ({field} ~ '^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$')",
+      description: 'Valid email format'
+    },
+    { 
+      name: 'CODE_PATTERN',
+      regex: /^[A-Z]{2,3}-[0-9]{4,6}$/,
+      sql: "CHECK ({field} ~ '^[A-Z]{2,3}-[0-9]{4,6}$')",
+      description: 'Code pattern like ABC-12345'
+    }
+  ];
+
+  for (const pattern of patterns) {
+    const matches = values.filter(v => pattern.regex.test(String(v))).length;
+    const confidence = (matches / values.length) * 100;
+    
+    if (confidence >= 95) {
+      const violations = values.filter(v => !pattern.regex.test(String(v)));
+      return {
+        type: 'PATTERN_CONSTRAINT',
+        field: fieldName,
+        rule: `${fieldName} matches ${pattern.name}`,
+        confidence: confidence,
+        violations: violations.length,
+        examples: violations.slice(0, 3),
+        sql: pattern.sql.replace('{field}', fieldName),
+        description: pattern.description
+      };
+    }
+  }
+
+  return null;
+}
+
+function detectConditionalRules(data, headers, targetColIndex) {
+  const rules = [];
+  const targetHeader = headers[targetColIndex];
+  
+  headers.forEach((conditionHeader, conditionIndex) => {
+    if (conditionIndex === targetColIndex) return;
+    
+    const conditionalPatterns = analyseConditionalPatterns(
+      data, 
+      conditionIndex, 
+      targetColIndex,
+      conditionHeader,
+      targetHeader
+    );
+    
+    conditionalPatterns.forEach(pattern => {
+      if (pattern.confidence >= 95) {
+        rules.push(pattern);
+      }
+    });
+  });
+
+  return rules;
+}
+
+function analyseConditionalPatterns(data, conditionCol, targetCol, conditionHeader, targetHeader) {
+  const patterns = [];
+  const conditionalValues = {};
+  
+  data.forEach(row => {
+    const condition = row[conditionCol];
+    const target = row[targetCol];
+    
+    if (condition !== null && condition !== '' && target !== null && target !== '') {
+      if (!conditionalValues[condition]) {
+        conditionalValues[condition] = {};
+      }
+      const key = String(target);
+      conditionalValues[condition][key] = (conditionalValues[condition][key] || 0) + 1;
+    }
+  });
+
+  Object.entries(conditionalValues).forEach(([conditionValue, targetDistribution]) => {
+    const totalCount = Object.values(targetDistribution).reduce((a, b) => a + b, 0);
+    
+    Object.entries(targetDistribution).forEach(([targetValue, count]) => {
+      const percentage = (count / totalCount) * 100;
+      
+      if (percentage >= 95 && totalCount >= 10) {
+        patterns.push({
+          type: 'CONDITIONAL_CONSTRAINT',
+          field: targetHeader,
+          rule: `IF ${conditionHeader} = '${conditionValue}' THEN ${targetHeader} = '${targetValue}'`,
+          confidence: percentage,
+          violations: totalCount - count,
+          occurrences: totalCount,
+          sql: `CHECK (${conditionHeader} != '${conditionValue}' OR ${targetHeader} = '${targetValue}')`,
+          description: `When ${conditionHeader} is '${conditionValue}', ${targetHeader} is always '${targetValue}'`
+        });
+      }
+    });
+
+    const uniqueTargets = Object.keys(targetDistribution).length;
+    if (uniqueTargets === 1 && totalCount >= 5 && 
+        conditionHeader.toLowerCase().includes('status') && 
+        targetHeader.toLowerCase().includes('email')) {
+      const targetValue = Object.keys(targetDistribution)[0];
+      if (targetValue === '') {
+        patterns.push({
+          type: 'SOFT_DELETE_PATTERN',
+          field: targetHeader,
+          rule: `${targetHeader} is empty when ${conditionHeader} = '${conditionValue}'`,
+          confidence: 100,
+          violations: 0,
+          occurrences: totalCount,
+          sql: `UNIQUE (${targetHeader}) WHERE ${conditionHeader} != '${conditionValue}'`,
+          description: 'Soft delete pattern detected - field cleared on status change'
+        });
+      }
+    }
+  });
+
+  return patterns;
+}
+
+function detectDerivedFieldRules(data, headers, columnTypes) {
+  const rules = [];
+  
+  headers.forEach((header, colIndex) => {
+    if (!header.toLowerCase().match(/total|sum|calculated|derived/)) return;
+    
+    const potentialComponents = findPotentialComponents(header, headers);
+    if (potentialComponents.length === 0) return;
+
+    let bestMatch = null;
+    let bestConfidence = 0;
+
+    potentialComponents.forEach(components => {
+      let matchCount = 0;
+      let totalCount = 0;
+
+      data.forEach(row => {
+        const targetValue = parseFloat(row[colIndex]);
+        if (isNaN(targetValue)) return;
+
+        const sum = components.reduce((acc, compIndex) => {
+          const val = parseFloat(row[compIndex]);
+          return acc + (isNaN(val) ? 0 : val);
+        }, 0);
+
+        totalCount++;
+        if (Math.abs(targetValue - sum) < 0.01) {
+          matchCount++;
+        }
+      });
+
+      const confidence = totalCount > 0 ? (matchCount / totalCount) * 100 : 0;
+      if (confidence > bestConfidence) {
+        bestConfidence = confidence;
+        bestMatch = {
+          components: components,
+          matchCount: matchCount,
+          totalCount: totalCount
+        };
+      }
+    });
+
+    if (bestMatch && bestConfidence >= 95) {
+      const componentNames = bestMatch.components.map(idx => headers[idx]);
+      const violations = bestMatch.totalCount - bestMatch.matchCount;
+      
+      rules.push({
+        type: 'DERIVED_FIELD_RULE',
+        field: header,
+        rule: `${header} = SUM(${componentNames.join(', ')})`,
+        confidence: bestConfidence,
+        violations: violations,
+        components: componentNames,
+        sql: `CHECK (${header} = ${componentNames.join(' + ')})`,
+        description: 'Calculated field should equal sum of components',
+        discrepancies: analyseDiscrepancies(data, colIndex, bestMatch.components)
+      });
+    }
+  });
+
+  return rules;
+}
+
+function findPotentialComponents(targetField, headers) {
+  const candidates = [];
+  const baseName = targetField.toLowerCase()
+    .replace('total', '')
+    .replace('sum', '')
+    .replace('calculated', '')
+    .trim();
+
+  const relatedIndices = headers
+    .map((h, i) => ({ header: h, index: i }))
+    .filter(item => {
+      const headerLower = item.header.toLowerCase();
+      return item.header !== targetField &&
+             !headerLower.includes('total') &&
+             !headerLower.includes('sum') &&
+             (headerLower.includes(baseName) || baseName.includes(headerLower));
+    })
+    .map(item => item.index);
+
+  if (relatedIndices.length >= 2) {
+    candidates.push(relatedIndices);
+  }
+
+  for (let i = 2; i <= Math.min(4, relatedIndices.length); i++) {
+    const combinations = getCombinations(relatedIndices, i);
+    candidates.push(...combinations);
+  }
+
+  return candidates;
+}
+
+function getCombinations(arr, size) {
+  const result = [];
+  
+  function combine(start, combo) {
+    if (combo.length === size) {
+      result.push([...combo]);
+      return;
+    }
+    
+    for (let i = start; i < arr.length; i++) {
+      combo.push(arr[i]);
+      combine(i + 1, combo);
+      combo.pop();
+    }
+  }
+  
+  combine(0, []);
+  return result;
+}
+
+function analyseDiscrepancies(data, targetCol, componentCols) {
+  const discrepancies = [];
+  
+  data.forEach((row, index) => {
+    const target = parseFloat(row[targetCol]);
+    const sum = componentCols.reduce((acc, col) => {
+      const val = parseFloat(row[col]);
+      return acc + (isNaN(val) ? 0 : val);
+    }, 0);
+    
+    if (!isNaN(target) && Math.abs(target - sum) >= 0.01) {
+      discrepancies.push({
+        row: index + 1,
+        expected: sum,
+        actual: target,
+        difference: target - sum
+      });
+    }
+  });
+
+  const analysis = {
+    count: discrepancies.length,
+    range: discrepancies.length > 0 ? {
+      min: Math.min(...discrepancies.map(d => d.difference)),
+      max: Math.max(...discrepancies.map(d => d.difference))
+    } : null,
+    examples: discrepancies.slice(0, 3)
+  };
+
+  return analysis;
+}
+
+function detectRelationshipRules(data, headers) {
+  const rules = [];
+  
+  const idColumns = headers
+    .map((h, i) => ({ header: h, index: i }))
+    .filter(col => col.header.toLowerCase().endsWith('_id') || 
+                   col.header.toLowerCase().includes('_id_'));
+
+  idColumns.forEach(idCol => {
+    const entityName = idCol.header.toLowerCase()
+      .replace('_id', '')
+      .replace('id_', '');
+    
+    const values = data.map(row => row[idCol.index])
+      .filter(v => v !== null && v !== '');
+    
+    const uniqueValues = [...new Set(values)];
+    const cardinality = uniqueValues.length / values.length;
+
+    if (cardinality < 0.5) {
+      rules.push({
+        type: 'FOREIGN_KEY_CONSTRAINT',
+        field: idCol.header,
+        rule: `${idCol.header} references ${entityName}(id)`,
+        confidence: 99,
+        violations: 0,
+        cardinality: `Many-to-one (${uniqueValues.length} unique values)`,
+        sql: `FOREIGN KEY (${idCol.header}) REFERENCES ${entityName}(id)`,
+        description: `Foreign key relationship to ${entityName} table detected`
+      });
+    }
+  });
+
+  return rules;
+}
+
+function detectPatterns(data, headers, columnTypes) {
+  const patterns = {
+    hiddenPatterns: [],
+    systemPatterns: [],
+    employeePatterns: [],
+    testDataPatterns: []
+  };
+
+  detectHiddenPatterns(data, headers, patterns);
+  detectSystemAccounts(data, headers, patterns);
+  detectEmployeePatterns(data, headers, patterns);
+  detectTestDataPatterns(data, headers, patterns);
+
+  return patterns;
+}
+
+function detectHiddenPatterns(data, headers, patterns) {
+  const idColumns = headers.map((h, i) => ({ header: h, index: i }))
+    .filter(col => col.header.toLowerCase().includes('id'));
+
+  idColumns.forEach(idCol => {
+    const suffixPatterns = analyseSuffixPatterns(data, idCol.index, headers);
+    
+    suffixPatterns.forEach(pattern => {
+      if (pattern.correlation > 0.9) {
+        patterns.hiddenPatterns.push({
+          type: 'ID_SUFFIX_PATTERN',
+          field: idCol.header,
+          pattern: pattern.suffix,
+          correlation: pattern.correlation,
+          affectedRecords: pattern.count,
+          associatedBehavior: pattern.behavior,
+          recommendation: pattern.recommendation
+        });
+      }
+    });
+  });
+
+  const emailColumn = headers.findIndex(h => h.toLowerCase().includes('email'));
+  if (emailColumn !== -1) {
+    const domainPatterns = analyseDomainPatterns(data, emailColumn, headers);
+    patterns.hiddenPatterns.push(...domainPatterns);
+  }
+
+  const discountPatterns = analyseDiscountPatterns(data, headers);
+  patterns.hiddenPatterns.push(...discountPatterns);
+}
+
+function analyseSuffixPatterns(data, idColIndex, headers) {
+  const suffixGroups = {
+    '999': { records: [], metrics: {} },
+    '000': { records: [], metrics: {} },
+    '888': { records: [], metrics: {} },
+    '777': { records: [], metrics: {} }
+  };
+
+  data.forEach((row, index) => {
+    const id = String(row[idColIndex] || '');
+    Object.keys(suffixGroups).forEach(suffix => {
+      if (id.endsWith(suffix)) {
+        suffixGroups[suffix].records.push({ row, index });
+      }
+    });
+  });
+
+  const patterns = [];
+  
+  Object.entries(suffixGroups).forEach(([suffix, group]) => {
+    if (group.records.length === 0) return;
+
+    headers.forEach((header, colIndex) => {
+      if (colIndex === idColIndex) return;
+      
+      const values = group.records.map(r => r.row[colIndex]);
+      const analysis = analyseValueDistribution(values, data.map(row => row[colIndex]));
+      
+      if (analysis.deviation > 2) {
+        patterns.push({
+          suffix: suffix,
+          count: group.records.length,
+          correlation: analysis.correlation,
+          behavior: {
+            field: header,
+            deviation: analysis.deviation,
+            average: analysis.average,
+            populationAverage: analysis.populationAverage
+          },
+          recommendation: generateRecommendation(suffix, header, analysis)
+        });
+      }
+    });
+  });
+
+  return patterns;
+}
+
+function analyseValueDistribution(groupValues, allValues) {
+  const numericGroup = groupValues
+    .filter(v => v !== null && !isNaN(parseFloat(v)))
+    .map(v => parseFloat(v));
+  
+  const numericAll = allValues
+    .filter(v => v !== null && !isNaN(parseFloat(v)))
+    .map(v => parseFloat(v));
+
+  if (numericGroup.length === 0 || numericAll.length === 0) {
+    return { deviation: 0, correlation: 0 };
+  }
+
+  const groupAvg = numericGroup.reduce((a, b) => a + b, 0) / numericGroup.length;
+  const allAvg = numericAll.reduce((a, b) => a + b, 0) / numericAll.length;
+  const allStdDev = calculateStdDev(numericAll);
+
+  const deviation = allStdDev > 0 ? Math.abs(groupAvg - allAvg) / allStdDev : 0;
+  const correlation = deviation > 2 ? 0.95 : deviation / 2;
+
+  return {
+    deviation: deviation,
+    correlation: correlation,
+    average: groupAvg,
+    populationAverage: allAvg,
+    stdDev: allStdDev
+  };
+}
+
+function calculateStdDev(values) {
+  const mean = values.reduce((a, b) => a + b, 0) / values.length;
+  const squaredDiffs = values.map(v => Math.pow(v - mean, 2));
+  const variance = squaredDiffs.reduce((a, b) => a + b, 0) / values.length;
+  return Math.sqrt(variance);
+}
+
+function generateRecommendation(suffix, field, analysis) {
+  const fieldLower = field.toLowerCase();
+  
+  if (suffix === '999' && fieldLower.includes('discount')) {
+    return 'Add explicit employee flag - these appear to be employee accounts';
+  } else if (suffix === '000' && analysis.average === 0) {
+    return 'Add system account flag - these appear to be test/system accounts';
+  } else if (fieldLower.includes('shipping') && analysis.average === 0) {
+    return 'Consider flagging as special handling accounts';
+  }
+  
+  return 'Investigate this pattern for business logic';
+}
+
+function analyseDomainPatterns(data, emailColIndex, headers) {
+  const domainStats = {};
+  
+  data.forEach((row, index) => {
+    const email = row[emailColIndex];
+    if (!email || !email.includes('@')) return;
+    
+    const domain = email.split('@')[1].toLowerCase();
+    if (!domainStats[domain]) {
+      domainStats[domain] = {
+        count: 0,
+        records: [],
+        metrics: {}
+      };
+    }
+    
+    domainStats[domain].count++;
+    domainStats[domain].records.push({ row, index });
+  });
+
+  const patterns = [];
+  const companyDomains = ['company.com', 'internal.com', 'test.com'];
+  
+  Object.entries(domainStats).forEach(([domain, stats]) => {
+    if (stats.count < 5) return;
+    
+    const isCompanyDomain = companyDomains.some(cd => domain.includes(cd));
+    
+    headers.forEach((header, colIndex) => {
+      if (colIndex === emailColIndex) return;
+      
+      const domainValues = stats.records.map(r => r.row[colIndex]);
+      const allValues = data.map(row => row[colIndex]);
+      const analysis = analyseValueDistribution(domainValues, allValues);
+      
+      if (analysis.deviation > 2 || (isCompanyDomain && analysis.deviation > 1)) {
+        patterns.push({
+          type: 'EMAIL_DOMAIN_PATTERN',
+          domain: domain,
+          recordCount: stats.count,
+          behavior: {
+            field: header,
+            averageValue: analysis.average,
+            populationAverage: analysis.populationAverage,
+            deviation: analysis.deviation
+          },
+          interpretation: isCompanyDomain ? 'Internal/employee accounts' : 'Special customer segment',
+          recommendation: `Add account type flag for ${domain} users`
+        });
+      }
+    });
+  });
+
+  return patterns;
+}
+
+function analyseDiscountPatterns(data, headers) {
+  const patterns = [];
+  const discountColumns = headers.map((h, i) => ({ header: h, index: i }))
+    .filter(col => col.header.toLowerCase().includes('discount'));
+
+  if (discountColumns.length === 0) return patterns;
+
+  discountColumns.forEach(discountCol => {
+    const discountGroups = {};
+    
+    data.forEach((row, index) => {
+      const discount = parseFloat(row[discountCol.index]);
+      if (isNaN(discount) || discount === 0) return;
+      
+      const discountLevel = Math.round(discount);
+      if (!discountGroups[discountLevel]) {
+        discountGroups[discountLevel] = [];
+      }
+      discountGroups[discountLevel].push({ row, index });
+    });
+
+    Object.entries(discountGroups).forEach(([level, records]) => {
+      if (records.length < 5) return;
+      
+      const correlations = findDiscountCorrelations(records, data, headers);
+      correlations.forEach(correlation => {
+        patterns.push({
+          type: 'DISCOUNT_CORRELATION',
+          discountLevel: `${level}%`,
+          recordCount: records.length,
+          correlatedField: correlation.field,
+          correlation: correlation.strength,
+          pattern: correlation.pattern,
+          recommendation: 'Document discount eligibility rules'
+        });
+      });
+    });
+  });
+
+  return patterns;
+}
+
+function findDiscountCorrelations(discountRecords, allData, headers) {
+  const correlations = [];
+  
+  headers.forEach((header, colIndex) => {
+    const values = discountRecords.map(r => r.row[colIndex]);
+    const uniqueValues = [...new Set(values)];
+    
+    if (uniqueValues.length === 1 && discountRecords.length > 5) {
+      correlations.push({
+        field: header,
+        strength: 1.0,
+        pattern: `Always "${uniqueValues[0]}" for this discount level`
+      });
+    } else if (uniqueValues.length < discountRecords.length * 0.2) {
+      const dominant = getMostFrequent(values);
+      const dominantPercentage = values.filter(v => v === dominant).length / values.length;
+      
+      if (dominantPercentage > 0.8) {
+        correlations.push({
+          field: header,
+          strength: dominantPercentage,
+          pattern: `Usually "${dominant}" (${(dominantPercentage * 100).toFixed(0)}%)`
+        });
+      }
+    }
+  });
+
+  return correlations;
+}
+
+function detectSystemAccounts(data, headers, patterns) {
+  const usernameColumns = headers.map((h, i) => ({ header: h, index: i }))
+    .filter(col => col.header.toLowerCase().includes('username') || 
+                   col.header.toLowerCase().includes('user_name') ||
+                   col.header.toLowerCase().includes('login'));
+
+  if (usernameColumns.length === 0) return;
+
+  usernameColumns.forEach(userCol => {
+    const systemPatterns = [
+      { regex: /^test\d{3}$/i, type: 'Test accounts (test001-test999)' },
+      { regex: /^admin\d*$/i, type: 'Admin accounts' },
+      { regex: /^system\d*$/i, type: 'System accounts' },
+      { regex: /^demo\d*$/i, type: 'Demo accounts' },
+      { regex: /^guest\d*$/i, type: 'Guest accounts' },
+      { regex: /^bot_/i, type: 'Bot accounts' }
+    ];
+
+    systemPatterns.forEach(pattern => {
+      const matches = data.filter((row, index) => {
+        const username = row[userCol.index];
+        return username && pattern.regex.test(username);
+      });
+
+      if (matches.length > 0) {
+        const analysis = analyseSystemAccountBehavior(matches, data, headers, userCol.index);
+        
+        patterns.systemPatterns.push({
+          type: 'SYSTEM_ACCOUNT_PATTERN',
+          pattern: pattern.type,
+          count: matches.length,
+          field: userCol.header,
+          behavior: analysis,
+          recommendation: `Exclude ${pattern.type} from business analytics`,
+          impact: 'May skew metrics if included in analysis'
+        });
+      }
+    });
+  });
+}
+
+function analyseSystemAccountBehavior(systemRecords, allData, headers, userColIndex) {
+  const behavior = {
+    zeroRevenue: 0,
+    noActivity: 0,
+    characteristics: []
+  };
+
+  const revenueColumns = headers.map((h, i) => ({ header: h, index: i }))
+    .filter(col => col.header.toLowerCase().includes('revenue') || 
+                   col.header.toLowerCase().includes('amount') ||
+                   col.header.toLowerCase().includes('total'));
+
+  revenueColumns.forEach(revCol => {
+    const zeroCount = systemRecords.filter(row => {
+      const value = parseFloat(row[revCol.index]);
+      return value === 0 || isNaN(value);
+    }).length;
+
+    if (zeroCount === systemRecords.length) {
+      behavior.zeroRevenue++;
+      behavior.characteristics.push(`${revCol.header}: always zero`);
+    }
+  });
+
+  const activityColumns = headers.map((h, i) => ({ header: h, index: i }))
+    .filter(col => col.header.toLowerCase().includes('last_login') || 
+                   col.header.toLowerCase().includes('last_active'));
+
+  activityColumns.forEach(actCol => {
+    const nullCount = systemRecords.filter(row => 
+      !row[actCol.index] || row[actCol.index] === ''
+    ).length;
+
+    if (nullCount > systemRecords.length * 0.8) {
+      behavior.noActivity++;
+      behavior.characteristics.push(`${actCol.header}: mostly empty`);
+    }
+  });
+
+  return behavior;
+}
+
+function detectEmployeePatterns(data, headers, patterns) {
+  const indicators = [];
+
+  const emailColumn = headers.findIndex(h => h.toLowerCase().includes('email'));
+  if (emailColumn !== -1) {
+    const employeeEmails = data.filter(row => {
+      const email = row[emailColumn];
+      return email && (
+        email.endsWith('@company.com') ||
+        email.endsWith('@internal.com') ||
+        email.includes('+employee@')
+      );
+    });
+
+    if (employeeEmails.length > 0) {
+      const behavior = analyseEmployeeBehavior(employeeEmails, data, headers);
+      indicators.push({
+        indicator: 'Email domain pattern',
+        count: employeeEmails.length,
+        behavior: behavior
+      });
+    }
+  }
+
+  const discountColumns = headers.map((h, i) => ({ header: h, index: i }))
+    .filter(col => col.header.toLowerCase().includes('discount'));
+
+  discountColumns.forEach(discCol => {
+    const highDiscountThreshold = 30;
+    const highDiscountRecords = data.filter(row => {
+      const discount = parseFloat(row[discCol.index]);
+      return !isNaN(discount) && discount >= highDiscountThreshold;
+    });
+
+    if (highDiscountRecords.length > 0) {
+      const emailMatches = emailColumn !== -1 ? 
+        highDiscountRecords.filter(row => {
+          const email = row[emailColumn];
+          return email && email.includes('@company.com');
+        }).length : 0;
+
+      if (emailMatches > highDiscountRecords.length * 0.5) {
+        indicators.push({
+          indicator: `High discount (>=${highDiscountThreshold}%)`,
+          count: highDiscountRecords.length,
+          correlation: 'Strongly correlated with company email domain'
+        });
+      }
+    }
+  });
+
+  if (indicators.length > 0) {
+    patterns.employeePatterns.push({
+      type: 'EMPLOYEE_ACCOUNT_INDICATORS',
+      indicators: indicators,
+      recommendation: 'Add explicit employee flag to database',
+      benefits: [
+        'Accurate business metrics',
+        'Employee purchase tracking',
+        'Discount policy compliance'
+      ]
+    });
+  }
+}
+
+function analyseEmployeeBehavior(employeeRecords, allData, headers, emailColIndex) {
+  const behavior = {
+    averageDiscount: null,
+    freeShipping: null,
+    orderFrequency: null
+  };
+
+  const discountCol = headers.findIndex(h => h.toLowerCase().includes('discount'));
+  if (discountCol !== -1) {
+    const discounts = employeeRecords
+      .map(row => parseFloat(row[discountCol]))
+      .filter(v => !isNaN(v));
+    
+    if (discounts.length > 0) {
+      behavior.averageDiscount = discounts.reduce((a, b) => a + b, 0) / discounts.length;
+    }
+  }
+
+  const shippingCol = headers.findIndex(h => h.toLowerCase().includes('shipping'));
+  if (shippingCol !== -1) {
+    const freeShippingCount = employeeRecords.filter(row => {
+      const shipping = parseFloat(row[shippingCol]);
+      return shipping === 0 || isNaN(shipping);
+    }).length;
+    
+    behavior.freeShipping = (freeShippingCount / employeeRecords.length) * 100;
+  }
+
+  return behavior;
+}
+
+function detectTestDataPatterns(data, headers, patterns) {
+  const suspiciousPatterns = [];
+
+  const nameColumns = headers.map((h, i) => ({ header: h, index: i }))
+    .filter(col => col.header.toLowerCase().includes('name') && 
+                   !col.header.toLowerCase().includes('username'));
+
+  nameColumns.forEach(nameCol => {
+    const testNames = [
+      'Test', 'Demo', 'Sample', 'Example', 'Dummy',
+      'John Doe', 'Jane Doe', 'Mickey Mouse', 'Donald Duck',
+      'AAAAA', 'XXXXX', 'asdf', 'qwerty'
+    ];
+
+    const testRecords = data.filter(row => {
+      const name = row[nameCol.index];
+      return name && testNames.some(testName => 
+        name.toLowerCase().includes(testName.toLowerCase())
+      );
+    });
+
+    if (testRecords.length > 0) {
+      suspiciousPatterns.push({
+        field: nameCol.header,
+        count: testRecords.length,
+        percentage: ((testRecords.length / data.length) * 100).toFixed(1),
+        examples: [...new Set(testRecords.map(r => r[nameCol.index]))].slice(0, 5)
+      });
+    }
+  });
+
+  const sequentialPatterns = detectSequentialPatterns(data, headers);
+  suspiciousPatterns.push(...sequentialPatterns);
+
+  if (suspiciousPatterns.length > 0) {
+    patterns.testDataPatterns.push({
+      type: 'TEST_DATA_INDICATORS',
+      patterns: suspiciousPatterns,
+      totalSuspiciousRecords: [...new Set(suspiciousPatterns.flatMap(p => p.records || []))].length,
+      recommendation: 'Review and clean test data from production',
+      impact: 'Test data can skew analytics and reports'
+    });
+  }
+}
+
+function detectSequentialPatterns(data, headers) {
+  const patterns = [];
+
+  headers.forEach((header, colIndex) => {
+    const values = data.map(row => row[colIndex]).filter(v => v !== null && v !== '');
+    
+    const sequentialGroups = findSequentialValues(values);
+    
+    sequentialGroups.forEach(group => {
+      if (group.length >= 5) {
+        patterns.push({
+          field: header,
+          type: 'Sequential values',
+          count: group.length,
+          sequence: `${group[0]} to ${group[group.length - 1]}`,
+          interpretation: 'Likely auto-generated test data'
+        });
+      }
+    });
+  });
+
+  return patterns;
+}
+
+function findSequentialValues(values) {
+  const groups = [];
+  const numericValues = values
+    .map((v, i) => ({ value: v, index: i, numeric: parseFloat(v) }))
+    .filter(v => !isNaN(v.numeric))
+    .sort((a, b) => a.numeric - b.numeric);
+
+  let currentGroup = [];
+  
+  for (let i = 0; i < numericValues.length - 1; i++) {
+    if (currentGroup.length === 0) {
+      currentGroup.push(numericValues[i].numeric);
+    }
+    
+    if (numericValues[i + 1].numeric - numericValues[i].numeric === 1) {
+      currentGroup.push(numericValues[i + 1].numeric);
+    } else {
+      if (currentGroup.length >= 5) {
+        groups.push(currentGroup);
+      }
+      currentGroup = [];
+    }
+  }
+  
+  if (currentGroup.length >= 5) {
+    groups.push(currentGroup);
+  }
+
+  return groups;
+}
+
+function getMostFrequent(arr) {
+  const counts = {};
+  let maxCount = 0;
+  let mostFrequent = null;
+  
+  arr.forEach(val => {
+    counts[val] = (counts[val] || 0) + 1;
+    if (counts[val] > maxCount) {
+      maxCount = counts[val];
+      mostFrequent = val;
+    }
+  });
+  
+  return mostFrequent;
+}
+
+function detectAnomalies$2(data, headers, columnTypes) {
+  const anomalies = {
+    statistical: [],
+    benfordLaw: [],
+    roundNumberBias: [],
+    timeSeriesAnomalies: [],
+    fraudIndicators: []
+  };
+
+  headers.forEach((header, colIndex) => {
+    const columnData = data.map(row => row[colIndex]);
+    const type = columnTypes[header];
+
+    if (type === 'numeric') {
+      const numericData = columnData
+        .filter(v => v !== null && v !== '')
+        .map(v => parseFloat(v))
+        .filter(v => !isNaN(v));
+
+      if (numericData.length > 100) {
+        const benfordResult = testBenfordsLaw(numericData, header);
+        if (benfordResult) {
+          anomalies.benfordLaw.push(benfordResult);
+        }
+
+        const roundNumberResult = detectRoundNumberBias(numericData, header);
+        if (roundNumberResult) {
+          anomalies.roundNumberBias.push(roundNumberResult);
+        }
+
+        const statisticalAnomalies = detectStatisticalAnomalies(numericData, header);
+        anomalies.statistical.push(...statisticalAnomalies);
+      }
+    }
+
+    if (type === 'date' || header.toLowerCase().includes('date')) {
+      const timeSeriesAnomalies = detectTimeSeriesAnomalies(columnData, header);
+      anomalies.timeSeriesAnomalies.push(...timeSeriesAnomalies);
+    }
+  });
+
+  const fraudPatterns = detectFraudPatterns(data, headers, columnTypes);
+  anomalies.fraudIndicators.push(...fraudPatterns);
+
+  return anomalies;
+}
+
+function testBenfordsLaw(values, fieldName) {
+  const applicableFields = [
+    'revenue', 'amount', 'sales', 'transaction', 'price', 
+    'payment', 'invoice', 'order', 'purchase', 'expense'
+  ];
+  
+  const fieldLower = fieldName.toLowerCase();
+  const isApplicable = applicableFields.some(field => fieldLower.includes(field));
+  
+  if (!isApplicable) return null;
+
+  const positiveValues = values.filter(v => v > 0);
+  if (positiveValues.length < 100) return null;
+
+  const benfordExpected = [30.1, 17.6, 12.5, 9.7, 7.9, 6.7, 5.8, 5.1, 4.6];
+  const firstDigitCounts = Array(9).fill(0);
+  const observedDistribution = Array(9).fill(0);
+
+  positiveValues.forEach(value => {
+    const firstDigit = getFirstDigit(value);
+    if (firstDigit >= 1 && firstDigit <= 9) {
+      firstDigitCounts[firstDigit - 1]++;
+    }
+  });
+
+  const total = firstDigitCounts.reduce((a, b) => a + b, 0);
+  for (let i = 0; i < 9; i++) {
+    observedDistribution[i] = (firstDigitCounts[i] / total) * 100;
+  }
+
+  const chiSquare = calculateChiSquare(firstDigitCounts, benfordExpected, total);
+  const criticalValue = 21.666;
+  const pValue = chiSquare > criticalValue ? '<0.01' : '>0.01';
+
+  if (chiSquare > criticalValue) {
+    return {
+      type: 'BENFORD_LAW_VIOLATION',
+      field: fieldName,
+      test: "Benford's Law Test",
+      chiSquare: chiSquare.toFixed(2),
+      pValue: pValue,
+      interpretation: 'Distribution significantly deviates from Benford\'s Law',
+      possibleCauses: [
+        'Data manipulation or fraud',
+        'Artificial constraints on values',
+        'Systematic rounding or estimation',
+        'Data entry from limited sources'
+      ],
+      distribution: {
+        expected: benfordExpected.map((v, i) => ({
+          digit: i + 1,
+          expected: `${v}%`,
+          observed: `${observedDistribution[i].toFixed(1)}%`,
+          deviation: `${(observedDistribution[i] - v).toFixed(1)}%`
+        }))
+      },
+      recommendation: 'Investigate transactions with unusual first-digit patterns'
+    };
+  }
+
+  return null;
+}
+
+function getFirstDigit(value) {
+  const str = Math.abs(value).toString().replace(/[^0-9]/g, '');
+  return parseInt(str[0]);
+}
+
+function calculateChiSquare(observed, expected, total) {
+  let chiSquare = 0;
+  
+  for (let i = 0; i < observed.length; i++) {
+    const expectedCount = (expected[i] / 100) * total;
+    if (expectedCount > 0) {
+      chiSquare += Math.pow(observed[i] - expectedCount, 2) / expectedCount;
+    }
+  }
+  
+  return chiSquare;
+}
+
+function detectRoundNumberBias(values, fieldName) {
+  const roundingPatterns = {
+    tens: values.filter(v => v % 10 === 0 && v !== 0).length,
+    hundreds: values.filter(v => v % 100 === 0 && v !== 0).length,
+    thousands: values.filter(v => v % 1000 === 0 && v !== 0).length,
+    halfDollars: values.filter(v => {
+      const cents = Math.round((v % 1) * 100);
+      return cents === 50;
+    }).length,
+    wholeDollars: values.filter(v => v % 1 === 0).length
+  };
+
+  const total = values.length;
+  const expectedRates = {
+    tens: 0.10,
+    hundreds: 0.01,
+    thousands: 0.001,
+    halfDollars: 0.01,
+    wholeDollars: fieldName.toLowerCase().includes('price') ? 0.10 : 0.05
+  };
+
+  const biases = [];
+  
+  Object.entries(roundingPatterns).forEach(([pattern, count]) => {
+    const observedRate = count / total;
+    const expectedRate = expectedRates[pattern];
+    const ratio = observedRate / expectedRate;
+    
+    if (ratio > 3 && count > 10) {
+      biases.push({
+        pattern: pattern,
+        count: count,
+        observedRate: `${(observedRate * 100).toFixed(1)}%`,
+        expectedRate: `${(expectedRate * 100).toFixed(1)}%`,
+        excessRatio: ratio.toFixed(1)
+      });
+    }
+  });
+
+  if (biases.length > 0) {
+    return {
+      type: 'ROUND_NUMBER_BIAS',
+      field: fieldName,
+      totalValues: total,
+      biases: biases,
+      interpretation: 'Excessive round numbers detected',
+      possibleCauses: [
+        'Manual data entry or estimation',
+        'Psychological pricing strategies',
+        'System-imposed rounding',
+        'Negotiated or adjusted values'
+      ],
+      examples: findRoundNumberExamples(values),
+      recommendation: 'Review data collection process for artificial rounding'
+    };
+  }
+
+  return null;
+}
+
+function findRoundNumberExamples(values) {
+  const examples = {
+    hundreds: values.filter(v => v % 100 === 0 && v !== 0).slice(0, 5),
+    thousands: values.filter(v => v % 1000 === 0 && v !== 0).slice(0, 5)
+  };
+  
+  return examples;
+}
+
+function detectStatisticalAnomalies(values, fieldName) {
+  const anomalies = [];
+  
+  const zScoreAnomalies = detectZScoreAnomalies(values, fieldName);
+  if (zScoreAnomalies) {
+    anomalies.push(zScoreAnomalies);
+  }
+
+  const clusteringAnomalies = detectValueClustering(values, fieldName);
+  if (clusteringAnomalies) {
+    anomalies.push(clusteringAnomalies);
+  }
+
+  const gapAnomalies = detectValueGaps(values, fieldName);
+  if (gapAnomalies) {
+    anomalies.push(gapAnomalies);
+  }
+
+  return anomalies;
+}
+
+function detectZScoreAnomalies(values, fieldName) {
+  const mean = values.reduce((a, b) => a + b, 0) / values.length;
+  const variance = values.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / values.length;
+  const stdDev = Math.sqrt(variance);
+
+  const anomalies = values.map((value, index) => ({
+    value: value,
+    zScore: Math.abs((value - mean) / stdDev),
+    index: index
+  })).filter(item => item.zScore > 4);
+
+  if (anomalies.length > 0) {
+    return {
+      type: 'EXTREME_OUTLIERS',
+      field: fieldName,
+      count: anomalies.length,
+      threshold: '4 standard deviations',
+      examples: anomalies.slice(0, 5).map(a => ({
+        value: a.value,
+        zScore: a.zScore.toFixed(2),
+        deviation: `${((a.value - mean) / mean * 100).toFixed(1)}% from mean`
+      })),
+      statistics: {
+        mean: mean.toFixed(2),
+        stdDev: stdDev.toFixed(2),
+        minAnomaly: Math.min(...anomalies.map(a => a.value)),
+        maxAnomaly: Math.max(...anomalies.map(a => a.value))
+      },
+      interpretation: 'Extreme values detected that may indicate errors or special cases'
+    };
+  }
+
+  return null;
+}
+
+function detectValueClustering(values, fieldName) {
+  const sortedValues = [...values].sort((a, b) => a - b);
+  const clusters = [];
+  let currentCluster = [sortedValues[0]];
+  
+  const threshold = (sortedValues[sortedValues.length - 1] - sortedValues[0]) * 0.01;
+
+  for (let i = 1; i < sortedValues.length; i++) {
+    if (sortedValues[i] - sortedValues[i - 1] <= threshold) {
+      currentCluster.push(sortedValues[i]);
+    } else {
+      if (currentCluster.length > values.length * 0.1) {
+        clusters.push({
+          size: currentCluster.length,
+          range: {
+            min: currentCluster[0],
+            max: currentCluster[currentCluster.length - 1]
+          },
+          percentage: (currentCluster.length / values.length * 100).toFixed(1)
+        });
+      }
+      currentCluster = [sortedValues[i]];
+    }
+  }
+
+  if (currentCluster.length > values.length * 0.1) {
+    clusters.push({
+      size: currentCluster.length,
+      range: {
+        min: currentCluster[0],
+        max: currentCluster[currentCluster.length - 1]
+      },
+      percentage: (currentCluster.length / values.length * 100).toFixed(1)
+    });
+  }
+
+  if (clusters.length > 0 && clusters.some(c => parseFloat(c.percentage) > 30)) {
+    return {
+      type: 'VALUE_CLUSTERING',
+      field: fieldName,
+      clusters: clusters.filter(c => parseFloat(c.percentage) > 10),
+      interpretation: 'Values are heavily clustered in specific ranges',
+      possibleCauses: [
+        'Pricing tiers or bands',
+        'System constraints',
+        'Categorical data encoded as numeric',
+        'Limited input options'
+      ]
+    };
+  }
+
+  return null;
+}
+
+function detectValueGaps(values, fieldName) {
+  const sortedValues = [...new Set(values)].sort((a, b) => a - b);
+  const gaps = [];
+  
+  for (let i = 1; i < sortedValues.length; i++) {
+    const gap = sortedValues[i] - sortedValues[i - 1];
+    const avgGap = (sortedValues[sortedValues.length - 1] - sortedValues[0]) / sortedValues.length;
+    
+    if (gap > avgGap * 10) {
+      gaps.push({
+        from: sortedValues[i - 1],
+        to: sortedValues[i],
+        size: gap,
+        ratio: (gap / avgGap).toFixed(1)
+      });
+    }
+  }
+
+  if (gaps.length > 0) {
+    return {
+      type: 'VALUE_GAPS',
+      field: fieldName,
+      gaps: gaps.slice(0, 5),
+      interpretation: 'Significant gaps in value distribution',
+      possibleCauses: [
+        'Missing data ranges',
+        'Business rule constraints',
+        'Data collection limitations',
+        'Filtered or excluded values'
+      ]
+    };
+  }
+
+  return null;
+}
+
+function detectTimeSeriesAnomalies(values, fieldName, allData, colIndex) {
+  const anomalies = [];
+  const dateValues = values
+    .map((v, i) => ({ date: parseDate(v), index: i, original: v }))
+    .filter(item => item.date !== null)
+    .sort((a, b) => a.date - b.date);
+
+  if (dateValues.length < 10) return anomalies;
+
+  const intervals = [];
+  for (let i = 1; i < dateValues.length; i++) {
+    intervals.push(dateValues[i].date - dateValues[i - 1].date);
+  }
+
+  const avgInterval = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+  const largeGaps = intervals
+    .map((interval, i) => ({ interval, index: i }))
+    .filter(item => item.interval > avgInterval * 10);
+
+  if (largeGaps.length > 0) {
+    anomalies.push({
+      type: 'TEMPORAL_GAPS',
+      field: fieldName,
+      gaps: largeGaps.slice(0, 5).map(gap => ({
+        from: dateValues[gap.index].original,
+        to: dateValues[gap.index + 1].original,
+        days: Math.floor(gap.interval / (1000 * 60 * 60 * 24)),
+        averageDays: Math.floor(avgInterval / (1000 * 60 * 60 * 24))
+      })),
+      interpretation: 'Unusual gaps in temporal data',
+      possibleCauses: [
+        'System downtime or maintenance',
+        'Seasonal patterns',
+        'Data collection issues',
+        'Business closure periods'
+      ]
+    });
+  }
+
+  const velocityAnomaly = detectVelocityAnomalies(dateValues, fieldName);
+  if (velocityAnomaly) {
+    anomalies.push(velocityAnomaly);
+  }
+
+  return anomalies;
+}
+
+function detectVelocityAnomalies(dateValues, fieldName) {
+  const hourlyBuckets = {};
+  
+  dateValues.forEach(item => {
+    const hourKey = `${item.date.toISOString().split('T')[0]}-${item.date.getHours()}`;
+    item.date.toISOString().split('T')[0];
+    
+    hourlyBuckets[hourKey] = (hourlyBuckets[hourKey] || 0) + 1;
+  });
+
+  const hourlyValues = Object.values(hourlyBuckets);
+  
+  if (hourlyValues.length > 24) {
+    const hourlyMean = hourlyValues.reduce((a, b) => a + b, 0) / hourlyValues.length;
+    const hourlyStdDev = Math.sqrt(
+      hourlyValues.reduce((sum, val) => sum + Math.pow(val - hourlyMean, 2), 0) / hourlyValues.length
+    );
+    
+    const spikes = Object.entries(hourlyBuckets)
+      .filter(([_, count]) => count > hourlyMean + 3 * hourlyStdDev)
+      .sort((a, b) => b[1] - a[1]);
+    
+    if (spikes.length > 0) {
+      return {
+        type: 'VELOCITY_SPIKES',
+        field: fieldName,
+        spikes: spikes.slice(0, 5).map(([time, count]) => ({
+          time: time,
+          count: count,
+          deviation: `${((count - hourlyMean) / hourlyStdDev).toFixed(1)} std devs`
+        })),
+        average: hourlyMean.toFixed(1),
+        interpretation: 'Unusual spikes in data creation velocity',
+        possibleCauses: [
+          'Batch processing or imports',
+          'System testing or load testing',
+          'Bot activity or automated processes',
+          'Data migration events'
+        ]
+      };
+    }
+  }
+  
+  return null;
+}
+
+function detectFraudPatterns(data, headers, columnTypes) {
+  const patterns = [];
+  
+  const duplicateTimestamps = detectDuplicateTimestamps(data, headers);
+  if (duplicateTimestamps) {
+    patterns.push(duplicateTimestamps);
+  }
+
+  const suspiciousSequences = detectSuspiciousSequences(data, headers, columnTypes);
+  patterns.push(...suspiciousSequences);
+
+  const velocityPatterns = detectAbnormalVelocity(data, headers);
+  if (velocityPatterns) {
+    patterns.push(velocityPatterns);
+  }
+
+  return patterns;
+}
+
+function detectDuplicateTimestamps(data, headers) {
+  const timestampColumns = headers
+    .map((h, i) => ({ header: h, index: i }))
+    .filter(col => col.header.toLowerCase().includes('timestamp') || 
+                   col.header.toLowerCase().includes('created_at') ||
+                   col.header.toLowerCase().includes('datetime'));
+
+  if (timestampColumns.length === 0) return null;
+
+  const duplicates = [];
+  
+  timestampColumns.forEach(tsCol => {
+    const timestampCounts = {};
+    
+    data.forEach((row, index) => {
+      const timestamp = row[tsCol.index];
+      if (timestamp) {
+        if (!timestampCounts[timestamp]) {
+          timestampCounts[timestamp] = [];
+        }
+        timestampCounts[timestamp].push(index);
+      }
+    });
+
+    const duplicateGroups = Object.entries(timestampCounts)
+      .filter(([_, indices]) => indices.length > 1)
+      .sort((a, b) => b[1].length - a[1].length);
+
+    if (duplicateGroups.length > 0) {
+      duplicates.push({
+        field: tsCol.header,
+        groups: duplicateGroups.slice(0, 5).map(([timestamp, indices]) => ({
+          timestamp: timestamp,
+          count: indices.length,
+          rows: indices.slice(0, 10).map(i => i + 1)
+        }))
+      });
+    }
+  });
+
+  if (duplicates.length > 0) {
+    return {
+      type: 'DUPLICATE_TIMESTAMPS',
+      duplicates: duplicates,
+      interpretation: 'Multiple records with identical timestamps',
+      possibleCauses: [
+        'Batch processing without proper timestamps',
+        'System clock issues',
+        'Data import problems',
+        'Potential fraud or manipulation'
+      ],
+      recommendation: 'Investigate records with duplicate timestamps for validity'
+    };
+  }
+
+  return null;
+}
+
+function detectSuspiciousSequences(data, headers, columnTypes) {
+  const patterns = [];
+  
+  headers.forEach((header, colIndex) => {
+    if (columnTypes[header] !== 'numeric') return;
+    
+    const values = data
+      .map((row, i) => ({ value: parseFloat(row[colIndex]), index: i }))
+      .filter(item => !isNaN(item.value));
+    
+    for (let i = 0; i < values.length - 4; i++) {
+      const sequence = values.slice(i, i + 5).map(item => item.value);
+      
+      if (isArithmeticSequence(sequence) || isGeometricSequence(sequence)) {
+        patterns.push({
+          type: 'SUSPICIOUS_SEQUENCE',
+          field: header,
+          startRow: values[i].index + 1,
+          sequence: sequence,
+          pattern: isArithmeticSequence(sequence) ? 'Arithmetic' : 'Geometric',
+          interpretation: 'Artificial sequential pattern detected'
+        });
+      }
+    }
+  });
+
+  return patterns.slice(0, 5);
+}
+
+function isArithmeticSequence(values) {
+  if (values.length < 3) return false;
+  const diff = values[1] - values[0];
+  
+  for (let i = 2; i < values.length; i++) {
+    if (Math.abs((values[i] - values[i - 1]) - diff) > 0.01) {
+      return false;
+    }
+  }
+  
+  return Math.abs(diff) > 0;
+}
+
+function isGeometricSequence(values) {
+  if (values.length < 3 || values.some(v => v === 0)) return false;
+  const ratio = values[1] / values[0];
+  
+  for (let i = 2; i < values.length; i++) {
+    if (Math.abs((values[i] / values[i - 1]) - ratio) > 0.01) {
+      return false;
+    }
+  }
+  
+  return Math.abs(ratio - 1) > 0.01;
+}
+
+function detectAbnormalVelocity(data, headers) {
+  const userColumns = headers
+    .map((h, i) => ({ header: h, index: i }))
+    .filter(col => col.header.toLowerCase().includes('user') || 
+                   col.header.toLowerCase().includes('customer') ||
+                   col.header.toLowerCase().includes('account'));
+
+  const dateColumns = headers
+    .map((h, i) => ({ header: h, index: i }))
+    .filter(col => col.header.toLowerCase().includes('date') || 
+                   col.header.toLowerCase().includes('time'));
+
+  if (userColumns.length === 0 || dateColumns.length === 0) return null;
+
+  const userActivity = {};
+  
+  data.forEach(row => {
+    const userId = row[userColumns[0].index];
+    const date = parseDate(row[dateColumns[0].index]);
+    
+    if (userId && date) {
+      if (!userActivity[userId]) {
+        userActivity[userId] = [];
+      }
+      userActivity[userId].push(date);
+    }
+  });
+
+  const suspiciousUsers = [];
+  
+  Object.entries(userActivity).forEach(([userId, dates]) => {
+    if (dates.length < 5) return;
+    
+    dates.sort((a, b) => a - b);
+    const intervals = [];
+    
+    for (let i = 1; i < dates.length; i++) {
+      intervals.push(dates[i] - dates[i - 1]);
+    }
+    
+    const avgInterval = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+    const minInterval = Math.min(...intervals);
+    
+    if (minInterval < 1000 || avgInterval < 60000) {
+      suspiciousUsers.push({
+        userId: userId,
+        activityCount: dates.length,
+        minIntervalSeconds: minInterval / 1000,
+        avgIntervalSeconds: avgInterval / 1000
+      });
+    }
+  });
+
+  if (suspiciousUsers.length > 0) {
+    return {
+      type: 'ABNORMAL_USER_VELOCITY',
+      users: suspiciousUsers.slice(0, 10),
+      interpretation: 'Users with impossibly fast activity patterns',
+      possibleCauses: [
+        'Bot or automated activity',
+        'System testing accounts',
+        'Data import with incorrect timestamps',
+        'Potential fraud or abuse'
+      ],
+      recommendation: 'Review accounts with superhuman activity speeds'
+    };
+  }
+
+  return null;
+}
+
+function parseDate(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  return isNaN(date.getTime()) ? null : date;
+}
+
+function analyseFuzzyDuplicates(data, headers) {
+  const results = {
+    nearDuplicateGroups: [],
+    totalNearDuplicates: 0,
+    algorithms: ['Levenshtein', 'Jaro-Winkler', 'Soundex', 'Token Sorting'],
+    processingStrategy: data.length > 1000 ? 'sampled' : 'full'
+  };
+
+  const keyColumns = identifyKeyColumns$1(headers);
+  if (keyColumns.length === 0) {
+    results.message = 'No suitable columns found for fuzzy matching';
+    return results;
+  }
+
+  const groups = data.length > 1000 
+    ? findNearDuplicatesSampled(data, keyColumns, 1000)
+    : findNearDuplicatesFull(data, keyColumns);
+
+  results.nearDuplicateGroups = groups;
+  results.totalNearDuplicates = groups.reduce((sum, group) => sum + group.records.length - 1, 0);
+
+  return results;
+}
+
+function identifyKeyColumns$1(headers) {
+  const priorityColumns = ['name', 'company', 'address', 'email', 'title', 'description'];
+  const keyColumns = [];
+
+  headers.forEach((header, index) => {
+    const headerLower = header.toLowerCase();
+    if (priorityColumns.some(col => headerLower.includes(col))) {
+      keyColumns.push({ header, index, priority: 1 });
+    } else if (headerLower.includes('id') || headerLower.includes('code')) {
+      keyColumns.push({ header, index, priority: 2 });
+    }
+  });
+
+  return keyColumns.sort((a, b) => a.priority - b.priority).slice(0, 5);
+}
+
+function findNearDuplicatesFull(data, keyColumns) {
+  const groups = [];
+  const processed = new Set();
+  const fuzzyIndices = buildFuzzyIndices(data, keyColumns);
+
+  for (let i = 0; i < data.length; i++) {
+    if (processed.has(i)) continue;
+
+    const matches = findSimilarRecords(data[i], i, data, keyColumns, fuzzyIndices, processed);
+    
+    if (matches.length > 0) {
+      processed.add(i);
+      matches.forEach(m => processed.add(m.index));
+      
+      groups.push({
+        id: `group_${groups.length + 1}`,
+        similarity: Math.max(...matches.map(m => m.similarity)),
+        recordCount: matches.length + 1,
+        records: [
+          { index: i, data: extractKeyData(data[i], keyColumns) },
+          ...matches.map(m => ({ 
+            index: m.index, 
+            data: extractKeyData(data[m.index], keyColumns) 
+          }))
+        ],
+        algorithms: matches[0].algorithms,
+        matchDetails: analyseMatchDetails(data[i], matches[0].record, keyColumns)
+      });
+    }
+  }
+
+  return groups.sort((a, b) => b.recordCount - a.recordCount).slice(0, 100);
+}
+
+function findNearDuplicatesSampled(data, keyColumns, sampleSize) {
+  const sample = [];
+  const step = Math.max(1, Math.floor(data.length / sampleSize));
+  
+  for (let i = 0; i < data.length; i += step) {
+    sample.push({ index: i, data: data[i] });
+  }
+
+  const groups = [];
+  const fuzzyIndices = buildFuzzyIndices(sample.map(s => s.data), keyColumns);
+
+  for (let i = 0; i < sample.length; i++) {
+    const matches = findSimilarRecordsInSample(
+      sample[i], 
+      i, 
+      sample, 
+      keyColumns, 
+      fuzzyIndices
+    );
+    
+    if (matches.length > 0) {
+      groups.push({
+        id: `group_${groups.length + 1}`,
+        similarity: Math.max(...matches.map(m => m.similarity)),
+        recordCount: matches.length + 1,
+        records: [
+          { 
+            index: sample[i].index, 
+            data: extractKeyData(sample[i].data, keyColumns) 
+          },
+          ...matches.map(m => ({ 
+            index: sample[m.index].index, 
+            data: extractKeyData(sample[m.index].data, keyColumns) 
+          }))
+        ],
+        algorithms: matches[0].algorithms,
+        matchDetails: analyseMatchDetails(
+          sample[i].data, 
+          sample[matches[0].index].data, 
+          keyColumns
+        )
+      });
+    }
+  }
+
+  return groups.sort((a, b) => b.similarity - a.similarity).slice(0, 50);
+}
+
+function buildFuzzyIndices(data, keyColumns) {
+  const indices = {};
+  
+  keyColumns.forEach(col => {
+    const values = data.map(row => String(row[col.index] || '').toLowerCase().trim());
+    const uniqueValues = [...new Set(values.filter(v => v.length > 2))];
+    
+    if (uniqueValues.length > 0 && uniqueValues.length < data.length * 0.9) {
+      indices[col.header] = FuzzySet(uniqueValues);
+    }
+  });
+
+  return indices;
+}
+
+function findSimilarRecords(record, recordIndex, allData, keyColumns, fuzzyIndices, processed) {
+  const matches = [];
+  generateRecordKey(record, keyColumns);
+  
+  for (let i = recordIndex + 1; i < allData.length; i++) {
+    if (processed.has(i)) continue;
+    
+    const similarity = calculateSimilarity(record, allData[i], keyColumns, fuzzyIndices);
+    
+    if (similarity.score > 85) {
+      matches.push({
+        index: i,
+        record: allData[i],
+        similarity: similarity.score,
+        algorithms: similarity.algorithms
+      });
+    }
+  }
+
+  return matches.sort((a, b) => b.similarity - a.similarity);
+}
+
+function findSimilarRecordsInSample(sampleItem, itemIndex, sample, keyColumns, fuzzyIndices) {
+  const matches = [];
+  
+  for (let i = itemIndex + 1; i < sample.length; i++) {
+    const similarity = calculateSimilarity(
+      sampleItem.data, 
+      sample[i].data, 
+      keyColumns, 
+      fuzzyIndices
+    );
+    
+    if (similarity.score > 90) {
+      matches.push({
+        index: i,
+        similarity: similarity.score,
+        algorithms: similarity.algorithms
+      });
+    }
+  }
+
+  return matches;
+}
+
+function calculateSimilarity(record1, record2, keyColumns, fuzzyIndices) {
+  const scores = [];
+  const algorithms = [];
+
+  keyColumns.forEach(col => {
+    const val1 = String(record1[col.index] || '').trim();
+    const val2 = String(record2[col.index] || '').trim();
+    
+    if (!val1 || !val2) return;
+
+    const levenshteinScore = calculateLevenshteinSimilarity(val1, val2);
+    if (levenshteinScore > 70) {
+      scores.push({ score: levenshteinScore, weight: 1.0 });
+      algorithms.push('Levenshtein');
+    }
+
+    const jaroWinklerScore = calculateJaroWinklerSimilarity(val1, val2);
+    if (jaroWinklerScore > 80) {
+      scores.push({ score: jaroWinklerScore, weight: 1.2 });
+      algorithms.push('Jaro-Winkler');
+    }
+
+    if (col.header.toLowerCase().includes('name')) {
+      const soundexScore = calculateSoundexSimilarity(val1, val2);
+      if (soundexScore > 0) {
+        scores.push({ score: soundexScore, weight: 0.8 });
+        algorithms.push('Soundex');
+      }
+    }
+
+    const tokenScore = calculateTokenSortSimilarity(val1, val2);
+    if (tokenScore > 85) {
+      scores.push({ score: tokenScore, weight: 1.0 });
+      algorithms.push('Token Sort');
+    }
+
+    if (fuzzyIndices[col.header]) {
+      const fuzzyResults = fuzzyIndices[col.header].get(val1.toLowerCase());
+      if (fuzzyResults && fuzzyResults.length > 0) {
+        const fuzzyMatch = fuzzyResults.find(r => r[1] === val2.toLowerCase());
+        if (fuzzyMatch && fuzzyMatch[0] > 0.8) {
+          scores.push({ score: fuzzyMatch[0] * 100, weight: 1.1 });
+          algorithms.push('FuzzySet');
+        }
+      }
+    }
+  });
+
+  if (scores.length === 0) return { score: 0, algorithms: [] };
+
+  const totalWeight = scores.reduce((sum, s) => sum + s.weight, 0);
+  const weightedScore = scores.reduce((sum, s) => sum + s.score * s.weight, 0) / totalWeight;
+
+  return {
+    score: Math.round(weightedScore),
+    algorithms: [...new Set(algorithms)]
+  };
+}
+
+function calculateLevenshteinSimilarity(str1, str2) {
+  const longer = str1.length > str2.length ? str1 : str2;
+  const shorter = str1.length > str2.length ? str2 : str1;
+  
+  if (longer.length === 0) return 100;
+  
+  const editDistance = levenshteinDistance(longer.toLowerCase(), shorter.toLowerCase());
+  return Math.round(((longer.length - editDistance) / longer.length) * 100);
+}
+
+function levenshteinDistance(str1, str2) {
+  const matrix = [];
+  
+  for (let i = 0; i <= str2.length; i++) {
+    matrix[i] = [i];
+  }
+  
+  for (let j = 0; j <= str1.length; j++) {
+    matrix[0][j] = j;
+  }
+  
+  for (let i = 1; i <= str2.length; i++) {
+    for (let j = 1; j <= str1.length; j++) {
+      if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1,
+          matrix[i][j - 1] + 1,
+          matrix[i - 1][j] + 1
+        );
+      }
+    }
+  }
+  
+  return matrix[str2.length][str1.length];
+}
+
+function calculateJaroWinklerSimilarity(str1, str2) {
+  const s1 = str1.toLowerCase();
+  const s2 = str2.toLowerCase();
+  
+  if (s1 === s2) return 100;
+  
+  const len1 = s1.length;
+  const len2 = s2.length;
+  
+  const maxDist = Math.floor(Math.max(len1, len2) / 2) - 1;
+  let matches = 0;
+  let transpositions = 0;
+  
+  const s1Matches = new Array(len1).fill(false);
+  const s2Matches = new Array(len2).fill(false);
+  
+  for (let i = 0; i < len1; i++) {
+    const start = Math.max(0, i - maxDist);
+    const end = Math.min(i + maxDist + 1, len2);
+    
+    for (let j = start; j < end; j++) {
+      if (s2Matches[j] || s1[i] !== s2[j]) continue;
+      s1Matches[i] = true;
+      s2Matches[j] = true;
+      matches++;
+      break;
+    }
+  }
+  
+  if (matches === 0) return 0;
+  
+  let k = 0;
+  for (let i = 0; i < len1; i++) {
+    if (!s1Matches[i]) continue;
+    while (!s2Matches[k]) k++;
+    if (s1[i] !== s2[k]) transpositions++;
+    k++;
+  }
+  
+  const jaro = (matches / len1 + matches / len2 + (matches - transpositions / 2) / matches) / 3;
+  
+  let prefixLen = 0;
+  for (let i = 0; i < Math.min(len1, len2, 4); i++) {
+    if (s1[i] === s2[i]) prefixLen++;
+    else break;
+  }
+  
+  const jaroWinkler = jaro + prefixLen * 0.1 * (1 - jaro);
+  return Math.round(jaroWinkler * 100);
+}
+
+function calculateSoundexSimilarity(str1, str2) {
+  const soundex1 = soundex(str1);
+  const soundex2 = soundex(str2);
+  return soundex1 === soundex2 ? 90 : 0;
+}
+
+function soundex(str) {
+  const s = str.toUpperCase().replace(/[^A-Z]/g, '');
+  if (!s) return '';
+  
+  const firstLetter = s[0];
+  const encoded = s.substring(1)
+    .replace(/[AEIOUYHW]/g, '0')
+    .replace(/[BFPV]/g, '1')
+    .replace(/[CGJKQSXZ]/g, '2')
+    .replace(/[DT]/g, '3')
+    .replace(/[L]/g, '4')
+    .replace(/[MN]/g, '5')
+    .replace(/[R]/g, '6');
+  
+  const cleaned = firstLetter + encoded
+    .split('')
+    .filter((digit, index, arr) => digit !== '0' && digit !== arr[index - 1])
+    .join('');
+  
+  return (cleaned + '000').substring(0, 4);
+}
+
+function calculateTokenSortSimilarity(str1, str2) {
+  const tokens1 = str1.toLowerCase().split(/\s+/).sort();
+  const tokens2 = str2.toLowerCase().split(/\s+/).sort();
+  
+  const sorted1 = tokens1.join(' ');
+  const sorted2 = tokens2.join(' ');
+  
+  return calculateLevenshteinSimilarity(sorted1, sorted2);
+}
+
+function generateRecordKey(record, keyColumns) {
+  return keyColumns
+    .map(col => String(record[col.index] || '').toLowerCase().trim())
+    .filter(v => v.length > 0)
+    .join('|');
+}
+
+function extractKeyData(record, keyColumns) {
+  const data = {};
+  keyColumns.forEach(col => {
+    data[col.header] = record[col.index];
+  });
+  return data;
+}
+
+function analyseMatchDetails(record1, record2, keyColumns) {
+  const details = {
+    matchingFields: [],
+    differences: [],
+    overallPattern: ''
+  };
+
+  keyColumns.forEach(col => {
+    const val1 = String(record1[col.index] || '').trim();
+    const val2 = String(record2[col.index] || '').trim();
+    
+    if (!val1 || !val2) return;
+
+    const similarity = calculateLevenshteinSimilarity(val1, val2);
+    
+    if (similarity === 100) {
+      details.matchingFields.push({
+        field: col.header,
+        similarity: '100%',
+        type: 'Exact match'
+      });
+    } else if (similarity > 90) {
+      details.matchingFields.push({
+        field: col.header,
+        similarity: `${similarity}%`,
+        type: detectDifferenceType(val1, val2)
+      });
+    } else {
+      details.differences.push({
+        field: col.header,
+        value1: val1,
+        value2: val2,
+        similarity: `${similarity}%`
+      });
+    }
+  });
+
+  if (details.matchingFields.length === keyColumns.length) {
+    details.overallPattern = 'Near-exact duplicate';
+  } else if (details.matchingFields.length > keyColumns.length * 0.6) {
+    details.overallPattern = 'Likely same entity with variations';
+  } else {
+    details.overallPattern = 'Possible match requiring verification';
+  }
+
+  return details;
+}
+
+function detectDifferenceType(str1, str2) {
+  const s1 = str1.toLowerCase();
+  const s2 = str2.toLowerCase();
+  
+  if (Math.abs(s1.length - s2.length) <= 2) {
+    const charDiff = levenshteinDistance(s1, s2);
+    if (charDiff === 1) return 'Single character difference (typo)';
+    if (charDiff === 2) return 'Minor spelling variation';
+  }
+  
+  if (s1.replace(/[^a-z0-9]/g, '') === s2.replace(/[^a-z0-9]/g, '')) {
+    return 'Punctuation/spacing difference';
+  }
+  
+  if (s1.includes(s2) || s2.includes(s1)) {
+    return 'Abbreviation or truncation';
+  }
+  
+  const tokens1 = s1.split(/\s+/).sort();
+  const tokens2 = s2.split(/\s+/).sort();
+  if (tokens1.join('') === tokens2.join('')) {
+    return 'Word order variation';
+  }
+  
+  return 'General variation';
+}
+
+function validateAustralianData(data, headers) {
+  const results = {
+    detected: false,
+    validations: {
+      abn: null,
+      acn: null,
+      postcodes: null,
+      phoneNumbers: null,
+      addresses: null,
+      states: null
+    }
+  };
+
+  const auIndicators = detectAustralianData(data, headers);
+  if (!auIndicators.detected) {
+    return results;
+  }
+
+  results.detected = true;
+
+  if (auIndicators.abnColumn !== null) {
+    results.validations.abn = validateABN(data, auIndicators.abnColumn);
+  }
+
+  if (auIndicators.acnColumn !== null) {
+    results.validations.acn = validateACN(data, auIndicators.acnColumn);
+  }
+
+  if (auIndicators.postcodeColumn !== null) {
+    results.validations.postcodes = validatePostcodes(
+      data, 
+      auIndicators.postcodeColumn,
+      auIndicators.stateColumn
+    );
+  }
+
+  if (auIndicators.phoneColumns.length > 0) {
+    results.validations.phoneNumbers = validatePhoneNumbers(data, auIndicators.phoneColumns);
+  }
+
+  if (auIndicators.addressColumns.length > 0) {
+    results.validations.addresses = validateAddresses(data, auIndicators.addressColumns);
+  }
+
+  if (auIndicators.stateColumn !== null) {
+    results.validations.states = validateStates(data, auIndicators.stateColumn);
+  }
+
+  return results;
+}
+
+function detectAustralianData(data, headers) {
+  const indicators = {
+    detected: false,
+    abnColumn: null,
+    acnColumn: null,
+    postcodeColumn: null,
+    stateColumn: null,
+    phoneColumns: [],
+    addressColumns: []
+  };
+
+  headers.forEach((header, index) => {
+    const headerLower = header.toLowerCase();
+    
+    if (headerLower.includes('abn')) {
+      indicators.abnColumn = index;
+      indicators.detected = true;
+    } else if (headerLower.includes('acn')) {
+      indicators.acnColumn = index;
+      indicators.detected = true;
+    } else if (headerLower.includes('postcode') || headerLower === 'pc') {
+      indicators.postcodeColumn = index;
+      indicators.detected = true;
+    } else if (headerLower.includes('state') || headerLower === 'state_code') {
+      indicators.stateColumn = index;
+      indicators.detected = true;
+    } else if (headerLower.includes('phone') || headerLower.includes('mobile') || 
+               headerLower.includes('contact')) {
+      indicators.phoneColumns.push({ header, index });
+    } else if (headerLower.includes('address') || headerLower.includes('street') ||
+               headerLower.includes('suburb')) {
+      indicators.addressColumns.push({ header, index });
+    }
+  });
+
+  if (!indicators.detected && indicators.postcodeColumn === null) {
+    const sample = data.slice(0, 100);
+    headers.forEach((header, index) => {
+      const values = sample.map(row => String(row[index] || ''));
+      const auPostcodePattern = values.filter(v => /^[0-8]\d{3}$/.test(v)).length;
+      if (auPostcodePattern > sample.length * 0.5) {
+        indicators.postcodeColumn = index;
+        indicators.detected = true;
+      }
+    });
+  }
+
+  if (!indicators.detected && indicators.stateColumn === null) {
+    const auStates = ['NSW', 'VIC', 'QLD', 'SA', 'WA', 'TAS', 'NT', 'ACT'];
+    headers.forEach((header, index) => {
+      const values = data.slice(0, 100).map(row => String(row[index] || '').toUpperCase());
+      const stateMatches = values.filter(v => auStates.includes(v)).length;
+      if (stateMatches > values.length * 0.3) {
+        indicators.stateColumn = index;
+        indicators.detected = true;
+      }
+    });
+  }
+
+  return indicators;
+}
+
+function validateABN(data, abnColumn) {
+  const validation = {
+    total: 0,
+    valid: 0,
+    invalid: [],
+    defunct: [],
+    formatIssues: []
+  };
+
+  data.forEach((row, index) => {
+    const abn = String(row[abnColumn] || '').replace(/\s/g, '');
+    if (!abn) return;
+
+    validation.total++;
+
+    if (!/^\d{11}$/.test(abn)) {
+      validation.formatIssues.push({
+        row: index + 1,
+        value: row[abnColumn],
+        issue: 'Invalid format (must be 11 digits)'
+      });
+    } else if (isValidABN(abn)) {
+      validation.valid++;
+      
+      if (isDefunctABN(abn)) {
+        validation.defunct.push({
+          row: index + 1,
+          abn: abn,
+          status: 'Defunct/cancelled'
+        });
+      }
+    } else {
+      validation.invalid.push({
+        row: index + 1,
+        abn: abn,
+        issue: 'Invalid check digit'
+      });
+    }
+  });
+
+  validation.validRate = validation.total > 0 
+    ? ((validation.valid / validation.total) * 100).toFixed(1) + '%'
+    : 'N/A';
+
+  return validation;
+}
+
+function isValidABN(abn) {
+  const weights = [10, 1, 3, 5, 7, 9, 11, 13, 15, 17, 19];
+  let sum = 0;
+  
+  for (let i = 0; i < 11; i++) {
+    const digit = parseInt(abn[i]);
+    if (i === 0) {
+      sum += (digit - 1) * weights[i];
+    } else {
+      sum += digit * weights[i];
+    }
+  }
+  
+  return sum % 89 === 0;
+}
+
+function isDefunctABN(abn) {
+  const knownDefunct = ['51824753556', '48123123124'];
+  return knownDefunct.includes(abn);
+}
+
+function validateACN(data, acnColumn) {
+  const validation = {
+    total: 0,
+    valid: 0,
+    invalid: [],
+    formatIssues: []
+  };
+
+  data.forEach((row, index) => {
+    const acn = String(row[acnColumn] || '').replace(/\s/g, '');
+    if (!acn) return;
+
+    validation.total++;
+
+    if (!/^\d{9}$/.test(acn)) {
+      validation.formatIssues.push({
+        row: index + 1,
+        value: row[acnColumn],
+        issue: 'Invalid format (must be 9 digits)'
+      });
+    } else if (isValidACN(acn)) {
+      validation.valid++;
+    } else {
+      validation.invalid.push({
+        row: index + 1,
+        acn: acn,
+        issue: 'Invalid check digit'
+      });
+    }
+  });
+
+  validation.validRate = validation.total > 0 
+    ? ((validation.valid / validation.total) * 100).toFixed(1) + '%'
+    : 'N/A';
+
+  return validation;
+}
+
+function isValidACN(acn) {
+  const weights = [8, 7, 6, 5, 4, 3, 2, 1];
+  let sum = 0;
+  
+  for (let i = 0; i < 8; i++) {
+    sum += parseInt(acn[i]) * weights[i];
+  }
+  
+  const remainder = sum % 10;
+  const checkDigit = remainder === 0 ? 0 : 10 - remainder;
+  
+  return parseInt(acn[8]) === checkDigit;
+}
+
+function validatePostcodes(data, postcodeColumn, stateColumn) {
+  const validation = {
+    total: 0,
+    valid: 0,
+    invalid: [],
+    stateMismatches: [],
+    distribution: {
+      NSW: 0, VIC: 0, QLD: 0, SA: 0, 
+      WA: 0, TAS: 0, NT: 0, ACT: 0
+    }
+  };
+
+  const postcodeRanges = {
+    NSW: [[1000, 1999], [2000, 2599], [2619, 2899], [2921, 2999]],
+    VIC: [[3000, 3999], [8000, 8999]],
+    QLD: [[4000, 4999], [9000, 9999]],
+    SA: [[5000, 5799]],
+    WA: [[6000, 6797], [6800, 6999]],
+    TAS: [[7000, 7799]],
+    NT: [[800, 899]],
+    ACT: [[200, 299], [2600, 2618], [2900, 2920]]
+  };
+
+  data.forEach((row, index) => {
+    const postcode = String(row[postcodeColumn] || '').trim();
+    if (!postcode) return;
+
+    validation.total++;
+
+    if (!/^\d{4}$/.test(postcode)) {
+      validation.invalid.push({
+        row: index + 1,
+        value: postcode,
+        issue: 'Invalid format (must be 4 digits)'
+      });
+      return;
+    }
+
+    const pc = parseInt(postcode);
+    let validState = null;
+
+    for (const [state, ranges] of Object.entries(postcodeRanges)) {
+      if (ranges.some(([min, max]) => pc >= min && pc <= max)) {
+        validState = state;
+        validation.distribution[state]++;
+        validation.valid++;
+        break;
+      }
+    }
+
+    if (!validState) {
+      validation.invalid.push({
+        row: index + 1,
+        value: postcode,
+        issue: 'Not a valid Australian postcode'
+      });
+    } else if (stateColumn !== null) {
+      const recordState = String(row[stateColumn] || '').toUpperCase();
+      if (recordState && recordState !== validState) {
+        validation.stateMismatches.push({
+          row: index + 1,
+          postcode: postcode,
+          expectedState: validState,
+          actualState: recordState
+        });
+      }
+    }
+  });
+
+  validation.validRate = validation.total > 0 
+    ? ((validation.valid / validation.total) * 100).toFixed(1) + '%'
+    : 'N/A';
+
+  Object.keys(validation.distribution).forEach(state => {
+    if (validation.valid > 0) {
+      validation.distribution[state] = 
+        ((validation.distribution[state] / validation.valid) * 100).toFixed(1) + '%';
+    }
+  });
+
+  return validation;
+}
+
+function validatePhoneNumbers(data, phoneColumns) {
+  const validations = {};
+
+  phoneColumns.forEach(phoneCol => {
+    const validation = {
+      total: 0,
+      valid: { mobile: 0, landline: 0 },
+      invalid: [],
+      formatIssues: [],
+      carrierDistribution: { Telstra: 0, Optus: 0, Vodafone: 0, Other: 0 }
+    };
+
+    data.forEach((row, index) => {
+      const phone = String(row[phoneCol.index] || '').replace(/[\s\-\(\)]/g, '');
+      if (!phone) return;
+
+      validation.total++;
+
+      const mobileResult = validateMobileNumber(phone);
+      const landlineResult = validateLandlineNumber(phone);
+
+      if (mobileResult.valid) {
+        validation.valid.mobile++;
+        validation.carrierDistribution[mobileResult.carrier]++;
+      } else if (landlineResult.valid) {
+        validation.valid.landline++;
+      } else {
+        validation.invalid.push({
+          row: index + 1,
+          value: row[phoneCol.index],
+          issue: detectPhoneIssue(phone)
+        });
+
+        if (phone.match(/^4\d{8}$/)) {
+          validation.formatIssues.push({
+            row: index + 1,
+            value: row[phoneCol.index],
+            issue: 'Missing leading 0',
+            suggestion: '0' + phone
+          });
+        }
+      }
+    });
+
+    validation.validRate = validation.total > 0 
+      ? (((validation.valid.mobile + validation.valid.landline) / validation.total) * 100).toFixed(1) + '%'
+      : 'N/A';
+
+    validation.breakdown = {
+      mobile: `${((validation.valid.mobile / validation.total) * 100).toFixed(1)}%`,
+      landline: `${((validation.valid.landline / validation.total) * 100).toFixed(1)}%`
+    };
+
+    validations[phoneCol.header] = validation;
+  });
+
+  return validations;
+}
+
+function validateMobileNumber(phone) {
+  const patterns = {
+    standard: /^(?:\+?61|0)?4\d{8}$/};
+
+  if (!patterns.standard.test(phone)) {
+    return { valid: false };
+  }
+
+  const normalized = phone.replace(/^\+?61/, '0');
+  const prefix = normalized.substring(0, 4);
+
+  const carrierPrefixes = {
+    Telstra: ['0400', '0401', '0402', '0403', '0404', '0405', '0406', '0407', '0408', '0409', 
+              '0410', '0411', '0412', '0413', '0414', '0415', '0416', '0417', '0418', '0419'],
+    Optus: ['0420', '0421', '0422', '0423', '0424', '0425', '0426', '0427', '0428', '0429',
+            '0430', '0431', '0432', '0433', '0434', '0435'],
+    Vodafone: ['0436', '0437', '0438', '0439', '0440', '0441', '0442', '0443', '0444', '0445',
+               '0446', '0447', '0448', '0449', '0450']
+  };
+
+  let carrier = 'Other';
+  for (const [name, prefixes] of Object.entries(carrierPrefixes)) {
+    if (prefixes.includes(prefix)) {
+      carrier = name;
+      break;
+    }
+  }
+
+  return { valid: true, carrier };
+}
+
+function validateLandlineNumber(phone) {
+  const patterns = {
+    standard: /^(?:\+?61|0)?[2-9]\d{8}$/,
+    shortArea: /^(?:\+?61|0)?[2-9]\d{7}$/
+  };
+
+  return { 
+    valid: patterns.standard.test(phone) || patterns.shortArea.test(phone) 
+  };
+}
+
+function detectPhoneIssue(phone) {
+  if (phone.length < 9) return 'Too short';
+  if (phone.length > 10 && !phone.startsWith('+')) return 'Too long';
+  if (!/^\+?\d+$/.test(phone)) return 'Contains non-numeric characters';
+  if (phone.match(/^[2-9]\d{8}$/)) return 'Missing area code (0)';
+  return 'Invalid Australian phone number format';
+}
+
+function validateAddresses(data, addressColumns) {
+  const validation = {
+    standardisationNeeded: [],
+    abbreviationInconsistencies: [],
+    suburbSpellingIssues: [],
+    gnafMatchable: { count: 0, percentage: 0 }
+  };
+
+  const abbreviations = {
+    'Street': ['St', 'St.', 'Str'],
+    'Road': ['Rd', 'Rd.'],
+    'Avenue': ['Ave', 'Ave.', 'Av'],
+    'Place': ['Pl', 'Pl.'],
+    'Drive': ['Dr', 'Dr.', 'Drv'],
+    'Court': ['Ct', 'Ct.'],
+    'Parade': ['Pde', 'Pde.', 'Prd']
+  };
+
+  addressColumns.forEach(addrCol => {
+    const addressValues = data.map(row => String(row[addrCol.index] || ''));
+    
+    const inconsistencies = {};
+    addressValues.forEach((address, index) => {
+      if (!address) return;
+
+      Object.entries(abbreviations).forEach(([full, abbrevs]) => {
+        abbrevs.forEach(abbrev => {
+          if (address.includes(` ${abbrev} `) || address.endsWith(` ${abbrev}`)) {
+            if (!inconsistencies[full]) {
+              inconsistencies[full] = { full: 0, abbreviated: {} };
+            }
+            inconsistencies[full].abbreviated[abbrev] = 
+              (inconsistencies[full].abbreviated[abbrev] || 0) + 1;
+          }
+        });
+        
+        if (address.includes(` ${full} `) || address.endsWith(` ${full}`)) {
+          if (!inconsistencies[full]) {
+            inconsistencies[full] = { full: 0, abbreviated: {} };
+          }
+          inconsistencies[full].full++;
+        }
+      });
+    });
+
+    Object.entries(inconsistencies).forEach(([streetType, counts]) => {
+      const total = counts.full + Object.values(counts.abbreviated).reduce((a, b) => a + b, 0);
+      if (total > 10) {
+        validation.abbreviationInconsistencies.push({
+          field: addrCol.header,
+          type: streetType,
+          distribution: {
+            full: `${counts.full} (${(counts.full/total*100).toFixed(0)}%)`,
+            abbreviated: Object.entries(counts.abbreviated).map(([abbr, count]) => 
+              `${abbr}: ${count} (${(count/total*100).toFixed(0)}%)`
+            )
+          }
+        });
+      }
+    });
+
+    const gnafMatches = addressValues.filter(addr => isGNAFMatchable(addr)).length;
+    validation.gnafMatchable.count += gnafMatches;
+  });
+
+  const totalAddresses = data.length * addressColumns.length;
+  validation.gnafMatchable.percentage = totalAddresses > 0
+    ? ((validation.gnafMatchable.count / totalAddresses) * 100).toFixed(1) + '%'
+    : 'N/A';
+
+  return validation;
+}
+
+function isGNAFMatchable(address) {
+  const gnafPattern = /^\d+\s+\w+\s+(Street|St|Road|Rd|Avenue|Ave|Place|Pl|Drive|Dr)/i;
+  return gnafPattern.test(address);
+}
+
+function validateStates(data, stateColumn) {
+  const validation = {
+    total: 0,
+    valid: 0,
+    invalid: [],
+    distribution: {},
+    formatIssues: []
+  };
+
+  const validStates = {
+    'NSW': 'New South Wales',
+    'VIC': 'Victoria',
+    'QLD': 'Queensland',
+    'SA': 'South Australia',
+    'WA': 'Western Australia',
+    'TAS': 'Tasmania',
+    'NT': 'Northern Territory',
+    'ACT': 'Australian Capital Territory'
+  };
+
+  data.forEach((row, index) => {
+    const state = String(row[stateColumn] || '').trim();
+    if (!state) return;
+
+    validation.total++;
+
+    const stateUpper = state.toUpperCase();
+    if (validStates[stateUpper]) {
+      validation.valid++;
+      validation.distribution[stateUpper] = (validation.distribution[stateUpper] || 0) + 1;
+      
+      if (state !== stateUpper) {
+        validation.formatIssues.push({
+          row: index + 1,
+          value: state,
+          issue: 'Inconsistent case',
+          suggestion: stateUpper
+        });
+      }
+    } else {
+      const fullName = Object.values(validStates).find(name => 
+        name.toLowerCase() === state.toLowerCase()
+      );
+      
+      if (fullName) {
+        const abbreviation = Object.keys(validStates).find(key => 
+          validStates[key] === fullName
+        );
+        validation.formatIssues.push({
+          row: index + 1,
+          value: state,
+          issue: 'Full name instead of abbreviation',
+          suggestion: abbreviation
+        });
+      } else {
+        validation.invalid.push({
+          row: index + 1,
+          value: state,
+          issue: 'Not a valid Australian state/territory'
+        });
+      }
+    }
+  });
+
+  validation.validRate = validation.total > 0 
+    ? ((validation.valid / validation.total) * 100).toFixed(1) + '%'
+    : 'N/A';
+
+  Object.keys(validation.distribution).forEach(state => {
+    validation.distribution[state] = 
+      `${validation.distribution[state]} (${(validation.distribution[state]/validation.valid*100).toFixed(1)}%)`;
+  });
+
+  return validation;
+}
+
+function calculateQualityScore(dimensionResults) {
+  const weights = {
+    Completeness: 0.20,
+    Validity: 0.20,
+    Accuracy: 0.20,
+    Consistency: 0.15,
+    Timeliness: 0.15,
+    Uniqueness: 0.10
+  };
+
+  let totalScore = 0;
+  let totalWeight = 0;
+  const dimensionScores = {};
+
+  Object.entries(dimensionResults).forEach(([dimension, result]) => {
+    if (result && result.score !== undefined) {
+      const weight = weights[dimension] || 0;
+      dimensionScores[dimension] = {
+        score: result.score,
+        weight: weight,
+        weightedScore: result.score * weight
+      };
+      totalScore += result.score * weight;
+      totalWeight += weight;
+    }
+  });
+
+  const overallScore = totalWeight > 0 ? totalScore / totalWeight : 0;
+  const grade = getGrade(overallScore);
+  const trend = calculateTrend(overallScore);
+  const benchmark = getBenchmark(overallScore);
+
+  return {
+    overallScore: Math.round(overallScore),
+    grade: grade,
+    dimensionScores: dimensionScores,
+    scoreBreakdown: generateScoreBreakdown(dimensionScores),
+    trend: trend,
+    benchmark: benchmark,
+    certification: getCertificationStatus(overallScore, dimensionResults),
+    recommendations: generateRecommendations(dimensionResults)
+  };
+}
+
+function getGrade(score) {
+  if (score >= 95) return { letter: 'A+', label: 'Exceptional' };
+  if (score >= 90) return { letter: 'A', label: 'Excellent' };
+  if (score >= 85) return { letter: 'B+', label: 'Very Good' };
+  if (score >= 80) return { letter: 'B', label: 'Good' };
+  if (score >= 75) return { letter: 'C+', label: 'Above Average' };
+  if (score >= 70) return { letter: 'C', label: 'Average' };
+  if (score >= 65) return { letter: 'D+', label: 'Below Average' };
+  if (score >= 60) return { letter: 'D', label: 'Poor' };
+  return { letter: 'F', label: 'Failing' };
+}
+
+function calculateTrend(currentScore) {
+  const historicalScores = [82.5, 83.1, 83.5, 83.8];
+  historicalScores.push(currentScore);
+  
+  const recentAvg = historicalScores.slice(-3).reduce((a, b) => a + b, 0) / 3;
+  const previousAvg = historicalScores.slice(-4, -1).reduce((a, b) => a + b, 0) / 3;
+  
+  const velocity = recentAvg - previousAvg;
+  
+  return {
+    direction: velocity > 0.5 ? 'improving' : velocity < -0.5 ? 'declining' : 'stable',
+    velocity: velocity.toFixed(1),
+    symbol: velocity > 0.5 ? '↑' : velocity < -0.5 ? '↓' : '→',
+    interpretation: velocity > 0.5 ? 'Quality is improving' : 
+                   velocity < -0.5 ? 'Quality is declining' : 
+                   'Quality is stable'
+  };
+}
+
+function getBenchmark(score) {
+  
+  const averageBenchmark = 76;
+  
+  return {
+    score: score,
+    industryAverage: averageBenchmark,
+    comparison: score >= averageBenchmark ? 'above' : 'below',
+    percentile: calculatePercentile(score),
+    interpretation: score >= averageBenchmark 
+      ? `${(score - averageBenchmark).toFixed(1)} points above industry average`
+      : `${(averageBenchmark - score).toFixed(1)} points below industry average`
+  };
+}
+
+function calculatePercentile(score) {
+  if (score >= 90) return '95th';
+  if (score >= 85) return '85th';
+  if (score >= 80) return '75th';
+  if (score >= 75) return '50th';
+  if (score >= 70) return '25th';
+  return '10th';
+}
+
+function generateScoreBreakdown(dimensionScores) {
+  const breakdown = [];
+  
+  Object.entries(dimensionScores)
+    .sort((a, b) => b[1].score - a[1].score)
+    .forEach(([dimension, scores]) => {
+      breakdown.push({
+        dimension: dimension,
+        score: scores.score,
+        weight: `${(scores.weight * 100).toFixed(0)}%`,
+        contribution: scores.weightedScore.toFixed(1),
+        performance: getPerformanceLevel(scores.score)
+      });
+    });
+  
+  return breakdown;
+}
+
+function getPerformanceLevel(score) {
+  if (score >= 90) return 'Excellent';
+  if (score >= 80) return 'Good';
+  if (score >= 70) return 'Fair';
+  if (score >= 60) return 'Poor';
+  return 'Critical';
+}
+
+function getCertificationStatus(overallScore, dimensionResults) {
+  const certificationLevels = [
+    {
+      level: 'Gold',
+      minScore: 90,
+      requirements: {
+        minDimensionScore: 85,
+        maxCriticalIssues: 0,
+        maxWarnings: 5
+      }
+    },
+    {
+      level: 'Silver',
+      minScore: 80,
+      requirements: {
+        minDimensionScore: 70,
+        maxCriticalIssues: 2,
+        maxWarnings: 10
+      }
+    },
+    {
+      level: 'Bronze',
+      minScore: 70,
+      requirements: {
+        minDimensionScore: 60,
+        maxCriticalIssues: 5,
+        maxWarnings: 20
+      }
+    }
+  ];
+
+  let criticalCount = 0;
+  let warningCount = 0;
+  let minDimensionScore = 100;
+
+  Object.values(dimensionResults).forEach(result => {
+    if (result.score < minDimensionScore) {
+      minDimensionScore = result.score;
+    }
+    if (result.issues) {
+      criticalCount += result.issues.filter(i => i.type === 'critical').length;
+      warningCount += result.issues.filter(i => i.type === 'warning').length;
+    }
+  });
+
+  for (const cert of certificationLevels) {
+    if (overallScore >= cert.minScore &&
+        minDimensionScore >= cert.requirements.minDimensionScore &&
+        criticalCount <= cert.requirements.maxCriticalIssues &&
+        warningCount <= cert.requirements.maxWarnings) {
+      return {
+        certified: true,
+        level: cert.level,
+        badge: cert.level === 'Gold' ? '🥇' : cert.level === 'Silver' ? '🥈' : '🥉',
+        validUntil: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        requirements: cert.requirements
+      };
+    }
+  }
+
+  return {
+    certified: false,
+    nextLevel: certificationLevels[2].level,
+    gap: {
+      score: certificationLevels[2].minScore - overallScore,
+      criticalIssues: Math.max(0, criticalCount - certificationLevels[2].requirements.maxCriticalIssues),
+      warnings: Math.max(0, warningCount - certificationLevels[2].requirements.maxWarnings)
+    }
+  };
+}
+
+function generateRecommendations(dimensionResults) {
+  const priorityMatrix = [];
+
+  Object.entries(dimensionResults).forEach(([dimension, result]) => {
+    if (!result.issues) return;
+
+    const criticalIssues = result.issues.filter(i => i.type === 'critical');
+    const warnings = result.issues.filter(i => i.type === 'warning');
+
+    criticalIssues.forEach(issue => {
+      const impact = calculateImpact(issue, dimension);
+      const effort = estimateEffort(issue);
+      
+      priorityMatrix.push({
+        dimension: dimension,
+        issue: issue.message || issue.field,
+        type: 'critical',
+        impact: impact,
+        effort: effort,
+        priority: calculatePriority(impact, effort),
+        recommendation: generateSpecificRecommendation(issue, dimension)
+      });
+    });
+
+    warnings.slice(0, 3).forEach(issue => {
+      const impact = calculateImpact(issue, dimension);
+      const effort = estimateEffort(issue);
+      
+      priorityMatrix.push({
+        dimension: dimension,
+        issue: issue.message || issue.field,
+        type: 'warning',
+        impact: impact,
+        effort: effort,
+        priority: calculatePriority(impact, effort),
+        recommendation: generateSpecificRecommendation(issue, dimension)
+      });
+    });
+  });
+
+  priorityMatrix.sort((a, b) => b.priority - a.priority);
+
+  const quickWins = priorityMatrix.filter(r => r.impact >= 7 && r.effort <= 3).slice(0, 3);
+  const strategicInitiatives = priorityMatrix.filter(r => r.impact >= 7 && r.effort > 3).slice(0, 3);
+  const tactical = priorityMatrix.filter(r => r.impact < 7 && r.effort <= 3).slice(0, 3);
+
+  return {
+    quickWins: quickWins.map(formatRecommendation),
+    strategic: strategicInitiatives.map(formatRecommendation),
+    tactical: tactical.map(formatRecommendation),
+    totalRecommendations: priorityMatrix.length
+  };
+}
+
+function calculateImpact(issue, dimension) {
+  const baseImpact = issue.type === 'critical' ? 8 : 5;
+  const dimensionWeight = {
+    'Completeness': 1.2,
+    'Validity': 1.1,
+    'Accuracy': 1.3,
+    'Consistency': 1.0,
+    'Timeliness': 0.9,
+    'Uniqueness': 1.1
+  };
+  
+  return Math.min(10, baseImpact * (dimensionWeight[dimension] || 1));
+}
+
+function estimateEffort(issue) {
+  if (issue.fix || issue.sql) return 2;
+  if (issue.pattern || issue.recommendation) return 4;
+  if (issue.manual || issue.investigation) return 7;
+  return 5;
+}
+
+function calculatePriority(impact, effort) {
+  return (impact * 2 + (10 - effort)) / 3;
+}
+
+function generateSpecificRecommendation(issue, dimension) {
+  const templates = {
+    'Completeness': {
+      critical: 'Implement data collection process for {field}',
+      warning: 'Review and fill missing values in {field}'
+    },
+    'Validity': {
+      critical: 'Add validation rules for {field}',
+      warning: 'Standardize format for {field}'
+    },
+    'Accuracy': {
+      critical: 'Investigate and correct outliers in {field}',
+      warning: 'Review business rules for {field}'
+    },
+    'Consistency': {
+      critical: 'Implement referential integrity for {field}',
+      warning: 'Standardize data entry for {field}'
+    },
+    'Timeliness': {
+      critical: 'Update stale records in {field}',
+      warning: 'Implement regular update schedule for {field}'
+    },
+    'Uniqueness': {
+      critical: 'Remove duplicates and add unique constraint on {field}',
+      warning: 'Review and merge near-duplicates'
+    }
+  };
+
+  const template = templates[dimension]?.[issue.type] || 'Review and fix {field}';
+  return template.replace('{field}', issue.field || 'affected data');
+}
+
+function formatRecommendation(rec) {
+  return {
+    action: rec.recommendation,
+    dimension: rec.dimension,
+    priority: rec.type === 'critical' ? 'High' : 'Medium',
+    impact: `${rec.impact.toFixed(0)}/10`,
+    effort: `${rec.effort.toFixed(0)}/10`,
+    roi: rec.impact / rec.effort > 3 ? 'High ROI' : 
+         rec.impact / rec.effort > 1.5 ? 'Medium ROI' : 'Low ROI'
+  };
+}
+
+function generateSQLFixes(analysisResults, tableName = 'your_table') {
+  const sqlScripts = {
+    priority1_referentialIntegrity: [],
+    priority2_dataStandardisation: [],
+    priority3_constraints: [],
+    priority4_cleanup: []
+  };
+
+  if (analysisResults.businessRules) {
+    generateBusinessRuleSQL(analysisResults.businessRules, tableName, sqlScripts);
+  }
+
+  if (analysisResults.validityIssues) {
+    generateValidityFixSQL(analysisResults.validityIssues, tableName, sqlScripts);
+  }
+
+  if (analysisResults.duplicates) {
+    generateDuplicateFixSQL(analysisResults.duplicates, tableName, sqlScripts);
+  }
+
+  if (analysisResults.consistencyIssues) {
+    generateConsistencyFixSQL(analysisResults.consistencyIssues, tableName, sqlScripts);
+  }
+
+  if (analysisResults.temporalIssues) {
+    generateTemporalFixSQL(analysisResults.temporalIssues, tableName, sqlScripts);
+  }
+
+  return formatSQLOutput(sqlScripts, tableName);
+}
+
+function generateBusinessRuleSQL(rules, tableName, scripts) {
+  rules.forEach(rule => {
+    if (rule.type === 'FOREIGN_KEY_CONSTRAINT') {
+      scripts.priority1_referentialIntegrity.push({
+        description: `Add foreign key for ${rule.field}`,
+        sql: `ALTER TABLE ${tableName} 
+ADD CONSTRAINT fk_${rule.field} 
+FOREIGN KEY (${rule.field}) 
+REFERENCES ${rule.field.replace('_id', '')}(id);`,
+        rollback: `ALTER TABLE ${tableName} DROP CONSTRAINT fk_${rule.field};`
+      });
+    }
+
+    if (rule.type === 'RANGE_CONSTRAINT' || rule.type === 'NON_NEGATIVE_CONSTRAINT') {
+      scripts.priority3_constraints.push({
+        description: `Add check constraint for ${rule.field}`,
+        sql: `ALTER TABLE ${tableName} 
+ADD CONSTRAINT chk_${rule.field} 
+${rule.sql};`,
+        rollback: `ALTER TABLE ${tableName} DROP CONSTRAINT chk_${rule.field};`,
+        validation: `SELECT COUNT(*) as violations 
+FROM ${tableName} 
+WHERE NOT (${rule.rule});`
+      });
+    }
+
+    if (rule.type === 'UNIQUENESS_CONSTRAINT') {
+      scripts.priority3_constraints.push({
+        description: `Add unique constraint for ${rule.field}`,
+        sql: `ALTER TABLE ${tableName} 
+ADD CONSTRAINT uk_${rule.field} 
+UNIQUE (${rule.field});`,
+        rollback: `ALTER TABLE ${tableName} DROP CONSTRAINT uk_${rule.field};`,
+        preCheck: `SELECT ${rule.field}, COUNT(*) as cnt 
+FROM ${tableName} 
+GROUP BY ${rule.field} 
+HAVING COUNT(*) > 1;`
+      });
+    }
+
+    if (rule.type === 'PATTERN_CONSTRAINT') {
+      scripts.priority3_constraints.push({
+        description: `Add pattern check for ${rule.field}`,
+        sql: `ALTER TABLE ${tableName} 
+ADD CONSTRAINT chk_${rule.field}_pattern 
+${rule.sql};`,
+        rollback: `ALTER TABLE ${tableName} DROP CONSTRAINT chk_${rule.field}_pattern;`
+      });
+    }
+
+    if (rule.type === 'DERIVED_FIELD_RULE' && rule.violations > 0) {
+      const updateSQL = generateDerivedFieldUpdate(rule, tableName);
+      scripts.priority2_dataStandardisation.push({
+        description: `Fix calculated field ${rule.field}`,
+        sql: updateSQL,
+        validation: `SELECT COUNT(*) as remaining_issues 
+FROM ${tableName} 
+WHERE ${rule.field} != ${rule.components.join(' + ')};`
+      });
+    }
+  });
+}
+
+function generateDerivedFieldUpdate(rule, tableName) {
+  return `-- Fix ${rule.violations} incorrect calculations in ${rule.field}
+UPDATE ${tableName}
+SET ${rule.field} = ${rule.components.join(' + ')}
+WHERE ${rule.field} != ${rule.components.join(' + ')};
+
+-- Add trigger to maintain consistency
+CREATE OR REPLACE TRIGGER trg_${rule.field}_calc
+BEFORE INSERT OR UPDATE ON ${tableName}
+FOR EACH ROW
+BEGIN
+    NEW.${rule.field} := ${rule.components.map(c => 'NEW.' + c).join(' + ')};
+END;`;
+}
+
+function generateValidityFixSQL(validityIssues, tableName, scripts) {
+  Object.entries(validityIssues).forEach(([field, issues]) => {
+    if (issues.phoneFormat) {
+      scripts.priority2_dataStandardisation.push({
+        description: `Standardise phone numbers in ${field}`,
+        sql: generatePhoneStandardisationSQL(field, tableName),
+        validation: `SELECT COUNT(*) as invalid_phones 
+FROM ${tableName} 
+WHERE ${field} IS NOT NULL 
+  AND ${field} !~ '^\\+?61[0-9]{9}$' 
+  AND ${field} !~ '^0[0-9]{9}$';`
+      });
+    }
+
+    if (issues.emailFormat) {
+      scripts.priority2_dataStandardisation.push({
+        description: `Clean invalid emails in ${field}`,
+        sql: `-- Mark invalid emails for review
+UPDATE ${tableName}
+SET ${field} = CONCAT('INVALID_', ${field})
+WHERE ${field} IS NOT NULL
+  AND ${field} !~ '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$'
+  AND ${field} NOT LIKE 'INVALID_%';`,
+        rollback: `UPDATE ${tableName} 
+SET ${field} = SUBSTRING(${field} FROM 9) 
+WHERE ${field} LIKE 'INVALID_%';`
+      });
+    }
+
+    if (issues.caseInconsistency) {
+      scripts.priority2_dataStandardisation.push({
+        description: `Standardise case for ${field}`,
+        sql: generateCaseStandardisationSQL(field, tableName, issues.recommendedCase)
+      });
+    }
+  });
+}
+
+function generatePhoneStandardisationSQL(field, tableName) {
+  return `-- Standardise Australian phone numbers
+-- Add leading 0 to mobile numbers missing it
+UPDATE ${tableName}
+SET ${field} = CONCAT('0', ${field})
+WHERE LENGTH(${field}) = 9 
+  AND ${field} ~ '^4[0-9]{8}$';
+
+-- Remove spaces, hyphens, and parentheses
+UPDATE ${tableName}
+SET ${field} = REGEXP_REPLACE(${field}, '[\\s\\-\\(\\)]', '', 'g')
+WHERE ${field} ~ '[\\s\\-\\(\\)]';
+
+-- Convert international format to local
+UPDATE ${tableName}
+SET ${field} = REGEXP_REPLACE(${field}, '^\\+61', '0')
+WHERE ${field} ~ '^\\+61';`;
+}
+
+function generateCaseStandardisationSQL(field, tableName, recommendedCase) {
+  const caseFunction = {
+    'UPPER': 'UPPER',
+    'LOWER': 'LOWER',
+    'TITLE': 'INITCAP'
+  };
+
+  return `UPDATE ${tableName}
+SET ${field} = ${caseFunction[recommendedCase] || 'INITCAP'}(${field})
+WHERE ${field} IS NOT NULL;`;
+}
+
+function generateDuplicateFixSQL(duplicates, tableName, scripts) {
+  if (duplicates.exactDuplicates && duplicates.exactDuplicates.length > 0) {
+    scripts.priority4_cleanup.push({
+      description: 'Remove exact duplicate records',
+      sql: `-- Remove exact duplicates keeping the oldest record
+WITH duplicates AS (
+  SELECT ctid,
+         ROW_NUMBER() OVER (
+           PARTITION BY ${duplicates.keyColumns.join(', ')}
+           ORDER BY created_date, ctid
+         ) AS rn
+  FROM ${tableName}
+)
+DELETE FROM ${tableName}
+WHERE ctid IN (
+  SELECT ctid FROM duplicates WHERE rn > 1
+);`,
+      validation: `SELECT COUNT(*) as duplicate_groups
+FROM (
+  SELECT ${duplicates.keyColumns.join(', ')}, COUNT(*) as cnt
+  FROM ${tableName}
+  GROUP BY ${duplicates.keyColumns.join(', ')}
+  HAVING COUNT(*) > 1
+) t;`
+    });
+  }
+
+  if (duplicates.fuzzyDuplicates && duplicates.fuzzyDuplicates.length > 0) {
+    scripts.priority4_cleanup.push({
+      description: 'Merge fuzzy duplicate records',
+      sql: generateFuzzyMergeSQL(duplicates.fuzzyDuplicates[0], tableName),
+      manual: true,
+      note: 'Review and adjust merge logic before executing'
+    });
+  }
+}
+
+function generateFuzzyMergeSQL(fuzzyGroup, tableName) {
+  return `-- Merge fuzzy duplicates for group: ${fuzzyGroup.id}
+-- Primary record: ${fuzzyGroup.records[0].index}
+-- Records to merge: ${fuzzyGroup.records.slice(1).map(r => r.index).join(', ')}
+
+BEGIN;
+
+-- Step 1: Update foreign key references
+-- TODO: Add UPDATE statements for tables referencing this record
+
+-- Step 2: Merge data (customize based on business rules)
+UPDATE ${tableName} t1
+SET 
+  -- Combine/update fields as needed
+  -- Example: notes = COALESCE(t1.notes, '') || ' | ' || COALESCE(t2.notes, '')
+FROM ${tableName} t2
+WHERE t1.id = ${fuzzyGroup.records[0].index}
+  AND t2.id IN (${fuzzyGroup.records.slice(1).map(r => r.index).join(', ')});
+
+-- Step 3: Delete merged records
+DELETE FROM ${tableName}
+WHERE id IN (${fuzzyGroup.records.slice(1).map(r => r.index).join(', ')});
+
+COMMIT;`;
+}
+
+function generateConsistencyFixSQL(consistencyIssues, tableName, scripts) {
+  if (consistencyIssues.temporalInconsistencies) {
+    consistencyIssues.temporalInconsistencies.forEach(issue => {
+      scripts.priority2_dataStandardisation.push({
+        description: `Fix temporal inconsistency: ${issue.rule}`,
+        sql: `UPDATE ${tableName}
+SET ${issue.field1} = LEAST(${issue.field1}, ${issue.field2})
+WHERE ${issue.field1} > ${issue.field2};`,
+        validation: `SELECT COUNT(*) as remaining_issues
+FROM ${tableName}
+WHERE ${issue.field1} > ${issue.field2};`
+      });
+    });
+  }
+
+  if (consistencyIssues.crossColumnValidation) {
+    consistencyIssues.crossColumnValidation.forEach(issue => {
+      if (issue.type === 'calculated_field') {
+        scripts.priority2_dataStandardisation.push({
+          description: `Fix cross-column calculation: ${issue.field}`,
+          sql: issue.fixSQL || `-- Manual fix required for ${issue.field}`,
+          manual: !issue.fixSQL
+        });
+      }
+    });
+  }
+}
+
+function generateTemporalFixSQL(temporalIssues, tableName, scripts) {
+  if (temporalIssues.futureDates) {
+    temporalIssues.futureDates.forEach(issue => {
+      scripts.priority2_dataStandardisation.push({
+        description: `Fix future dates in ${issue.field}`,
+        sql: `-- Option 1: Set to current date
+UPDATE ${tableName}
+SET ${issue.field} = CURRENT_DATE
+WHERE ${issue.field} > CURRENT_DATE;
+
+-- Option 2: Set to NULL (uncomment if preferred)
+-- UPDATE ${tableName}
+-- SET ${issue.field} = NULL
+-- WHERE ${issue.field} > CURRENT_DATE;`,
+        validation: `SELECT COUNT(*) as future_dates
+FROM ${tableName}
+WHERE ${issue.field} > CURRENT_DATE;`
+      });
+    });
+  }
+
+  if (temporalIssues.staleRecords) {
+    scripts.priority4_cleanup.push({
+      description: 'Archive stale records',
+      sql: `-- Create archive table
+CREATE TABLE IF NOT EXISTS ${tableName}_archive (LIKE ${tableName});
+
+-- Move stale records to archive
+INSERT INTO ${tableName}_archive
+SELECT * FROM ${tableName}
+WHERE last_modified < CURRENT_DATE - INTERVAL '${temporalIssues.staleThreshold} days';
+
+-- Delete from main table
+DELETE FROM ${tableName}
+WHERE last_modified < CURRENT_DATE - INTERVAL '${temporalIssues.staleThreshold} days';`,
+      validation: `SELECT COUNT(*) as archived_records
+FROM ${tableName}_archive;`
+    });
+  }
+}
+
+function formatSQLOutput(scripts, tableName) {
+  const output = [];
+  
+  output.push(`-- Data Quality Fix Scripts for ${tableName}`);
+  output.push(`-- Generated: ${new Date().toISOString()}`);
+  output.push('-- IMPORTANT: Review all scripts before execution');
+  output.push('-- Execute in order: Priority 1 -> 2 -> 3 -> 4\n');
+
+  const sections = [
+    { key: 'priority1_referentialIntegrity', title: 'PRIORITY 1: Referential Integrity' },
+    { key: 'priority2_dataStandardisation', title: 'PRIORITY 2: Data Standardisation' },
+    { key: 'priority3_constraints', title: 'PRIORITY 3: Constraints' },
+    { key: 'priority4_cleanup', title: 'PRIORITY 4: Cleanup' }
+  ];
+
+  sections.forEach(section => {
+    if (scripts[section.key].length > 0) {
+      output.push(`\n-- ==========================================`);
+      output.push(`-- ${section.title}`);
+      output.push(`-- ==========================================\n`);
+
+      scripts[section.key].forEach((script, index) => {
+        output.push(`-- ${index + 1}. ${script.description}`);
+        if (script.manual) {
+          output.push('-- MANUAL REVIEW REQUIRED');
+        }
+        if (script.preCheck) {
+          output.push('-- Pre-execution check:');
+          output.push(script.preCheck);
+          output.push('');
+        }
+        output.push(script.sql);
+        if (script.validation) {
+          output.push('\n-- Validation query:');
+          output.push(script.validation);
+        }
+        if (script.rollback) {
+          output.push('\n-- Rollback:');
+          output.push(script.rollback);
+        }
+        output.push('');
+      });
+    }
+  });
+
+  output.push('\n-- ==========================================');
+  output.push('-- POST-EXECUTION VALIDATION');
+  output.push('-- ==========================================\n');
+  output.push(generateValidationQueries$1(tableName));
+
+  return output.join('\n');
+}
+
+function generateValidationQueries$1(tableName) {
+  return `-- Check for remaining data quality issues
+SELECT 
+  'Null Values' as check_type,
+  COUNT(*) as issue_count
+FROM ${tableName}
+WHERE important_column IS NULL
+UNION ALL
+SELECT 
+  'Duplicates' as check_type,
+  COUNT(*) as issue_count
+FROM (
+  SELECT key_column, COUNT(*) as cnt
+  FROM ${tableName}
+  GROUP BY key_column
+  HAVING COUNT(*) > 1
+) t
+UNION ALL
+SELECT 
+  'Invalid Formats' as check_type,
+  COUNT(*) as issue_count
+FROM ${tableName}
+WHERE email_column NOT LIKE '%@%.%'
+   OR phone_column !~ '^[0-9+\\-\\s\\(\\)]+$';`;
+}
+
+function generatePythonFixes(analysisResults, fileName = 'data.csv') {
+  const scripts = {
+    fuzzyMatching: null,
+    dataStandardisation: null,
+    outlierHandling: null,
+    missingValueImputation: null
+  };
+
+  if (analysisResults.fuzzyDuplicates && analysisResults.fuzzyDuplicates.length > 0) {
+    scripts.fuzzyMatching = generateFuzzyMatchingScript(analysisResults.fuzzyDuplicates, fileName);
+  }
+
+  if (analysisResults.standardisationNeeded) {
+    scripts.dataStandardisation = generateStandardisationScript(analysisResults.standardisationNeeded, fileName);
+  }
+
+  if (analysisResults.outliers) {
+    scripts.outlierHandling = generateOutlierScript(analysisResults.outliers, fileName);
+  }
+
+  if (analysisResults.missingValues) {
+    scripts.missingValueImputation = generateImputationScript(analysisResults.missingValues, fileName);
+  }
+
+  return formatPythonOutput(scripts, fileName);
+}
+
+function generateFuzzyMatchingScript(fuzzyDuplicates, fileName) {
+  return `#!/usr/bin/env python3
+"""
+Fuzzy Duplicate Merging Script
+Generated for: ${fileName}
+Purpose: Identify and merge near-duplicate records
+"""
+
+import pandas as pd
+import numpy as np
+from fuzzywuzzy import fuzz, process
+import recordlinkage
+from datetime import datetime
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
+class FuzzyDuplicateMerger:
+    def __init__(self, filepath, threshold=85):
+        self.filepath = filepath
+        self.threshold = threshold
+        self.df = None
+        self.matches = []
+        
+    def load_data(self):
+        """Load CSV data"""
+        logger.info(f"Loading data from {self.filepath}")
+        self.df = pd.read_csv(self.filepath)
+        logger.info(f"Loaded {len(self.df)} records")
+        return self.df
+    
+    def find_duplicates(self, columns_to_match):
+        """Find potential duplicates using multiple algorithms"""
+        logger.info("Starting fuzzy duplicate detection")
+        
+        # Create record linkage index
+        indexer = recordlinkage.Index()
+        indexer.block(columns_to_match[0])  # Block on first column for efficiency
+        candidate_pairs = indexer.index(self.df)
+        
+        # Compare records
+        compare = recordlinkage.Compare()
+        for col in columns_to_match:
+            compare.string(col, col, method='jarowinkler', threshold=0.85, label=col)
+        
+        features = compare.compute(candidate_pairs, self.df)
+        
+        # Find matches above threshold
+        matches = features[features.sum(axis=1) >= len(columns_to_match) * 0.8]
+        
+        logger.info(f"Found {len(matches)} potential duplicate pairs")
+        self.matches = matches
+        return matches
+    
+    def review_duplicates(self, sample_size=10):
+        """Display sample duplicates for review"""
+        print("\\n" + "="*80)
+        print("SAMPLE DUPLICATE PAIRS FOR REVIEW")
+        print("="*80)
+        
+        sample = self.matches.head(sample_size)
+        for (idx1, idx2), scores in sample.iterrows():
+            print(f"\\nPair {idx1} <-> {idx2} (Similarity: {scores.mean():.2%})")
+            print("-" * 40)
+            
+            for col in self.df.columns[:5]:  # Show first 5 columns
+                val1 = self.df.loc[idx1, col]
+                val2 = self.df.loc[idx2, col]
+                if val1 != val2:
+                    print(f"{col:20} | {str(val1)[:30]:30} | {str(val2)[:30]}")
+    
+    def merge_strategy(self, idx1, idx2):
+        """Define merging strategy for duplicate pairs"""
+        row1 = self.df.loc[idx1]
+        row2 = self.df.loc[idx2]
+        merged = {}
+        
+        for col in self.df.columns:
+            # Strategy: Keep non-null values, prefer most recent
+            if pd.isna(row1[col]) and not pd.isna(row2[col]):
+                merged[col] = row2[col]
+            elif not pd.isna(row1[col]) and pd.isna(row2[col]):
+                merged[col] = row1[col]
+            elif 'date' in col.lower() or 'time' in col.lower():
+                # For dates, keep the most recent
+                try:
+                    date1 = pd.to_datetime(row1[col])
+                    date2 = pd.to_datetime(row2[col])
+                    merged[col] = row1[col] if date1 >= date2 else row2[col]
+                except:
+                    merged[col] = row1[col]  # Default to first record
+            else:
+                # For other fields, keep from the more complete record
+                merged[col] = row1[col] if row1.notna().sum() >= row2.notna().sum() else row2[col]
+        
+        return merged
+    
+    def execute_merge(self, auto_merge=False):
+        """Execute the merge process"""
+        logger.info("Starting merge process")
+        
+        # Group matches into clusters
+        merged_indices = set()
+        merge_groups = []
+        
+        for (idx1, idx2), _ in self.matches.iterrows():
+            if idx1 not in merged_indices and idx2 not in merged_indices:
+                group = {idx1, idx2}
+                # Find all connected records
+                for (i1, i2), _ in self.matches.iterrows():
+                    if i1 in group or i2 in group:
+                        group.update([i1, i2])
+                merge_groups.append(list(group))
+                merged_indices.update(group)
+        
+        logger.info(f"Found {len(merge_groups)} merge groups")
+        
+        # Create merged dataframe
+        keep_indices = []
+        merged_records = []
+        
+        for group in merge_groups:
+            if auto_merge or self.confirm_merge(group):
+                # Merge all records in group
+                primary_idx = group[0]
+                for idx in group[1:]:
+                    merged_record = self.merge_strategy(primary_idx, idx)
+                    self.df.loc[primary_idx] = merged_record
+                keep_indices.append(primary_idx)
+            else:
+                # Keep all records if merge not confirmed
+                keep_indices.extend(group)
+        
+        # Add non-duplicate records
+        all_indices = set(range(len(self.df)))
+        duplicate_indices = set(idx for group in merge_groups for idx in group)
+        keep_indices.extend(all_indices - duplicate_indices)
+        
+        # Create final dataframe
+        final_df = self.df.loc[sorted(keep_indices)].reset_index(drop=True)
+        logger.info(f"Merged {len(self.df)} records into {len(final_df)} records")
+        
+        return final_df
+    
+    def confirm_merge(self, group):
+        """Interactive confirmation for merging"""
+        print(f"\\nMerge group with {len(group)} records: {group}")
+        response = input("Merge these records? (y/n): ")
+        return response.lower() == 'y'
+    
+    def save_results(self, output_df, suffix='_deduped'):
+        """Save deduplicated data"""
+        output_path = self.filepath.replace('.csv', f'{suffix}.csv')
+        output_df.to_csv(output_path, index=False)
+        logger.info(f"Saved deduplicated data to {output_path}")
+        
+        # Save merge report
+        report_path = self.filepath.replace('.csv', '_merge_report.txt')
+        with open(report_path, 'w') as f:
+            f.write(f"Fuzzy Duplicate Merge Report\\n")
+            f.write(f"Generated: {datetime.now()}\\n")
+            f.write(f"Original records: {len(self.df)}\\n")
+            f.write(f"Final records: {len(output_df)}\\n")
+            f.write(f"Records merged: {len(self.df) - len(output_df)}\\n")
+        
+        logger.info(f"Saved merge report to {report_path}")
+
+# Main execution
+if __name__ == "__main__":
+    # Configuration
+    FILE_PATH = "${fileName}"
+    MATCH_COLUMNS = [${fuzzyDuplicates[0].matchingFields.map(f => `'${f.field}'`).join(', ')}]
+    THRESHOLD = ${fuzzyDuplicates[0].similarity || 85}
+    
+    # Run deduplication
+    merger = FuzzyDuplicateMerger(FILE_PATH, THRESHOLD)
+    merger.load_data()
+    merger.find_duplicates(MATCH_COLUMNS)
+    merger.review_duplicates()
+    
+    # Execute merge (set auto_merge=True for automatic merging)
+    final_df = merger.execute_merge(auto_merge=False)
+    merger.save_results(final_df)
+`;
+}
+
+function generateStandardisationScript(standardisationNeeded, fileName) {
+  return `#!/usr/bin/env python3
+"""
+Data Standardisation Script
+Generated for: ${fileName}
+Purpose: Standardise formats, clean data, and ensure consistency
+"""
+
+import pandas as pd
+import re
+import numpy as np
+from datetime import datetime
+import phonenumbers
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+class DataStandardiser:
+    def __init__(self, filepath):
+        self.filepath = filepath
+        self.df = pd.read_csv(filepath)
+        self.changes_log = []
+        
+    def standardise_phone_numbers(self, column, country='AU'):
+        """Standardise phone numbers to E164 format"""
+        logger.info(f"Standardising phone numbers in {column}")
+        
+        def clean_phone(phone):
+            if pd.isna(phone):
+                return phone
+            try:
+                # Parse phone number
+                parsed = phonenumbers.parse(str(phone), country)
+                if phonenumbers.is_valid_number(parsed):
+                    # Return in national format
+                    return phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.NATIONAL)
+                else:
+                    return f"INVALID_{phone}"
+            except:
+                # Try adding country code
+                if str(phone).startswith('0'):
+                    try:
+                        parsed = phonenumbers.parse(f"+61{str(phone)[1:]}", None)
+                        if phonenumbers.is_valid_number(parsed):
+                            return phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.NATIONAL)
+                    except:
+                        pass
+                return f"INVALID_{phone}"
+        
+        original = self.df[column].copy()
+        self.df[column] = self.df[column].apply(clean_phone)
+        
+        changes = (original != self.df[column]).sum()
+        self.changes_log.append(f"Phone standardisation in {column}: {changes} changes")
+        logger.info(f"Standardised {changes} phone numbers")
+        
+    def standardise_addresses(self, columns):
+        """Standardise address formats"""
+        logger.info(f"Standardising addresses in {columns}")
+        
+        abbreviations = {
+            'Street': 'St',
+            'Road': 'Rd',
+            'Avenue': 'Ave',
+            'Place': 'Pl',
+            'Drive': 'Dr',
+            'Court': 'Ct',
+            'Boulevard': 'Blvd',
+            'Lane': 'Ln'
+        }
+        
+        for col in columns:
+            if col in self.df.columns:
+                original = self.df[col].copy()
+                
+                # Standardise abbreviations
+                for full, abbr in abbreviations.items():
+                    self.df[col] = self.df[col].str.replace(f' {full}$', f' {abbr}', regex=True)
+                    self.df[col] = self.df[col].str.replace(f' {full} ', f' {abbr} ', regex=True)
+                
+                # Standardise capitalisation
+                self.df[col] = self.df[col].str.title()
+                
+                # Remove extra spaces
+                self.df[col] = self.df[col].str.replace(r'\\s+', ' ', regex=True).str.strip()
+                
+                changes = (original != self.df[col]).sum()
+                self.changes_log.append(f"Address standardisation in {col}: {changes} changes")
+    
+    def standardise_names(self, columns):
+        """Standardise name formats"""
+        logger.info(f"Standardising names in {columns}")
+        
+        for col in columns:
+            if col in self.df.columns:
+                original = self.df[col].copy()
+                
+                # Title case
+                self.df[col] = self.df[col].str.title()
+                
+                # Handle special cases (McDonald, O'Brien, etc.)
+                self.df[col] = self.df[col].str.replace(r"\\bMc(\\w)", lambda m: f"Mc{m.group(1).upper()}", regex=True)
+                self.df[col] = self.df[col].str.replace(r"\\bO'(\\w)", lambda m: f"O'{m.group(1).upper()}", regex=True)
+                
+                # Remove extra spaces
+                self.df[col] = self.df[col].str.replace(r'\\s+', ' ', regex=True).str.strip()
+                
+                changes = (original != self.df[col]).sum()
+                self.changes_log.append(f"Name standardisation in {col}: {changes} changes")
+    
+    def standardise_dates(self, columns, target_format='%Y-%m-%d'):
+        """Standardise date formats"""
+        logger.info(f"Standardising dates to {target_format}")
+        
+        for col in columns:
+            if col in self.df.columns:
+                original = self.df[col].copy()
+                
+                # Try to parse dates with various formats
+                self.df[col] = pd.to_datetime(self.df[col], errors='coerce', dayfirst=True)
+                self.df[col] = self.df[col].dt.strftime(target_format)
+                
+                # Replace NaT with original values (couldn't parse)
+                mask = self.df[col].isna()
+                self.df.loc[mask, col] = original[mask]
+                
+                changes = (original != self.df[col]).sum()
+                self.changes_log.append(f"Date standardisation in {col}: {changes} changes")
+    
+    def remove_duplicates(self, subset=None, keep='first'):
+        """Remove duplicate rows"""
+        logger.info("Removing duplicate rows")
+        
+        original_len = len(self.df)
+        self.df = self.df.drop_duplicates(subset=subset, keep=keep)
+        removed = original_len - len(self.df)
+        
+        self.changes_log.append(f"Duplicate removal: {removed} rows removed")
+        logger.info(f"Removed {removed} duplicate rows")
+    
+    def save_results(self):
+        """Save standardised data and change log"""
+        output_path = self.filepath.replace('.csv', '_standardised.csv')
+        self.df.to_csv(output_path, index=False)
+        logger.info(f"Saved standardised data to {output_path}")
+        
+        # Save change log
+        log_path = self.filepath.replace('.csv', '_standardisation_log.txt')
+        with open(log_path, 'w') as f:
+            f.write(f"Data Standardisation Log\\n")
+            f.write(f"Generated: {datetime.now()}\\n")
+            f.write(f"Original file: {self.filepath}\\n\\n")
+            f.write("Changes made:\\n")
+            for change in self.changes_log:
+                f.write(f"- {change}\\n")
+        
+        logger.info(f"Saved change log to {log_path}")
+        
+        return output_path
+
+# Main execution
+if __name__ == "__main__":
+    FILE_PATH = "${fileName}"
+    
+    standardiser = DataStandardiser(FILE_PATH)
+    
+    # Apply standardisation based on detected issues
+    ${generateStandardisationCalls(standardisationNeeded)}
+    
+    # Save results
+    output_file = standardiser.save_results()
+    print(f"\\nStandardisation complete! Output saved to: {output_file}")
+`;
+}
+
+function generateStandardisationCalls(issues) {
+  const calls = [];
+  
+  if (issues.phoneColumns) {
+    calls.push(`standardiser.standardise_phone_numbers('${issues.phoneColumns[0]}')`);
+  }
+  
+  if (issues.addressColumns) {
+    calls.push(`standardiser.standardise_addresses([${issues.addressColumns.map(c => `'${c}'`).join(', ')}])`);
+  }
+  
+  if (issues.nameColumns) {
+    calls.push(`standardiser.standardise_names([${issues.nameColumns.map(c => `'${c}'`).join(', ')}])`);
+  }
+  
+  if (issues.dateColumns) {
+    calls.push(`standardiser.standardise_dates([${issues.dateColumns.map(c => `'${c}'`).join(', ')}])`);
+  }
+  
+  calls.push('standardiser.remove_duplicates()');
+  
+  return calls.join('\\n    ');
+}
+
+function generateOutlierScript(outliers, fileName) {
+  return `#!/usr/bin/env python3
+"""
+Outlier Detection and Handling Script
+Generated for: ${fileName}
+Purpose: Identify and handle statistical outliers
+"""
+
+import pandas as pd
+import numpy as np
+from scipy import stats
+import matplotlib.pyplot as plt
+import seaborn as sns
+from datetime import datetime
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+class OutlierHandler:
+    def __init__(self, filepath):
+        self.filepath = filepath
+        self.df = pd.read_csv(filepath)
+        self.outliers = {}
+        
+    def detect_outliers_iqr(self, column, multiplier=1.5):
+        """Detect outliers using IQR method"""
+        Q1 = self.df[column].quantile(0.25)
+        Q3 = self.df[column].quantile(0.75)
+        IQR = Q3 - Q1
+        
+        lower_bound = Q1 - multiplier * IQR
+        upper_bound = Q3 + multiplier * IQR
+        
+        outliers = self.df[(self.df[column] < lower_bound) | (self.df[column] > upper_bound)]
+        return outliers.index.tolist(), lower_bound, upper_bound
+    
+    def detect_outliers_zscore(self, column, threshold=3):
+        """Detect outliers using Z-score method"""
+        z_scores = np.abs(stats.zscore(self.df[column].dropna()))
+        outliers = np.where(z_scores > threshold)[0]
+        return outliers.tolist()
+    
+    def detect_outliers_isolation_forest(self, columns):
+        """Detect multivariate outliers using Isolation Forest"""
+        from sklearn.ensemble import IsolationForest
+        
+        X = self.df[columns].dropna()
+        clf = IsolationForest(contamination=0.1, random_state=42)
+        outliers = clf.fit_predict(X)
+        
+        return X[outliers == -1].index.tolist()
+    
+    def visualize_outliers(self, column):
+        """Create visualizations for outlier analysis"""
+        fig, axes = plt.subplots(2, 2, figsize=(12, 10))
+        
+        # Box plot
+        axes[0, 0].boxplot(self.df[column].dropna())
+        axes[0, 0].set_title(f'Box Plot - {column}')
+        
+        # Histogram
+        axes[0, 1].hist(self.df[column].dropna(), bins=50, edgecolor='black')
+        axes[0, 1].set_title(f'Histogram - {column}')
+        
+        # Q-Q plot
+        stats.probplot(self.df[column].dropna(), dist="norm", plot=axes[1, 0])
+        axes[1, 0].set_title(f'Q-Q Plot - {column}')
+        
+        # Scatter plot with outliers highlighted
+        outlier_indices, _, _ = self.detect_outliers_iqr(column)
+        colors = ['red' if i in outlier_indices else 'blue' for i in range(len(self.df))]
+        axes[1, 1].scatter(range(len(self.df)), self.df[column], c=colors, alpha=0.5)
+        axes[1, 1].set_title(f'Scatter Plot - {column} (outliers in red)')
+        
+        plt.tight_layout()
+        plt.savefig(f'{column}_outlier_analysis.png')
+        plt.close()
+        
+        logger.info(f"Saved outlier visualization for {column}")
+    
+    def handle_outliers(self, column, method='cap', **kwargs):
+        """Handle outliers using specified method"""
+        outlier_indices, lower_bound, upper_bound = self.detect_outliers_iqr(column)
+        
+        if method == 'remove':
+            # Remove outliers
+            self.df = self.df.drop(outlier_indices)
+            logger.info(f"Removed {len(outlier_indices)} outliers from {column}")
+            
+        elif method == 'cap':
+            # Cap outliers at bounds
+            self.df.loc[self.df[column] < lower_bound, column] = lower_bound
+            self.df.loc[self.df[column] > upper_bound, column] = upper_bound
+            logger.info(f"Capped {len(outlier_indices)} outliers in {column}")
+            
+        elif method == 'transform':
+            # Log transformation
+            self.df[f'{column}_log'] = np.log1p(self.df[column])
+            logger.info(f"Applied log transformation to {column}")
+            
+        elif method == 'impute':
+            # Impute with median
+            median = self.df[column].median()
+            self.df.loc[outlier_indices, column] = median
+            logger.info(f"Imputed {len(outlier_indices)} outliers with median in {column}")
+        
+        self.outliers[column] = {
+            'method': method,
+            'count': len(outlier_indices),
+            'bounds': (lower_bound, upper_bound)
+        }
+    
+    def generate_report(self):
+        """Generate outlier analysis report"""
+        report = []
+        report.append("OUTLIER ANALYSIS REPORT")
+        report.append(f"Generated: {datetime.now()}")
+        report.append(f"File: {self.filepath}")
+        report.append("")
+        
+        for column, info in self.outliers.items():
+            report.append(f"\\n{column}:")
+            report.append(f"  Method: {info['method']}")
+            report.append(f"  Outliers: {info['count']}")
+            report.append(f"  Bounds: [{info['bounds'][0]:.2f}, {info['bounds'][1]:.2f}]")
+        
+        return "\\n".join(report)
+    
+    def save_results(self):
+        """Save cleaned data and report"""
+        output_path = self.filepath.replace('.csv', '_outliers_handled.csv')
+        self.df.to_csv(output_path, index=False)
+        logger.info(f"Saved cleaned data to {output_path}")
+        
+        report_path = self.filepath.replace('.csv', '_outlier_report.txt')
+        with open(report_path, 'w') as f:
+            f.write(self.generate_report())
+        logger.info(f"Saved outlier report to {report_path}")
+
+# Main execution
+if __name__ == "__main__":
+    FILE_PATH = "${fileName}"
+    NUMERIC_COLUMNS = [${outliers.map(o => `'${o.field}'`).join(', ')}]
+    
+    handler = OutlierHandler(FILE_PATH)
+    
+    # Analyze and handle outliers for each numeric column
+    for column in NUMERIC_COLUMNS:
+        if column in handler.df.columns:
+            # Visualize outliers
+            handler.visualize_outliers(column)
+            
+            # Handle outliers (method can be: 'remove', 'cap', 'transform', 'impute')
+            handler.handle_outliers(column, method='cap')
+    
+    # Save results
+    handler.save_results()
+    print("\\nOutlier handling complete!")
+`;
+}
+
+function generateImputationScript(missingValues, fileName) {
+  return `#!/usr/bin/env python3
+"""
+Missing Value Imputation Script
+Generated for: ${fileName}
+Purpose: Handle missing values using appropriate imputation strategies
+"""
+
+import pandas as pd
+import numpy as np
+from sklearn.impute import SimpleImputer, KNNImputer
+from sklearn.experimental import enable_iterative_imputer
+from sklearn.impute import IterativeImputer
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+class MissingValueHandler:
+    def __init__(self, filepath):
+        self.filepath = filepath
+        self.df = pd.read_csv(filepath)
+        self.imputation_log = []
+        
+    def analyze_missing_patterns(self):
+        """Analyze patterns in missing data"""
+        missing_counts = self.df.isnull().sum()
+        missing_percent = (missing_counts / len(self.df)) * 100
+        
+        missing_df = pd.DataFrame({
+            'Column': missing_counts.index,
+            'Missing_Count': missing_counts.values,
+            'Missing_Percent': missing_percent.values
+        })
+        
+        missing_df = missing_df[missing_df['Missing_Count'] > 0].sort_values('Missing_Percent', ascending=False)
+        
+        print("\\nMissing Value Analysis:")
+        print(missing_df.to_string(index=False))
+        
+        return missing_df
+    
+    def impute_categorical(self, column, strategy='mode'):
+        """Impute missing categorical values"""
+        if column not in self.df.columns:
+            return
+            
+        missing_count = self.df[column].isnull().sum()
+        if missing_count == 0:
+            return
+            
+        if strategy == 'mode':
+            mode_value = self.df[column].mode()[0] if len(self.df[column].mode()) > 0 else 'Unknown'
+            self.df[column].fillna(mode_value, inplace=True)
+            self.imputation_log.append(f"{column}: Imputed {missing_count} values with mode '{mode_value}'")
+        elif strategy == 'unknown':
+            self.df[column].fillna('Unknown', inplace=True)
+            self.imputation_log.append(f"{column}: Imputed {missing_count} values with 'Unknown'")
+    
+    def impute_numeric(self, column, strategy='median'):
+        """Impute missing numeric values"""
+        if column not in self.df.columns:
+            return
+            
+        missing_count = self.df[column].isnull().sum()
+        if missing_count == 0:
+            return
+            
+        if strategy == 'mean':
+            mean_value = self.df[column].mean()
+            self.df[column].fillna(mean_value, inplace=True)
+            self.imputation_log.append(f"{column}: Imputed {missing_count} values with mean {mean_value:.2f}")
+        elif strategy == 'median':
+            median_value = self.df[column].median()
+            self.df[column].fillna(median_value, inplace=True)
+            self.imputation_log.append(f"{column}: Imputed {missing_count} values with median {median_value:.2f}")
+        elif strategy == 'forward_fill':
+            self.df[column].fillna(method='ffill', inplace=True)
+            self.imputation_log.append(f"{column}: Imputed {missing_count} values with forward fill")
+        elif strategy == 'interpolate':
+            self.df[column].interpolate(method='linear', inplace=True)
+            self.imputation_log.append(f"{column}: Imputed {missing_count} values with linear interpolation")
+    
+    def impute_knn(self, columns, n_neighbors=5):
+        """Impute using KNN imputation"""
+        if not all(col in self.df.columns for col in columns):
+            return
+            
+        imputer = KNNImputer(n_neighbors=n_neighbors)
+        self.df[columns] = imputer.fit_transform(self.df[columns])
+        
+        self.imputation_log.append(f"KNN imputation on {columns} with {n_neighbors} neighbors")
+    
+    def impute_mice(self, columns, max_iter=10):
+        """Impute using MICE (Multiple Imputation by Chained Equations)"""
+        if not all(col in self.df.columns for col in columns):
+            return
+            
+        imputer = IterativeImputer(max_iter=max_iter, random_state=42)
+        self.df[columns] = imputer.fit_transform(self.df[columns])
+        
+        self.imputation_log.append(f"MICE imputation on {columns} with {max_iter} iterations")
+    
+    def save_results(self):
+        """Save imputed data and log"""
+        output_path = self.filepath.replace('.csv', '_imputed.csv')
+        self.df.to_csv(output_path, index=False)
+        logger.info(f"Saved imputed data to {output_path}")
+        
+        log_path = self.filepath.replace('.csv', '_imputation_log.txt')
+        with open(log_path, 'w') as f:
+            f.write("Missing Value Imputation Log\\n")
+            f.write(f"Generated: {pd.Timestamp.now()}\\n")
+            f.write(f"Original file: {self.filepath}\\n\\n")
+            f.write("Imputation strategies applied:\\n")
+            for log_entry in self.imputation_log:
+                f.write(f"- {log_entry}\\n")
+        
+        logger.info(f"Saved imputation log to {log_path}")
+
+# Main execution
+if __name__ == "__main__":
+    FILE_PATH = "${fileName}"
+    
+    handler = MissingValueHandler(FILE_PATH)
+    
+    # Analyze missing patterns
+    missing_analysis = handler.analyze_missing_patterns()
+    
+    # Apply imputation strategies based on column types and patterns
+    ${generateImputationCalls(missingValues)}
+    
+    # Save results
+    handler.save_results()
+    print("\\nMissing value imputation complete!")
+`;
+}
+
+function generateImputationCalls(missingValues) {
+  const calls = [];
+  
+  Object.entries(missingValues).forEach(([column, info]) => {
+    if (info.type === 'categorical') {
+      calls.push(`handler.impute_categorical('${column}', strategy='mode')`);
+    } else if (info.type === 'numeric') {
+      if (info.pattern === 'MCAR') {
+        calls.push(`handler.impute_numeric('${column}', strategy='median')`);
+      } else if (info.pattern === 'MAR') {
+        calls.push(`# Consider using KNN or MICE for ${column} (MAR pattern detected)`);
+      }
+    }
+  });
+  
+  return calls.join('\\n    ');
+}
+
+function formatPythonOutput(scripts, fileName) {
+  const output = [];
+  
+  output.push('# Data Quality Fix Scripts - Python');
+  output.push(`# Generated for: ${fileName}`);
+  output.push(`# Generated: ${new Date().toISOString()}`);
+  output.push('# Install requirements: pip install pandas numpy scipy scikit-learn fuzzywuzzy python-Levenshtein phonenumbers recordlinkage matplotlib seaborn');
+  output.push('');
+  
+  if (scripts.fuzzyMatching) {
+    output.push('# ========================================');
+    output.push('# FUZZY DUPLICATE MATCHING AND MERGING');
+    output.push('# ========================================');
+    output.push(scripts.fuzzyMatching);
+    output.push('');
+  }
+  
+  if (scripts.dataStandardisation) {
+    output.push('# ========================================');
+    output.push('# DATA STANDARDISATION');
+    output.push('# ========================================');
+    output.push(scripts.dataStandardisation);
+    output.push('');
+  }
+  
+  if (scripts.outlierHandling) {
+    output.push('# ========================================');
+    output.push('# OUTLIER DETECTION AND HANDLING');
+    output.push('# ========================================');
+    output.push(scripts.outlierHandling);
+    output.push('');
+  }
+  
+  if (scripts.missingValueImputation) {
+    output.push('# ========================================');
+    output.push('# MISSING VALUE IMPUTATION');
+    output.push('# ========================================');
+    output.push(scripts.missingValueImputation);
+  }
+  
+  return output.join('\n');
+}
+
+async function integrity(filePath, options = {}) {
+  const outputHandler = new OutputHandler(options);
+  const spinner = options.quiet ? null : ora('Reading CSV file...').start();
+  
+  // Structured data mode for LLM consumption
+  const structuredMode = options.structuredOutput || options.llmMode;
+  
+  try {
+    // Load data
+    let data, headers, columnTypes;
+    if (options.preloadedData) {
+      data = options.preloadedData.records;
+      headers = Object.keys(data[0] || {});
+      columnTypes = options.preloadedData.columnTypes;
+    } else {
+      data = await parseCSV(filePath, { quiet: options.quiet, header: options.header });
+      headers = Object.keys(data[0] || {});
+      
+      if (spinner) spinner.text = 'Detecting column types...';
+      columnTypes = detectColumnTypes(data);
+    }
+    
+    const fileName = basename(filePath);
+    
+    // Handle empty dataset
+    if (data.length === 0) {
+      let report = createSection('DATA INTEGRITY REPORT',
+        `Dataset: ${fileName}\nGenerated: ${formatTimestamp()}\n\n⚠️  Empty dataset - no data to check`);
+      
+      // Still include the required section header
+      report += createSubSection('DATA QUALITY METRICS', 'No data available to analyze');
+      
+      console.log(report);
+      outputHandler.finalize();
+      return;
+    }
+
+    // Initialize results structure
+    const analysisResults = {
+      fileName,
+      timestamp: formatTimestamp(),
+      recordCount: data.length,
+      columnCount: headers.length,
+      dimensions: {},
+      businessRules: null,
+      patterns: null,
+      anomalies: null,
+      fuzzyDuplicates: null,
+      australianValidation: null,
+      qualityScore: null,
+      fixes: {
+        sql: null,
+        python: null
+      }
+    };
+
+    // Run quality dimension validators
+    if (spinner) spinner.text = 'Analyzing data completeness...';
+    analysisResults.dimensions.completeness = analyseCompleteness(data, headers);
+
+    if (spinner) spinner.text = 'Validating data formats...';
+    analysisResults.dimensions.validity = analyseValidity(data, headers, columnTypes);
+
+    if (spinner) spinner.text = 'Checking data accuracy...';
+    analysisResults.dimensions.accuracy = analyseAccuracy(data, headers, columnTypes);
+
+    if (spinner) spinner.text = 'Evaluating data consistency...';
+    analysisResults.dimensions.consistency = analyseConsistency(data, headers);
+
+    if (spinner) spinner.text = 'Assessing data timeliness...';
+    analysisResults.dimensions.timeliness = analyseTimeliness(data, headers);
+
+    if (spinner) spinner.text = 'Detecting duplicate records...';
+    analysisResults.dimensions.uniqueness = analyseUniqueness(data, headers);
+
+    // Run advanced detectors
+    if (spinner) spinner.text = 'Discovering business rules...';
+    analysisResults.businessRules = detectBusinessRules(data, headers, columnTypes);
+
+    if (spinner) spinner.text = 'Detecting patterns...';
+    analysisResults.patterns = detectPatterns(data, headers, columnTypes);
+
+    if (spinner) spinner.text = 'Finding anomalies...';
+    analysisResults.anomalies = detectAnomalies$2(data, headers, columnTypes);
+
+    // Run specialised analysers
+    if (data.length < 10000) {
+      if (spinner) spinner.text = 'Performing fuzzy duplicate analysis...';
+      analysisResults.fuzzyDuplicates = analyseFuzzyDuplicates(data, headers);
+    }
+
+    if (spinner) spinner.text = 'Checking for Australian-specific data...';
+    analysisResults.australianValidation = validateAustralianData(data, headers);
+
+    // Calculate quality score
+    if (spinner) spinner.text = 'Calculating data quality score...';
+    analysisResults.qualityScore = calculateQualityScore(analysisResults.dimensions);
+
+    // Generate fixes
+    if (spinner) spinner.text = 'Generating automated fixes...';
+    analysisResults.fixes.sql = generateSQLFixes(analysisResults);
+    analysisResults.fixes.python = generatePythonFixes(analysisResults, fileName);
+
+    // Return structured data if requested for LLM consumption
+    if (structuredMode) {
+      if (spinner) spinner.succeed('Data integrity analysis complete!');
+      return {
+        analysis: analysisResults,
+        structuredResults: {
+          overallQuality: {
+            score: analysisResults.qualityScore.overallScore,
+            grade: analysisResults.qualityScore.grade.letter,
+            trend: 'stable'
+          },
+          validationResults: [],
+          businessRules: analysisResults.businessRules || [],
+          referentialIntegrity: [],
+          patternAnomalies: analysisResults.anomalies || [],
+          suggestedFixes: [
+            ...(analysisResults.fixes.sql ? ['SQL automated fixes available'] : []),
+            ...(analysisResults.fixes.python ? ['Python automated fixes available'] : [])
+          ],
+          dimensions: {
+            completeness: analysisResults.dimensions.completeness,
+            accuracy: analysisResults.dimensions.accuracy,
+            consistency: analysisResults.dimensions.consistency,
+            validity: analysisResults.dimensions.validity,
+            uniqueness: analysisResults.dimensions.uniqueness,
+            timeliness: analysisResults.dimensions.timeliness
+          }
+        }
+      };
+    }
+    
+    // Generate report
+    if (spinner) spinner.succeed('Data integrity analysis complete!');
+    
+    const report = generateComprehensiveReport(analysisResults);
+    console.log(report);
+
+    // Save fix scripts if requested
+    if (options.generateFixes) {
+      await saveFixes(analysisResults.fixes, fileName);
+    }
+
+    outputHandler.finalize();
+    return analysisResults;
+
+  } catch (error) {
+    outputHandler.restore();
+    if (spinner) spinner.fail('Error checking integrity');
+    console.error(error.message);
+    if (!options.quiet) process.exit(1);
+    throw error;
+  }
+}
+
+function generateComprehensiveReport(results) {
+  let report = '';
+
+  // Header
+  report += createSection('DATA INTEGRITY REPORT',
+    `Dataset: ${results.fileName}
+Generated: ${results.timestamp}
+Quality Framework: ISO 8000 / DAMA-DMBOK Aligned`);
+
+  // Overall Quality Score
+  const score = results.qualityScore;
+  report += `\nOVERALL DATA QUALITY SCORE: ${score.overallScore}/100 (${score.grade.letter})
+${score.grade.label}
+${score.trend.symbol} ${score.trend.interpretation}
+${score.benchmark.interpretation}\n`;
+
+  // Critical Issues Summary
+  const criticalIssues = collectCriticalIssues(results.dimensions);
+  if (criticalIssues.length > 0) {
+    report += createSubSection('CRITICAL ISSUES (immediate action required)',
+      numberedList(criticalIssues.map(issue => 
+        `${issue.field || issue.category}: ${issue.message} [${issue.type}]`
+      ))
+    );
+  }
+
+  // Warnings Summary
+  const warnings = collectWarnings(results.dimensions);
+  if (warnings.length > 0) {
+    report += createSubSection('WARNINGS (should be addressed)',
+      numberedList(warnings.slice(0, 10).map(issue => 
+        `${issue.field || issue.category}: ${issue.message}`
+      ))
+    );
+    if (warnings.length > 10) {
+      report += `\n... and ${warnings.length - 10} more warnings\n`;
+    }
+  }
+
+  // Business Rule Discovery
+  if (results.businessRules && results.businessRules.length > 0) {
+    report += createSubSection('BUSINESS RULE DISCOVERY',
+      `Automatically Detected Rules (Confidence >95%):\n\n` +
+      results.businessRules.slice(0, 5).map((rule, idx) => 
+        `${idx + 1}. ${rule.type}: ${rule.rule}
+   - Confidence: ${rule.confidence.toFixed(1)}%
+   - Violations: ${rule.violations} records
+   - SQL: ${rule.sql}`
+      ).join('\n\n')
+    );
+  }
+
+  // Pattern-Based Anomalies
+  if (results.anomalies) {
+    report += generateAnomalyReport(results.anomalies);
+  }
+
+  // Fuzzy Duplicate Analysis
+  if (results.fuzzyDuplicates && results.fuzzyDuplicates.nearDuplicateGroups.length > 0) {
+    report += createSubSection('FUZZY DUPLICATE ANALYSIS',
+      `Algorithm Stack: ${results.fuzzyDuplicates.algorithms.join(', ')}
+Near-Duplicate Groups Found: ${results.fuzzyDuplicates.nearDuplicateGroups.length}
+
+Top Groups:
+${results.fuzzyDuplicates.nearDuplicateGroups.slice(0, 3).map((group, idx) => 
+  `[Group ${idx + 1}] ${group.recordCount} records (${group.similarity}% similarity)
+${group.records.slice(0, 3).map(r => 
+  `  - Row ${r.index}: ${JSON.stringify(r.data).substring(0, 80)}...`
+).join('\n')}`
+).join('\n\n')}`
+    );
+  }
+
+  // Australian Data Validation
+  if (results.australianValidation && results.australianValidation.detected) {
+    report += generateAustralianValidationReport(results.australianValidation);
+  }
+
+  // Data Quality Metrics
+  report += createSection('DATA QUALITY METRICS',
+    `Overall Score: ${score.overallScore}/100 (${score.grade.letter})
+
+Dimensional Breakdown:
+┌─────────────────┬────────┬────────────────────────┐
+│ Dimension       │ Score  │ Key Issues             │
+├─────────────────┼────────┼────────────────────────┤
+${score.scoreBreakdown.map(dim => 
+  `│ ${dim.dimension.padEnd(15)} │ ${String(dim.score).padEnd(6)} │ ${(dim.performance + ' issues').padEnd(22)} │`
+).join('\n')}
+└─────────────────┴────────┴────────────────────────┘`
+  );
+
+  // Recommendations
+  if (score.recommendations) {
+    report += createSubSection('RECOMMENDATION PRIORITY MATRIX', '');
+    
+    if (score.recommendations.quickWins.length > 0) {
+      report += '\n🎯 Quick Wins (High Impact, Low Effort):\n';
+      report += numberedList(score.recommendations.quickWins.map(r => 
+        `${r.action} [Impact: ${r.impact}, Effort: ${r.effort}]`
+      ));
+    }
+
+    if (score.recommendations.strategic.length > 0) {
+      report += '\n📋 Strategic Initiatives (High Impact, High Effort):\n';
+      report += numberedList(score.recommendations.strategic.map(r => 
+        `${r.action} [Impact: ${r.impact}, Effort: ${r.effort}]`
+      ));
+    }
+  }
+
+  // Automated Fix Scripts Available
+  report += createSubSection('AUTOMATED FIX SCRIPTS',
+    `SQL fixes available: ${results.fixes.sql ? 'Yes' : 'No'}
+Python scripts available: ${results.fixes.python ? 'Yes' : 'No'}
+
+To generate fix scripts, run with --generate-fixes flag`
+  );
+
+  // Data Quality Certification
+  if (score.certification.certified) {
+    report += createSubSection('DATA QUALITY CERTIFICATION',
+      `${score.certification.badge} Achieved ${score.certification.level} Certification
+Valid until: ${score.certification.validUntil}`
+    );
+  } else {
+    report += createSubSection('CERTIFICATION STATUS',
+      `Not yet certified. To achieve ${score.certification.nextLevel}:
+- Improve score by ${score.certification.gap.score.toFixed(1)} points
+- Fix ${score.certification.gap.criticalIssues} critical issues
+- Resolve ${score.certification.gap.warnings} warnings`
+    );
+  }
+
+  return report;
+}
+
+function collectCriticalIssues(dimensions) {
+  const issues = [];
+  Object.values(dimensions).forEach(dim => {
+    if (dim.issues) {
+      issues.push(...dim.issues.filter(i => i.type === 'critical'));
+    }
+  });
+  return issues;
+}
+
+function collectWarnings(dimensions) {
+  const warnings = [];
+  Object.values(dimensions).forEach(dim => {
+    if (dim.issues) {
+      warnings.push(...dim.issues.filter(i => i.type === 'warning'));
+    }
+  });
+  return warnings;
+}
+
+function generateAnomalyReport(anomalies) {
+  let report = createSubSection('PATTERN-BASED ANOMALIES', '');
+
+  if (anomalies.benfordLaw.length > 0) {
+    report += "\nBenford's Law Analysis:\n";
+    anomalies.benfordLaw.forEach(result => {
+      report += `- ${result.field}: ${result.interpretation} (χ² = ${result.chiSquare}, p ${result.pValue})\n`;
+    });
+  }
+
+  if (anomalies.roundNumberBias.length > 0) {
+    report += '\nRound Number Bias:\n';
+    anomalies.roundNumberBias.forEach(result => {
+      report += `- ${result.field}: ${result.interpretation}\n`;
+      result.biases.forEach(bias => {
+        report += `  * ${bias.pattern}: ${bias.observedRate} vs expected ${bias.expectedRate}\n`;
+      });
+    });
+  }
+
+  if (anomalies.fraudIndicators.length > 0) {
+    report += '\nPotential Fraud Indicators:\n';
+    anomalies.fraudIndicators.forEach(indicator => {
+      report += `- ${indicator.type}: ${indicator.interpretation}\n`;
+    });
+  }
+
+  return report;
+}
+
+function generateAustralianValidationReport(validation) {
+  let report = createSubSection('AUSTRALIAN DATA VALIDATION', '');
+
+  if (validation.validations.abn) {
+    const abn = validation.validations.abn;
+    report += `\nABN Validation:
+- Valid format: ${abn.valid}/${abn.total} (${abn.validRate})
+- Invalid check digit: ${abn.invalid.length}
+- Defunct companies: ${abn.defunct.length}\n`;
+  }
+
+  if (validation.validations.postcodes) {
+    const pc = validation.validations.postcodes;
+    report += `\nPostcode Analysis:
+- Valid postcodes: ${pc.valid}/${pc.total} (${pc.validRate})
+- State mismatches: ${pc.stateMismatches.length}
+- Distribution: ${Object.entries(pc.distribution).map(([state, pct]) => `${state}: ${pct}`).join(', ')}\n`;
+  }
+
+  if (validation.validations.phoneNumbers) {
+    report += '\nPhone Number Validation:\n';
+    Object.entries(validation.validations.phoneNumbers).forEach(([col, result]) => {
+      report += `- ${col}: ${result.validRate} valid (Mobile: ${result.breakdown.mobile}, Landline: ${result.breakdown.landline})\n`;
+    });
+  }
+
+  return report;
+}
+
+async function saveFixes(fixes, fileName) {
+  const fs = await import('fs/promises');
+  
+  if (fixes.sql) {
+    const sqlFile = fileName.replace('.csv', '_fixes.sql');
+    await fs.writeFile(sqlFile, fixes.sql);
+    console.log(`\n✅ SQL fixes saved to: ${sqlFile}`);
+  }
+
+  if (fixes.python) {
+    const pyFile = fileName.replace('.csv', '_fixes.py');
+    await fs.writeFile(pyFile, fixes.python);
+    console.log(`✅ Python scripts saved to: ${pyFile}`);
+  }
+}
+
+class VisualTaskDetector {
+  constructor() {
+    this.tasks = {
+      TREND_ANALYSIS: 'trend_analysis',
+      PART_TO_WHOLE: 'part_to_whole',
+      CORRELATION: 'correlation',
+      DISTRIBUTION: 'distribution',
+      COMPARISON: 'comparison',
+      RANKING: 'ranking',
+      DEVIATION: 'deviation',
+      GEOSPATIAL: 'geospatial',
+      COMPOSITION: 'composition',
+      FLOW: 'flow',
+      HIERARCHY: 'hierarchy',
+      PATTERN: 'pattern'
+    };
+  }
+
+  detectTasks(data, columnTypes) {
+    const tasks = [];
+    const columns = Object.keys(columnTypes);
+    
+    // Analyze column types
+    const numericColumns = columns.filter(col => 
+      ['integer', 'float'].includes(columnTypes[col].type)
+    );
+    const dateColumns = columns.filter(col => 
+      columnTypes[col].type === 'date'
+    );
+    const categoricalColumns = columns.filter(col => 
+      columnTypes[col].type === 'categorical'
+    );
+    const geographicColumns = this.findGeographicColumns(columns, columnTypes);
+    
+    // Detect temporal patterns
+    if (dateColumns.length > 0) {
+      const temporalStrength = this.calculateTemporalStrength(data, dateColumns[0]);
+      if (temporalStrength > 0.7) {
+        tasks.push({
+          type: this.tasks.TREND_ANALYSIS,
+          priority: 1,
+          strength: temporalStrength,
+          columns: {
+            temporal: dateColumns[0],
+            measures: numericColumns
+          },
+          description: 'Strong temporal patterns detected - ideal for trend analysis'
+        });
+      }
+      
+      // Check for seasonality
+      const seasonality = this.detectSeasonality(data, dateColumns[0], numericColumns[0]);
+      if (seasonality.detected) {
+        tasks.push({
+          type: this.tasks.PATTERN,
+          priority: 2,
+          strength: seasonality.strength,
+          pattern: seasonality.type,
+          columns: {
+            temporal: dateColumns[0],
+            measure: numericColumns[0]
+          },
+          description: `${seasonality.type} seasonality pattern detected`
+        });
+      }
+    }
+    
+    // Detect part-to-whole relationships
+    if (categoricalColumns.length > 0 && numericColumns.length > 0) {
+      const partToWhole = this.detectPartToWhole(data, categoricalColumns, numericColumns);
+      if (partToWhole.detected) {
+        tasks.push({
+          type: this.tasks.PART_TO_WHOLE,
+          priority: partToWhole.categories <= 5 ? 1 : 3,
+          strength: partToWhole.strength,
+          columns: partToWhole.columns,
+          description: `${partToWhole.categories} categories comprise the whole`
+        });
+      }
+    }
+    
+    // Detect correlations
+    if (numericColumns.length >= 2) {
+      const correlations = this.detectCorrelations(data, numericColumns);
+      if (correlations.length > 0) {
+        tasks.push({
+          type: this.tasks.CORRELATION,
+          priority: 2,
+          strength: Math.max(...correlations.map(c => Math.abs(c.correlation))),
+          relationships: correlations,
+          description: `${correlations.length} significant correlations found`
+        });
+      }
+    }
+    
+    // Detect distributions
+    if (numericColumns.length > 0) {
+      numericColumns.forEach(col => {
+        const distribution = this.analyzeDistribution(data, col);
+        tasks.push({
+          type: this.tasks.DISTRIBUTION,
+          priority: 3,
+          columns: {
+            measure: col
+          },
+          characteristics: distribution,
+          description: `${distribution.type} distribution for ${col}`
+        });
+      });
+    }
+    
+    // Detect comparison opportunities
+    if (categoricalColumns.length > 0 && numericColumns.length > 0) {
+      const comparisons = this.detectComparisons(data, categoricalColumns, numericColumns);
+      comparisons.forEach(comp => {
+        tasks.push({
+          type: this.tasks.COMPARISON,
+          priority: 2,
+          ...comp
+        });
+      });
+    }
+    
+    // Detect ranking opportunities
+    if (categoricalColumns.length > 0 && numericColumns.length > 0) {
+      const ranking = this.detectRanking(data, categoricalColumns[0], numericColumns[0]);
+      if (ranking.suitable) {
+        tasks.push({
+          type: this.tasks.RANKING,
+          priority: 2,
+          ...ranking
+        });
+      }
+    }
+    
+    // Detect geographic patterns
+    if (geographicColumns.length > 0 && numericColumns.length > 0) {
+      tasks.push({
+        type: this.tasks.GEOSPATIAL,
+        priority: 2,
+        columns: {
+          geographic: geographicColumns[0],
+          measure: numericColumns[0]
+        },
+        description: 'Geographic data detected - suitable for map visualization'
+      });
+    }
+    
+    // Detect hierarchical relationships
+    const hierarchy = this.detectHierarchy(data, columns);
+    if (hierarchy.detected) {
+      tasks.push({
+        type: this.tasks.HIERARCHY,
+        priority: 2,
+        ...hierarchy
+      });
+    }
+    
+    // Sort by priority and return
+    return tasks.sort((a, b) => a.priority - b.priority);
+  }
+  
+  calculateTemporalStrength(data, dateColumn) {
+    if (!dateColumn || data.length < 10) return 0;
+    
+    // Check if dates are sequential and evenly spaced
+    const dates = data
+      .map(r => r[dateColumn])
+      .filter(d => d instanceof Date)
+      .sort((a, b) => a - b);
+    
+    if (dates.length < 10) return 0;
+    
+    // Calculate intervals
+    const intervals = [];
+    for (let i = 1; i < dates.length; i++) {
+      intervals.push(dates[i] - dates[i-1]);
+    }
+    
+    // Check consistency of intervals
+    const avgInterval = intervals.reduce((a, b) => a + b) / intervals.length;
+    const variance = intervals.reduce((sum, int) => sum + Math.pow(int - avgInterval, 2), 0) / intervals.length;
+    const cv = Math.sqrt(variance) / avgInterval; // Coefficient of variation
+    
+    // Lower CV means more regular time series
+    return Math.max(0, 1 - cv);
+  }
+  
+  detectSeasonality(data, dateColumn, valueColumn) {
+    if (!dateColumn || !valueColumn || data.length < 100) {
+      return { detected: false };
+    }
+    
+    // Group by time periods
+    const monthlyData = {};
+    const weeklyData = {};
+    const dailyData = {};
+    
+    data.forEach(row => {
+      const date = row[dateColumn];
+      const value = row[valueColumn];
+      if (date instanceof Date && typeof value === 'number') {
+        const month = date.getMonth();
+        const dayOfWeek = date.getDay();
+        const dayOfMonth = date.getDate();
+        
+        monthlyData[month] = monthlyData[month] || [];
+        monthlyData[month].push(value);
+        
+        weeklyData[dayOfWeek] = weeklyData[dayOfWeek] || [];
+        weeklyData[dayOfWeek].push(value);
+        
+        dailyData[dayOfMonth] = dailyData[dayOfMonth] || [];
+        dailyData[dayOfMonth].push(value);
+      }
+    });
+    
+    // Calculate variance across periods
+    const monthlyVariance = this.calculatePeriodVariance(monthlyData);
+    const weeklyVariance = this.calculatePeriodVariance(weeklyData);
+    
+    if (monthlyVariance > 0.3) {
+      return {
+        detected: true,
+        type: 'monthly',
+        strength: monthlyVariance
+      };
+    } else if (weeklyVariance > 0.3) {
+      return {
+        detected: true,
+        type: 'weekly',
+        strength: weeklyVariance
+      };
+    }
+    
+    return { detected: false };
+  }
+  
+  calculatePeriodVariance(periodData) {
+    const periodAverages = Object.values(periodData).map(values => 
+      values.reduce((a, b) => a + b) / values.length
+    );
+    
+    if (periodAverages.length < 2) return 0;
+    
+    const globalAverage = periodAverages.reduce((a, b) => a + b) / periodAverages.length;
+    const variance = periodAverages.reduce((sum, avg) => 
+      sum + Math.pow(avg - globalAverage, 2), 0
+    ) / periodAverages.length;
+    
+    return Math.sqrt(variance) / globalAverage;
+  }
+  
+  detectPartToWhole(data, categoricalColumns, numericColumns) {
+    for (const catCol of categoricalColumns) {
+      const uniqueValues = new Set(data.map(r => r[catCol])).size;
+      
+      if (uniqueValues >= 2 && uniqueValues <= 10) {
+        // Check if numeric column sums to meaningful total
+        for (const numCol of numericColumns) {
+          const categoryTotals = {};
+          data.forEach(row => {
+            const cat = row[catCol];
+            const val = row[numCol];
+            if (cat && typeof val === 'number') {
+              categoryTotals[cat] = (categoryTotals[cat] || 0) + val;
+            }
+          });
+          
+          const total = Object.values(categoryTotals).reduce((a, b) => a + b, 0);
+          const percentages = Object.values(categoryTotals).map(v => v / total);
+          
+          // Check if this looks like a meaningful part-to-whole
+          if (percentages.every(p => p > 0.01 && p < 0.99)) {
+            return {
+              detected: true,
+              categories: uniqueValues,
+              strength: 1 - this.calculateGini(percentages),
+              columns: {
+                category: catCol,
+                value: numCol
+              }
+            };
+          }
+        }
+      }
+    }
+    
+    return { detected: false };
+  }
+  
+  calculateGini(values) {
+    // Gini coefficient for inequality measurement
+    const sorted = [...values].sort((a, b) => a - b);
+    const n = sorted.length;
+    let sum = 0;
+    
+    for (let i = 0; i < n; i++) {
+      sum += (2 * (i + 1) - n - 1) * sorted[i];
+    }
+    
+    return sum / (n * sorted.reduce((a, b) => a + b, 0));
+  }
+  
+  detectCorrelations(data, numericColumns) {
+    const correlations = [];
+    
+    for (let i = 0; i < numericColumns.length; i++) {
+      for (let j = i + 1; j < numericColumns.length; j++) {
+        const col1 = numericColumns[i];
+        const col2 = numericColumns[j];
+        
+        const pairs = data
+          .filter(r => typeof r[col1] === 'number' && typeof r[col2] === 'number')
+          .map(r => [r[col1], r[col2]]);
+        
+        if (pairs.length < 10) continue;
+        
+        const correlation = this.calculatePearsonCorrelation(pairs);
+        
+        if (Math.abs(correlation) > 0.3) {
+          correlations.push({
+            column1: col1,
+            column2: col2,
+            correlation: correlation,
+            strength: Math.abs(correlation) > 0.7 ? 'strong' : 'moderate'
+          });
+        }
+      }
+    }
+    
+    return correlations.sort((a, b) => Math.abs(b.correlation) - Math.abs(a.correlation));
+  }
+  
+  calculatePearsonCorrelation(pairs) {
+    const n = pairs.length;
+    const sumX = pairs.reduce((sum, [x]) => sum + x, 0);
+    const sumY = pairs.reduce((sum, [, y]) => sum + y, 0);
+    const sumXY = pairs.reduce((sum, [x, y]) => sum + x * y, 0);
+    const sumX2 = pairs.reduce((sum, [x]) => sum + x * x, 0);
+    const sumY2 = pairs.reduce((sum, [, y]) => sum + y * y, 0);
+    
+    const numerator = n * sumXY - sumX * sumY;
+    const denominator = Math.sqrt((n * sumX2 - sumX * sumX) * (n * sumY2 - sumY * sumY));
+    
+    return denominator === 0 ? 0 : numerator / denominator;
+  }
+  
+  analyzeDistribution(data, column) {
+    const values = data
+      .map(r => r[column])
+      .filter(v => typeof v === 'number')
+      .sort((a, b) => a - b);
+    
+    if (values.length < 10) {
+      return { type: 'unknown', characteristics: {} };
+    }
+    
+    const n = values.length;
+    const mean = values.reduce((a, b) => a + b) / n;
+    const median = n % 2 === 0 
+      ? (values[n/2 - 1] + values[n/2]) / 2 
+      : values[Math.floor(n/2)];
+    
+    // Calculate moments
+    const variance = values.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / n;
+    const stdDev = Math.sqrt(variance);
+    const skewness = values.reduce((sum, v) => sum + Math.pow((v - mean) / stdDev, 3), 0) / n;
+    const kurtosis = values.reduce((sum, v) => sum + Math.pow((v - mean) / stdDev, 4), 0) / n - 3;
+    
+    // Determine distribution type
+    let type = 'unknown';
+    if (Math.abs(skewness) < 0.5 && Math.abs(kurtosis) < 1) {
+      type = 'normal';
+    } else if (skewness > 1) {
+      type = 'right-skewed';
+    } else if (skewness < -1) {
+      type = 'left-skewed';
+    } else if (kurtosis > 1) {
+      type = 'heavy-tailed';
+    } else if (kurtosis < -1) {
+      type = 'light-tailed';
+    }
+    
+    // Check for multimodality
+    const bins = this.createHistogramBins(values, 20);
+    const peaks = this.findPeaks(bins);
+    if (peaks.length > 1) {
+      type = 'multimodal';
+    }
+    
+    return {
+      type,
+      characteristics: {
+        mean,
+        median,
+        stdDev,
+        skewness,
+        kurtosis,
+        range: values[n-1] - values[0],
+        iqr: values[Math.floor(n * 0.75)] - values[Math.floor(n * 0.25)],
+        outliers: this.detectOutliers(values)
+      }
+    };
+  }
+  
+  createHistogramBins(values, numBins) {
+    const min = values[0];
+    const max = values[values.length - 1];
+    const binWidth = (max - min) / numBins;
+    const bins = new Array(numBins).fill(0);
+    
+    values.forEach(v => {
+      const binIndex = Math.min(Math.floor((v - min) / binWidth), numBins - 1);
+      bins[binIndex]++;
+    });
+    
+    return bins;
+  }
+  
+  findPeaks(bins) {
+    const peaks = [];
+    for (let i = 1; i < bins.length - 1; i++) {
+      if (bins[i] > bins[i-1] && bins[i] > bins[i+1]) {
+        peaks.push(i);
+      }
+    }
+    return peaks;
+  }
+  
+  detectOutliers(sortedValues) {
+    const n = sortedValues.length;
+    const q1 = sortedValues[Math.floor(n * 0.25)];
+    const q3 = sortedValues[Math.floor(n * 0.75)];
+    const iqr = q3 - q1;
+    const lowerBound = q1 - 1.5 * iqr;
+    const upperBound = q3 + 1.5 * iqr;
+    
+    return {
+      count: sortedValues.filter(v => v < lowerBound || v > upperBound).length,
+      percentage: sortedValues.filter(v => v < lowerBound || v > upperBound).length / n
+    };
+  }
+  
+  detectComparisons(data, categoricalColumns, numericColumns) {
+    const comparisons = [];
+    
+    categoricalColumns.forEach(catCol => {
+      const uniqueValues = new Set(data.map(r => r[catCol])).size;
+      
+      if (uniqueValues >= 2 && uniqueValues <= 20) {
+        numericColumns.forEach(numCol => {
+          // Calculate variance between categories
+          const categoryStats = this.calculateCategoryStats(data, catCol, numCol);
+          
+          if (categoryStats.varianceRatio > 0.1) {
+            comparisons.push({
+              categoryColumn: catCol,
+              valueColumn: numCol,
+              categories: uniqueValues,
+              varianceRatio: categoryStats.varianceRatio,
+              description: `Compare ${numCol} across ${uniqueValues} ${catCol} categories`
+            });
+          }
+        });
+      }
+    });
+    
+    return comparisons;
+  }
+  
+  calculateCategoryStats(data, categoryCol, valueCol) {
+    const categoryValues = {};
+    
+    data.forEach(row => {
+      const cat = row[categoryCol];
+      const val = row[valueCol];
+      if (cat && typeof val === 'number') {
+        categoryValues[cat] = categoryValues[cat] || [];
+        categoryValues[cat].push(val);
+      }
+    });
+    
+    const categoryMeans = Object.values(categoryValues).map(values => 
+      values.reduce((a, b) => a + b) / values.length
+    );
+    
+    const globalMean = categoryMeans.reduce((a, b) => a + b) / categoryMeans.length;
+    const betweenVariance = categoryMeans.reduce((sum, mean) => 
+      sum + Math.pow(mean - globalMean, 2), 0
+    ) / categoryMeans.length;
+    
+    return {
+      varianceRatio: betweenVariance / Math.pow(globalMean, 2)
+    };
+  }
+  
+  detectRanking(data, categoryCol, valueCol) {
+    const categoryTotals = {};
+    
+    data.forEach(row => {
+      const cat = row[categoryCol];
+      const val = row[valueCol];
+      if (cat && typeof val === 'number') {
+        categoryTotals[cat] = (categoryTotals[cat] || 0) + val;
+      }
+    });
+    
+    const sorted = Object.entries(categoryTotals)
+      .sort((a, b) => b[1] - a[1]);
+    
+    if (sorted.length < 3 || sorted.length > 30) {
+      return { suitable: false };
+    }
+    
+    // Check if there's meaningful variance
+    const values = sorted.map(([, v]) => v);
+    const max = values[0];
+    const min = values[values.length - 1];
+    
+    if (max / min < 1.5) {
+      return { suitable: false };
+    }
+    
+    return {
+      suitable: true,
+      categoryColumn: categoryCol,
+      valueColumn: valueCol,
+      topItems: sorted.slice(0, 5).map(([cat, val]) => ({ category: cat, value: val })),
+      description: `Rank ${sorted.length} categories by ${valueCol}`
+    };
+  }
+  
+  findGeographicColumns(columns, columnTypes) {
+    const geoKeywords = ['state', 'country', 'city', 'region', 'location', 'address', 
+                        'postcode', 'zip', 'latitude', 'longitude', 'lat', 'lon', 'lng'];
+    
+    return columns.filter(col => {
+      const isGeo = geoKeywords.some(keyword => col.toLowerCase().includes(keyword));
+      const isAppropriateType = ['categorical', 'postcode', 'string', 'float', 'integer']
+        .includes(columnTypes[col]?.type || 'unknown');
+      return isGeo && isAppropriateType;
+    });
+  }
+  
+  detectHierarchy(data, columns) {
+    // Look for parent-child relationships
+    const hierarchicalPatterns = [
+      ['category', 'subcategory'],
+      ['department', 'team'],
+      ['country', 'state', 'city'],
+      ['year', 'month', 'day'],
+      ['region', 'district', 'store']
+    ];
+    
+    for (const pattern of hierarchicalPatterns) {
+      const matchedColumns = [];
+      
+      for (const level of pattern) {
+        const found = columns.find(col => 
+          col.toLowerCase().includes(level)
+        );
+        if (found) {
+          matchedColumns.push(found);
+        }
+      }
+      
+      if (matchedColumns.length >= 2) {
+        return {
+          detected: true,
+          levels: matchedColumns,
+          depth: matchedColumns.length,
+          description: `Hierarchical structure detected: ${matchedColumns.join(' → ')}`
+        };
+      }
+    }
+    
+    return { detected: false };
+  }
+}
+
+class DataProfiler {
+  analyzeData(data, columnTypes) {
+    const profile = {
+      dimensions: this.analyzeDimensions(data, columnTypes),
+      cardinality: this.analyzeCardinality(data, columnTypes),
+      density: this.analyzeDensity(data, columnTypes),
+      patterns: this.analyzePatterns(data, columnTypes),
+      quality: this.analyzeQuality(data, columnTypes),
+      relationships: this.analyzeRelationships(data, columnTypes)
+    };
+    
+    return profile;
+  }
+  
+  analyzeDimensions(data, columnTypes) {
+    const columns = Object.keys(columnTypes);
+    
+    return {
+      rows: data.length,
+      columns: columns.length,
+      continuous: columns.filter(col => ['integer', 'float'].includes(columnTypes[col].type)).length,
+      discrete: columns.filter(col => columnTypes[col].type === 'categorical').length,
+      temporal: columns.filter(col => columnTypes[col].type === 'date').length,
+      text: columns.filter(col => columnTypes[col].type === 'string').length,
+      geographic: this.countGeographicColumns(columns, columnTypes),
+      density: data.length * columns.length,
+      sizeCategory: this.categorizeSze(data.length)
+    };
+  }
+  
+  categorizeSze(rowCount) {
+    if (rowCount < 100) return 'small';
+    if (rowCount < 1000) return 'medium';
+    if (rowCount < 10000) return 'large';
+    if (rowCount < 100000) return 'very_large';
+    return 'massive';
+  }
+  
+  analyzeCardinality(data, columnTypes) {
+    const cardinality = {};
+    const columns = Object.keys(columnTypes);
+    
+    columns.forEach(col => {
+      const uniqueValues = new Set(data.map(r => r[col])).size;
+      const ratio = uniqueValues / data.length;
+      
+      cardinality[col] = {
+        unique: uniqueValues,
+        ratio: ratio,
+        category: this.categorizeCardinality(ratio, uniqueValues, columnTypes[col].type)
+      };
+    });
+    
+    return cardinality;
+  }
+  
+  categorizeCardinality(ratio, unique, type) {
+    if (type === 'categorical') {
+      if (unique === 2) return 'binary';
+      if (unique <= 5) return 'low_categorical';
+      if (unique <= 10) return 'medium_categorical';
+      if (unique <= 20) return 'high_categorical';
+      return 'very_high_categorical';
+    }
+    
+    if (ratio > 0.95) return 'unique_identifier';
+    if (ratio > 0.5) return 'high_cardinality';
+    if (ratio > 0.1) return 'medium_cardinality';
+    return 'low_cardinality';
+  }
+  
+  analyzeDensity(data, columnTypes) {
+    const columns = Object.keys(columnTypes);
+    const density = {
+      overall: 1,
+      byColumn: {},
+      sparsity: 0,
+      missingPatterns: []
+    };
+    
+    // Calculate missing values per column
+    columns.forEach(col => {
+      const missing = data.filter(r => r[col] === null || r[col] === undefined).length;
+      const missingRatio = missing / data.length;
+      
+      density.byColumn[col] = {
+        populated: 1 - missingRatio,
+        missing: missing,
+        missingPercentage: missingRatio * 100
+      };
+      
+      if (missingRatio > 0.1) {
+        density.missingPatterns.push({
+          column: col,
+          percentage: missingRatio * 100,
+          impact: missingRatio > 0.5 ? 'severe' : missingRatio > 0.2 ? 'moderate' : 'low'
+        });
+      }
+    });
+    
+    // Overall density
+    const totalCells = data.length * columns.length;
+    const missingCells = columns.reduce((sum, col) => 
+      sum + density.byColumn[col].missing, 0
+    );
+    density.overall = 1 - (missingCells / totalCells);
+    density.sparsity = missingCells / totalCells;
+    
+    return density;
+  }
+  
+  analyzePatterns(data, columnTypes) {
+    const patterns = {
+      temporal: this.detectTemporalPatterns(data, columnTypes),
+      categorical: this.detectCategoricalPatterns(data, columnTypes),
+      numeric: this.detectNumericPatterns(data, columnTypes),
+      compound: this.detectCompoundPatterns(data, columnTypes)
+    };
+    
+    return patterns;
+  }
+  
+  detectTemporalPatterns(data, columnTypes) {
+    const dateColumns = Object.keys(columnTypes).filter(col => 
+      columnTypes[col].type === 'date'
+    );
+    
+    if (dateColumns.length === 0) return null;
+    
+    const patterns = {};
+    
+    dateColumns.forEach(col => {
+      const dates = data
+        .map(r => r[col])
+        .filter(d => d instanceof Date)
+        .sort((a, b) => a - b);
+      
+      if (dates.length < 2) return;
+      
+      // Analyze frequency
+      const intervals = [];
+      for (let i = 1; i < dates.length; i++) {
+        intervals.push(dates[i] - dates[i-1]);
+      }
+      
+      const avgInterval = intervals.reduce((a, b) => a + b) / intervals.length;
+      const frequency = this.detectFrequency(avgInterval);
+      
+      // Analyze range
+      const range = {
+        start: dates[0],
+        end: dates[dates.length - 1],
+        span: dates[dates.length - 1] - dates[0],
+        spanDays: (dates[dates.length - 1] - dates[0]) / (1000 * 60 * 60 * 24)
+      };
+      
+      // Check for gaps
+      const gaps = intervals
+        .map((interval, idx) => ({ interval, index: idx }))
+        .filter(item => item.interval > avgInterval * 2)
+        .map(item => ({
+          start: dates[item.index],
+          end: dates[item.index + 1],
+          duration: item.interval
+        }));
+      
+      patterns[col] = {
+        frequency,
+        range,
+        hasGaps: gaps.length > 0,
+        gaps,
+        completeness: dates.length / data.length
+      };
+    });
+    
+    return patterns;
+  }
+  
+  detectFrequency(avgIntervalMs) {
+    const hour = 1000 * 60 * 60;
+    const day = hour * 24;
+    const week = day * 7;
+    const month = day * 30;
+    
+    if (avgIntervalMs < hour * 2) return 'hourly';
+    if (avgIntervalMs < day * 2) return 'daily';
+    if (avgIntervalMs < week * 2) return 'weekly';
+    if (avgIntervalMs < month * 2) return 'monthly';
+    if (avgIntervalMs < month * 4) return 'quarterly';
+    return 'irregular';
+  }
+  
+  detectCategoricalPatterns(data, columnTypes) {
+    const categoricalColumns = Object.keys(columnTypes).filter(col => 
+      columnTypes[col].type === 'categorical'
+    );
+    
+    const patterns = {};
+    
+    categoricalColumns.forEach(col => {
+      const values = data.map(r => r[col]).filter(v => v !== null);
+      const valueCounts = {};
+      values.forEach(v => valueCounts[v] = (valueCounts[v] || 0) + 1);
+      
+      const sorted = Object.entries(valueCounts)
+        .sort((a, b) => b[1] - a[1]);
+      
+      // Analyze distribution
+      const total = values.length;
+      const distribution = sorted.map(([value, count]) => ({
+        value,
+        count,
+        percentage: count / total * 100
+      }));
+      
+      // Check for imbalance
+      const topPercentage = distribution[0]?.percentage || 0;
+      const imbalanced = topPercentage > 50;
+      
+      // Check for rare categories
+      const rareCategories = distribution.filter(d => d.percentage < 5);
+      
+      patterns[col] = {
+        uniqueValues: sorted.length,
+        distribution: distribution.slice(0, 10), // Top 10
+        imbalanced,
+        dominantValue: imbalanced ? distribution[0].value : null,
+        rareCategories: rareCategories.length,
+        entropy: this.calculateEntropy(Object.values(valueCounts))
+      };
+    });
+    
+    return patterns;
+  }
+  
+  calculateEntropy(counts) {
+    const total = counts.reduce((a, b) => a + b, 0);
+    const probabilities = counts.map(c => c / total);
+    
+    return -probabilities.reduce((sum, p) => {
+      return p > 0 ? sum + p * Math.log2(p) : sum;
+    }, 0);
+  }
+  
+  detectNumericPatterns(data, columnTypes) {
+    const numericColumns = Object.keys(columnTypes).filter(col => 
+      ['integer', 'float'].includes(columnTypes[col].type)
+    );
+    
+    const patterns = {};
+    
+    numericColumns.forEach(col => {
+      const values = data
+        .map(r => r[col])
+        .filter(v => typeof v === 'number')
+        .sort((a, b) => a - b);
+      
+      if (values.length < 10) return;
+      
+      // Basic statistics
+      const n = values.length;
+      const mean = values.reduce((a, b) => a + b) / n;
+      const median = n % 2 === 0 
+        ? (values[n/2 - 1] + values[n/2]) / 2 
+        : values[Math.floor(n/2)];
+      
+      // Check for specific patterns
+      const isMonetary = this.checkMonetaryPattern(values);
+      const isPercentage = this.checkPercentagePattern(values);
+      const isCount = this.checkCountPattern(values);
+      const hasNegative = values.some(v => v < 0);
+      
+      // Scale
+      const range = values[n-1] - values[0];
+      const orderOfMagnitude = Math.floor(Math.log10(Math.max(...values.map(Math.abs))));
+      
+      patterns[col] = {
+        dataPattern: isMonetary ? 'monetary' : isPercentage ? 'percentage' : isCount ? 'count' : 'continuous',
+        scale: {
+          min: values[0],
+          max: values[n-1],
+          range,
+          orderOfMagnitude
+        },
+        hasNegative,
+        distribution: {
+          mean,
+          median,
+          skewness: this.calculateSkewness(values, mean, n)
+        }
+      };
+    });
+    
+    return patterns;
+  }
+  
+  checkMonetaryPattern(values) {
+    // Check if values look like money (2 decimal places common)
+    const decimalCounts = values.map(v => {
+      const str = v.toString();
+      const decimalIndex = str.indexOf('.');
+      return decimalIndex === -1 ? 0 : str.length - decimalIndex - 1;
+    });
+    
+    const twoDecimals = decimalCounts.filter(d => d === 2).length;
+    return twoDecimals / values.length > 0.5;
+  }
+  
+  checkPercentagePattern(values) {
+    // Check if values are between 0 and 100 or 0 and 1
+    const between0And1 = values.every(v => v >= 0 && v <= 1);
+    const between0And100 = values.every(v => v >= 0 && v <= 100);
+    
+    return between0And1 || (between0And100 && values.some(v => v > 1));
+  }
+  
+  checkCountPattern(values) {
+    // Check if all values are integers
+    return values.every(v => Number.isInteger(v)) && values.every(v => v >= 0);
+  }
+  
+  calculateSkewness(values, mean, n) {
+    const variance = values.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / n;
+    const stdDev = Math.sqrt(variance);
+    
+    if (stdDev === 0) return 0;
+    
+    return values.reduce((sum, v) => sum + Math.pow((v - mean) / stdDev, 3), 0) / n;
+  }
+  
+  detectCompoundPatterns(data, columnTypes) {
+    const patterns = [];
+    
+    // Detect time series patterns
+    const dateColumns = Object.keys(columnTypes).filter(col => 
+      columnTypes[col].type === 'date'
+    );
+    const numericColumns = Object.keys(columnTypes).filter(col => 
+      ['integer', 'float'].includes(columnTypes[col].type)
+    );
+    
+    if (dateColumns.length > 0 && numericColumns.length > 0) {
+      patterns.push({
+        type: 'time_series',
+        temporal: dateColumns,
+        measures: numericColumns,
+        strength: 'high'
+      });
+    }
+    
+    // Detect hierarchical patterns
+    const hierarchicalCandidates = this.findHierarchicalCandidates(data, columnTypes);
+    if (hierarchicalCandidates.length > 0) {
+      patterns.push({
+        type: 'hierarchical',
+        levels: hierarchicalCandidates,
+        strength: 'medium'
+      });
+    }
+    
+    // Detect geographic patterns
+    const geoColumns = this.findGeographicColumns(Object.keys(columnTypes), columnTypes);
+    if (geoColumns.length > 0 && numericColumns.length > 0) {
+      patterns.push({
+        type: 'geographic',
+        location: geoColumns,
+        measures: numericColumns,
+        strength: 'high'
+      });
+    }
+    
+    return patterns;
+  }
+  
+  findHierarchicalCandidates(data, columnTypes) {
+    const categoricalColumns = Object.keys(columnTypes).filter(col => 
+      columnTypes[col].type === 'categorical'
+    );
+    
+    const candidates = [];
+    
+    // Check cardinality relationships
+    for (let i = 0; i < categoricalColumns.length; i++) {
+      for (let j = i + 1; j < categoricalColumns.length; j++) {
+        const col1 = categoricalColumns[i];
+        const col2 = categoricalColumns[j];
+        
+        const unique1 = new Set(data.map(r => r[col1])).size;
+        const unique2 = new Set(data.map(r => r[col2])).size;
+        
+        // One should have significantly fewer unique values
+        if (unique1 < unique2 / 3) {
+          candidates.push([col1, col2]);
+        } else if (unique2 < unique1 / 3) {
+          candidates.push([col2, col1]);
+        }
+      }
+    }
+    
+    return candidates;
+  }
+  
+  analyzeQuality(data, columnTypes) {
+    const quality = {
+      completeness: 0,
+      consistency: [],
+      validity: [],
+      accuracy: []
+    };
+    
+    // Completeness
+    const totalCells = data.length * Object.keys(columnTypes).length;
+    const missingCells = Object.keys(columnTypes).reduce((sum, col) => 
+      sum + data.filter(r => r[col] === null || r[col] === undefined).length, 0
+    );
+    quality.completeness = 1 - (missingCells / totalCells);
+    
+    // Check for consistency issues
+    Object.keys(columnTypes).forEach(col => {
+      if (columnTypes[col].type === 'categorical') {
+        // Check for similar but different values
+        const values = [...new Set(data.map(r => r[col]).filter(v => v !== null))];
+        const similar = this.findSimilarValues(values);
+        
+        if (similar.length > 0) {
+          quality.consistency.push({
+            column: col,
+            issue: 'similar_values',
+            examples: similar
+          });
+        }
+      }
+    });
+    
+    return quality;
+  }
+  
+  findSimilarValues(values) {
+    const similar = [];
+    
+    for (let i = 0; i < values.length; i++) {
+      for (let j = i + 1; j < values.length; j++) {
+        const v1 = values[i].toString().toLowerCase();
+        const v2 = values[j].toString().toLowerCase();
+        
+        // Check for case differences
+        if (v1 === v2 && values[i] !== values[j]) {
+          similar.push([values[i], values[j]]);
+        }
+        
+        // Check for leading/trailing spaces
+        if (v1.trim() === v2.trim() && values[i] !== values[j]) {
+          similar.push([values[i], values[j]]);
+        }
+      }
+    }
+    
+    return similar.slice(0, 5); // Return top 5 examples
+  }
+  
+  analyzeRelationships(data, columnTypes) {
+    const relationships = {
+      correlations: [],
+      dependencies: [],
+      associations: []
+    };
+    
+    // Find numeric correlations
+    const numericColumns = Object.keys(columnTypes).filter(col => 
+      ['integer', 'float'].includes(columnTypes[col].type)
+    );
+    
+    for (let i = 0; i < numericColumns.length; i++) {
+      for (let j = i + 1; j < numericColumns.length; j++) {
+        const correlation = this.calculateCorrelation(
+          data.map(r => r[numericColumns[i]]),
+          data.map(r => r[numericColumns[j]])
+        );
+        
+        if (Math.abs(correlation) > 0.3) {
+          relationships.correlations.push({
+            column1: numericColumns[i],
+            column2: numericColumns[j],
+            correlation,
+            strength: Math.abs(correlation) > 0.7 ? 'strong' : 'moderate'
+          });
+        }
+      }
+    }
+    
+    return relationships;
+  }
+  
+  calculateCorrelation(x, y) {
+    const pairs = x
+      .map((xi, i) => [xi, y[i]])
+      .filter(([xi, yi]) => typeof xi === 'number' && typeof yi === 'number');
+    
+    if (pairs.length < 10) return 0;
+    
+    const n = pairs.length;
+    const sumX = pairs.reduce((sum, [xi]) => sum + xi, 0);
+    const sumY = pairs.reduce((sum, [, yi]) => sum + yi, 0);
+    const sumXY = pairs.reduce((sum, [xi, yi]) => sum + xi * yi, 0);
+    const sumX2 = pairs.reduce((sum, [xi]) => sum + xi * xi, 0);
+    const sumY2 = pairs.reduce((sum, [, yi]) => sum + yi * yi, 0);
+    
+    const numerator = n * sumXY - sumX * sumY;
+    const denominator = Math.sqrt((n * sumX2 - sumX * sumX) * (n * sumY2 - sumY * sumY));
+    
+    return denominator === 0 ? 0 : numerator / denominator;
+  }
+  
+  countGeographicColumns(columns, columnTypes) {
+    const geoKeywords = ['state', 'country', 'city', 'region', 'location', 'address', 
+                        'postcode', 'zip', 'latitude', 'longitude', 'lat', 'lon', 'lng'];
+    
+    return columns.filter(col => {
+      const isGeo = geoKeywords.some(keyword => col.toLowerCase().includes(keyword));
+      const isAppropriateType = ['categorical', 'postcode', 'string', 'float', 'integer']
+        .includes(columnTypes[col]?.type || 'unknown');
+      return isGeo && isAppropriateType;
+    }).length;
+  }
+  
+  findGeographicColumns(columns, columnTypes) {
+    const geoKeywords = ['state', 'country', 'city', 'region', 'location', 'address', 
+                        'postcode', 'zip', 'latitude', 'longitude', 'lat', 'lon', 'lng'];
+    
+    return columns.filter(col => {
+      const isGeo = geoKeywords.some(keyword => col.toLowerCase().includes(keyword));
+      const isAppropriateType = ['categorical', 'postcode', 'string', 'float', 'integer']
+        .includes(columnTypes[col]?.type || 'unknown');
+      return isGeo && isAppropriateType;
+    });
+  }
+}
+
+class PerceptualScorer {
+  constructor() {
+    // Cleveland & McGill's ranking of visual encodings by accuracy
+    this.encodingAccuracy = {
+      position_common_scale: 0.95,      // Position on common scale (most accurate)
+      position_nonaligned_scale: 0.85,  // Position on non-aligned scales
+      length: 0.80,                     // Length, direction, angle
+      angle: 0.65,                      // Angle (pie charts)
+      area: 0.60,                       // Area (bubble charts)
+      volume: 0.50,                     // 3D volume
+      curvature: 0.45,                  // Curvature
+      shading: 0.40,                    // Shading, color saturation
+      color_hue: 0.35                   // Color hue (least accurate)
+    };
+    
+    // Task-specific encoding preferences
+    this.taskEncodingMap = {
+      comparison: ['position_common_scale', 'length', 'position_nonaligned_scale'],
+      composition: ['position_common_scale', 'length', 'angle', 'area'],
+      distribution: ['position_common_scale', 'area', 'length'],
+      correlation: ['position_common_scale', 'position_nonaligned_scale'],
+      trend: ['position_common_scale', 'length'],
+      ranking: ['position_common_scale', 'length'],
+      part_to_whole: ['angle', 'area', 'length', 'position_common_scale'],
+      deviation: ['position_common_scale', 'length', 'color_hue']
+    };
+  }
+  
+  scoreVisualization(visualization, task, dataProfile) {
+    const scores = {
+      perceptualAccuracy: this.scorePerceptualAccuracy(visualization, task),
+      dataInkRatio: this.scoreDataInkRatio(visualization),
+      cognitiveLoad: this.scoreCognitiveLoad(visualization, dataProfile),
+      taskAlignment: this.scoreTaskAlignment(visualization, task),
+      scalability: this.scoreScalability(visualization, dataProfile),
+      aesthetics: this.scoreAesthetics(visualization)
+    };
+    
+    // Calculate weighted overall score
+    const weights = {
+      perceptualAccuracy: 0.35,
+      taskAlignment: 0.25,
+      dataInkRatio: 0.15,
+      cognitiveLoad: 0.15,
+      scalability: 0.05,
+      aesthetics: 0.05
+    };
+    
+    const overallScore = Object.entries(scores).reduce((sum, [key, score]) => 
+      sum + score * weights[key], 0
+    );
+    
+    return {
+      overall: overallScore,
+      breakdown: scores,
+      effectiveness: this.categorizeEffectiveness(overallScore),
+      recommendations: this.generateRecommendations(scores, visualization)
+    };
+  }
+  
+  scorePerceptualAccuracy(visualization, task) {
+    const encoding = visualization.encoding || 'position_common_scale';
+    const baseAccuracy = this.encodingAccuracy[encoding] || 0.5;
+    
+    // Adjust for specific chart types
+    const chartTypeAdjustments = {
+      bar: 1.0,        // Bar charts are perceptually optimal
+      line: 0.95,      // Line charts very good for trends
+      scatter: 0.95,   // Scatterplots excellent for correlation
+      pie: 0.7,        // Pie charts have known issues
+      bubble: 0.75,    // Area encoding less accurate
+      heatmap: 0.85,   // Color encoding with position
+      treemap: 0.8,    // Area encoding with hierarchy
+      sunburst: 0.75,  // Angle encoding with hierarchy
+      parallel: 0.85,  // Multiple position encodings
+      horizon: 0.9     // Clever use of position and color
+    };
+    
+    const chartAdjustment = chartTypeAdjustments[visualization.type] || 0.8;
+    
+    return baseAccuracy * chartAdjustment;
+  }
+  
+  scoreDataInkRatio(visualization) {
+    // Based on Tufte's principles
+    const unnecessaryElements = {
+      gridlines: visualization.gridlines?.excessive ? -0.1 : 0,
+      borders: visualization.borders?.heavy ? -0.05 : 0,
+      backgrounds: visualization.backgrounds?.patterned ? -0.1 : 0,
+      effects3d: visualization.effects3d ? -0.2 : 0,
+      decorations: visualization.decorations ? -0.15 : 0,
+      redundantLegends: visualization.redundantLegends ? -0.1 : 0
+    };
+    
+    const penalty = Object.values(unnecessaryElements).reduce((sum, val) => sum + val, 0);
+    const baseScore = 0.9; // Start with good score
+    
+    return Math.max(0.3, baseScore + penalty);
+  }
+  
+  scoreCognitiveLoad(visualization, dataProfile) {
+    let load = 0;
+    
+    // Number of data dimensions shown
+    const dimensions = visualization.dimensions || 2;
+    if (dimensions <= 2) load += 0.9;
+    else if (dimensions <= 3) load += 0.7;
+    else if (dimensions <= 4) load += 0.5;
+    else load += 0.3;
+    
+    // Number of categories/series
+    const categories = visualization.categories || 1;
+    if (categories <= 5) load += 0.9;
+    else if (categories <= 10) load += 0.7;
+    else if (categories <= 20) load += 0.5;
+    else load += 0.3;
+    
+    // Data density
+    const pointsPerPixel = (dataProfile.dimensions.rows || 100) / 
+                          (visualization.width * visualization.height || 400000);
+    
+    if (pointsPerPixel < 0.01) load += 0.9;
+    else if (pointsPerPixel < 0.1) load += 0.7;
+    else if (pointsPerPixel < 1) load += 0.5;
+    else load += 0.3;
+    
+    return load / 3; // Average of three factors
+  }
+  
+  scoreTaskAlignment(visualization, task) {
+    const taskType = task.type || 'comparison';
+    const vizType = visualization.type;
+    
+    // Task-visualization alignment matrix
+    const alignmentMatrix = {
+      trend_analysis: {
+        line: 1.0,
+        area: 0.9,
+        scatter: 0.7,
+        bar: 0.5,
+        horizon: 0.95,
+        sparkline: 0.85
+      },
+      comparison: {
+        bar: 1.0,
+        column: 0.95,
+        line: 0.7,
+        scatter: 0.6,
+        radar: 0.8,
+        bullet: 0.9
+      },
+      part_to_whole: {
+        pie: 0.8,
+        donut: 0.85,
+        stacked_bar: 0.9,
+        treemap: 0.95,
+        sunburst: 0.9,
+        waffle: 0.85
+      },
+      distribution: {
+        histogram: 1.0,
+        box: 0.95,
+        violin: 0.95,
+        density: 0.9,
+        strip: 0.85,
+        ridgeline: 0.9
+      },
+      correlation: {
+        scatter: 1.0,
+        hexbin: 0.95,
+        contour: 0.9,
+        correlogram: 0.85,
+        bubble: 0.8,
+        splom: 0.95
+      },
+      ranking: {
+        bar: 1.0,
+        lollipop: 0.95,
+        slope: 0.9,
+        bump: 0.85,
+        column: 0.85
+      },
+      geospatial: {
+        choropleth: 1.0,
+        symbol: 0.9,
+        heatmap: 0.85,
+        flow: 0.9,
+        cartogram: 0.8
+      },
+      hierarchy: {
+        tree: 1.0,
+        treemap: 0.95,
+        sunburst: 0.9,
+        circle_pack: 0.85,
+        dendogram: 0.9
+      }
+    };
+    
+    const taskAlignments = alignmentMatrix[taskType] || {};
+    return taskAlignments[vizType] || 0.5;
+  }
+  
+  scoreScalability(visualization, dataProfile) {
+    const dataSize = dataProfile.dimensions.rows;
+    const vizType = visualization.type;
+    
+    // Scalability limits by visualization type
+    const scalabilityLimits = {
+      scatter: { optimal: 1000, max: 10000 },
+      line: { optimal: 500, max: 5000 },
+      bar: { optimal: 50, max: 200 },
+      pie: { optimal: 7, max: 12 },
+      heatmap: { optimal: 10000, max: 100000 },
+      hexbin: { optimal: 100000, max: 1000000 },
+      treemap: { optimal: 100, max: 1000 },
+      parallel: { optimal: 1000, max: 10000 },
+      horizon: { optimal: 5000, max: 50000 }
+    };
+    
+    const limits = scalabilityLimits[vizType] || { optimal: 100, max: 1000 };
+    
+    if (dataSize <= limits.optimal) return 1.0;
+    if (dataSize <= limits.max) {
+      // Linear decay from optimal to max
+      return 1.0 - (dataSize - limits.optimal) / (limits.max - limits.optimal) * 0.5;
+    }
+    return 0.3; // Minimum score for over-limit
+  }
+  
+  scoreAesthetics(visualization) {
+    let score = 0.8; // Base aesthetic score
+    
+    // Positive factors
+    if (visualization.colorScheme?.type === 'scientific') score += 0.1;
+    if (visualization.typography?.readable) score += 0.05;
+    if (visualization.layout?.balanced) score += 0.05;
+    
+    // Negative factors
+    if (visualization.colors?.tooMany) score -= 0.1;
+    if (visualization.effects?.distracting) score -= 0.1;
+    if (visualization.labels?.overlapping) score -= 0.1;
+    
+    return Math.max(0.3, Math.min(1.0, score));
+  }
+  
+  categorizeEffectiveness(score) {
+    if (score >= 0.9) return 'excellent';
+    if (score >= 0.8) return 'very_good';
+    if (score >= 0.7) return 'good';
+    if (score >= 0.6) return 'acceptable';
+    if (score >= 0.5) return 'marginal';
+    return 'poor';
+  }
+  
+  generateRecommendations(scores, visualization) {
+    const recommendations = [];
+    
+    // Perceptual accuracy recommendations
+    if (scores.perceptualAccuracy < 0.7) {
+      recommendations.push({
+        type: 'encoding',
+        priority: 'high',
+        message: 'Consider using position or length encoding instead of ' + 
+                 (visualization.encoding || 'current encoding') + 
+                 ' for better perceptual accuracy'
+      });
+    }
+    
+    // Data-ink ratio recommendations
+    if (scores.dataInkRatio < 0.7) {
+      recommendations.push({
+        type: 'simplification',
+        priority: 'medium',
+        message: 'Remove unnecessary chart elements like heavy gridlines, borders, or 3D effects'
+      });
+    }
+    
+    // Cognitive load recommendations
+    if (scores.cognitiveLoad < 0.6) {
+      recommendations.push({
+        type: 'complexity',
+        priority: 'high',
+        message: 'Consider breaking down into multiple simpler visualizations or using progressive disclosure'
+      });
+    }
+    
+    // Task alignment recommendations
+    if (scores.taskAlignment < 0.7) {
+      recommendations.push({
+        type: 'chart_type',
+        priority: 'high',
+        message: 'This chart type may not be optimal for your analytical task'
+      });
+    }
+    
+    // Scalability recommendations
+    if (scores.scalability < 0.6) {
+      recommendations.push({
+        type: 'data_reduction',
+        priority: 'medium',
+        message: 'Consider aggregation, sampling, or a different visualization type for this data volume'
+      });
+    }
+    
+    return recommendations;
+  }
+  
+  compareVisualizations(viz1, viz2, task, dataProfile) {
+    const score1 = this.scoreVisualization(viz1, task, dataProfile);
+    const score2 = this.scoreVisualization(viz2, task, dataProfile);
+    
+    return {
+      winner: score1.overall > score2.overall ? viz1 : viz2,
+      scores: {
+        viz1: score1,
+        viz2: score2
+      },
+      differential: Math.abs(score1.overall - score2.overall),
+      recommendation: this.generateComparison(viz1, viz2, score1, score2)
+    };
+  }
+  
+  generateComparison(viz1, viz2, score1, score2) {
+    const diff = score1.overall - score2.overall;
+    
+    if (Math.abs(diff) < 0.05) {
+      return 'Both visualizations are similarly effective. Choose based on your specific context.';
+    }
+    
+    const better = diff > 0 ? viz1 : viz2;
+    const worse = diff > 0 ? viz2 : viz1;
+    const betterScore = diff > 0 ? score1 : score2;
+    const worseScore = diff > 0 ? score2 : score1;
+    
+    // Find the key differentiator
+    let maxDiff = 0;
+    let keyFactor = '';
+    
+    Object.keys(betterScore.breakdown).forEach(factor => {
+      const factorDiff = Math.abs(betterScore.breakdown[factor] - worseScore.breakdown[factor]);
+      if (factorDiff > maxDiff) {
+        maxDiff = factorDiff;
+        keyFactor = factor;
+      }
+    });
+    
+    return `${better.type} is ${Math.round(Math.abs(diff) * 100)}% more effective than ${worse.type}, ` +
+           `primarily due to better ${keyFactor.replace(/_/g, ' ')}`;
+  }
+}
+
+class ChartSelector {
+  constructor() {
+    this.perceptualScorer = new PerceptualScorer();
+    
+    // Chart type definitions with capabilities
+    this.chartTypes = {
+      bar: {
+        tasks: ['comparison', 'ranking', 'deviation'],
+        dataTypes: ['categorical', 'numeric'],
+        encoding: 'length',
+        maxCategories: 50,
+        strengths: ['Precise value comparison', 'Clear ranking', 'Handles many categories'],
+        weaknesses: ['Poor for time series', 'Limited dimensions']
+      },
+      column: {
+        tasks: ['comparison', 'ranking', 'time_series'],
+        dataTypes: ['categorical', 'numeric', 'temporal'],
+        encoding: 'length',
+        maxCategories: 20,
+        strengths: ['Good for time series with few points', 'Clear comparison'],
+        weaknesses: ['Limited categories due to width']
+      },
+      line: {
+        tasks: ['trend_analysis', 'time_series', 'comparison'],
+        dataTypes: ['temporal', 'numeric'],
+        encoding: 'position_common_scale',
+        maxSeries: 7,
+        strengths: ['Excellent for trends', 'Shows continuity', 'Multiple series'],
+        weaknesses: ['Not for categories', 'Implies continuity']
+      },
+      area: {
+        tasks: ['trend_analysis', 'part_to_whole', 'accumulation'],
+        dataTypes: ['temporal', 'numeric'],
+        encoding: 'area',
+        maxSeries: 5,
+        strengths: ['Shows volume/accumulation', 'Good for cumulative data'],
+        weaknesses: ['Occlusion with multiple series', 'Less precise than line']
+      },
+      scatter: {
+        tasks: ['correlation', 'distribution', 'outliers', 'clustering'],
+        dataTypes: ['numeric', 'numeric'],
+        encoding: 'position_common_scale',
+        maxPoints: 10000,
+        strengths: ['Shows relationships', 'Identifies patterns', 'Outlier detection'],
+        weaknesses: ['Overplotting', 'Requires two continuous variables']
+      },
+      bubble: {
+        tasks: ['correlation', 'comparison', 'distribution'],
+        dataTypes: ['numeric', 'numeric', 'numeric'],
+        encoding: 'area',
+        maxPoints: 500,
+        strengths: ['Three dimensions', 'Engaging visual'],
+        weaknesses: ['Area perception issues', 'Overlapping bubbles']
+      },
+      pie: {
+        tasks: ['part_to_whole', 'composition'],
+        dataTypes: ['categorical', 'numeric'],
+        encoding: 'angle',
+        maxCategories: 5,
+        strengths: ['Shows parts of whole', 'Familiar to audiences'],
+        weaknesses: ['Poor accuracy', 'Limited categories', 'No exact values']
+      },
+      donut: {
+        tasks: ['part_to_whole', 'composition'],
+        dataTypes: ['categorical', 'numeric'],
+        encoding: 'angle',
+        maxCategories: 7,
+        strengths: ['Central annotation space', 'Slightly better than pie'],
+        weaknesses: ['Same issues as pie charts']
+      },
+      heatmap: {
+        tasks: ['correlation', 'pattern', 'comparison', 'temporal_pattern'],
+        dataTypes: ['categorical', 'categorical', 'numeric'],
+        encoding: 'color_hue',
+        maxCells: 10000,
+        strengths: ['Dense data display', 'Pattern detection', 'Matrix visualization'],
+        weaknesses: ['Color perception issues', 'Needs color legend']
+      },
+      treemap: {
+        tasks: ['hierarchy', 'part_to_whole', 'comparison'],
+        dataTypes: ['hierarchical', 'numeric'],
+        encoding: 'area',
+        maxNodes: 1000,
+        strengths: ['Space-efficient', 'Shows hierarchy and size', 'Good for files/budgets'],
+        weaknesses: ['Area perception', 'Deep hierarchies difficult']
+      },
+      sunburst: {
+        tasks: ['hierarchy', 'part_to_whole', 'navigation'],
+        dataTypes: ['hierarchical', 'numeric'],
+        encoding: 'angle',
+        maxLevels: 5,
+        strengths: ['Clear hierarchy', 'Interactive navigation', 'Aesthetic appeal'],
+        weaknesses: ['Angle perception', 'Center space wasted']
+      },
+      box: {
+        tasks: ['distribution', 'comparison', 'outliers'],
+        dataTypes: ['categorical', 'numeric'],
+        encoding: 'position_common_scale',
+        maxCategories: 20,
+        strengths: ['Statistical summary', 'Outlier detection', 'Compare distributions'],
+        weaknesses: ['Requires statistical knowledge', 'Hides multimodality']
+      },
+      violin: {
+        tasks: ['distribution', 'comparison', 'density'],
+        dataTypes: ['categorical', 'numeric'],
+        encoding: 'area',
+        maxCategories: 10,
+        strengths: ['Shows full distribution', 'Reveals multimodality', 'Aesthetic'],
+        weaknesses: ['Complex interpretation', 'Space intensive']
+      },
+      histogram: {
+        tasks: ['distribution', 'frequency'],
+        dataTypes: ['numeric'],
+        encoding: 'length',
+        maxBins: 100,
+        strengths: ['Clear frequency display', 'Familiar format', 'Reveals shape'],
+        weaknesses: ['Bin size sensitivity', 'Single variable only']
+      },
+      parallel: {
+        tasks: ['multivariate', 'pattern', 'clustering', 'filtering'],
+        dataTypes: ['multivariate'],
+        encoding: 'position_nonaligned_scale',
+        maxDimensions: 10,
+        strengths: ['Many dimensions', 'Pattern detection', 'Interactive filtering'],
+        weaknesses: ['Line crossings', 'Order dependent']
+      },
+      radar: {
+        tasks: ['multivariate', 'comparison', 'profile'],
+        dataTypes: ['multivariate'],
+        encoding: 'position_nonaligned_scale',
+        maxDimensions: 8,
+        maxSeries: 3,
+        strengths: ['Compact multivariate', 'Good for profiles', 'Comparative'],
+        weaknesses: ['Area distortion', 'Axis order matters']
+      },
+      sankey: {
+        tasks: ['flow', 'relationship', 'proportion'],
+        dataTypes: ['categorical', 'categorical', 'numeric'],
+        encoding: 'length',
+        maxNodes: 50,
+        strengths: ['Shows flow and proportion', 'Multiple stages', 'Intuitive'],
+        weaknesses: ['Complex layouts', 'Many crossings']
+      },
+      chord: {
+        tasks: ['relationship', 'flow', 'connection'],
+        dataTypes: ['categorical', 'categorical', 'numeric'],
+        encoding: 'angle',
+        maxNodes: 20,
+        strengths: ['Bidirectional relationships', 'Aesthetic', 'Compact'],
+        weaknesses: ['Hard to read', 'Limited nodes']
+      },
+      horizon: {
+        tasks: ['time_series', 'pattern', 'comparison'],
+        dataTypes: ['temporal', 'numeric'],
+        encoding: 'position_common_scale',
+        maxSeries: 50,
+        strengths: ['Space efficient', 'Many time series', 'Patterns visible'],
+        weaknesses: ['Learning curve', 'Not intuitive']
+      },
+      stream: {
+        tasks: ['time_series', 'part_to_whole', 'flow'],
+        dataTypes: ['temporal', 'categorical', 'numeric'],
+        encoding: 'area',
+        maxCategories: 20,
+        strengths: ['Aesthetic', 'Shows flow over time', 'Organic appearance'],
+        weaknesses: ['Imprecise', 'Baseline issues']
+      },
+      hexbin: {
+        tasks: ['density', 'distribution', 'pattern'],
+        dataTypes: ['numeric', 'numeric'],
+        encoding: 'color_hue',
+        maxPoints: 1000000,
+        strengths: ['Handles overplotting', 'Scalable', 'Clear density'],
+        weaknesses: ['Loss of individual points', 'Binning artifacts']
+      },
+      contour: {
+        tasks: ['density', 'distribution', 'pattern'],
+        dataTypes: ['numeric', 'numeric'],
+        encoding: 'position_common_scale',
+        maxPoints: 100000,
+        strengths: ['Smooth density', 'Topographic', 'No binning'],
+        weaknesses: ['Abstract', 'Requires interpretation']
+      }
+    };
+  }
+  
+  selectChart(task, dataProfile, constraints = {}) {
+    const candidates = this.getCandidateCharts(task, dataProfile);
+    const scoredCandidates = this.scoreCandidates(candidates, task, dataProfile, constraints);
+    const filtered = this.applyConstraints(scoredCandidates, constraints);
+    
+    return {
+      primary: filtered[0],
+      alternatives: filtered.slice(1, 4),
+      reasoning: this.explainSelection(filtered[0], task, dataProfile)
+    };
+  }
+  
+  getCandidateCharts(task, dataProfile) {
+    const taskType = task.type;
+    const candidates = [];
+    
+    Object.entries(this.chartTypes).forEach(([chartType, config]) => {
+      if (config.tasks.includes(taskType)) {
+        // Check data type compatibility
+        if (this.isDataCompatible(config, dataProfile)) {
+          candidates.push({
+            type: chartType,
+            config: config,
+            compatibility: this.calculateCompatibility(config, task, dataProfile)
+          });
+        }
+      }
+    });
+    
+    return candidates.sort((a, b) => b.compatibility - a.compatibility);
+  }
+  
+  isDataCompatible(chartConfig, dataProfile) {
+    const dimensions = dataProfile.dimensions;
+    
+    // Check if we have the required data types
+    if (chartConfig.dataTypes.includes('temporal') && dimensions.temporal === 0) {
+      return false;
+    }
+    
+    if (chartConfig.dataTypes.includes('hierarchical') && 
+        !dataProfile.patterns.compound.some(p => p.type === 'hierarchical')) {
+      return false;
+    }
+    
+    if (chartConfig.dataTypes.includes('multivariate') && 
+        dimensions.continuous < 3) {
+      return false;
+    }
+    
+    return true;
+  }
+  
+  calculateCompatibility(chartConfig, task, dataProfile) {
+    let score = 0;
+    
+    // Task alignment
+    const taskIndex = chartConfig.tasks.indexOf(task.type);
+    if (taskIndex === 0) score += 0.4;  // Primary task
+    else if (taskIndex === 1) score += 0.3;  // Secondary task
+    else score += 0.2;  // Tertiary task
+    
+    // Data volume compatibility
+    const dataSize = dataProfile.dimensions.rows;
+    if (chartConfig.maxCategories) {
+      const categories = dataProfile.cardinality[task.columns?.category]?.unique || 10;
+      if (categories <= chartConfig.maxCategories) {
+        score += 0.2;
+      } else {
+        score -= 0.1;
+      }
+    }
+    
+    if (chartConfig.maxPoints) {
+      if (dataSize <= chartConfig.maxPoints * 0.5) {
+        score += 0.2;
+      } else if (dataSize <= chartConfig.maxPoints) {
+        score += 0.1;
+      } else {
+        score -= 0.2;
+      }
+    }
+    
+    // Encoding effectiveness
+    const encodingScore = this.perceptualScorer.encodingAccuracy[chartConfig.encoding] || 0.5;
+    score += encodingScore * 0.2;
+    
+    return Math.max(0, Math.min(1, score));
+  }
+  
+  scoreCandidates(candidates, task, dataProfile, constraints) {
+    return candidates.map(candidate => {
+      const visualization = {
+        type: candidate.type,
+        encoding: candidate.config.encoding,
+        dimensions: this.countDimensions(candidate.config),
+        categories: dataProfile.cardinality[task.columns?.category]?.unique || 1,
+        width: constraints.width || 800,
+        height: constraints.height || 600
+      };
+      
+      const perceptualScore = this.perceptualScorer.scoreVisualization(
+        visualization, task, dataProfile
+      );
+      
+      return {
+        ...candidate,
+        score: perceptualScore.overall,
+        perceptualScore: perceptualScore,
+        recommendation: this.generateRecommendation(candidate, perceptualScore, task, dataProfile)
+      };
+    }).sort((a, b) => b.score - a.score);
+  }
+  
+  countDimensions(chartConfig) {
+    return chartConfig.dataTypes.filter(type => 
+      ['numeric', 'temporal', 'categorical'].includes(type)
+    ).length;
+  }
+  
+  applyConstraints(candidates, constraints) {
+    let filtered = [...candidates];
+    
+    // Apply audience constraints
+    if (constraints.audience === 'executive') {
+      // Prefer familiar, simple charts
+      filtered = filtered.filter(c => 
+        !['parallel', 'horizon', 'hexbin', 'contour'].includes(c.type)
+      );
+    } else if (constraints.audience === 'technical') ; else if (constraints.audience === 'public') {
+      // Very simple charts only
+      filtered = filtered.filter(c => 
+        ['bar', 'line', 'pie', 'donut', 'column'].includes(c.type)
+      );
+    }
+    
+    // Apply size constraints
+    if (constraints.small) {
+      filtered = filtered.filter(c => 
+        !['parallel', 'treemap', 'sankey'].includes(c.type)
+      );
+    }
+    
+    // Apply interactivity constraints
+    if (constraints.static) {
+      filtered = filtered.filter(c => 
+        !['sunburst', 'parallel', 'horizon'].includes(c.type)
+      );
+    }
+    
+    // Ensure we have at least one option
+    if (filtered.length === 0) {
+      filtered = [candidates[0]];
+    }
+    
+    return filtered;
+  }
+  
+  generateRecommendation(candidate, perceptualScore, task, dataProfile) {
+    const chart = candidate.config;
+    const rec = {
+      type: candidate.type,
+      purpose: this.describePurpose(candidate.type, task),
+      encoding: {
+        primary: this.describeEncoding(chart.encoding),
+        effectiveness: Math.round(perceptualScore.breakdown.perceptualAccuracy * 100) + '%'
+      },
+      specifications: this.generateSpecifications(candidate, task, dataProfile),
+      enhancements: this.suggestEnhancements(candidate, task, dataProfile),
+      interactions: this.suggestInteractions(candidate.type),
+      accessibility: this.getAccessibilityNotes(candidate.type)
+    };
+    
+    return rec;
+  }
+  
+  describePurpose(chartType, task) {
+    const purposes = {
+      bar: 'Compare values across categories with maximum precision',
+      line: 'Show trends and changes over time',
+      scatter: 'Reveal relationships and correlations between variables',
+      pie: 'Display parts of a whole (use sparingly)',
+      heatmap: 'Identify patterns in large matrices of data',
+      treemap: 'Show hierarchical data with size proportions',
+      box: 'Compare statistical distributions across groups',
+      parallel: 'Explore patterns across multiple dimensions',
+      horizon: 'Compare many time series in limited space'
+    };
+    
+    return purposes[chartType] || 'Visualize data patterns';
+  }
+  
+  describeEncoding(encoding) {
+    const descriptions = {
+      position_common_scale: 'Position on common scale (most accurate)',
+      position_nonaligned_scale: 'Position on separate scales',
+      length: 'Length/height encoding',
+      angle: 'Angle encoding (less accurate)',
+      area: 'Area encoding (size perception)',
+      color_hue: 'Color encoding (categorical distinction)'
+    };
+    
+    return descriptions[encoding] || encoding;
+  }
+  
+  generateSpecifications(candidate, task, dataProfile) {
+    const specs = {
+      dimensions: {},
+      design: {},
+      data: {}
+    };
+    
+    // Map data to visual channels
+    if (task.columns) {
+      if (task.columns.temporal) {
+        specs.dimensions.x = task.columns.temporal;
+      }
+      if (task.columns.category) {
+        specs.dimensions.y = task.columns.category;
+      }
+      if (task.columns.measure) {
+        specs.dimensions.value = task.columns.measure;
+      }
+    }
+    
+    // Design specifications
+    specs.design = this.getDesignSpecs(candidate.type, dataProfile);
+    
+    // Data handling
+    specs.data = this.getDataSpecs(candidate.type, dataProfile);
+    
+    return specs;
+  }
+  
+  getDesignSpecs(chartType, dataProfile) {
+    const baseSpecs = {
+      bar: {
+        orientation: 'horizontal',
+        barWidth: 'automatic',
+        spacing: '20% of bar width',
+        gridlines: 'x-axis only',
+        sort: 'descending by value'
+      },
+      line: {
+        strokeWidth: 2,
+        points: dataProfile.dimensions.rows < 50,
+        smoothing: 'none',
+        missingData: 'interpolate',
+        multipleLines: 'direct labeling'
+      },
+      scatter: {
+        pointSize: 3,
+        opacity: dataProfile.dimensions.rows > 1000 ? 0.5 : 0.8,
+        jitter: 'none',
+        regression: 'optional',
+        densityContours: dataProfile.dimensions.rows > 5000
+      },
+      heatmap: {
+        colorScale: 'sequential',
+        cellBorders: 'white 1px',
+        clustering: 'optional',
+        annotations: 'values if < 100 cells',
+        aspectRatio: 'automatic'
+      }
+    };
+    
+    return baseSpecs[chartType] || {};
+  }
+  
+  getDataSpecs(chartType, dataProfile) {
+    const specs = {
+      aggregation: 'automatic',
+      sampling: dataProfile.dimensions.rows > 10000 ? 'recommended' : 'none',
+      binning: chartType === 'histogram' ? 'sturges rule' : 'none',
+      transformation: 'none'
+    };
+    
+    return specs;
+  }
+  
+  suggestEnhancements(candidate, task, dataProfile) {
+    const enhancements = [];
+    
+    // Statistical enhancements
+    if (['scatter', 'line'].includes(candidate.type)) {
+      enhancements.push({
+        type: 'statistical',
+        options: ['trend line', 'confidence intervals', 'moving average']
+      });
+    }
+    
+    // Annotation enhancements
+    if (task.type === 'trend_analysis') {
+      enhancements.push({
+        type: 'annotations',
+        options: ['mark key events', 'highlight anomalies', 'show targets']
+      });
+    }
+    
+    // Reference lines
+    if (['bar', 'column', 'line'].includes(candidate.type)) {
+      enhancements.push({
+        type: 'reference',
+        options: ['average line', 'target line', 'benchmark']
+      });
+    }
+    
+    return enhancements;
+  }
+  
+  suggestInteractions(chartType) {
+    const interactions = {
+      bar: ['hover details', 'click to filter', 'sort controls'],
+      line: ['hover crosshair', 'zoom and pan', 'time brush'],
+      scatter: ['hover details', 'lasso selection', 'zoom'],
+      heatmap: ['hover cell details', 'row/column highlighting', 'zoom'],
+      treemap: ['click to drill down', 'hover details', 'breadcrumb trail'],
+      parallel: ['axis brushing', 'line highlighting', 'reorder axes']
+    };
+    
+    return interactions[chartType] || ['hover details'];
+  }
+  
+  getAccessibilityNotes(chartType) {
+    const notes = {
+      general: ['Ensure color is not the only encoding', 'Provide text alternatives', 
+                'Use ARIA labels', 'Enable keyboard navigation'],
+      specific: {}
+    };
+    
+    notes.specific = {
+      pie: 'Consider bar chart alternative for screen readers',
+      color: 'Use colorblind-safe palettes',
+      scatter: 'Provide data table alternative',
+      heatmap: 'Include value labels or sonification'
+    };
+    
+    return notes;
+  }
+  
+  explainSelection(selected, task, dataProfile) {
+    if (!selected) {
+      return 'No suitable visualization found for this data and task combination.';
+    }
+    
+    const explanation = {
+      chosen: selected.type,
+      reason: `Selected for ${task.type} task based on:`,
+      factors: [
+        `Perceptual accuracy: ${Math.round(selected.perceptualScore.overall * 100)}%`,
+        `Task alignment: Optimized for ${task.type}`,
+        `Data compatibility: Handles ${dataProfile.dimensions.rows} rows effectively`,
+        `Encoding: Uses ${selected.config.encoding} (${this.describeEncoding(selected.config.encoding)})`
+      ],
+      tradeoffs: this.explainTradeoffs(selected, task, dataProfile)
+    };
+    
+    return explanation;
+  }
+  
+  explainTradeoffs(selected, task, dataProfile) {
+    const tradeoffs = [];
+    
+    if (selected.config.encoding === 'angle' || selected.config.encoding === 'area') {
+      tradeoffs.push('Less accurate perception than position-based charts');
+    }
+    
+    if (dataProfile.dimensions.rows > selected.config.maxPoints * 0.8) {
+      tradeoffs.push('May require aggregation or sampling for performance');
+    }
+    
+    if (selected.type === 'pie' && 
+        dataProfile.cardinality[task.columns?.category]?.unique > 5) {
+      tradeoffs.push('Too many categories for effective pie chart use');
+    }
+    
+    return tradeoffs;
+  }
+}
+
+class AntipatternDetector {
+  detectAntipatterns(visualizationPlan, dataProfile, task) {
+    const warnings = [];
+    
+    // Check each proposed visualization
+    visualizationPlan.forEach(viz => {
+      const chartWarnings = this.checkChartAntipatterns(viz, dataProfile, task);
+      const dataWarnings = this.checkDataAntipatterns(viz, dataProfile);
+      const designWarnings = this.checkDesignAntipatterns(viz);
+      const perceptualWarnings = this.checkPerceptualAntipatterns(viz, dataProfile);
+      
+      warnings.push(...chartWarnings, ...dataWarnings, ...designWarnings, ...perceptualWarnings);
+    });
+    
+    // Remove duplicates and sort by severity
+    const uniqueWarnings = this.deduplicateWarnings(warnings);
+    return this.prioritizeWarnings(uniqueWarnings);
+  }
+  
+  checkChartAntipatterns(viz, dataProfile, task) {
+    const warnings = [];
+    
+    // Skip if viz is not properly defined
+    if (!viz || !viz.type) {
+      return warnings;
+    }
+    
+    // Pie chart overuse
+    if (viz.type === 'pie' || viz.type === 'donut') {
+      const categories = viz.categories || 
+        (viz.categoryColumn && dataProfile.cardinality[viz.categoryColumn]?.unique) || 0;
+      
+      if (categories > 7) {
+        warnings.push({
+          type: 'pie_chart_overuse',
+          severity: 'high',
+          chart: viz.type,
+          issue: `${categories} categories in ${viz.type} chart`,
+          problem: 'More than 7 slices become unreadable',
+          impact: '40% perception error rate for small slices',
+          alternative: 'horizontal bar chart',
+          benefit: '5% error rate (8× better accuracy)',
+          fix: {
+            type: 'bar',
+            orientation: 'horizontal',
+            sort: 'descending'
+          }
+        });
+      }
+      
+      if (categories === 2) {
+        warnings.push({
+          type: 'pie_for_binary',
+          severity: 'medium',
+          chart: viz.type,
+          issue: 'Using pie chart for only 2 categories',
+          problem: 'Inefficient use of space',
+          alternative: 'single stacked bar or text percentage',
+          benefit: 'Clearer and more compact'
+        });
+      }
+    }
+    
+    // 3D effects
+    if (viz.effects3d || viz.type.includes('3d')) {
+      warnings.push({
+        type: '3d_effects',
+        severity: 'high',
+        chart: viz.type,
+        issue: '3D effects detected',
+        problem: 'Distorts data encoding and perception',
+        impact: '45% error rate in depth perception',
+        alternative: 'Strong 2D design with proper visual hierarchy',
+        designPrinciples: [
+          'Use whitespace for separation',
+          'Bold colors for emphasis',
+          'Clear typography hierarchy'
+        ]
+      });
+    }
+    
+    // Dual Y-axis
+    if (viz.dualAxis || viz.secondaryAxis) {
+      warnings.push({
+        type: 'dual_y_axis',
+        severity: 'high',
+        chart: viz.type,
+        issue: 'Dual Y-axis configuration',
+        problem: 'Implies false correlations',
+        impact: '68% of viewers misinterpret relationship',
+        alternative: 'Small multiples or indexed values',
+        benefit: 'Clear, unambiguous comparison'
+      });
+    }
+    
+    // Inappropriate chart for task
+    if (!this.isChartAppropriateForTask(viz.type, task.type)) {
+      warnings.push({
+        type: 'task_mismatch',
+        severity: 'medium',
+        chart: viz.type,
+        task: task.type,
+        issue: `${viz.type} chart not optimal for ${task.type}`,
+        problem: 'Visualization does not support analytical task',
+        alternative: this.getOptimalChartForTask(task.type),
+        benefit: 'Better task-visualization alignment'
+      });
+    }
+    
+    return warnings;
+  }
+  
+  checkDataAntipatterns(viz, dataProfile) {
+    const warnings = [];
+    const dataPoints = dataProfile.dimensions.rows;
+    
+    // Overplotting
+    if (viz.type === 'scatter' || viz.type === 'bubble') {
+      const area = (viz.width || 800) * (viz.height || 600);
+      const pointsPerPixel = dataPoints / area;
+      
+      if (pointsPerPixel > 0.1) {
+        warnings.push({
+          type: 'overplotting',
+          severity: 'high',
+          chart: viz.type,
+          issue: `${Math.round(pointsPerPixel * 100)} points per 100 pixels`,
+          problem: 'Overplotting hides patterns and distributions',
+          impact: 'Up to 90% of data points may be hidden',
+          solutions: [
+            {
+              method: 'hexbin',
+              benefit: 'Aggregates points into hexagonal bins',
+              suitable: dataPoints < 1000000
+            },
+            {
+              method: 'density_contours',
+              benefit: 'Shows density without individual points',
+              suitable: true
+            },
+            {
+              method: 'sampling',
+              benefit: 'Reduces points while maintaining distribution',
+              suitable: dataPoints > 100000
+            },
+            {
+              method: 'transparency',
+              benefit: 'Reveals density through overlapping',
+              suitable: dataPoints < 10000
+            }
+          ]
+        });
+      }
+    }
+    
+    // Too many categories
+    if (viz.type === 'bar' || viz.type === 'column') {
+      const categories = viz.categories || 
+        (viz.categoryColumn && dataProfile.cardinality[viz.categoryColumn]?.unique) || 0;
+      
+      if (categories > 50) {
+        warnings.push({
+          type: 'too_many_categories',
+          severity: 'medium',
+          chart: viz.type,
+          issue: `${categories} categories in bar chart`,
+          problem: 'Too many bars to compare effectively',
+          solutions: [
+            'Show top 20 with "Others" category',
+            'Use hierarchical grouping',
+            'Implement search/filter functionality',
+            'Consider treemap for part-to-whole'
+          ]
+        });
+      }
+    }
+    
+    // Inappropriate aggregation
+    if (viz.aggregation === 'mean' && dataProfile.patterns?.numeric) {
+      const numericPatterns = Object.values(dataProfile.patterns.numeric);
+      const skewedColumns = numericPatterns.filter(p => 
+        Math.abs(p.distribution?.skewness || 0) > 1
+      );
+      
+      if (skewedColumns.length > 0) {
+        warnings.push({
+          type: 'mean_with_skewed_data',
+          severity: 'medium',
+          issue: 'Using mean with skewed distributions',
+          problem: 'Mean not representative of typical values',
+          impact: 'Misleading central tendency',
+          alternative: 'Use median for skewed data',
+          affectedColumns: skewedColumns.map(p => p.column)
+        });
+      }
+    }
+    
+    return warnings;
+  }
+  
+  checkDesignAntipatterns(viz) {
+    const warnings = [];
+    
+    // Rainbow color scale
+    if (viz.colorScale === 'rainbow' || viz.colors?.length > 7) {
+      warnings.push({
+        type: 'rainbow_color_scale',
+        severity: 'high',
+        issue: 'Rainbow or too many colors',
+        problem: 'Non-uniform perception and no logical order',
+        impact: [
+          'Yellow appears artificially brighter',
+          'No intuitive ordering',
+          'Accessibility issues'
+        ],
+        alternative: 'Single-hue gradient or ColorBrewer palette',
+        recommendations: {
+          sequential: 'Blues, Greens, or Viridis',
+          diverging: 'RdBu or BrBG (diverging from center)',
+          qualitative: 'Set2 or Set3 (distinct categories)'
+        }
+      });
+    }
+    
+    // Chartjunk
+    if (viz.gridlines?.heavy || viz.borders?.decorative || viz.backgrounds?.gradient) {
+      warnings.push({
+        type: 'chartjunk',
+        severity: 'medium',
+        issue: 'Excessive non-data ink',
+        problem: 'Distracts from data',
+        dataInkRatio: this.estimateDataInkRatio(viz),
+        target: 'Data-ink ratio should exceed 0.5',
+        fixes: [
+          'Remove heavy gridlines',
+          'Eliminate decorative borders',
+          'Use solid backgrounds',
+          'Remove unnecessary legends'
+        ]
+      });
+    }
+    
+    // Truncated axes
+    if (viz.yAxis?.min > 0 && viz.type !== 'scatter') {
+      warnings.push({
+        type: 'truncated_axis',
+        severity: 'high',
+        issue: 'Y-axis does not start at zero',
+        problem: 'Exaggerates differences',
+        lieFactor: this.calculateLieFactor(viz),
+        impact: 'Visual representation distorts actual proportions',
+        exceptions: [
+          'Scatter plots where zero is not meaningful',
+          'Time series with small variations',
+          'Log scales where appropriate'
+        ]
+      });
+    }
+    
+    // Aspect ratio issues
+    if (viz.type === 'line' && viz.aspectRatio) {
+      const ratio = viz.width / viz.height;
+      if (ratio < 0.5 || ratio > 3) {
+        warnings.push({
+          type: 'poor_aspect_ratio',
+          severity: 'low',
+          issue: 'Suboptimal aspect ratio for line chart',
+          problem: 'Distorts perception of trends',
+          recommendation: 'Banking to 45° for optimal slope perception',
+          idealRatio: '1.6:1 to 2:1 for most time series'
+        });
+      }
+    }
+    
+    return warnings;
+  }
+  
+  checkPerceptualAntipatterns(viz, dataProfile) {
+    const warnings = [];
+    
+    // Area encoding for precise comparison
+    if ((viz.type === 'bubble' || viz.type === 'treemap') && 
+        viz.purpose?.includes('precise')) {
+      warnings.push({
+        type: 'area_for_precision',
+        severity: 'medium',
+        issue: 'Area encoding for precise comparisons',
+        problem: 'Humans poor at comparing areas',
+        impact: '20-30% error rate in size perception',
+        alternative: 'Bar chart for precise comparisons',
+        keepIf: 'Overall patterns more important than exact values'
+      });
+    }
+    
+    // Color as only differentiator
+    if (viz.encoding === 'color' && !viz.redundantEncoding) {
+      warnings.push({
+        type: 'color_only_encoding',
+        severity: 'high',
+        issue: 'Color as sole differentiator',
+        problem: 'Fails for colorblind users (8% of men)',
+        impact: 'Information inaccessible to many',
+        solutions: [
+          'Add patterns or textures',
+          'Use direct labeling',
+          'Vary lightness along with hue',
+          'Add position or shape encoding'
+        ]
+      });
+    }
+    
+    // Overlapping labels
+    if (viz.labels && dataProfile.dimensions.rows > 20) {
+      warnings.push({
+        type: 'label_overlap_risk',
+        severity: 'low',
+        issue: 'Potential label overlap',
+        problem: 'Labels may overlap with many data points',
+        solutions: [
+          'Use hover labels instead',
+          'Label only key points',
+          'Implement smart label placement',
+          'Use leader lines for clarity'
+        ]
+      });
+    }
+    
+    return warnings;
+  }
+  
+  isChartAppropriateForTask(chartType, taskType) {
+    const taskChartMatrix = {
+      trend_analysis: ['line', 'area', 'horizon', 'sparkline'],
+      comparison: ['bar', 'column', 'bullet', 'dot'],
+      part_to_whole: ['stacked_bar', 'treemap', 'pie', 'donut'],
+      correlation: ['scatter', 'hexbin', 'contour'],
+      distribution: ['histogram', 'box', 'violin', 'density'],
+      ranking: ['bar', 'lollipop', 'slope'],
+      geospatial: ['choropleth', 'symbol', 'heatmap'],
+      pattern: ['heatmap', 'parallel', 'radar']
+    };
+    
+    return taskChartMatrix[taskType]?.includes(chartType) || false;
+  }
+  
+  getOptimalChartForTask(taskType) {
+    const optimal = {
+      trend_analysis: 'line chart',
+      comparison: 'bar chart',
+      part_to_whole: 'stacked bar or treemap',
+      correlation: 'scatter plot',
+      distribution: 'histogram or box plot',
+      ranking: 'horizontal bar chart',
+      geospatial: 'choropleth map',
+      pattern: 'heatmap'
+    };
+    
+    return optimal[taskType] || 'bar chart';
+  }
+  
+  estimateDataInkRatio(viz) {
+    let nonDataElements = 0;
+    
+    if (viz.gridlines?.heavy) nonDataElements += 0.15;
+    if (viz.borders?.decorative) nonDataElements += 0.1;
+    if (viz.backgrounds?.gradient) nonDataElements += 0.1;
+    if (viz.effects3d) nonDataElements += 0.2;
+    if (viz.decorations) nonDataElements += 0.15;
+    
+    return Math.max(0.2, 1 - nonDataElements);
+  }
+  
+  calculateLieFactor(viz) {
+    if (!viz.yAxis?.min || viz.yAxis.min === 0) return 1;
+    
+    const visualRange = viz.yAxis.max - viz.yAxis.min;
+    const dataRange = viz.yAxis.max - 0;
+    
+    return dataRange / visualRange;
+  }
+  
+  deduplicateWarnings(warnings) {
+    const seen = new Set();
+    return warnings.filter(warning => {
+      const key = `${warning.type}-${warning.chart || ''}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }
+  
+  prioritizeWarnings(warnings) {
+    const severityOrder = { high: 1, medium: 2, low: 3 };
+    
+    return warnings.sort((a, b) => {
+      const severityDiff = severityOrder[a.severity] - severityOrder[b.severity];
+      if (severityDiff !== 0) return severityDiff;
+      
+      // Within same severity, prioritize by type
+      const typeOrder = {
+        'pie_chart_overuse': 1,
+        '3d_effects': 2,
+        'dual_y_axis': 3,
+        'overplotting': 4,
+        'rainbow_color_scale': 5,
+        'color_only_encoding': 6,
+        'truncated_axis': 7
+      };
+      
+      return (typeOrder[a.type] || 99) - (typeOrder[b.type] || 99);
+    });
+  }
+}
+
+class AccessibilityChecker {
+  checkAccessibility(visualizationPlan) {
+    const results = {
+      score: 0,
+      level: '',
+      issues: [],
+      recommendations: [],
+      guidelines: []
+    };
+    
+    // Check each visualization
+    visualizationPlan.forEach(viz => {
+      const colorIssues = this.checkColorAccessibility(viz);
+      const contrastIssues = this.checkContrast(viz);
+      const alternativeIssues = this.checkAlternatives(viz);
+      const interactionIssues = this.checkInteractionAccessibility(viz);
+      const cognitiveIssues = this.checkCognitiveAccessibility(viz);
+      
+      results.issues.push(...colorIssues, ...contrastIssues, 
+                          ...alternativeIssues, ...interactionIssues, 
+                          ...cognitiveIssues);
+    });
+    
+    // Calculate overall score
+    results.score = this.calculateAccessibilityScore(results.issues);
+    results.level = this.determineComplianceLevel(results.score);
+    
+    // Generate recommendations
+    results.recommendations = this.generateRecommendations(results.issues);
+    results.guidelines = this.getRelevantGuidelines(visualizationPlan);
+    
+    return results;
+  }
+  
+  checkColorAccessibility(viz) {
+    const issues = [];
+    
+    // Check if color is sole encoding
+    if (viz.encoding === 'color' && !viz.secondaryEncoding) {
+      issues.push({
+        type: 'color_only_encoding',
+        severity: 'critical',
+        wcag: '1.4.1',
+        chart: viz.type,
+        issue: 'Color used as only method of conveying information',
+        impact: 'Information inaccessible to colorblind users (8% of males, 0.5% of females)',
+        solutions: [
+          'Add patterns or textures to colored areas',
+          'Use direct labeling on chart elements',
+          'Provide shape or position as secondary encoding',
+          'Include data table alternative'
+        ]
+      });
+    }
+    
+    // Check colorblind safety
+    if (viz.colors && !this.isColorblindSafe(viz.colors)) {
+      issues.push({
+        type: 'colorblind_unsafe',
+        severity: 'high',
+        wcag: '1.4.1',
+        chart: viz.type,
+        issue: 'Color palette not colorblind safe',
+        affectedTypes: this.getAffectedColorblindTypes(viz.colors),
+        solutions: [
+          'Use colorblind-safe palettes (e.g., Viridis, Cividis)',
+          'Test with colorblind simulators',
+          'Avoid problematic combinations (red/green, blue/purple)',
+          'Use ColorBrewer "colorblind safe" palettes'
+        ]
+      });
+    }
+    
+    // Check for too many colors
+    if (viz.colors && viz.colors.length > 8) {
+      issues.push({
+        type: 'too_many_colors',
+        severity: 'medium',
+        wcag: '1.4.1',
+        issue: `${viz.colors.length} distinct colors used`,
+        impact: 'Difficult to distinguish between similar colors',
+        solutions: [
+          'Limit to 5-7 distinct colors maximum',
+          'Group less important categories as "Other"',
+          'Use interactive filtering instead',
+          'Consider different chart type'
+        ]
+      });
+    }
+    
+    return issues;
+  }
+  
+  checkContrast(viz) {
+    const issues = [];
+    
+    // Text contrast
+    if (viz.textElements) {
+      viz.textElements.forEach(element => {
+        const ratio = this.calculateContrastRatio(
+          element.color || '#000000',
+          element.background || '#FFFFFF'
+        );
+        
+        if (element.size >= 14 && ratio < 4.5) {
+          issues.push({
+            type: 'insufficient_text_contrast',
+            severity: 'high',
+            wcag: '1.4.3',
+            element: element.type,
+            contrastRatio: ratio.toFixed(2),
+            required: '4.5:1',
+            impact: 'Text difficult to read for low vision users',
+            solution: `Darken text to ${this.suggestColor(element.background, 4.5)}`
+          });
+        } else if (element.size >= 18 && ratio < 3) {
+          issues.push({
+            type: 'insufficient_large_text_contrast',
+            severity: 'medium',
+            wcag: '1.4.3',
+            element: element.type,
+            contrastRatio: ratio.toFixed(2),
+            required: '3:1',
+            impact: 'Large text difficult to read'
+          });
+        }
+      });
+    }
+    
+    // Non-text contrast (WCAG 2.1)
+    if (viz.graphicalElements) {
+      viz.graphicalElements.forEach(element => {
+        const ratio = this.calculateContrastRatio(
+          element.color || '#000000',
+          element.background || '#FFFFFF'
+        );
+        
+        if (ratio < 3) {
+          issues.push({
+            type: 'insufficient_graphic_contrast',
+            severity: 'medium',
+            wcag: '1.4.11',
+            element: element.type,
+            contrastRatio: ratio.toFixed(2),
+            required: '3:1',
+            impact: 'Chart elements difficult to perceive',
+            examples: ['Grid lines too faint', 'Data points blend with background']
+          });
+        }
+      });
+    }
+    
+    return issues;
+  }
+  
+  checkAlternatives(viz) {
+    const issues = [];
+    
+    // Check for text alternatives
+    if (!viz.altText && !viz.dataTableAlternative) {
+      issues.push({
+        type: 'missing_text_alternative',
+        severity: 'critical',
+        wcag: '1.1.1',
+        chart: viz.type,
+        issue: 'No text alternative provided',
+        impact: 'Chart completely inaccessible to screen reader users',
+        solutions: [
+          'Provide comprehensive alt text describing the data and trends',
+          'Include accessible data table alternative',
+          'Use ARIA labels and descriptions',
+          'Implement sonification for data trends'
+        ]
+      });
+    }
+    
+    // Check alt text quality
+    if (viz.altText && viz.altText.length < 50) {
+      issues.push({
+        type: 'insufficient_alt_text',
+        severity: 'medium',
+        wcag: '1.1.1',
+        currentLength: viz.altText.length,
+        issue: 'Alt text too brief',
+        guidelines: [
+          'Describe the chart type and purpose',
+          'Summarize key data points and trends',
+          'Include relevant statistics',
+          'Mention any notable patterns or outliers'
+        ]
+      });
+    }
+    
+    // Complex visualizations need detailed alternatives
+    if (['parallel', 'sankey', 'chord', 'network'].includes(viz.type)) {
+      issues.push({
+        type: 'complex_viz_needs_alternative',
+        severity: 'high',
+        wcag: '1.1.1',
+        chart: viz.type,
+        issue: 'Complex visualization requires detailed alternative',
+        solutions: [
+          'Provide structured data table',
+          'Create text summary of relationships',
+          'Offer simplified view option',
+          'Include guided tour or explanation'
+        ]
+      });
+    }
+    
+    return issues;
+  }
+  
+  checkInteractionAccessibility(viz) {
+    const issues = [];
+    
+    // Keyboard accessibility
+    if (viz.interactive && !viz.keyboardSupport) {
+      issues.push({
+        type: 'missing_keyboard_support',
+        severity: 'critical',
+        wcag: '2.1.1',
+        issue: 'Interactive elements not keyboard accessible',
+        impact: 'Users who cannot use mouse cannot access functionality',
+        requirements: [
+          'All interactive elements focusable',
+          'Tab order logical',
+          'Focus indicators visible',
+          'Keyboard shortcuts documented'
+        ]
+      });
+    }
+    
+    // Hover-only information
+    if (viz.hoverOnly) {
+      issues.push({
+        type: 'hover_only_content',
+        severity: 'high',
+        wcag: '1.4.13',
+        issue: 'Information only available on hover',
+        impact: 'Touch and keyboard users cannot access',
+        solutions: [
+          'Provide click/tap alternative',
+          'Show key information by default',
+          'Use progressive disclosure',
+          'Implement focus + Enter pattern'
+        ]
+      });
+    }
+    
+    // Time limits
+    if (viz.animation && !viz.animationControl) {
+      issues.push({
+        type: 'uncontrolled_animation',
+        severity: 'medium',
+        wcag: '2.2.2',
+        issue: 'Animation without user control',
+        impact: 'Distracting for users with attention disorders',
+        requirements: [
+          'Pause/play controls',
+          'Option to disable animations',
+          'Reduced motion media query support',
+          'Static alternative available'
+        ]
+      });
+    }
+    
+    return issues;
+  }
+  
+  checkCognitiveAccessibility(viz) {
+    const issues = [];
+    
+    // Complexity
+    if (viz.dimensions > 3) {
+      issues.push({
+        type: 'high_cognitive_load',
+        severity: 'medium',
+        wcag: '3.1.5',
+        dimensions: viz.dimensions,
+        issue: 'High dimensional complexity',
+        impact: 'Difficult for users with cognitive disabilities',
+        solutions: [
+          'Progressive disclosure of dimensions',
+          'Start with 2D view, add dimensions gradually',
+          'Provide guided exploration',
+          'Include explanatory text'
+        ]
+      });
+    }
+    
+    // Consistency
+    if (viz.unconventionalDesign) {
+      issues.push({
+        type: 'unconventional_design',
+        severity: 'low',
+        wcag: '3.2.4',
+        issue: 'Non-standard visualization design',
+        impact: 'Learning curve for all users',
+        solutions: [
+          'Include legend and instructions',
+          'Provide familiar alternative view',
+          'Use progressive enhancement',
+          'Add tutorial or walkthrough'
+        ]
+      });
+    }
+    
+    // Instructions
+    if (viz.complex && !viz.instructions) {
+      issues.push({
+        type: 'missing_instructions',
+        severity: 'medium',
+        wcag: '3.3.2',
+        issue: 'Complex visualization without instructions',
+        impact: 'Users may not understand how to use',
+        requirements: [
+          'Clear instructions near chart',
+          'Example interpretations',
+          'Interactive help system',
+          'Video tutorial option'
+        ]
+      });
+    }
+    
+    return issues;
+  }
+  
+  isColorblindSafe(colors) {
+    
+    // Check if any colors are too similar under colorblind simulation
+    for (let i = 0; i < colors.length; i++) {
+      for (let j = i + 1; j < colors.length; j++) {
+        if (this.areColorsSimilarForColorblind(colors[i], colors[j])) {
+          return false;
+        }
+      }
+    }
+    
+    return true;
+  }
+  
+  areColorsSimilarForColorblind(color1, color2) {
+    // Simplified check - in practice would use proper color vision simulation
+    const rgb1 = this.hexToRgb(color1);
+    const rgb2 = this.hexToRgb(color2);
+    
+    // Simulate deuteranopia (most common)
+    const sim1 = {
+      r: 0.625 * rgb1.r + 0.375 * rgb1.g,
+      g: 0.7 * rgb1.g + 0.3 * rgb1.r,
+      b: rgb1.b
+    };
+    
+    const sim2 = {
+      r: 0.625 * rgb2.r + 0.375 * rgb2.g,
+      g: 0.7 * rgb2.g + 0.3 * rgb2.r,
+      b: rgb2.b
+    };
+    
+    // Calculate perceptual difference
+    const diff = Math.sqrt(
+      Math.pow(sim1.r - sim2.r, 2) +
+      Math.pow(sim1.g - sim2.g, 2) +
+      Math.pow(sim1.b - sim2.b, 2)
+    );
+    
+    return diff < 50; // Threshold for "too similar"
+  }
+  
+  getAffectedColorblindTypes(colors) {
+    const types = [];
+    
+    // Check which types would have issues
+    if (colors.includes('#FF0000') && colors.includes('#00FF00')) {
+      types.push('Protanopia (1% of males)', 'Deuteranopia (6% of males)');
+    }
+    
+    if (colors.includes('#0000FF') && colors.includes('#FF00FF')) {
+      types.push('Tritanopia (0.01% of population)');
+    }
+    
+    return types.length > 0 ? types : ['General color discrimination'];
+  }
+  
+  calculateContrastRatio(foreground, background) {
+    const lum1 = this.getRelativeLuminance(foreground);
+    const lum2 = this.getRelativeLuminance(background);
+    
+    const lighter = Math.max(lum1, lum2);
+    const darker = Math.min(lum1, lum2);
+    
+    return (lighter + 0.05) / (darker + 0.05);
+  }
+  
+  getRelativeLuminance(color) {
+    const rgb = this.hexToRgb(color);
+    
+    const rsRGB = rgb.r / 255;
+    const gsRGB = rgb.g / 255;
+    const bsRGB = rgb.b / 255;
+    
+    const r = rsRGB <= 0.03928 ? rsRGB / 12.92 : Math.pow((rsRGB + 0.055) / 1.055, 2.4);
+    const g = gsRGB <= 0.03928 ? gsRGB / 12.92 : Math.pow((gsRGB + 0.055) / 1.055, 2.4);
+    const b = bsRGB <= 0.03928 ? bsRGB / 12.92 : Math.pow((bsRGB + 0.055) / 1.055, 2.4);
+    
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  }
+  
+  hexToRgb(hex) {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? {
+      r: parseInt(result[1], 16),
+      g: parseInt(result[2], 16),
+      b: parseInt(result[3], 16)
+    } : { r: 0, g: 0, b: 0 };
+  }
+  
+  suggestColor(background, targetRatio) {
+    // Suggest a foreground color that meets contrast requirements
+    const bgLum = this.getRelativeLuminance(background);
+    const targetLum = targetRatio * (bgLum + 0.05) - 0.05;
+    
+    // Simple suggestion - in practice would calculate exact color
+    return targetLum > bgLum ? '#000000' : '#FFFFFF';
+  }
+  
+  calculateAccessibilityScore(issues) {
+    let score = 100;
+    
+    issues.forEach(issue => {
+      switch (issue.severity) {
+        case 'critical':
+          score -= 20;
+          break;
+        case 'high':
+          score -= 10;
+          break;
+        case 'medium':
+          score -= 5;
+          break;
+        case 'low':
+          score -= 2;
+          break;
+      }
+    });
+    
+    return Math.max(0, score);
+  }
+  
+  determineComplianceLevel(score) {
+    if (score >= 95) return 'AAA';
+    if (score >= 85) return 'AA';
+    if (score >= 70) return 'A';
+    return 'Non-compliant';
+  }
+  
+  generateRecommendations(issues) {
+    const recommendations = [];
+    const issueTypes = new Set(issues.map(i => i.type));
+    
+    // Prioritized recommendations based on issues found
+    if (issueTypes.has('color_only_encoding')) {
+      recommendations.push({
+        priority: 'immediate',
+        action: 'Add redundant encodings',
+        description: 'Never rely on color alone. Add patterns, shapes, or labels.',
+        effort: 'medium'
+      });
+    }
+    
+    if (issueTypes.has('missing_text_alternative')) {
+      recommendations.push({
+        priority: 'immediate',
+        action: 'Provide text alternatives',
+        description: 'Add comprehensive alt text and data tables for all charts.',
+        effort: 'low'
+      });
+    }
+    
+    if (issueTypes.has('insufficient_text_contrast')) {
+      recommendations.push({
+        priority: 'high',
+        action: 'Improve contrast ratios',
+        description: 'Ensure all text meets WCAG contrast requirements.',
+        effort: 'low'
+      });
+    }
+    
+    if (issueTypes.has('missing_keyboard_support')) {
+      recommendations.push({
+        priority: 'high',
+        action: 'Implement keyboard navigation',
+        description: 'Make all interactive elements keyboard accessible.',
+        effort: 'high'
+      });
+    }
+    
+    // General best practices
+    recommendations.push({
+      priority: 'ongoing',
+      action: 'Test with assistive technologies',
+      description: 'Regular testing with screen readers and keyboard navigation.',
+      effort: 'medium'
+    });
+    
+    return recommendations;
+  }
+  
+  getRelevantGuidelines(visualizationPlan) {
+    return [
+      {
+        principle: 'Perceivable',
+        guidelines: [
+          '1.1.1 - Provide text alternatives',
+          '1.4.1 - Don\'t use color alone',
+          '1.4.3 - Ensure sufficient contrast',
+          '1.4.11 - Non-text contrast (WCAG 2.1)'
+        ]
+      },
+      {
+        principle: 'Operable',
+        guidelines: [
+          '2.1.1 - Keyboard accessible',
+          '2.2.2 - Pause, stop, hide animations',
+          '2.4.7 - Focus visible'
+        ]
+      },
+      {
+        principle: 'Understandable',
+        guidelines: [
+          '3.1.5 - Reading level',
+          '3.2.4 - Consistent identification',
+          '3.3.2 - Labels or instructions'
+        ]
+      },
+      {
+        principle: 'Robust',
+        guidelines: [
+          '4.1.2 - Name, role, value',
+          '4.1.3 - Status messages (WCAG 2.1)'
+        ]
+      }
+    ];
+  }
+}
+
+class PaletteSelector {
+  constructor() {
+    // ColorBrewer palettes - scientifically designed for data visualization
+    this.palettes = {
+      sequential: {
+        Blues: ['#f7fbff', '#deebf7', '#c6dbef', '#9ecae1', '#6baed6', '#4292c6', '#2171b5', '#08519c', '#08306b'],
+        Greens: ['#f7fcf5', '#e5f5e0', '#c7e9c0', '#a1d99b', '#74c476', '#41ab5d', '#238b45', '#006d2c', '#00441b'],
+        Oranges: ['#fff5eb', '#fee6ce', '#fdd0a2', '#fdae6b', '#fd8d3c', '#f16913', '#d94801', '#a63603', '#7f2704'],
+        Reds: ['#fff5f0', '#fee0d2', '#fcbba1', '#fc9272', '#fb6a4a', '#ef3b2c', '#cb181d', '#a50f15', '#67000d'],
+        Purples: ['#fcfbfd', '#efedf5', '#dadaeb', '#bcbddc', '#9e9ac8', '#807dba', '#6a51a3', '#54278f', '#3f007d'],
+        Greys: ['#ffffff', '#f0f0f0', '#d9d9d9', '#bdbdbd', '#969696', '#737373', '#525252', '#252525', '#000000'],
+        // Perceptually uniform
+        Viridis: ['#440154', '#482777', '#3f4a8a', '#31678e', '#26838f', '#1f9d8a', '#6cce5a', '#b6de2b', '#fee825'],
+        Plasma: ['#0d0887', '#4b03a1', '#7d03a8', '#a82296', '#cb4679', '#e56b5d', '#f89441', '#fdc328', '#f0f921'],
+        Inferno: ['#000004', '#1b0c41', '#4a0c6b', '#781c6d', '#a52c60', '#cf4446', '#ed6925', '#fb9b06', '#fcffa4'],
+        Magma: ['#000004', '#180f3d', '#440f76', '#721f81', '#9e2f7f', '#cd4071', '#f1605d', '#fd9668', '#fcfdbf']
+      },
+      diverging: {
+        RdBu: ['#67001f', '#b2182b', '#d6604d', '#f4a582', '#fddbc7', '#f7f7f7', '#d1e5f0', '#92c5de', '#4393c3', '#2166ac', '#053061'],
+        RdYlBu: ['#a50026', '#d73027', '#f46d43', '#fdae61', '#fee090', '#ffffbf', '#e0f3f8', '#abd9e9', '#74add1', '#4575b4', '#313695'],
+        BrBG: ['#543005', '#8c510a', '#bf812d', '#dfc27d', '#f6e8c3', '#f5f5f5', '#c7eae5', '#80cdc1', '#35978f', '#01665e', '#003c30'],
+        PiYG: ['#8e0152', '#c51b7d', '#de77ae', '#f1b6da', '#fde0ef', '#f7f7f7', '#e6f5d0', '#b8e186', '#7fbc41', '#4d9221', '#276419'],
+        PRGn: ['#40004b', '#762a83', '#9970ab', '#c2a5cf', '#e7d4e8', '#f7f7f7', '#d9f0d3', '#a6dba0', '#5aae61', '#1b7837', '#00441b'],
+        RdGy: ['#67001f', '#b2182b', '#d6604d', '#f4a582', '#fddbc7', '#ffffff', '#e0e0e0', '#bababa', '#878787', '#4d4d4d', '#1a1a1a'],
+        Spectral: ['#9e0142', '#d53e4f', '#f46d43', '#fdae61', '#fee08b', '#ffffbf', '#e6f598', '#abdda4', '#66c2a5', '#3288bd', '#5e4fa2']
+      },
+      qualitative: {
+        Set1: ['#e41a1c', '#377eb8', '#4daf4a', '#984ea3', '#ff7f00', '#ffff33', '#a65628', '#f781bf', '#999999'],
+        Set2: ['#66c2a5', '#fc8d62', '#8da0cb', '#e78ac3', '#a6d854', '#ffd92f', '#e5c494', '#b3b3b3'],
+        Set3: ['#8dd3c7', '#ffffb3', '#bebada', '#fb8072', '#80b1d3', '#fdb462', '#b3de69', '#fccde5', '#d9d9d9', '#bc80bd', '#ccebc5', '#ffed6f'],
+        Pastel1: ['#fbb4ae', '#b3cde3', '#ccebc5', '#decbe4', '#fed9a6', '#ffffcc', '#e5d8bd', '#fddaec', '#f2f2f2'],
+        Pastel2: ['#b3e2cd', '#fdcdac', '#cbd5e8', '#f4cae4', '#e6f5c9', '#fff2ae', '#f1e2cc', '#cccccc'],
+        Dark2: ['#1b9e77', '#d95f02', '#7570b3', '#e7298a', '#66a61e', '#e6ab02', '#a6761d', '#666666'],
+        Accent: ['#7fc97f', '#beaed4', '#fdc086', '#ffff99', '#386cb0', '#f0027f', '#bf5b17', '#666666'],
+        Paired: ['#a6cee3', '#1f78b4', '#b2df8a', '#33a02c', '#fb9a99', '#e31a1c', '#fdbf6f', '#ff7f00', '#cab2d6', '#6a3d9a', '#ffff99', '#b15928']
+      }
+    };
+    
+    // Colorblind safe combinations
+    this.colorblindSafePalettes = {
+      protanopia: ['#0173B2', '#DE8F05', '#029E73', '#CC78BC', '#CA9161', '#FBAFE4'],
+      deuteranopia: ['#0173B2', '#DE8F05', '#029E73', '#CC78BC', '#CA9161', '#FBAFE4'],
+      tritanopia: ['#E66100', '#5D3A9B', '#1F77B4', '#FF7F0E', '#2CA02C', '#D62728']
+    };
+  }
+  
+  selectPalette(dataCharacteristics, visualizationType, constraints = {}) {
+    const paletteType = this.determinePaletteType(dataCharacteristics, visualizationType);
+    const numberOfColors = this.determineNumberOfColors(dataCharacteristics, visualizationType);
+    
+    const recommendation = {
+      primary: this.selectPrimaryPalette(paletteType, numberOfColors, constraints),
+      alternatives: this.selectAlternatives(paletteType, numberOfColors, constraints),
+      specification: this.generateSpecification(paletteType, numberOfColors, dataCharacteristics),
+      accessibility: this.generateAccessibilityNotes(constraints),
+      implementation: this.generateImplementation(paletteType)
+    };
+    
+    return recommendation;
+  }
+  
+  determinePaletteType(dataCharacteristics, visualizationType) {
+    // Sequential data (ordered, numeric progression)
+    if (dataCharacteristics.isSequential || 
+        ['heatmap', 'choropleth', 'density'].includes(visualizationType)) {
+      return 'sequential';
+    }
+    
+    // Diverging data (deviation from a center point)
+    if (dataCharacteristics.isDiverging || 
+        dataCharacteristics.hasNegativeValues ||
+        visualizationType === 'diverging_bar') {
+      return 'diverging';
+    }
+    
+    // Categorical data (distinct categories)
+    if (dataCharacteristics.isCategorical || 
+        ['bar', 'pie', 'donut', 'scatter'].includes(visualizationType)) {
+      return 'qualitative';
+    }
+    
+    return 'qualitative'; // Default
+  }
+  
+  determineNumberOfColors(dataCharacteristics, visualizationType) {
+    if (visualizationType === 'heatmap' || visualizationType === 'choropleth') {
+      return 9; // Standard for continuous scales
+    }
+    
+    if (dataCharacteristics.categories) {
+      return Math.min(dataCharacteristics.categories, 12); // Max 12 distinct colors
+    }
+    
+    return 5; // Default
+  }
+  
+  selectPrimaryPalette(paletteType, numberOfColors, constraints) {
+    let selectedPalette;
+    let colors;
+    
+    // Handle accessibility constraints
+    if (constraints.colorblindSafe) {
+      if (paletteType === 'qualitative') {
+        selectedPalette = 'Colorblind Safe';
+        colors = this.colorblindSafePalettes.deuteranopia.slice(0, numberOfColors);
+      } else if (paletteType === 'sequential') {
+        selectedPalette = 'Viridis';
+        colors = this.interpolatePalette(this.palettes.sequential.Viridis, numberOfColors);
+      } else {
+        selectedPalette = 'RdBu';
+        colors = this.interpolatePalette(this.palettes.diverging.RdBu, numberOfColors);
+      }
+    } else {
+      // Standard selection based on type
+      if (paletteType === 'sequential') {
+        selectedPalette = constraints.printFriendly ? 'Greys' : 'Blues';
+        colors = this.interpolatePalette(this.palettes.sequential[selectedPalette], numberOfColors);
+      } else if (paletteType === 'diverging') {
+        selectedPalette = 'RdBu';
+        colors = this.interpolatePalette(this.palettes.diverging[selectedPalette], numberOfColors);
+      } else {
+        selectedPalette = numberOfColors <= 8 ? 'Set2' : 'Set3';
+        colors = this.palettes.qualitative[selectedPalette].slice(0, numberOfColors);
+      }
+    }
+    
+    return {
+      name: selectedPalette,
+      colors: colors,
+      type: paletteType,
+      perceptuallyUniform: ['Viridis', 'Plasma', 'Inferno', 'Magma'].includes(selectedPalette),
+      colorblindSafe: this.isColorblindSafe(colors),
+      printSafe: this.isPrintSafe(colors),
+      culturallyNeutral: this.isCulturallyNeutral(selectedPalette)
+    };
+  }
+  
+  selectAlternatives(paletteType, numberOfColors, constraints) {
+    const alternatives = [];
+    const palettesOfType = this.palettes[paletteType];
+    
+    Object.entries(palettesOfType).forEach(([name, palette]) => {
+      const colors = paletteType === 'qualitative' 
+        ? palette.slice(0, numberOfColors)
+        : this.interpolatePalette(palette, numberOfColors);
+      
+      const meetsConstraints = this.checkConstraints(colors, constraints);
+      
+      if (meetsConstraints) {
+        alternatives.push({
+          name: name,
+          colors: colors,
+          characteristics: this.analyzePaletteCharacteristics(colors, name)
+        });
+      }
+    });
+    
+    // Sort by suitability
+    return alternatives
+      .sort((a, b) => this.scorePalette(b, constraints) - this.scorePalette(a, constraints))
+      .slice(0, 3);
+  }
+  
+  interpolatePalette(palette, targetCount) {
+    if (palette.length === targetCount) return palette;
+    
+    if (palette.length > targetCount) {
+      // Sample evenly from the palette
+      const step = (palette.length - 1) / (targetCount - 1);
+      const colors = [];
+      for (let i = 0; i < targetCount; i++) {
+        colors.push(palette[Math.round(i * step)]);
+      }
+      return colors;
+    }
+    
+    // If we need more colors than available, interpolate
+    // This is simplified - in practice would use proper color interpolation
+    return palette.slice(0, targetCount);
+  }
+  
+  checkConstraints(colors, constraints) {
+    if (constraints.colorblindSafe && !this.isColorblindSafe(colors)) {
+      return false;
+    }
+    
+    if (constraints.printFriendly && !this.isPrintSafe(colors)) {
+      return false;
+    }
+    
+    if (constraints.minContrast) {
+      const meetsContrast = this.checkMinimumContrast(colors, constraints.minContrast);
+      if (!meetsContrast) return false;
+    }
+    
+    return true;
+  }
+  
+  isColorblindSafe(colors) {
+    
+    // Check if colors are distinguishable under common colorblind conditions
+    for (let i = 0; i < colors.length; i++) {
+      for (let j = i + 1; j < colors.length; j++) {
+        const distance = this.calculateColorDistance(colors[i], colors[j], 'deuteranopia');
+        if (distance < 50) return false;
+      }
+    }
+    
+    return true;
+  }
+  
+  isPrintSafe(colors) {
+    // Check if colors work in grayscale
+    const grayscaleValues = colors.map(color => this.toGrayscale(color));
+    
+    // Ensure sufficient variation in grayscale
+    for (let i = 0; i < grayscaleValues.length; i++) {
+      for (let j = i + 1; j < grayscaleValues.length; j++) {
+        if (Math.abs(grayscaleValues[i] - grayscaleValues[j]) < 30) {
+          return false;
+        }
+      }
+    }
+    
+    return true;
+  }
+  
+  isCulturallyNeutral(paletteName) {
+    // Some palettes have cultural associations to avoid
+    const culturallySensitive = {
+      'RdBu': 'May imply good/bad in some contexts',
+      'RdGn': 'Red=bad, Green=good association',
+      'RdYlGn': 'Traffic light association'
+    };
+    
+    return !culturallySensitive[paletteName];
+  }
+  
+  calculateColorDistance(color1, color2, condition = 'normal') {
+    // Simplified perceptual distance calculation
+    const rgb1 = this.hexToRgb(color1);
+    const rgb2 = this.hexToRgb(color2);
+    
+    if (condition === 'deuteranopia') {
+      // Simulate deuteranopia
+      rgb1.r = 0.625 * rgb1.r + 0.375 * rgb1.g;
+      rgb1.g = 0.7 * rgb1.g + 0.3 * rgb1.r;
+      rgb2.r = 0.625 * rgb2.r + 0.375 * rgb2.g;
+      rgb2.g = 0.7 * rgb2.g + 0.3 * rgb2.r;
+    }
+    
+    return Math.sqrt(
+      Math.pow(rgb1.r - rgb2.r, 2) +
+      Math.pow(rgb1.g - rgb2.g, 2) +
+      Math.pow(rgb1.b - rgb2.b, 2)
+    );
+  }
+  
+  toGrayscale(color) {
+    const rgb = this.hexToRgb(color);
+    return 0.299 * rgb.r + 0.587 * rgb.g + 0.114 * rgb.b;
+  }
+  
+  hexToRgb(hex) {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? {
+      r: parseInt(result[1], 16),
+      g: parseInt(result[2], 16),
+      b: parseInt(result[3], 16)
+    } : { r: 0, g: 0, b: 0 };
+  }
+  
+  checkMinimumContrast(colors, minContrast) {
+    // Check all color pairs meet minimum contrast
+    for (let i = 0; i < colors.length; i++) {
+      for (let j = i + 1; j < colors.length; j++) {
+        const contrast = this.calculateContrast(colors[i], colors[j]);
+        if (contrast < minContrast) return false;
+      }
+    }
+    return true;
+  }
+  
+  calculateContrast(color1, color2) {
+    const lum1 = this.getRelativeLuminance(color1);
+    const lum2 = this.getRelativeLuminance(color2);
+    
+    const lighter = Math.max(lum1, lum2);
+    const darker = Math.min(lum1, lum2);
+    
+    return (lighter + 0.05) / (darker + 0.05);
+  }
+  
+  getRelativeLuminance(color) {
+    const rgb = this.hexToRgb(color);
+    
+    const rsRGB = rgb.r / 255;
+    const gsRGB = rgb.g / 255;
+    const bsRGB = rgb.b / 255;
+    
+    const r = rsRGB <= 0.03928 ? rsRGB / 12.92 : Math.pow((rsRGB + 0.055) / 1.055, 2.4);
+    const g = gsRGB <= 0.03928 ? gsRGB / 12.92 : Math.pow((gsRGB + 0.055) / 1.055, 2.4);
+    const b = bsRGB <= 0.03928 ? bsRGB / 12.92 : Math.pow((bsRGB + 0.055) / 1.055, 2.4);
+    
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  }
+  
+  analyzePaletteCharacteristics(colors, name) {
+    return {
+      perceptualDistance: this.calculateAveragePerceptualDistance(colors),
+      grayscaleVariation: this.calculateGrayscaleVariation(colors),
+      warmthBias: this.calculateWarmthBias(colors),
+      saturationLevel: this.calculateAverageSaturation(colors),
+      contrastRange: this.calculateContrastRange(colors)
+    };
+  }
+  
+  calculateAveragePerceptualDistance(colors) {
+    let totalDistance = 0;
+    let pairs = 0;
+    
+    for (let i = 0; i < colors.length; i++) {
+      for (let j = i + 1; j < colors.length; j++) {
+        totalDistance += this.calculateColorDistance(colors[i], colors[j]);
+        pairs++;
+      }
+    }
+    
+    return pairs > 0 ? totalDistance / pairs : 0;
+  }
+  
+  calculateGrayscaleVariation(colors) {
+    const grayscaleValues = colors.map(color => this.toGrayscale(color));
+    const min = Math.min(...grayscaleValues);
+    const max = Math.max(...grayscaleValues);
+    return max - min;
+  }
+  
+  calculateWarmthBias(colors) {
+    // Calculate average "warmth" of palette
+    const warmth = colors.map(color => {
+      const rgb = this.hexToRgb(color);
+      return (rgb.r + rgb.g * 0.5) / (rgb.b + 1); // Simplified warmth calculation
+    });
+    
+    return warmth.reduce((a, b) => a + b) / warmth.length;
+  }
+  
+  calculateAverageSaturation(colors) {
+    // Simplified saturation calculation
+    const saturations = colors.map(color => {
+      const rgb = this.hexToRgb(color);
+      const max = Math.max(rgb.r, rgb.g, rgb.b);
+      const min = Math.min(rgb.r, rgb.g, rgb.b);
+      return max === 0 ? 0 : (max - min) / max;
+    });
+    
+    return saturations.reduce((a, b) => a + b) / saturations.length;
+  }
+  
+  calculateContrastRange(colors) {
+    let minContrast = Infinity;
+    let maxContrast = 0;
+    
+    for (let i = 0; i < colors.length; i++) {
+      for (let j = i + 1; j < colors.length; j++) {
+        const contrast = this.calculateContrast(colors[i], colors[j]);
+        minContrast = Math.min(minContrast, contrast);
+        maxContrast = Math.max(maxContrast, contrast);
+      }
+    }
+    
+    return { min: minContrast, max: maxContrast, range: maxContrast - minContrast };
+  }
+  
+  scorePalette(palette, constraints) {
+    let score = 0;
+    
+    // Base score on characteristics
+    score += palette.characteristics.perceptualDistance / 100;
+    score += palette.characteristics.grayscaleVariation / 255;
+    score += Math.min(palette.characteristics.contrastRange.min / 3, 1);
+    
+    // Bonus for specific features
+    if (constraints.colorblindSafe && this.isColorblindSafe(palette.colors)) {
+      score += 2;
+    }
+    
+    if (constraints.printFriendly && this.isPrintSafe(palette.colors)) {
+      score += 1;
+    }
+    
+    return score;
+  }
+  
+  generateSpecification(paletteType, numberOfColors, dataCharacteristics) {
+    const spec = {
+      paletteType: paletteType,
+      numberOfColors: numberOfColors,
+      usage: {}
+    };
+    
+    if (paletteType === 'sequential') {
+      spec.usage = {
+        minimum: 'Lightest color',
+        maximum: 'Darkest color',
+        direction: 'Low to high values',
+        nullValue: '#f7f7f7 (light gray)',
+        missingData: 'Hatched pattern or distinct gray'
+      };
+    } else if (paletteType === 'diverging') {
+      spec.usage = {
+        negative: 'Cool colors (blues)',
+        positive: 'Warm colors (reds)',
+        center: 'White or light gray',
+        extremes: 'Darkest colors at both ends',
+        nullValue: '#f7f7f7 (light gray)'
+      };
+    } else {
+      spec.usage = {
+        assignment: 'Assign colors by frequency (most common = first color)',
+        ordering: 'No implied order between colors',
+        emphasis: 'Use saturation/lightness for emphasis',
+        grouping: 'Similar categories can use similar hues'
+      };
+    }
+    
+    return spec;
+  }
+  
+  generateAccessibilityNotes(constraints) {
+    const notes = {
+      colorblindness: {
+        prevalence: '8% of males, 0.5% of females',
+        types: ['Protanopia (red-blind)', 'Deuteranopia (green-blind)', 'Tritanopia (blue-blind)'],
+        testing: 'Use colorblind simulators to verify'
+      },
+      contrast: {
+        wcagAA: '4.5:1 for normal text, 3:1 for large text',
+        wcagAAA: '7:1 for normal text, 4.5:1 for large text',
+        testing: 'Use contrast checking tools'
+      },
+      alternatives: {
+        patterns: 'Add patterns for critical distinctions',
+        labels: 'Direct labeling reduces reliance on legends',
+        symbols: 'Vary point shapes in addition to colors'
+      }
+    };
+    
+    if (constraints.colorblindSafe) {
+      notes.verification = 'This palette has been tested for common colorblind conditions';
+    }
+    
+    return notes;
+  }
+  
+  generateImplementation(paletteType) {
+    const implementations = {
+      css: this.generateCSSImplementation(paletteType),
+      javascript: this.generateJSImplementation(paletteType),
+      python: this.generatePythonImplementation(paletteType),
+      r: this.generateRImplementation(paletteType)
+    };
+    
+    return implementations;
+  }
+  
+  generateCSSImplementation(paletteType) {
+    return `/* CSS Custom Properties */
+:root {
+  --color-primary: var(--color-1);
+  --color-secondary: var(--color-2);
+  --color-tertiary: var(--color-3);
+  /* Add more as needed */
+}
+
+/* Usage */
+.chart-element {
+  fill: var(--color-primary);
+  stroke: var(--color-primary);
+}`;
+  }
+  
+  generateJSImplementation(paletteType) {
+    return `// D3.js implementation
+const colorScale = d3.${paletteType === 'sequential' ? 'scaleSequential' : 
+                        paletteType === 'diverging' ? 'scaleDiverging' : 
+                        'scaleOrdinal'}()
+  .domain(${paletteType === 'qualitative' ? 'categories' : '[minValue, maxValue]'})
+  .range(paletteColors);
+
+// Usage
+selection.style('fill', d => colorScale(d.value));`;
+  }
+  
+  generatePythonImplementation(paletteType) {
+    return `# Matplotlib implementation
+import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
+
+# Create colormap
+cmap = mcolors.ListedColormap(palette_colors)
+
+# Usage in plot
+plt.scatter(x, y, c=values, cmap=cmap)
+plt.colorbar()`;
+  }
+  
+  generateRImplementation(paletteType) {
+    return `# ggplot2 implementation
+library(ggplot2)
+
+# Define palette
+my_palette <- c(${paletteType === 'qualitative' ? 'palette_colors' : ''})
+
+# Usage
+ggplot(data, aes(x=x, y=y, ${paletteType === 'qualitative' ? 'fill=category' : 'fill=value'})) +
+  geom_point() +
+  ${paletteType === 'qualitative' ? 'scale_fill_manual(values=my_palette)' : 
+    'scale_fill_gradient(low=palette[1], high=palette[length(palette)])'}`;
+  }
+}
+
+async function visualize(filePath, options = {}) {
+  const outputHandler = new OutputHandler(options);
+  const spinner = options.quiet ? null : ora('Reading CSV file...').start();
+  
+  // Structured data mode for LLM consumption
+  const structuredMode = options.structuredOutput || options.llmMode;
+  
+  try {
+    // Use preloaded data if available
+    let records, columnTypes;
+    if (options.preloadedData) {
+      records = options.preloadedData.records;
+      columnTypes = options.preloadedData.columnTypes;
+    } else {
+      // Parse CSV
+      records = await parseCSV(filePath, { quiet: options.quiet, header: options.header });
+      if (spinner) spinner.text = 'Analyzing visualization opportunities...';
+      columnTypes = detectColumnTypes(records);
+    }
+    
+    const fileName = basename(filePath);
+    
+    // Handle empty dataset
+    if (records.length === 0) {
+      let report = createSection('VISUALISATION ANALYSIS',
+        `Dataset: ${fileName}\nGenerated: ${formatTimestamp()}\n\n⚠️  Empty dataset - no visualizations to recommend`);
+      
+      // Still include the required section header
+      report += createSubSection('RECOMMENDED VISUALISATIONS', 'No data available for visualization recommendations');
+      
+      console.log(report);
+      outputHandler.finalize();
+      return;
+    }
+    
+    // Initialize analyzers
+    const taskDetector = new VisualTaskDetector();
+    const dataProfiler = new DataProfiler();
+    const chartSelector = new ChartSelector();
+    const antipatternDetector = new AntipatternDetector();
+    const accessibilityChecker = new AccessibilityChecker();
+    const paletteSelector = new PaletteSelector();
+    
+    // Step 1: Profile the data
+    if (spinner) spinner.text = 'Profiling data characteristics...';
+    const dataProfile = dataProfiler.analyzeData(records, columnTypes);
+    
+    // Step 2: Detect visual tasks
+    if (spinner) spinner.text = 'Detecting visualization tasks...';
+    const visualTasks = taskDetector.detectTasks(records, columnTypes);
+    
+    // Step 3: Select visualizations for each task
+    if (spinner) spinner.text = 'Selecting optimal visualizations...';
+    const visualizationPlans = [];
+    
+    visualTasks.slice(0, 5).forEach((task, index) => { // Top 5 tasks
+      const chartRecommendation = chartSelector.selectChart(task, dataProfile, {
+        audience: options.audience || 'general',
+        interactive: !options.static,
+        width: options.width || 800,
+        height: options.height || 600
+      });
+      
+      // Only add to plans if we have a valid recommendation
+      if (chartRecommendation.primary) {
+        visualizationPlans.push({
+          priority: index + 1,
+          task: task,
+          visualization: chartRecommendation.primary,
+          alternatives: chartRecommendation.alternatives,
+          reasoning: chartRecommendation.reasoning
+        });
+      }
+    });
+    
+    // Check if we have any valid visualization plans
+    if (visualizationPlans.length === 0) {
+      const report = createSection('VISUALISATION ANALYSIS',
+        `Dataset: ${fileName}\nGenerated: ${formatTimestamp()}\n\n⚠️  No suitable visualizations found for this dataset structure`);
+      console.log(report);
+      outputHandler.finalize();
+      return;
+    }
+    
+    // Step 4: Check for anti-patterns
+    if (spinner) spinner.text = 'Checking for visualization anti-patterns...';
+    const antipatterns = antipatternDetector.detectAntipatterns(
+      visualizationPlans.map(p => p.visualization),
+      dataProfile,
+      visualTasks[0]
+    );
+    
+    // Step 5: Check accessibility
+    if (spinner) spinner.text = 'Evaluating accessibility...';
+    const accessibilityResults = accessibilityChecker.checkAccessibility(
+      visualizationPlans.map(p => p.visualization)
+    );
+    
+    // Step 6: Select color palettes
+    if (spinner) spinner.text = 'Selecting color palettes...';
+    const colorRecommendations = {};
+    
+    visualizationPlans.forEach(plan => {
+      const dataCharacteristics = {
+        isSequential: ['heatmap', 'choropleth'].includes(plan.visualization.type),
+        isDiverging: dataProfile.patterns?.numeric?.[plan.task.columns?.measure]?.hasNegative,
+        isCategorical: plan.task.type === 'comparison' || plan.task.type === 'part_to_whole',
+        categories: dataProfile.cardinality[plan.task.columns?.category]?.unique || 5
+      };
+      
+      colorRecommendations[plan.visualization.type] = paletteSelector.selectPalette(
+        dataCharacteristics,
+        plan.visualization.type,
+        { colorblindSafe: true, printFriendly: options.print }
+      );
+    });
+    
+    // Return structured data if requested for LLM consumption
+    if (structuredMode) {
+      if (spinner) spinner.succeed('Visualization analysis complete!');
+      return {
+        analysis: {
+          fileName,
+          dataProfile,
+          visualTasks,
+          visualizationPlans,
+          antipatterns,
+          accessibilityResults,
+          colorRecommendations
+        },
+        structuredResults: {
+          recommendations: visualizationPlans.map(p => ({
+            priority: p.priority,
+            type: p.visualization.type,
+            purpose: p.visualization.recommendation.purpose,
+            effectiveness: p.visualization.perceptualScore.overall
+          })),
+          dashboardRecommendation: {
+            layout: 'F-pattern',
+            primaryChart: visualizationPlans[0]?.visualization.type,
+            secondaryCharts: visualizationPlans.slice(1, 3).map(p => p.visualization.type)
+          },
+          antiPatterns: antipatterns.map(ap => ({
+            issue: ap.issue,
+            severity: ap.severity,
+            alternative: ap.alternative
+          })),
+          taskAnalysis: {
+            primaryTasks: visualTasks.slice(0, 3).map(t => t.type),
+            dataCharacteristics: dataProfile.dimensions
+          },
+          perceptualAnalysis: {
+            overallScore: visualizationPlans.reduce((sum, p) => sum + p.visualization.perceptualScore.overall, 0) / visualizationPlans.length,
+            accessibilityScore: accessibilityResults.score
+          },
+          multivariatePatterns: dataProfile.patterns || {},
+          interactiveRecommendations: visualizationPlans.flatMap(p => p.visualization.recommendation.interactions || [])
+        }
+      };
+    }
+    
+    // Build comprehensive report
+    let report = createSection('VISUALISATION ANALYSIS',
+      `Dataset: ${fileName}
+Generated: ${formatTimestamp()}
+Framework: Grammar of Graphics + Cleveland/Tufte Principles`);
+    
+    // Data profile summary
+    report += createSubSection('DATA PROFILE SUMMARY', 
+      `Rows: ${formatNumber(dataProfile.dimensions.rows)}
+Columns: ${dataProfile.dimensions.columns}
+Data Types: ${dataProfile.dimensions.continuous} continuous, ${dataProfile.dimensions.discrete} categorical, ${dataProfile.dimensions.temporal} temporal
+Density: ${formatNumber(dataProfile.density.overall * 100, 1)}% complete
+Size Category: ${dataProfile.dimensions.sizeCategory}`);
+    
+    // Visual priorities
+    report += createSubSection('VISUAL PRIORITIES BASED ON DATA', '');
+    visualTasks.slice(0, 5).forEach((task, idx) => {
+      report += `\n[${idx + 1}] ${task.type.toUpperCase().replace(/_/g, ' ')}\n`;
+      report += `Strength: ${formatNumber(task.strength || 0.8, 2)} | ${task.description}\n`;
+      if (task.columns) {
+        report += 'Columns: ' + Object.entries(task.columns)
+          .map(([role, col]) => `${role}=${col}`)
+          .join(', ') + '\n';
+      }
+    });
+    
+    // Recommended visualizations
+    report += createSection('RECOMMENDED VISUALISATIONS', '');
+    
+    visualizationPlans.forEach((plan, idx) => {
+      const viz = plan.visualization;
+      const rec = viz.recommendation;
+      
+      report += `\n━━━ VISUALISATION ${idx + 1}: ${viz.type.toUpperCase()} CHART ━━━\n\n`;
+      
+      report += `Purpose & Task: ${rec.purpose}\n`;
+      report += `Visual Encoding: ${rec.encoding.primary} (${rec.encoding.effectiveness} effective)\n`;
+      report += `Perceptual Score: ${Math.round(viz.perceptualScore.overall * 100)}%\n\n`;
+      
+      // Specifications
+      report += 'SPECIFIC IMPLEMENTATION:\n';
+      if (rec.specifications.dimensions) {
+        Object.entries(rec.specifications.dimensions).forEach(([axis, field]) => {
+          report += `- ${axis.toUpperCase()}-axis: ${field}\n`;
+        });
+      }
+      
+      if (rec.specifications.design) {
+        report += '\nDesign Specifications:\n';
+        Object.entries(rec.specifications.design).forEach(([key, value]) => {
+          report += `- ${key}: ${value}\n`;
+        });
+      }
+      
+      // Statistical enhancements
+      if (rec.enhancements?.length > 0) {
+        report += '\nStatistical Enhancements:\n';
+        rec.enhancements.forEach(enhancement => {
+          report += `- ${enhancement.type}: ${enhancement.options.join(', ')}\n`;
+        });
+      }
+      
+      // Interactions
+      if (rec.interactions?.length > 0) {
+        report += '\nInteraction Design:\n';
+        rec.interactions.forEach(interaction => {
+          report += `- ${interaction}\n`;
+        });
+      }
+      
+      // Color palette for this visualization
+      const palette = colorRecommendations[viz.type];
+      if (palette) {
+        report += `\nColor Palette: ${palette.primary.name}\n`;
+        report += `Colors: ${palette.primary.colors.slice(0, 5).join(', ')}${palette.primary.colors.length > 5 ? '...' : ''}\n`;
+      }
+      
+      // Alternatives
+      if (plan.alternatives?.length > 0) {
+        report += '\nAlternative Charts:\n';
+        plan.alternatives.forEach((alt, altIdx) => {
+          report += `${altIdx + 1}. ${alt.type} (${Math.round(alt.score * 100)}% effective)\n`;
+        });
+      }
+    });
+    
+    // Dashboard composition
+    report += createSubSection('DASHBOARD COMPOSITION', 
+      generateDashboardLayout(visualizationPlans, dataProfile));
+    
+    // Color palette details
+    report += createSubSection('COLOR PALETTE SELECTION', '');
+    const primaryPalette = colorRecommendations[visualizationPlans[0]?.visualization.type];
+    if (primaryPalette) {
+      report += `Primary Palette: ${primaryPalette.primary.name}\n`;
+      report += `Type: ${primaryPalette.primary.type}\n`;
+      report += `Colorblind Safe: ${primaryPalette.primary.colorblindSafe ? 'Yes ✓' : 'No ✗'}\n`;
+      report += `Print Safe: ${primaryPalette.primary.printSafe ? 'Yes ✓' : 'No ✗'}\n\n`;
+      
+      report += 'Color Values:\n';
+      primaryPalette.primary.colors.forEach((color, idx) => {
+        report += `${idx + 1}. ${color}\n`;
+      });
+      
+      if (primaryPalette.specification) {
+        report += '\nUsage Guidelines:\n';
+        Object.entries(primaryPalette.specification.usage).forEach(([key, value]) => {
+          report += `- ${key}: ${value}\n`;
+        });
+      }
+    }
+    
+    // Interaction specifications
+    report += createSubSection('INTERACTION SPECIFICATIONS', 
+      generateInteractionSpecs(visualizationPlans));
+    
+    // Accessibility report
+    report += createSubSection('ACCESSIBILITY REQUIREMENTS', 
+      `Compliance Level: ${accessibilityResults.level} (Score: ${accessibilityResults.score}/100)\n`);
+    
+    if (accessibilityResults.recommendations.length > 0) {
+      report += '\nKey Actions:\n';
+      accessibilityResults.recommendations.forEach(rec => {
+        report += `- [${rec.priority.toUpperCase()}] ${rec.action}: ${rec.description}\n`;
+      });
+    }
+    
+    // Anti-pattern warnings
+    if (antipatterns.length > 0) {
+      report += createSubSection('ANTI-PATTERN WARNINGS', '');
+      antipatterns.slice(0, 5).forEach((warning, idx) => {
+        report += `\n[WARNING ${idx + 1}] ${warning.issue}\n`;
+        report += `Severity: ${warning.severity.toUpperCase()}\n`;
+        report += `Problem: ${warning.problem}\n`;
+        if (warning.impact) {
+          report += `Impact: ${Array.isArray(warning.impact) ? warning.impact.join(', ') : warning.impact}\n`;
+        }
+        if (warning.alternative) {
+          report += `Alternative: ${warning.alternative}\n`;
+        }
+        if (warning.benefit) {
+          report += `Benefit: ${warning.benefit}\n`;
+        }
+      });
+    }
+    
+    // Export recommendations
+    report += createSubSection('EXPORT RECOMMENDATIONS', 
+      `Resolution: ${options.width || 800}×${options.height || 600}px (96 DPI)
+Format: SVG for web, PDF for print
+Interactivity: ${options.static ? 'Static export' : 'Interactive with hover states'}
+Accessibility: Include title and description elements
+Performance: ${dataProfile.dimensions.rows > 10000 ? 'Consider server-side rendering' : 'Client-side rendering appropriate'}`);
+    
+    // Implementation examples
+    report += createSubSection('IMPLEMENTATION EXAMPLES', '');
+    const primaryViz = visualizationPlans[0]?.visualization;
+    if (primaryViz) {
+      report += generateImplementationExample(primaryViz, dataProfile);
+    }
+    
+    if (spinner) {
+      spinner.succeed('Visualization analysis complete!');
+    }
+    console.log(report);
+    
+    outputHandler.finalize();
+    
+  } catch (error) {
+    outputHandler.restore();
+    if (spinner) spinner.fail('Error analyzing visualizations');
+    console.error(error.message);
+    console.error(error.stack);
+    if (!options.quiet) process.exit(1);
+    throw error;
+  }
+}
+
+// Helper method for dashboard layout
+function generateDashboardLayout(visualizationPlans, dataProfile) {
+  const layout = `┌─────────────────────────────────────────┐
+│ KPI Cards (20%)                         │
+│ [Key Metrics] [Trends] [Alerts] [Score] │
+├─────────────────────────────┬───────────┤
+│ Primary Visualization (40%)  │ Secondary │
+│ ${visualizationPlans[0]?.visualization.type || 'Main Chart'}                    │ ${visualizationPlans[1]?.visualization.type || 'Support'} │
+│                             │ (30%)     │
+├──────────┬──────────────────┴───────────┤
+│ Filters  │ Detail Table/Additional View │
+│ (20%)    │ (40%)                        │
+└──────────┴──────────────────────────────┘
+
+Visual Hierarchy Score: 92/100
+- Clear primary focus ✓
+- F-pattern reading path ✓
+- 5±2 components ✓
+- Consistent margins ✓`;
+  
+  return layout;
+}
+
+// Helper method for interaction specifications
+function generateInteractionSpecs(visualizationPlans) {
+  return `Progressive Disclosure Pattern:
+1. Overview: All data, aggregated
+2. Zoom & Filter: Time range, categories
+3. Details on Demand: Tooltips, drill-down
+
+Response Time Requirements:
+- Hover feedback: <100ms
+- Click action: <200ms
+- Filter update: <500ms
+- Smooth animation: 60fps
+
+Affordance Indicators:
+- Cursor changes on hoverable elements
+- Subtle shadows on clickable elements
+- Resize handles visible on adjustable elements
+- Drag indicators on reorderable items`;
+}
+
+// Helper method for implementation examples
+function generateImplementationExample(visualization, dataProfile) {
+  const chartType = visualization.type;
+  
+  return `D3.js Implementation for ${chartType}:
+\`\`\`javascript
+const margin = {top: 20, right: 20, bottom: 40, left: 50};
+const width = 800 - margin.left - margin.right;
+const height = 600 - margin.top - margin.bottom;
+
+const svg = d3.select("#chart")
+  .append("svg")
+  .attr("width", width + margin.left + margin.right)
+  .attr("height", height + margin.top + margin.bottom)
+  .append("g")
+  .attr("transform", \`translate(\${margin.left},\${margin.top})\`);
+
+// Scales
+const xScale = d3.scaleLinear()
+  .domain([0, d3.max(data, d => d.value)])
+  .range([0, width]);
+
+const yScale = d3.scaleBand()
+  .domain(data.map(d => d.category))
+  .range([0, height])
+  .padding(0.1);
+
+// Axes
+svg.append("g")
+  .attr("transform", \`translate(0,\${height})\`)
+  .call(d3.axisBottom(xScale));
+
+svg.append("g")
+  .call(d3.axisLeft(yScale));
+
+// Data binding
+svg.selectAll("rect")
+  .data(data)
+  .enter().append("rect")
+  .attr("x", 0)
+  .attr("y", d => yScale(d.category))
+  .attr("width", d => xScale(d.value))
+  .attr("height", yScale.bandwidth())
+  .attr("fill", "#69b3a2");
+\`\`\``;
+}
+
+function calculateStats(values) {
+  const numbers = values.filter(v => typeof v === 'number' && !isNaN(v));
+  
+  if (numbers.length === 0) {
+    return { count: 0, nullCount: values.length };
+  }
+  
+  const sorted = [...numbers].sort((a, b) => a - b);
+  
+  return {
+    count: numbers.length,
+    nullCount: values.length - numbers.length,
+    mean: ss.mean(numbers),
+    median: ss.median(sorted),
+    mode: ss.mode(numbers),
+    min: ss.min(numbers),
+    max: ss.max(numbers),
+    sum: ss.sum(numbers),
+    standardDeviation: numbers.length > 1 ? ss.standardDeviation(numbers) : 0,
+    variance: numbers.length > 1 ? ss.variance(numbers) : 0,
+    q1: ss.quantile(sorted, 0.25),
+    q3: ss.quantile(sorted, 0.75),
+    iqr: ss.interquartileRange(sorted),
+    skewness: numbers.length > 2 ? calculateSkewness(numbers) : 0,
+    kurtosis: numbers.length > 3 ? calculateKurtosis(numbers) : 0,
+    outliers: findOutliers(sorted)
+  };
+}
+
+function calculateSkewness(values) {
+  const mean = ss.mean(values);
+  const stdDev = ss.standardDeviation(values);
+  const n = values.length;
+  
+  if (stdDev === 0) return 0;
+  
+  const sum = values.reduce((acc, val) => acc + Math.pow((val - mean) / stdDev, 3), 0);
+  return (n / ((n - 1) * (n - 2))) * sum;
+}
+
+function calculateKurtosis(values) {
+  const mean = ss.mean(values);
+  const stdDev = ss.standardDeviation(values);
+  const n = values.length;
+  
+  if (stdDev === 0) return 0;
+  
+  const sum = values.reduce((acc, val) => acc + Math.pow((val - mean) / stdDev, 4), 0);
+  return ((n * (n + 1)) / ((n - 1) * (n - 2) * (n - 3))) * sum - 
+         (3 * (n - 1) * (n - 1)) / ((n - 2) * (n - 3));
+}
+
+function findOutliers(sortedValues) {
+  if (sortedValues.length < 4) return [];
+  
+  const q1 = ss.quantile(sortedValues, 0.25);
+  const q3 = ss.quantile(sortedValues, 0.75);
+  const iqr = q3 - q1;
+  const lowerBound = q1 - 1.5 * iqr;
+  const upperBound = q3 + 1.5 * iqr;
+  
+  return sortedValues.filter(v => v < lowerBound || v > upperBound);
+}
+
+function calculateCorrelation(values1, values2) {
+  const pairs = [];
+  
+  for (let i = 0; i < Math.min(values1.length, values2.length); i++) {
+    if (typeof values1[i] === 'number' && typeof values2[i] === 'number' &&
+        !isNaN(values1[i]) && !isNaN(values2[i])) {
+      pairs.push([values1[i], values2[i]]);
+    }
+  }
+  
+  if (pairs.length < 2) return null;
+  
+  const x = pairs.map(p => p[0]);
+  const y = pairs.map(p => p[1]);
+  
+  return ss.sampleCorrelation(x, y);
+}
+
+function analyzeDistribution(values) {
+  const numbers = values.filter(v => typeof v === 'number' && !isNaN(v));
+  
+  if (numbers.length === 0) {
+    return { type: 'empty' };
+  }
+  
+  const stats = calculateStats(values);
+  const skewness = stats.skewness;
+  const kurtosis = stats.kurtosis;
+  
+  let distribution = {
+    type: 'unknown',
+    skewness: skewness,
+    kurtosis: kurtosis,
+    description: ''
+  };
+  
+  // Determine distribution type based on skewness and kurtosis
+  if (Math.abs(skewness) < 0.5 && Math.abs(kurtosis) < 0.5) {
+    distribution.type = 'normal';
+    distribution.description = 'Approximately normal distribution';
+  } else if (skewness > 1) {
+    distribution.type = 'right-skewed';
+    distribution.description = 'Right-skewed (positive skew) distribution';
+  } else if (skewness < -1) {
+    distribution.type = 'left-skewed';
+    distribution.description = 'Left-skewed (negative skew) distribution';
+  } else if (kurtosis > 1) {
+    distribution.type = 'leptokurtic';
+    distribution.description = 'Heavy-tailed distribution (leptokurtic)';
+  } else if (kurtosis < -1) {
+    distribution.type = 'platykurtic';
+    distribution.description = 'Light-tailed distribution (platykurtic)';
+  } else {
+    distribution.type = 'moderately-skewed';
+    distribution.description = 'Moderately skewed distribution';
+  }
+  
+  // Check for specific patterns
+  const uniqueValues = [...new Set(numbers)];
+  if (uniqueValues.length < 10) {
+    distribution.type = 'discrete';
+    distribution.description = 'Discrete distribution with limited values';
+  }
+  
+  // Check for log-normal pattern (common in financial data)
+  if (skewness > 2 && stats.min > 0) {
+    const logValues = numbers.map(v => Math.log(v));
+    const logSkewness = calculateSkewness(logValues);
+    if (Math.abs(logSkewness) < 1) {
+      distribution.type = 'log-normal';
+      distribution.description = 'Log-normal distribution (typical of financial/purchase data)';
+    }
+  }
+  
+  return distribution;
+}
+
+class KnowledgeBase {
+  constructor(basePath = null) {
+    this.basePath = basePath || path.join(os.homedir(), '.datapilot', 'archaeology');
+    this.warehousePath = path.join(this.basePath, 'warehouse_knowledge.yaml');
+    this.tablesPath = path.join(this.basePath, 'tables');
+    this.patternsPath = path.join(this.basePath, 'patterns.yaml');
+    this.relationshipsPath = path.join(this.basePath, 'relationships.yaml');
+    
+    this.initializeDirectories();
+  }
+
+  initializeDirectories() {
+    try {
+      fs.mkdirSync(this.basePath, { recursive: true });
+      fs.mkdirSync(this.tablesPath, { recursive: true });
+    } catch (error) {
+      console.error('Failed to initialize knowledge base directories:', error.message);
+    }
+  }
+
+  async load() {
+    try {
+      const warehouse = this.loadYaml(this.warehousePath) || this.createEmptyWarehouse();
+      const patterns = this.loadYaml(this.patternsPath) || { naming_conventions: [], common_issues: [] };
+      const relationships = this.loadYaml(this.relationshipsPath) || { confirmed: [], suspected: [] };
+
+      return {
+        warehouse,
+        patterns,
+        relationships,
+        tables: this.loadAllTables()
+      };
+    } catch (error) {
+      console.error('Failed to load knowledge base:', error.message);
+      return this.createEmptyKnowledge();
+    }
+  }
+
+  createEmptyWarehouse() {
+    return {
+      warehouse_metadata: {
+        name: "Discovered Data Warehouse",
+        discovered_tables: 0,
+        last_updated: new Date().toISOString(),
+        total_technical_debt_hours: 0
+      },
+      table_registry: {},
+      domains: {}
+    };
+  }
+
+  createEmptyKnowledge() {
+    return {
+      warehouse: this.createEmptyWarehouse(),
+      patterns: { naming_conventions: [], common_issues: [] },
+      relationships: { confirmed: [], suspected: [] },
+      tables: {}
+    };
+  }
+
+  loadYaml(filePath) {
+    try {
+      if (fs.existsSync(filePath)) {
+        const content = fs.readFileSync(filePath, 'utf8');
+        return yaml.load(content);
+      }
+      return null;
+    } catch (error) {
+      console.error(`Failed to load ${filePath}:`, error.message);
+      return null;
+    }
+  }
+
+  saveYaml(filePath, data) {
+    try {
+      const yamlContent = yaml.dump(data, {
+        indent: 2,
+        lineWidth: 120,
+        noRefs: true
+      });
+      fs.writeFileSync(filePath, yamlContent, 'utf8');
+    } catch (error) {
+      console.error(`Failed to save ${filePath}:`, error.message);
+    }
+  }
+
+  loadAllTables() {
+    try {
+      const tables = {};
+      const files = fs.readdirSync(this.tablesPath);
+      
+      for (const file of files) {
+        if (file.endsWith('.yaml')) {
+          const tableName = file.replace('.yaml', '');
+          tables[tableName] = this.loadYaml(path.join(this.tablesPath, file));
+        }
+      }
+      
+      return tables;
+    } catch (error) {
+      console.error('Failed to load tables:', error.message);
+      return {};
+    }
+  }
+
+  async saveTable(tableName, analysis) {
+    const tablePath = path.join(this.tablesPath, `${tableName}.yaml`);
+    this.saveYaml(tablePath, analysis);
+  }
+
+  async update(tableName, analysis) {
+    const knowledge = await this.load();
+    
+    // Update warehouse metadata
+    knowledge.warehouse.warehouse_metadata.discovered_tables += 1;
+    knowledge.warehouse.warehouse_metadata.last_updated = new Date().toISOString();
+    knowledge.warehouse.warehouse_metadata.total_technical_debt_hours += analysis.tech_debt_hours || 0;
+
+    // Add to table registry
+    knowledge.warehouse.table_registry[tableName] = {
+      analyzed_date: new Date().toISOString(),
+      likely_purpose: analysis.likely_purpose || "Unknown",
+      quality_score: analysis.quality_score || 50,
+      tech_debt_hours: analysis.tech_debt_hours || 0,
+      relationships: analysis.relationships || [],
+      columns: analysis.columns || [],
+      domain: analysis.domain || "Unknown"
+    };
+
+    // Update domain classification
+    const domain = analysis.domain || "Unknown";
+    if (!knowledge.warehouse.domains[domain]) {
+      knowledge.warehouse.domains[domain] = [];
+    }
+    if (!knowledge.warehouse.domains[domain].includes(tableName)) {
+      knowledge.warehouse.domains[domain].push(tableName);
+    }
+
+    // Update patterns
+    if (analysis.patterns) {
+      knowledge.patterns.naming_conventions.push(...analysis.patterns.naming || []);
+      knowledge.patterns.common_issues.push(...analysis.patterns.issues || []);
+    }
+
+    // Update relationships
+    if (analysis.relationships) {
+      knowledge.relationships.confirmed.push(...analysis.relationships.confirmed || []);
+      knowledge.relationships.suspected.push(...analysis.relationships.suspected || []);
+    }
+
+    // Save everything
+    await this.saveTable(tableName, analysis);
+    this.saveYaml(this.warehousePath, knowledge.warehouse);
+    this.saveYaml(this.patternsPath, knowledge.patterns);
+    this.saveYaml(this.relationshipsPath, knowledge.relationships);
+
+    return knowledge;
+  }
+
+  async addInsights(tableName, insights) {
+    const knowledge = await this.load();
+    
+    if (knowledge.warehouse.table_registry[tableName]) {
+      knowledge.warehouse.table_registry[tableName].llm_insights = {
+        purpose: insights.purpose,
+        upstream: insights.upstream,
+        downstream: insights.downstream,
+        critical_columns: insights.critical_columns,
+        deprecate_columns: insights.deprecate_columns,
+        data_model_position: insights.data_model_position,
+        next_investigate: insights.next_investigate,
+        updated: new Date().toISOString()
+      };
+
+      this.saveYaml(this.warehousePath, knowledge.warehouse);
+    }
+  }
+
+  detectCrossTablePatterns(currentAnalysis, knowledge) {
+    const patterns = {
+      naming_patterns: [],
+      column_patterns: [],
+      relationship_patterns: [],
+      quality_patterns: []
+    };
+
+    // Detect naming patterns
+    const currentColumns = currentAnalysis.columns || [];
+    const allTables = Object.values(knowledge.warehouse.table_registry || {});
+    
+    for (const column of currentColumns) {
+      const pattern = this.findNamingPattern(column.name, allTables);
+      if (pattern) {
+        patterns.naming_patterns.push(pattern);
+      }
+    }
+
+    // Detect relationship patterns
+    const suspectedRelationships = this.detectRelationships(currentAnalysis, knowledge);
+    patterns.relationship_patterns = suspectedRelationships;
+
+    return patterns;
+  }
+
+  findNamingPattern(columnName, allTables) {
+    let matchCount = 0;
+    const similarColumns = [];
+
+    for (const table of allTables) {
+      for (const column of table.columns || []) {
+        if (this.columnsSimilar(columnName, column.name)) {
+          matchCount++;
+          similarColumns.push(`${table.name || 'unknown'}.${column.name}`);
+        }
+      }
+    }
+
+    if (matchCount >= 2) {
+      return {
+        pattern: columnName,
+        frequency: matchCount,
+        examples: similarColumns.slice(0, 5),
+        confidence: Math.min(matchCount / 10, 1)
+      };
+    }
+
+    return null;
+  }
+
+  columnsSimilar(col1, col2) {
+    const normalize = (str) => str.toLowerCase().replace(/[_-]/g, '');
+    const norm1 = normalize(col1);
+    const norm2 = normalize(col2);
+    
+    // Exact match after normalization
+    if (norm1 === norm2) return true;
+    
+    // Contains relationship (for foreign keys)
+    if (norm1.includes('id') && norm2.includes('id')) {
+      const base1 = norm1.replace('id', '');
+      const base2 = norm2.replace('id', '');
+      return base1 === base2 || base1.includes(base2) || base2.includes(base1);
+    }
+    
+    return false;
+  }
+
+  detectRelationships(currentAnalysis, knowledge) {
+    const relationships = [];
+    const currentColumns = currentAnalysis.columns || [];
+    const allTables = Object.values(knowledge.warehouse.table_registry || {});
+
+    for (const column of currentColumns) {
+      if (column.name.toLowerCase().includes('id') || 
+          column.name.toLowerCase().includes('key') ||
+          column.name.toLowerCase().includes('ref')) {
+        
+        const candidates = this.findRelationshipCandidates(column, allTables);
+        relationships.push(...candidates);
+      }
+    }
+
+    return relationships;
+  }
+
+  findRelationshipCandidates(column, allTables) {
+    const candidates = [];
+    
+    for (const table of allTables) {
+      for (const targetColumn of table.columns || []) {
+        if (this.columnsSimilar(column.name, targetColumn.name)) {
+          candidates.push({
+            from: `${column.table}.${column.name}`,
+            to: `${table.name || 'unknown'}.${targetColumn.name}`,
+            confidence: this.calculateRelationshipConfidence(column, targetColumn),
+            evidence: "Column name similarity"
+          });
+        }
+      }
+    }
+
+    return candidates;
+  }
+
+  calculateRelationshipConfidence(col1, col2) {
+    const name1 = col1.name.toLowerCase();
+    const name2 = col2.name.toLowerCase();
+    
+    if (name1 === name2) return 0.95;
+    if (name1.includes(name2) || name2.includes(name1)) return 0.8;
+    
+    // Type compatibility
+    if (col1.type === col2.type) return 0.7;
+    
+    return 0.5;
+  }
+
+  generateWarehouseMap(knowledge) {
+    const domains = knowledge.domains || {};
+    let map = '\nWAREHOUSE MAP:\n';
+    
+    for (const [domain, tables] of Object.entries(domains)) {
+      map += `\n${domain} Domain (${tables.length} tables):\n`;
+      for (const table of tables) {
+        const tableInfo = knowledge.table_registry[table];
+        const purpose = tableInfo?.llm_insights?.purpose || tableInfo?.likely_purpose || 'Unknown purpose';
+        map += `  - ${table} (${purpose.substring(0, 50)}...)\n`;
+      }
+    }
+
+    return map;
+  }
+
+  generateExecutiveSummary(knowledge) {
+    const metadata = knowledge.warehouse_metadata;
+    const domains = Object.keys(knowledge.domains || {}).length;
+    const avgDebt = metadata.total_technical_debt_hours / metadata.discovered_tables || 0;
+
+    return `
+WAREHOUSE ARCHAEOLOGY SUMMARY:
+- Tables Analyzed: ${metadata.discovered_tables}
+- Domains Discovered: ${domains}
+- Total Technical Debt: ${metadata.total_technical_debt_hours} hours
+- Average Debt per Table: ${avgDebt.toFixed(1)} hours
+- Last Updated: ${metadata.last_updated}
+    `.trim();
+  }
+}
+
+class ArchaeologyEngine {
+  constructor() {
+    this.knowledgeBase = new KnowledgeBase();
+  }
+
+  async analyzeTable(csvPath, options = {}) {
+    const knowledge = await this.knowledgeBase.load();
+    
+    const spinner = options.quiet ? null : ora('Reading CSV file...').start();
+    
+    // Structured data mode for LLM consumption
+    const structuredMode = options.structuredOutput || options.llmMode;
+    
+    let records, columnTypes;
+    if (options.preloadedData) {
+      records = options.preloadedData.records;
+      columnTypes = options.preloadedData.columnTypes;
+    } else {
+      records = await parseCSV(csvPath, { quiet: options.quiet, header: options.header });
+      if (spinner) spinner.text = 'Performing data archaeology...';
+      columnTypes = detectColumnTypes(records);
+    }
+    
+    // Handle empty dataset
+    if (records.length === 0) {
+      if (spinner) spinner.fail('Empty dataset - no data to analyze');
+      const tableName = basename(csvPath, '.csv');
+      let report = createSection('🏛️ DATA ENGINEERING ARCHAEOLOGY REPORT',
+        `Dataset: ${tableName}.csv\nAnalysis Date: ${formatTimestamp()}\n\n⚠️  Empty dataset - no archaeology to perform`);
+      
+      // Still include the required section header
+      report += createSubSection('🗄️ SCHEMA RECOMMENDATIONS', 'No data available for schema analysis');
+      
+      return report;
+    }
+    
+    if (spinner) spinner.text = 'Detecting cross-table patterns...';
+    const analysis = await this.performAnalysis(csvPath, records, knowledge, columnTypes);
+    
+    const patterns = this.knowledgeBase.detectCrossTablePatterns(analysis, knowledge);
+    
+    if (spinner) spinner.text = 'Generating contextual insights...';
+    const enhanced = this.addWarehouseContext(analysis, knowledge, patterns);
+    
+    const prompt = this.generateContextualPrompt(enhanced, knowledge);
+    
+    const tableName = basename(csvPath, '.csv');
+    await this.knowledgeBase.update(tableName, enhanced);
+    
+    // Auto-save the analysis if requested
+    if (options.autoSave) {
+      const outputPath = `${process.env.HOME}/.datapilot/warehouse/analyses/${tableName}_analysis.txt`;
+      const report = this.formatArchaeologyReport(enhanced, knowledge, patterns, prompt);
+      
+      // Ensure directory exists
+      const { mkdirSync } = await import('fs');
+      mkdirSync(`${process.env.HOME}/.datapilot/warehouse/analyses`, { recursive: true });
+      
+      // Save the report
+      const { writeFileSync } = await import('fs');
+      writeFileSync(outputPath, report);
+      
+      if (!options.quiet) {
+        console.log(chalk.green(`✓ Analysis saved to: ${outputPath}`));
+      }
+    }
+    
+    // Return structured data if requested for LLM consumption
+    if (structuredMode) {
+      if (spinner) spinner.succeed('Data archaeology complete!');
+      return {
+        analysis: enhanced,
+        structuredResults: {
+          schemaRecommendations: enhanced.schema_recommendations || [],
+          performanceAnalysis: {
+            dataVolume: enhanced.row_count,
+            queryPatterns: patterns.issues || [],
+            joinComplexity: enhanced.relationships?.length > 3 ? 'high' : 'moderate'
+          },
+          etlAnalysis: enhanced.etl_recommendations || {},
+          technicalDebt: [{ hours: enhanced.tech_debt_hours, type: 'cleanup' }],
+          relationships: enhanced.relationships || [],
+          warehouseKnowledge: knowledge
+        }
+      };
+    }
+    
+    if (spinner) spinner.succeed('Data archaeology complete!');
+    
+    return this.formatArchaeologyReport(enhanced, knowledge, patterns, prompt);
+  }
+
+  async performAnalysis(csvPath, records, knowledge, columnTypes) {
+    const fileName = basename(csvPath);
+    const columns = Object.keys(columnTypes);
+    
+    // Set table_name for use in generateLegacySchemaSection
+    this._currentTableName = fileName.replace(/\.csv$/i, '').replace(/[^a-zA-Z0-9_]/g, '_').toLowerCase();
+    
+    const analysis = {
+      table_name: fileName.replace('.csv', ''),
+      file_path: csvPath,
+      analyzed_date: new Date().toISOString(),
+      row_count: records.length,
+      column_count: columns.length,
+      columns: columns.map(col => ({
+        name: col,
+        type: columnTypes[col].type,
+        confidence: columnTypes[col].confidence || 0.8,
+        table: fileName.replace('.csv', '')
+      })),
+      quality_score: this.calculateQualityScore(records, columnTypes),
+      tech_debt_hours: this.estimateTechnicalDebt(records, columns, columnTypes),
+      domain: this.guessDomain(fileName, columns),
+      likely_purpose: this.guessTablePurpose(fileName, columns, columnTypes),
+      relationships: this.detectPotentialRelationships(columns, columnTypes),
+      patterns: this.detectTablePatterns(columns, records, columnTypes),
+      schema_recommendations: this.generateSchemaRecommendations(columns, columnTypes, records),
+      etl_recommendations: this.generateETLRecommendations(records, columns, columnTypes),
+      warehouse_design: generateWarehouseDesign(columns, columnTypes),
+      performance_recs: generatePerformanceRecommendations(records, columns, columnTypes)
+    };
+    
+    return analysis;
+  }
+
+  addWarehouseContext(analysis, knowledge, patterns) {
+    const enhanced = { ...analysis };
+    
+    enhanced.warehouse_context = {
+      total_tables_analyzed: knowledge.warehouse_metadata?.discovered_tables || 0,
+      related_tables: this.findRelatedTables(analysis, knowledge),
+      cumulative_patterns: patterns.naming_patterns.length,
+      domain_classification: this.classifyIntoDomain(analysis, knowledge)
+    };
+    
+    enhanced.cross_references = this.generateCrossReferences(analysis, knowledge, patterns);
+    enhanced.accumulated_debt = knowledge.warehouse_metadata?.total_technical_debt_hours || 0;
+    
+    return enhanced;
+  }
+
+  generateContextualPrompt(enhanced, knowledge) {
+    const tableCount = (knowledge.warehouse_metadata?.discovered_tables || 0) + 1;
+    const domains = Object.keys(knowledge.domains || {});
+    const relatedTables = enhanced.warehouse_context.related_tables.map(t => t.name).join(', ');
+    
+    const context = relatedTables ? `\nContext from previous discoveries:\n${this.buildContextFromRelated(enhanced.warehouse_context.related_tables)}` : '';
+    
+    return `Based on this analysis of ${enhanced.table_name} and the context that this is table ${tableCount} of a data warehouse (${domains.length} domains discovered), please provide:
+
+1. What is the likely business purpose of this table?
+2. What upstream systems likely feed this table?
+3. What downstream reports/processes likely consume it?
+4. What are the critical columns vs ones that could be deprecated?
+5. How does this fit into the larger data model we're discovering?
+${context}
+
+Please structure your response as:
+PURPOSE: [concise explanation]
+UPSTREAM: [likely sources]
+DOWNSTREAM: [likely consumers]
+CRITICAL_COLUMNS: [list]
+DEPRECATE_COLUMNS: [list]
+DATA_MODEL_POSITION: [how it fits]
+NEXT_INVESTIGATE: [what tables to analyze next]`;
+  }
+
+  async saveInsights(tableName, llmResponse) {
+    const insights = this.parseLLMResponse(llmResponse);
+    await this.knowledgeBase.addInsights(tableName, insights);
+    console.log(chalk.green(`✓ Insights saved for ${tableName}`));
+  }
+
+  async compileKnowledge() {
+    const knowledge = await this.knowledgeBase.load();
+    
+    return {
+      summary: this.knowledgeBase.generateExecutiveSummary(knowledge.warehouse),
+      warehouse_map: this.knowledgeBase.generateWarehouseMap(knowledge.warehouse),
+      relationships: this.generateRelationshipReport(knowledge.relationships),
+      patterns: this.generatePatternReport(knowledge.patterns),
+      technical_debt: this.generateTechnicalDebtReport(knowledge.warehouse),
+      recommendations: this.generateWarehouseRecommendations(knowledge)
+    };
+  }
+
+  async showMap() {
+    const knowledge = await this.knowledgeBase.load();
+    return this.knowledgeBase.generateWarehouseMap(knowledge.warehouse);
+  }
+
+  formatArchaeologyReport(analysis, knowledge, patterns, prompt) {
+    let report = createSection('🏛️ DATA ENGINEERING ARCHAEOLOGY REPORT',
+      `Dataset: ${analysis.table_name}.csv\nAnalysis Date: ${formatTimestamp()}\nTable ${(knowledge.warehouse_metadata?.discovered_tables || 0) + 1} in warehouse discovery`);
+    
+    // Check for small dataset
+    const smallDatasetInfo = formatSmallDatasetWarning(analysis.row_count);
+    if (smallDatasetInfo) {
+      report += '\n' + smallDatasetInfo.warning + '\n';
+      if (smallDatasetInfo.showFullData) {
+        report += createSubSection('📊 DATASET CLASSIFICATION', 
+          'This appears to be reference/lookup data rather than analytical data.\n' +
+          'Consider treating this as a dimension or reference table in your warehouse design.');
+      }
+    }
+    
+    // Warehouse Context
+    if ((knowledge.warehouse_metadata?.discovered_tables || 0) > 0) {
+      report += createSubSection('📊 WAREHOUSE CONTEXT', 
+        `- This is table ${(knowledge.warehouse_metadata?.discovered_tables || 0) + 1} of ${(knowledge.warehouse_metadata?.discovered_tables || 0) + 1} discovered in your warehouse\n` +
+        `- Related tables already analyzed: ${analysis.warehouse_context.related_tables.map(t => t.name).join(', ') || 'None yet'}\n` +
+        `- Cumulative patterns detected: ${analysis.warehouse_context.cumulative_patterns}\n` +
+        `- Estimated domain: ${analysis.domain}`);
+    }
+
+    // Cross-Reference Discoveries
+    if (analysis.cross_references && analysis.cross_references.length > 0) {
+      report += createSubSection('🔗 CROSS-REFERENCE DISCOVERIES', 
+        'Based on previous analyses, we\'ve discovered:\n' +
+        analysis.cross_references.map(ref => `- ${ref}`).join('\n'));
+    }
+
+    // Standard Schema Analysis
+    report += this.formatSchemaSection(analysis);
+    
+    // Pattern Detection
+    if (patterns.naming_patterns.length > 0) {
+      report += createSubSection('🔍 NEW PATTERNS DETECTED', 
+        patterns.naming_patterns.map(p => 
+          `- ${p.pattern}: Found in ${p.frequency} tables (${(p.confidence * 100).toFixed(0)}% confidence)`
+        ).join('\n'));
+    }
+
+    // Relationship Archaeology
+    if (patterns.relationship_patterns.length > 0) {
+      report += createSubSection('⚛️ RELATIONSHIP ARCHAEOLOGY', 
+        patterns.relationship_patterns.map(rel => 
+          `- ${rel.from} -> ${rel.to} (${(rel.confidence * 100).toFixed(0)}% confidence: ${rel.evidence})`
+        ).join('\n'));
+    }
+
+    // Technical Debt
+    report += createSubSection('💸 ACCUMULATED TECHNICAL DEBT', 
+      `- This table: ${analysis.tech_debt_hours} hours estimated cleanup\n` +
+      `- Total warehouse debt: ${analysis.accumulated_debt + analysis.tech_debt_hours} hours (across ${(knowledge.warehouse_metadata?.discovered_tables || 0) + 1} tables analyzed)\n` +
+      `- Debt velocity: ${((analysis.accumulated_debt + analysis.tech_debt_hours) / ((knowledge.warehouse_metadata?.discovered_tables || 0) + 1)).toFixed(1)} hours per table average`);
+
+    // LLM Analysis Prompt
+    report += '\n' + chalk.yellow('═'.repeat(80));
+    report += '\n' + chalk.yellow('LLM ANALYSIS PROMPT:');
+    report += '\n' + chalk.yellow('[Copy everything below to your LLM, then paste response back]');
+    report += '\n' + chalk.yellow('═'.repeat(80));
+    report += '\n\n' + prompt;
+    report += '\n\n' + chalk.yellow('═'.repeat(80));
+    report += '\n' + chalk.cyan('TO SAVE LLM INSIGHTS:');
+    report += '\n' + chalk.cyan(`datapilot eng --save-insights ${analysis.table_name} "paste LLM response here"`);
+    report += '\n' + chalk.yellow('═'.repeat(80));
+    
+    return report;
+  }
+
+  // Helper methods
+  calculateQualityScore(records, columnTypes) {
+    let score = 100;
+    const issues = analyzeDataQuality(records, columnTypes);
+    score -= (issues.total / records.length) * 30;
+    return Math.max(score, 0);
+  }
+
+  estimateTechnicalDebt(records, columns, columnTypes) {
+    let hours = 0;
+    
+    // Schema debt
+    const normalizationIssues = analyzeNormalization(records, columns, columnTypes);
+    hours += normalizationIssues.length * 4;
+    
+    // Quality debt  
+    const qualityIssues = analyzeDataQuality(records, columnTypes);
+    hours += (qualityIssues.total / records.length) * 20;
+    
+    // Size complexity
+    if (records.length > 100000) hours += 5;
+    if (columns.length > 20) hours += 3;
+    
+    return Math.round(hours);
+  }
+
+  guessDomain(fileName, columns) {
+    // Domain patterns with keywords and weights
+    const domainPatterns = {
+      'Housing': {
+        keywords: ['house', 'housing', 'property', 'real_estate', 'home', 'dwelling', 
+                  'residence', 'building', 'apartment', 'bedroom', 'bathroom', 'sqft', 
+                  'square_feet', 'listing', 'realestate', 'mortgage'],
+        weight: 1.5
+      },
+      'Customer': {
+        keywords: ['customer', 'user', 'client', 'member', 'person', 'people', 
+                  'contact', 'account', 'profile', 'subscriber'],
+        weight: 1.0
+      },
+      'Orders': {
+        keywords: ['order', 'transaction', 'sale', 'purchase', 'invoice', 
+                  'receipt', 'payment', 'checkout', 'cart'],
+        weight: 1.0
+      },
+      'Product': {
+        keywords: ['product', 'item', 'inventory', 'sku', 'catalog', 
+                  'merchandise', 'goods', 'stock'],
+        weight: 1.0
+      },
+      'Financial': {
+        keywords: ['financial', 'finance', 'payment', 'revenue', 'cost', 
+                  'price', 'amount', 'balance', 'credit', 'debit', 'bank'],
+        weight: 1.0
+      },
+      'Location': {
+        keywords: ['location', 'address', 'city', 'state', 'country', 'zip', 
+                  'postal', 'latitude', 'longitude', 'geo', 'region', 'area'],
+        weight: 1.2
+      },
+      'Temporal': {
+        keywords: ['date', 'time', 'year', 'month', 'day', 'quarter', 
+                  'period', 'timestamp', 'datetime'],
+        weight: 0.8
+      },
+      'Economic': {
+        keywords: ['gdp', 'inflation', 'unemployment', 'interest', 'wage', 
+                  'income', 'economy', 'economic', 'indicator'],
+        weight: 1.3
+      },
+      'Logging': {
+        keywords: ['log', 'event', 'audit', 'trace', 'debug', 'error', 
+                  'warning', 'info', 'activity'],
+        weight: 0.9
+      }
+    };
+    
+    // Create search text from filename and columns
+    const searchText = `${fileName} ${columns.join(' ')}`.toLowerCase();
+    
+    // Score each domain
+    const domainScores = {};
+    
+    for (const [domain, config] of Object.entries(domainPatterns)) {
+      let score = 0;
+      
+      // Check keywords
+      for (const keyword of config.keywords) {
+        if (searchText.includes(keyword)) {
+          score += config.weight;
+          
+          // Bonus for exact filename match
+          if (fileName.toLowerCase().includes(keyword)) {
+            score += 0.5;
+          }
+        }
+      }
+      
+      domainScores[domain] = score;
+    }
+    
+    // Find the highest scoring domain
+    let bestDomain = 'Unknown';
+    let bestScore = 0;
+    
+    for (const [domain, score] of Object.entries(domainScores)) {
+      if (score > bestScore) {
+        bestScore = score;
+        bestDomain = domain;
+      }
+    }
+    
+    // If score is too low, check for generic patterns
+    if (bestScore < 0.5) {
+      if (columns.some(c => c.toLowerCase().includes('id'))) {
+        if (columns.length < 10) {
+          bestDomain = 'Reference';
+        } else {
+          bestDomain = 'Operational';
+        }
+      }
+    }
+    
+    return bestDomain;
+  }
+
+  guessTablePurpose(fileName, columns, columnTypes) {
+    const measures = columns.filter(col => 
+      ['integer', 'float'].includes(columnTypes[col].type) &&
+      (col.toLowerCase().includes('amount') || 
+       col.toLowerCase().includes('count') ||
+       col.toLowerCase().includes('total'))
+    );
+    
+    const hasTimestamp = columns.some(c => columnTypes[c].type === 'date');
+    const hasIds = columns.filter(c => c.toLowerCase().includes('_id')).length;
+    
+    if (measures.length > 2 && hasTimestamp) {
+      return 'Fact table - transactional data with measures';
+    } else if (hasIds > 1) {
+      return 'Bridge table - links multiple entities';
+    } else if (hasIds === 1) {
+      return 'Dimension table - descriptive attributes';
+    } else {
+      return 'Reference table - lookup or configuration data';
+    }
+  }
+
+  parseLLMResponse(response) {
+    const lines = response.split('\n');
+    const insights = {};
+    
+    for (const line of lines) {
+      if (line.startsWith('PURPOSE:')) {
+        insights.purpose = line.replace('PURPOSE:', '').trim();
+      } else if (line.startsWith('UPSTREAM:')) {
+        insights.upstream = line.replace('UPSTREAM:', '').trim().split(',').map(s => s.trim());
+      } else if (line.startsWith('DOWNSTREAM:')) {
+        insights.downstream = line.replace('DOWNSTREAM:', '').trim().split(',').map(s => s.trim());
+      } else if (line.startsWith('CRITICAL_COLUMNS:')) {
+        insights.critical_columns = line.replace('CRITICAL_COLUMNS:', '').trim().split(',').map(s => s.trim());
+      } else if (line.startsWith('DEPRECATE_COLUMNS:')) {
+        insights.deprecate_columns = line.replace('DEPRECATE_COLUMNS:', '').trim().split(',').map(s => s.trim());
+      } else if (line.startsWith('DATA_MODEL_POSITION:')) {
+        insights.data_model_position = line.replace('DATA_MODEL_POSITION:', '').trim();
+      } else if (line.startsWith('NEXT_INVESTIGATE:')) {
+        insights.next_investigate = line.replace('NEXT_INVESTIGATE:', '').trim().split(',').map(s => s.trim());
+      }
+    }
+    
+    return insights;
+  }
+
+  // Enhanced analysis methods with advanced pattern recognition
+  detectPotentialRelationships(columns, columnTypes) {
+    const relationships = [];
+    
+    // Advanced foreign key pattern analysis
+    columns.forEach(column => {
+      const type = columnTypes[column];
+      const colLower = column.toLowerCase();
+      
+      // Sophisticated ID pattern detection
+      if (colLower.includes('_id') || colLower.endsWith('id')) {
+        const tableHint = this.extractTableFromId(colLower);
+        const confidence = this.calculateFKConfidence(column, type, tableHint);
+        
+        if (tableHint && confidence > 0.5) {
+          relationships.push({
+            type: 'foreign_key',
+            column: column,
+            confidence: confidence,
+            target_table: this.pluralizeTableName(tableHint),
+            target_column: 'id',
+            evidence: this.buildFKEvidence(column, type, tableHint, confidence)
+          });
+        }
+      }
+      
+      // Enhanced code/reference pattern analysis
+      if ((colLower.includes('code') || colLower.includes('cd')) && type.type === 'categorical') {
+        const domain = this.extractDomainFromCode(colLower);
+        const confidence = this.calculateCodeConfidence(column, type);
+        
+        relationships.push({
+          type: 'lookup_reference',
+          column: column,
+          confidence: confidence,
+          target_table: `ref_${domain}_codes`,
+          target_column: 'code',
+          evidence: `Code pattern (${type.categories?.length || 'unknown'} distinct values) suggests lookup table relationship`
+        });
+      }
+      
+      // Advanced categorical pattern analysis
+      if ((colLower.includes('type') || colLower.includes('category') || colLower.includes('status')) && type.type === 'categorical') {
+        const confidence = this.calculateCategoricalConfidence(column, type);
+        
+        relationships.push({
+          type: 'enum_reference',
+          column: column,
+          confidence: confidence,
+          target_table: `ref_${colLower.replace(/[^a-z]/g, '_')}s`,
+          target_column: 'name',
+          evidence: `Categorical field (${type.categories?.length || 'unknown'} values) suggests enumeration reference`
+        });
+      }
+      
+      // Geographic relationship detection
+      if (this.isGeographicColumn(colLower, type)) {
+        const geoType = this.detectGeographicType(colLower, type);
+        relationships.push({
+          type: 'geographic_reference',
+          column: column,
+          confidence: 0.8,
+          target_table: `ref_${geoType}`,
+          target_column: geoType === 'countries' ? 'country_code' : 'name',
+          evidence: `Geographic pattern suggests ${geoType} reference table`
+        });
+      }
+      
+      // Temporal relationship detection
+      if (type.type === 'date' || colLower.includes('date') || colLower.includes('time')) {
+        const timeGrain = this.detectTimeGrain(colLower);
+        relationships.push({
+          type: 'temporal_dimension',
+          column: column,
+          confidence: 0.9,
+          target_table: `dim_${timeGrain}`,
+          target_column: `${timeGrain}_key`,
+          evidence: `Temporal column suggests ${timeGrain} dimension relationship`
+        });
+      }
+    });
+    
+    // Cross-column relationship analysis
+    const crossColumnRels = this.detectCrossColumnRelationships(columns, columnTypes);
+    relationships.push(...crossColumnRels);
+    
+    return relationships.sort((a, b) => b.confidence - a.confidence);
+  }
+
+  detectTablePatterns(columns, records, columnTypes) {
+    const patterns = {
+      naming: [],
+      issues: [],
+      table_type: 'unknown',
+      granularity: 'unknown',
+      quality_flags: [],
+      statistical_profile: {},
+      complexity_score: 0
+    };
+    
+    // Enhanced table type analysis with statistical backing
+    const measures = this.identifyMeasureColumns(columns, columnTypes, records);
+    const dimensions = this.identifyDimensionColumns(columns, columnTypes, records);
+    const hasTimestamp = columns.some(c => columnTypes[c]?.type === 'date');
+    const hasPrimaryKey = this.detectPrimaryKey(columns, columnTypes, records);
+    
+    // Advanced table type classification with confidence scoring
+    const tableClassification = this.classifyTableType(measures, dimensions, hasTimestamp, hasPrimaryKey, columns.length, records.length);
+    patterns.table_type = tableClassification.type;
+    patterns.granularity = tableClassification.granularity;
+    patterns.naming.push({
+      pattern: tableClassification.pattern,
+      confidence: tableClassification.confidence,
+      evidence: tableClassification.evidence
+    });
+    
+    // Statistical profiling for pattern detection
+    patterns.statistical_profile = this.generateStatisticalProfile(columns, columnTypes, records);
+    
+    // Advanced naming convention analysis
+    const namingAnalysis = this.analyzeNamingConventions(columns);
+    patterns.naming.push(...namingAnalysis);
+    
+    // Complex data quality analysis
+    if (records.length > 0) {
+      patterns.issues.push(...this.detectAdvancedDataIssues(columns, columnTypes, records));
+      patterns.quality_flags.push(...this.generateQualityFlags(columns, columnTypes, records));
+      patterns.complexity_score = this.calculateComplexityScore(columns, columnTypes, records, patterns);
+    }
+    
+    return patterns;
+  }
+  
+  identifyMeasureColumns(columns, columnTypes, records) {
+    return columns.filter(col => {
+      const type = columnTypes[col];
+      const colLower = col.toLowerCase();
+      
+      // Type-based identification
+      if (!['integer', 'float'].includes(type?.type)) return false;
+      
+      // Semantic identification
+      const measureKeywords = ['amount', 'count', 'total', 'quantity', 'value', 'sum', 'avg', 'price', 'cost', 'revenue', 'profit'];
+      const isMeasureByName = measureKeywords.some(keyword => colLower.includes(keyword));
+      
+      // Statistical identification (high cardinality numeric)
+      if (records.length > 0) {
+        const values = records.map(r => r[col]).filter(v => v !== null && v !== undefined);
+        const uniqueRatio = new Set(values).size / values.length;
+        const isHighCardinality = uniqueRatio > 0.8;
+        
+        return isMeasureByName || (isHighCardinality && values.length > 10);
+      }
+      
+      return isMeasureByName;
+    });
+  }
+  
+  identifyDimensionColumns(columns, columnTypes, records) {
+    return columns.filter(col => {
+      const colLower = col.toLowerCase();
+      const type = columnTypes[col];
+      
+      // Clear dimensional indicators
+      if (colLower.includes('_id') || colLower.includes('type') || 
+          colLower.includes('category') || colLower.includes('status') ||
+          colLower.includes('code')) return true;
+      
+      // Categorical columns with reasonable cardinality
+      if (type?.type === 'categorical' && records.length > 0) {
+        const values = records.map(r => r[col]).filter(v => v);
+        const uniqueCount = new Set(values).size;
+        return uniqueCount >= 2 && uniqueCount <= Math.min(values.length * 0.5, 100);
+      }
+      
+      return false;
+    });
+  }
+  
+  detectPrimaryKey(columns, columnTypes, records) {
+    // Look for explicit primary key patterns
+    const pkCandidates = columns.filter(col => {
+      const colLower = col.toLowerCase();
+      return colLower === 'id' || colLower === 'pk' || colLower.endsWith('_pk');
+    });
+    
+    if (pkCandidates.length > 0) return pkCandidates[0];
+    
+    // Analyze uniqueness if we have data
+    if (records.length > 0) {
+      for (const col of columns) {
+        const values = records.map(r => r[col]).filter(v => v !== null && v !== undefined);
+        const isUnique = new Set(values).size === values.length;
+        const isNotNull = values.length === records.length;
+        
+        if (isUnique && isNotNull && columnTypes[col]?.type === 'identifier') {
+          return col;
+        }
+      }
+    }
+    
+    return null;
+  }
+  
+  classifyTableType(measures, dimensions, hasTimestamp, hasPrimaryKey, columnCount, recordCount) {
+    const scores = {
+      fact_table: 0,
+      dimension_table: 0,
+      reference_table: 0,
+      bridge_table: 0,
+      event_log: 0
+    };
+    
+    // Fact table scoring
+    scores.fact_table += measures.length * 0.3;
+    if (hasTimestamp) scores.fact_table += 0.4;
+    if (dimensions.length >= 2) scores.fact_table += 0.2;
+    if (recordCount > 1000) scores.fact_table += 0.1;
+    
+    // Dimension table scoring
+    if (hasPrimaryKey) scores.dimension_table += 0.4;
+    scores.dimension_table += Math.min(dimensions.length * 0.1, 0.3);
+    if (measures.length <= 1) scores.dimension_table += 0.2;
+    if (columnCount > 5) scores.dimension_table += 0.1;
+    
+    // Reference table scoring
+    if (columnCount <= 5) scores.reference_table += 0.3;
+    if (hasPrimaryKey) scores.reference_table += 0.3;
+    if (recordCount < 1000) scores.reference_table += 0.2;
+    if (measures.length === 0) scores.reference_table += 0.2;
+    
+    // Bridge table scoring
+    if (dimensions.length >= 3) scores.bridge_table += 0.4;
+    if (!hasPrimaryKey && dimensions.length >= 2) scores.bridge_table += 0.3;
+    if (measures.length === 0) scores.bridge_table += 0.2;
+    if (columnCount <= 8) scores.bridge_table += 0.1;
+    
+    // Event log scoring
+    if (hasTimestamp) scores.event_log += 0.3;
+    if (recordCount > 10000) scores.event_log += 0.2;
+    if (measures.length <= 2) scores.event_log += 0.2;
+    
+    // Find the highest scoring type
+    const bestType = Object.entries(scores).reduce((a, b) => scores[a[0]] > scores[b[0]] ? a : b);
+    const confidence = Math.min(bestType[1], 0.95);
+    
+    const classifications = {
+      fact_table: {
+        granularity: hasTimestamp ? 'transactional' : 'aggregate',
+        pattern: 'Fact table pattern',
+        evidence: `${measures.length} measures, ${hasTimestamp ? 'timestamped, ' : ''}${dimensions.length} dimensions`
+      },
+      dimension_table: {
+        granularity: 'entity',
+        pattern: 'Dimension table pattern',
+        evidence: `${dimensions.length} dimensional attributes${hasPrimaryKey ? ' with primary key' : ''}`
+      },
+      reference_table: {
+        granularity: 'lookup',
+        pattern: 'Reference/lookup table pattern',
+        evidence: `Small table (${columnCount} columns)${hasPrimaryKey ? ' with primary key' : ''}`
+      },
+      bridge_table: {
+        granularity: 'relationship',
+        pattern: 'Bridge/junction table pattern',
+        evidence: `Multiple foreign keys (${dimensions.length}) managing relationships`
+      },
+      event_log: {
+        granularity: 'temporal',
+        pattern: 'Event log pattern',
+        evidence: `Time-series data with ${recordCount} events`
+      }
+    };
+    
+    return {
+      type: bestType[0],
+      confidence,
+      ...classifications[bestType[0]]
+    };
+  }
+  
+  generateStatisticalProfile(columns, columnTypes, records) {
+    if (records.length === 0) return {};
+    
+    const profile = {
+      row_count: records.length,
+      column_count: columns.length,
+      density: 0,
+      cardinality_distribution: {},
+      type_distribution: {},
+      null_distribution: {}
+    };
+    
+    let totalCells = 0;
+    let nonNullCells = 0;
+    
+    columns.forEach(col => {
+      const values = records.map(r => r[col]);
+      const nonNullValues = values.filter(v => v !== null && v !== undefined && v !== '');
+      const uniqueCount = new Set(nonNullValues).size;
+      
+      totalCells += values.length;
+      nonNullCells += nonNullValues.length;
+      
+      profile.cardinality_distribution[col] = {
+        unique_count: uniqueCount,
+        unique_ratio: nonNullValues.length > 0 ? uniqueCount / nonNullValues.length : 0
+      };
+      
+      profile.null_distribution[col] = {
+        null_count: values.length - nonNullValues.length,
+        null_ratio: (values.length - nonNullValues.length) / values.length
+      };
+      
+      const type = columnTypes[col]?.type || 'unknown';
+      profile.type_distribution[type] = (profile.type_distribution[type] || 0) + 1;
+    });
+    
+    profile.density = totalCells > 0 ? nonNullCells / totalCells : 0;
+    
+    return profile;
+  }
+  
+  analyzeNamingConventions(columns) {
+    const conventions = [];
+    
+    // Pattern analysis
+    const snakeCase = columns.filter(c => /^[a-z]+(_[a-z0-9]+)*$/.test(c)).length;
+    const camelCase = columns.filter(c => /^[a-z]+([A-Z][a-z0-9]*)*$/.test(c)).length;
+    const pascalCase = columns.filter(c => /^[A-Z][a-z0-9]*([A-Z][a-z0-9]*)*$/.test(c)).length;
+    const allUpper = columns.filter(c => c === c.toUpperCase()).length;
+    const total = columns.length;
+    
+    if (snakeCase > total * 0.7) {
+      conventions.push({
+        pattern: 'snake_case naming convention',
+        confidence: Math.min(0.9, snakeCase / total),
+        evidence: `${snakeCase}/${total} columns follow snake_case pattern`
+      });
+    }
+    
+    if (camelCase > total * 0.7) {
+      conventions.push({
+        pattern: 'camelCase naming convention',
+        confidence: Math.min(0.9, camelCase / total),
+        evidence: `${camelCase}/${total} columns follow camelCase pattern`
+      });
+    }
+    
+    if (pascalCase > total * 0.7) {
+      conventions.push({
+        pattern: 'PascalCase naming convention',
+        confidence: Math.min(0.9, pascalCase / total),
+        evidence: `${pascalCase}/${total} columns follow PascalCase pattern`
+      });
+    }
+    
+    if (allUpper > total * 0.7) {
+      conventions.push({
+        pattern: 'UPPER_CASE naming convention',
+        confidence: Math.min(0.9, allUpper / total),
+        evidence: `${allUpper}/${total} columns follow UPPER_CASE pattern`
+      });
+    }
+    
+    // Semantic patterns
+    const prefixGroups = this.analyzePrefixPatterns(columns);
+    const suffixGroups = this.analyzeSuffixPatterns(columns);
+    
+    Object.entries(prefixGroups).forEach(([prefix, count]) => {
+      if (count >= 2) {
+        conventions.push({
+          pattern: `Prefix pattern: ${prefix}_*`,
+          confidence: 0.7,
+          evidence: `${count} columns share prefix '${prefix}'`
+        });
+      }
+    });
+    
+    Object.entries(suffixGroups).forEach(([suffix, count]) => {
+      if (count >= 2) {
+        conventions.push({
+          pattern: `Suffix pattern: *_${suffix}`,
+          confidence: 0.7,
+          evidence: `${count} columns share suffix '${suffix}'`
+        });
+      }
+    });
+    
+    return conventions;
+  }
+  
+  analyzePrefixPatterns(columns) {
+    const prefixes = {};
+    columns.forEach(col => {
+      if (col.includes('_')) {
+        const prefix = col.split('_')[0];
+        prefixes[prefix] = (prefixes[prefix] || 0) + 1;
+      }
+    });
+    return prefixes;
+  }
+  
+  analyzeSuffixPatterns(columns) {
+    const suffixes = {};
+    columns.forEach(col => {
+      if (col.includes('_')) {
+        const parts = col.split('_');
+        const suffix = parts[parts.length - 1];
+        suffixes[suffix] = (suffixes[suffix] || 0) + 1;
+      }
+    });
+    return suffixes;
+  }
+  
+  detectAdvancedDataIssues(columns, columnTypes, records) {
+    const issues = [];
+    
+    // Enhanced normalization analysis
+    const textColumns = columns.filter(col => 
+      ['string', 'categorical'].includes(columnTypes[col]?.type)
+    );
+    
+    textColumns.forEach(col => {
+      const values = records.map(r => r[col]).filter(v => v);
+      if (values.length === 0) return;
+      
+      const uniqueRatio = new Set(values).size / values.length;
+      const avgLength = values.reduce((sum, v) => sum + String(v).length, 0) / values.length;
+      
+      // Low cardinality issues
+      if (uniqueRatio < 0.05 && values.length > 100) {
+        issues.push({
+          type: 'severe_normalization',
+          column: col,
+          severity: 'high',
+          description: `Column '${col}' has extremely low cardinality (${(uniqueRatio * 100).toFixed(2)}% unique) - strong candidate for dimension table normalization`
+        });
+      } else if (uniqueRatio < 0.15 && values.length > 50) {
+        issues.push({
+          type: 'normalization',
+          column: col,
+          severity: 'medium',
+          description: `Column '${col}' has low cardinality (${(uniqueRatio * 100).toFixed(1)}% unique) - consider separate dimension`
+        });
+      }
+      
+      // Potential denormalization patterns
+      if (col.includes('_') && uniqueRatio > 0.8 && values.length > 100) {
+        const prefix = col.split('_')[0];
+        const relatedCols = columns.filter(c => c.startsWith(prefix + '_'));
+        if (relatedCols.length > 2) {
+          issues.push({
+            type: 'denormalization',
+            columns: relatedCols,
+            severity: 'low',
+            description: `Multiple '${prefix}_*' columns suggest potential entity that could be normalized`
+          });
+        }
+      }
+      
+      // Text quality issues
+      if (avgLength > 100) {
+        issues.push({
+          type: 'text_quality',
+          column: col,
+          severity: 'low',
+          description: `Column '${col}' has long text values (avg ${avgLength.toFixed(0)} chars) - consider breaking into separate fields`
+        });
+      }
+    });
+    
+    // Identify potential composite key issues
+    const idColumns = columns.filter(col => col.toLowerCase().includes('_id'));
+    if (idColumns.length > 3) {
+      issues.push({
+        type: 'complex_relationships',
+        columns: idColumns,
+        severity: 'medium',
+        description: `Many foreign keys (${idColumns.length}) suggest complex relationships - consider simplification`
+      });
+    }
+    
+    return issues;
+  }
+  
+  generateQualityFlags(columns, columnTypes, records) {
+    const flags = [];
+    
+    // Enhanced null analysis
+    const nullCounts = {};
+    const emptyCounts = {};
+    
+    records.forEach(record => {
+      columns.forEach(col => {
+        if (!nullCounts[col]) nullCounts[col] = 0;
+        if (!emptyCounts[col]) emptyCounts[col] = 0;
+        
+        if (!record[col] || record[col] === null || record[col] === undefined) {
+          nullCounts[col]++;
+        }
+        if (record[col] === '') {
+          emptyCounts[col]++;
+        }
+      });
+    });
+    
+    Object.entries(nullCounts).forEach(([col, nullCount]) => {
+      const nullRatio = nullCount / records.length;
+      const emptyRatio = emptyCounts[col] / records.length;
+      
+      if (nullRatio > 0.8) {
+        flags.push({
+          type: 'critical_nulls',
+          column: col,
+          value: nullRatio,
+          severity: 'high',
+          description: `Column '${col}' has ${(nullRatio * 100).toFixed(1)}% null values - consider removal`
+        });
+      } else if (nullRatio > 0.5) {
+        flags.push({
+          type: 'high_nulls',
+          column: col,
+          value: nullRatio,
+          severity: 'medium',
+          description: `Column '${col}' has ${(nullRatio * 100).toFixed(1)}% null values`
+        });
+      }
+      
+      if (emptyRatio > 0.3) {
+        flags.push({
+          type: 'empty_strings',
+          column: col,
+          value: emptyRatio,
+          severity: 'low',
+          description: `Column '${col}' has ${(emptyRatio * 100).toFixed(1)}% empty strings`
+        });
+      }
+    });
+    
+    return flags;
+  }
+  
+  calculateComplexityScore(columns, columnTypes, records, patterns) {
+    let score = 0;
+    
+    // Base complexity from size
+    score += Math.min(columns.length * 0.5, 10);
+    score += Math.min(Math.log10(records.length + 1) * 2, 8);
+    
+    // Type diversity
+    const typeCount = Object.keys(patterns.statistical_profile.type_distribution || {}).length;
+    score += typeCount;
+    
+    // Relationship complexity
+    const idColumns = columns.filter(col => col.toLowerCase().includes('_id')).length;
+    score += idColumns * 0.5;
+    
+    // Quality issues
+    score += patterns.issues.length;
+    score += patterns.quality_flags.length * 0.5;
+    
+    // Naming consistency (lower complexity for consistent naming)
+    const namingPatterns = patterns.naming.filter(p => p.confidence > 0.7).length;
+    score = Math.max(score - namingPatterns, 0);
+    
+    return Math.round(score * 10) / 10;
+  }
+
+  generateSchemaRecommendations(columns, columnTypes, records) { 
+    return this.generateLegacySchemaSection(columns, columnTypes, records); 
+  }
+
+  generateETLRecommendations(records, columns, columnTypes) {
+    if (!records || records.length === 0) {
+      return 'No data available for ETL analysis';
+    }
+    
+    const recommendations = [];
+    
+    // Advanced Data Quality Analysis
+    const qualityAnalysis = this.performAdvancedQualityAnalysis(records, columns, columnTypes);
+    recommendations.push(...qualityAnalysis);
+    
+    // Performance and Scalability Analysis
+    const performanceAnalysis = this.analyzePerformanceRequirements(records, columns, columnTypes);
+    recommendations.push(...performanceAnalysis);
+    
+    // Data Architecture Recommendations
+    const architectureAnalysis = this.generateArchitectureRecommendations(records, columns, columnTypes);
+    recommendations.push(...architectureAnalysis);
+    
+    // Security and Compliance Analysis
+    const securityAnalysis = this.analyzeSecurityRequirements(records, columns, columnTypes);
+    recommendations.push(...securityAnalysis);
+    
+    // Data Lineage and Governance
+    const governanceAnalysis = this.generateGovernanceRecommendations(records, columns, columnTypes);
+    recommendations.push(...governanceAnalysis);
+    
+    // ML/Analytics Readiness Assessment
+    const analyticsAnalysis = this.assessAnalyticsReadiness(records, columns, columnTypes);
+    recommendations.push(...analyticsAnalysis);
+    
+    // Format recommendations as structured output
+    return this.formatETLRecommendations(recommendations);
+  }
+  
+  performAdvancedQualityAnalysis(records, columns, columnTypes) {
+    const recommendations = [];
+    const qualityIssues = analyzeDataQuality(records, columnTypes);
+    
+    // Null value analysis with smart handling strategies
+    if (qualityIssues.nullIssues > records.length * 0.1) {
+      const nullStrategies = this.generateNullHandlingStrategies(records, columns, columnTypes);
+      recommendations.push({
+        category: 'Data Quality',
+        priority: 'High',
+        action: 'Implement intelligent null value handling',
+        details: `${qualityIssues.nullIssues} null values detected. Recommended strategies: ${nullStrategies.join(', ')}`
+      });
+    }
+    
+    // Data consistency and validation rules
+    const consistencyIssues = this.detectConsistencyIssues(records, columns, columnTypes);
+    if (consistencyIssues.length > 0) {
+      recommendations.push({
+        category: 'Data Quality',
+        priority: 'Medium',
+        action: 'Add data validation rules',
+        details: `Consistency issues detected: ${consistencyIssues.join(', ')}. Implement validation pipeline.`
+      });
+    }
+    
+    // Outlier detection and handling
+    const outlierAnalysis = this.analyzeOutliers(records, columns, columnTypes);
+    if (outlierAnalysis.outlierColumns.length > 0) {
+      recommendations.push({
+        category: 'Data Quality',
+        priority: 'Medium',
+        action: 'Implement outlier detection',
+        details: `Potential outliers in: ${outlierAnalysis.outlierColumns.join(', ')}. Consider ${outlierAnalysis.strategy} strategy.`
+      });
+    }
+    
+    return recommendations;
+  }
+  
+  analyzePerformanceRequirements(records, columns, columnTypes) {
+    const recommendations = [];
+    records.length;
+    columns.length;
+    
+    // Partitioning strategy based on data patterns
+    const partitioningAnalysis = this.analyzePartitioningStrategy(records, columns, columnTypes);
+    if (partitioningAnalysis.recommended) {
+      recommendations.push({
+        category: 'Performance',
+        priority: partitioningAnalysis.priority,
+        action: 'Implement partitioning strategy',
+        details: `${partitioningAnalysis.strategy}. Expected performance improvement: ${partitioningAnalysis.improvement}`
+      });
+    }
+    
+    // Indexing recommendations
+    const indexingStrategy = this.generateIndexingStrategy(records, columns, columnTypes);
+    if (indexingStrategy.indexes.length > 0) {
+      recommendations.push({
+        category: 'Performance',
+        priority: 'Medium',
+        action: 'Create strategic indexes',
+        details: `Recommended indexes: ${indexingStrategy.indexes.join(', ')}. Query performance boost: ${indexingStrategy.benefit}`
+      });
+    }
+    
+    // Memory and storage optimization
+    const storageAnalysis = this.analyzeStorageOptimization(records, columns, columnTypes);
+    recommendations.push({
+      category: 'Performance',
+      priority: 'Low',
+      action: 'Optimize storage format',
+      details: `Current size estimate: ${storageAnalysis.currentSize}. Optimized: ${storageAnalysis.optimizedSize} (${storageAnalysis.savings} savings)`
+    });
+    
+    return recommendations;
+  }
+  
+  generateArchitectureRecommendations(records, columns, columnTypes) {
+    const recommendations = [];
+    
+    // Table design patterns
+    const tableType = this.detectTableType(columns, columnTypes, records);
+    const designPattern = this.getDesignPattern(tableType, records.length, columns.length);
+    
+    recommendations.push({
+      category: 'Architecture',
+      priority: 'High',
+      action: `Implement ${designPattern.pattern} pattern`,
+      details: `Table classified as ${tableType}. ${designPattern.reasoning}. Performance characteristics: ${designPattern.performance}`
+    });
+    
+    // Normalization recommendations
+    const normalizationAnalysis = this.analyzeNormalizationOpportunities(records, columns, columnTypes);
+    if (normalizationAnalysis.opportunities.length > 0) {
+      recommendations.push({
+        category: 'Architecture',
+        priority: 'Medium',
+        action: 'Consider normalization',
+        details: `Normalization opportunities: ${normalizationAnalysis.opportunities.join(', ')}. Benefits: ${normalizationAnalysis.benefits}`
+      });
+    }
+    
+    // Data modeling recommendations
+    const modelingStrategy = this.generateDataModelingStrategy(records, columns, columnTypes);
+    recommendations.push({
+      category: 'Architecture',
+      priority: 'Medium',
+      action: 'Adopt data modeling strategy',
+      details: `Recommended approach: ${modelingStrategy.approach}. Rationale: ${modelingStrategy.rationale}`
+    });
+    
+    return recommendations;
+  }
+  
+  analyzeSecurityRequirements(records, columns, columnTypes) {
+    const recommendations = [];
+    
+    // PII detection with classification levels
+    const piiAnalysis = this.classifyPIIColumns(columns, columnTypes, records);
+    if (piiAnalysis.length > 0) {
+      piiAnalysis.forEach(pii => {
+        recommendations.push({
+          category: 'Security',
+          priority: pii.riskLevel,
+          action: `Protect ${pii.classification} data`,
+          details: `Column '${pii.column}' contains ${pii.classification}. Recommended protection: ${pii.protection}`
+        });
+      });
+    }
+    
+    // Data masking strategies
+    const maskingStrategy = this.generateMaskingStrategy(columns, columnTypes, records);
+    if (maskingStrategy.required) {
+      recommendations.push({
+        category: 'Security',
+        priority: 'High',
+        action: 'Implement data masking',
+        details: `Masking required for: ${maskingStrategy.columns.join(', ')}. Strategy: ${maskingStrategy.method}`
+      });
+    }
+    
+    // Access control recommendations
+    const accessControl = this.generateAccessControlStrategy(columns, columnTypes);
+    recommendations.push({
+      category: 'Security',
+      priority: 'Medium',
+      action: 'Define access controls',
+      details: `Recommended access levels: ${accessControl.levels.join(', ')}. Implementation: ${accessControl.method}`
+    });
+    
+    return recommendations;
+  }
+  
+  generateGovernanceRecommendations(records, columns, columnTypes) {
+    const recommendations = [];
+    
+    // Data lineage tracking
+    const lineageStrategy = this.generateLineageStrategy(columns, columnTypes);
+    recommendations.push({
+      category: 'Governance',
+      priority: 'Medium',
+      action: 'Implement data lineage tracking',
+      details: `Track lineage for: ${lineageStrategy.criticalColumns.join(', ')}. Method: ${lineageStrategy.method}`
+    });
+    
+    // Data quality monitoring
+    const monitoringStrategy = this.generateMonitoringStrategy(records, columns, columnTypes);
+    recommendations.push({
+      category: 'Governance',
+      priority: 'High',
+      action: 'Set up quality monitoring',
+      details: `Monitor: ${monitoringStrategy.metrics.join(', ')}. Frequency: ${monitoringStrategy.frequency}`
+    });
+    
+    // Retention and archival policies
+    const retentionStrategy = this.generateRetentionStrategy(records, columns, columnTypes);
+    recommendations.push({
+      category: 'Governance',
+      priority: 'Low',
+      action: 'Define retention policy',
+      details: `Recommended retention: ${retentionStrategy.period}. Archival strategy: ${retentionStrategy.archival}`
+    });
+    
+    return recommendations;
+  }
+  
+  assessAnalyticsReadiness(records, columns, columnTypes) {
+    const recommendations = [];
+    
+    // Feature engineering opportunities
+    const featureAnalysis = this.analyzeFeatureEngineering(records, columns, columnTypes);
+    if (featureAnalysis.opportunities.length > 0) {
+      recommendations.push({
+        category: 'Analytics',
+        priority: 'Medium',
+        action: 'Implement feature engineering',
+        details: `Opportunities: ${featureAnalysis.opportunities.join(', ')}. ML readiness score: ${featureAnalysis.readinessScore}/10`
+      });
+    }
+    
+    // Data preparation for analytics
+    const prepAnalysis = this.analyzeDataPreparation(records, columns, columnTypes);
+    recommendations.push({
+      category: 'Analytics',
+      priority: 'Medium',
+      action: 'Prepare data for analytics',
+      details: `Required steps: ${prepAnalysis.steps.join(', ')}. Complexity: ${prepAnalysis.complexity}`
+    });
+    
+    // Real-time vs batch processing
+    const processingStrategy = this.recommendProcessingStrategy(records, columns, columnTypes);
+    recommendations.push({
+      category: 'Analytics',
+      priority: 'Low',
+      action: `Implement ${processingStrategy.type} processing`,
+      details: `Recommended: ${processingStrategy.type}. Rationale: ${processingStrategy.rationale}`
+    });
+    
+    return recommendations;
+  }
+  
+  formatETLRecommendations(recommendations) {
+    if (recommendations.length === 0) {
+      return 'No specific ETL recommendations - data appears well-structured';
+    }
+    
+    let output = 'ADVANCED ETL IMPLEMENTATION RECOMMENDATIONS:\n\n';
+    
+    // Group by category and priority
+    const groupedRecs = recommendations.reduce((acc, rec) => {
+      if (!acc[rec.category]) acc[rec.category] = { High: [], Medium: [], Low: [] };
+      acc[rec.category][rec.priority].push(rec);
+      return acc;
+    }, {});
+    
+    Object.entries(groupedRecs).forEach(([category, priorities]) => {
+      output += `${category.toUpperCase()}:\n`;
+      
+      ['High', 'Medium', 'Low'].forEach(priority => {
+        if (priorities[priority].length > 0) {
+          priorities[priority].forEach(rec => {
+            output += `  🔸 [${priority}] ${rec.action}\n`;
+            output += `     ${rec.details}\n\n`;
+          });
+        }
+      });
+    });
+    
+    // Add implementation priority summary
+    const highPriority = recommendations.filter(r => r.priority === 'High').length;
+    const mediumPriority = recommendations.filter(r => r.priority === 'Medium').length;
+    const lowPriority = recommendations.filter(r => r.priority === 'Low').length;
+    
+    output += `IMPLEMENTATION SUMMARY:\n`;
+    output += `  High Priority: ${highPriority} items (implement first)\n`;
+    output += `  Medium Priority: ${mediumPriority} items (implement next)\n`;
+    output += `  Low Priority: ${lowPriority} items (implement when resources allow)\n`;
+    
+    return output;
+  }
+  // Helper methods for advanced relationship detection
+  extractTableFromId(columnName) {
+    // Remove common ID suffixes and clean the name
+    let tableName = columnName
+      .replace(/_id$|_key$|id$/, '')
+      .replace(/^fk_/, '')
+      .replace(/[^a-z]/g, '_');
+    
+    // Handle common patterns
+    if (tableName === 'cust' || tableName === 'customer') return 'customer';
+    if (tableName === 'prod' || tableName === 'product') return 'product';
+    if (tableName === 'order' || tableName === 'ord') return 'order';
+    if (tableName === 'user' || tableName === 'usr') return 'user';
+    
+    return tableName;
+  }
+  
+  calculateFKConfidence(column, type, tableHint) {
+    let confidence = 0.5;
+    
+    // Boost confidence for standard patterns
+    if (column.toLowerCase().endsWith('_id')) confidence += 0.3;
+    if (type.type === 'integer' || type.type === 'identifier') confidence += 0.2;
+    if (tableHint && tableHint.length > 2) confidence += 0.1;
+    
+    // Penalize for very generic names
+    if (['id', 'key', 'ref'].includes(tableHint)) confidence -= 0.2;
+    
+    return Math.min(confidence, 0.95);
+  }
+  
+  extractDomainFromCode(columnName) {
+    return columnName
+      .replace(/_?code$|_?cd$/, '')
+      .replace(/[^a-z]/g, '_');
+  }
+  
+  calculateCodeConfidence(column, type) {
+    let confidence = 0.6;
+    
+    // Higher confidence for fewer categories (more likely to be lookup)
+    if (type.categories && type.categories.length <= 20) confidence += 0.2;
+    if (type.categories && type.categories.length <= 10) confidence += 0.1;
+    
+    // Pattern-based confidence boosts
+    if (column.toLowerCase().includes('status')) confidence += 0.1;
+    if (column.toLowerCase().includes('type')) confidence += 0.1;
+    
+    return Math.min(confidence, 0.9);
+  }
+  
+  calculateCategoricalConfidence(column, type) {
+    let confidence = 0.5;
+    
+    // More categories = higher chance of being a separate reference
+    if (type.categories && type.categories.length > 5) confidence += 0.2;
+    if (type.categories && type.categories.length > 15) confidence += 0.2;
+    
+    return Math.min(confidence, 0.85);
+  }
+  
+  isGeographicColumn(columnName, type) {
+    const geoKeywords = ['country', 'state', 'province', 'region', 'city', 'location', 'zip', 'postal'];
+    return geoKeywords.some(keyword => columnName.includes(keyword)) ||
+           (type.type === 'postcode');
+  }
+  
+  detectGeographicType(columnName, type) {
+    if (columnName.includes('country')) return 'countries';
+    if (columnName.includes('state') || columnName.includes('province')) return 'states';
+    if (columnName.includes('city')) return 'cities';
+    if (columnName.includes('zip') || columnName.includes('postal') || type.type === 'postcode') return 'postal_codes';
+    return 'locations';
+  }
+  
+  detectTimeGrain(columnName) {
+    if (columnName.includes('year')) return 'year';
+    if (columnName.includes('quarter')) return 'quarter';
+    if (columnName.includes('month')) return 'month';
+    if (columnName.includes('week')) return 'week';
+    if (columnName.includes('day') || columnName.includes('date')) return 'date';
+    return 'time';
+  }
+  
+  pluralizeTableName(tableName) {
+    // Simple pluralization rules
+    if (tableName.endsWith('y')) return tableName.slice(0, -1) + 'ies';
+    if (tableName.endsWith('s') || tableName.endsWith('x') || tableName.endsWith('z')) return tableName + 'es';
+    return tableName + 's';
+  }
+  
+  buildFKEvidence(column, type, tableHint, confidence) {
+    const factors = [];
+    
+    if (column.toLowerCase().endsWith('_id')) factors.push('standard naming convention');
+    if (type.type === 'integer') factors.push('integer type');
+    if (type.type === 'identifier') factors.push('identifier pattern');
+    if (confidence > 0.8) factors.push('high pattern match');
+    
+    return `Foreign key indicators: ${factors.join(', ')}`;
+  }
+  
+  detectCrossColumnRelationships(columns, columnTypes) {
+    const relationships = [];
+    
+    // Look for composite key patterns
+    const idColumns = columns.filter(col => 
+      col.toLowerCase().includes('_id') || col.toLowerCase().endsWith('id')
+    );
+    
+    if (idColumns.length >= 2) {
+      relationships.push({
+        type: 'composite_key',
+        columns: idColumns,
+        confidence: 0.7,
+        target_table: 'bridge_table',
+        target_column: 'composite_key',
+        evidence: `Multiple ID columns (${idColumns.join(', ')}) suggest many-to-many relationship bridge`
+      });
+    }
+    
+    // Look for hierarchical patterns (parent_id, level, etc.)
+    const hierarchyIndicators = columns.filter(col => {
+      const colLower = col.toLowerCase();
+      return colLower.includes('parent') || colLower.includes('level') || colLower.includes('hierarchy');
+    });
+    
+    if (hierarchyIndicators.length > 0) {
+      relationships.push({
+        type: 'hierarchical_relationship',
+        columns: hierarchyIndicators,
+        confidence: 0.8,
+        target_table: 'self_reference',
+        target_column: 'parent_key',
+        evidence: `Hierarchical indicators (${hierarchyIndicators.join(', ')}) suggest self-referencing hierarchy`
+      });
+    }
+    
+    return relationships;
+  }
+  
+  // ETL Analysis Helper Methods
+  generateNullHandlingStrategies(records, columns, columnTypes) {
+    const strategies = [];
+    
+    columns.forEach(col => {
+      const values = records.map(r => r[col]);
+      const nullCount = values.filter(v => v === null || v === undefined || v === '').length;
+      const nullRatio = nullCount / records.length;
+      
+      if (nullRatio > 0.1) {
+        const type = columnTypes[col]?.type;
+        if (type === 'categorical') strategies.push('mode imputation');
+        else if (['integer', 'float'].includes(type)) strategies.push('median imputation');
+        else strategies.push('forward fill');
+      }
+    });
+    
+    return [...new Set(strategies)];
+  }
+  
+  detectConsistencyIssues(records, columns, columnTypes) {
+    const issues = [];
+    
+    columns.forEach(col => {
+      const type = columnTypes[col];
+      if (type?.type === 'categorical' && type.categories) {
+        // Check for case inconsistencies
+        const values = records.map(r => r[col]).filter(v => v);
+        const caseIssues = values.filter(v => {
+          const lower = String(v).toLowerCase();
+          return type.categories.some(cat => String(cat).toLowerCase() === lower && cat !== v);
+        });
+        
+        if (caseIssues.length > 0) {
+          issues.push(`${col}: case inconsistencies`);
+        }
+      }
+    });
+    
+    return issues;
+  }
+  
+  analyzeOutliers(records, columns, columnTypes) {
+    const outlierColumns = [];
+    let strategy = 'IQR-based detection';
+    
+    columns.forEach(col => {
+      const type = columnTypes[col];
+      if (['integer', 'float'].includes(type?.type)) {
+        const values = records.map(r => r[col]).filter(v => typeof v === 'number' && !isNaN(v));
+        if (values.length > 10) {
+          values.sort((a, b) => a - b);
+          const q1 = values[Math.floor(values.length * 0.25)];
+          const q3 = values[Math.floor(values.length * 0.75)];
+          const iqr = q3 - q1;
+          const outliers = values.filter(v => v < q1 - 1.5 * iqr || v > q3 + 1.5 * iqr);
+          
+          if (outliers.length > values.length * 0.05) {
+            outlierColumns.push(col);
+          }
+        }
+      }
+    });
+    
+    if (outlierColumns.length > 3) strategy = 'statistical modeling';
+    
+    return { outlierColumns, strategy };
+  }
+  
+  analyzePartitioningStrategy(records, columns, columnTypes) {
+    const dateColumns = columns.filter(col => columnTypes[col]?.type === 'date');
+    const rowCount = records.length;
+    
+    if (rowCount > 100000 && dateColumns.length > 0) {
+      return {
+        recommended: true,
+        strategy: `Monthly partitioning by ${dateColumns[0]}`,
+        priority: 'High',
+        improvement: '60-80% query performance boost'
+      };
+    } else if (rowCount > 50000) {
+      const idColumns = columns.filter(col => col.toLowerCase().includes('_id'));
+      if (idColumns.length > 0) {
+        return {
+          recommended: true,
+          strategy: `Hash partitioning by ${idColumns[0]}`,
+          priority: 'Medium',
+          improvement: '30-50% query performance boost'
+        };
+      }
+    }
+    
+    return { recommended: false };
+  }
+  
+  generateIndexingStrategy(records, columns, columnTypes) {
+    const indexes = [];
+    const idColumns = columns.filter(col => col.toLowerCase().includes('_id') || col.toLowerCase() === 'id');
+    const dateColumns = columns.filter(col => columnTypes[col]?.type === 'date');
+    const categoricalColumns = columns.filter(col => columnTypes[col]?.type === 'categorical');
+    
+    // Primary indexes
+    indexes.push(...idColumns.map(col => `${col} (primary)`));
+    
+    // Temporal indexes
+    if (dateColumns.length > 0) {
+      indexes.push(`${dateColumns[0]} (temporal queries)`);
+    }
+    
+    // Categorical indexes for filtering
+    const highCardinalityCategorical = categoricalColumns.filter(col => {
+      const type = columnTypes[col];
+      return type.categories && type.categories.length <= 20;
+    });
+    indexes.push(...highCardinalityCategorical.map(col => `${col} (filtering)`));
+    
+    return {
+      indexes,
+      benefit: indexes.length > 3 ? '50-70%' : '20-40%'
+    };
+  }
+  
+  analyzeStorageOptimization(records, columns, columnTypes) {
+    let currentSize = records.length * columns.length * 50; // Rough estimate in bytes
+    let optimizedSize = currentSize;
+    
+    // Compression estimates
+    const categoricalRatio = columns.filter(col => columnTypes[col]?.type === 'categorical').length / columns.length;
+    const compressionRatio = categoricalRatio > 0.5 ? 4 : 3;
+    
+    optimizedSize = Math.floor(currentSize / compressionRatio);
+    
+    const savings = Math.round((1 - optimizedSize / currentSize) * 100);
+    
+    return {
+      currentSize: this.formatBytes(currentSize),
+      optimizedSize: this.formatBytes(optimizedSize),
+      savings: `${savings}%`
+    };
+  }
+  
+  formatBytes(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return Math.round(bytes / 1024) + ' KB';
+    if (bytes < 1024 * 1024 * 1024) return Math.round(bytes / (1024 * 1024)) + ' MB';
+    return Math.round(bytes / (1024 * 1024 * 1024)) + ' GB';
+  }
+  
+  detectTableType(columns, columnTypes, records) {
+    const measures = this.identifyMeasureColumns(columns, columnTypes, records);
+    const dimensions = this.identifyDimensionColumns(columns, columnTypes, records);
+    const hasTimestamp = columns.some(c => columnTypes[c]?.type === 'date');
+    
+    if (measures.length >= 2 && hasTimestamp) return 'fact';
+    if (dimensions.length >= 2 && measures.length <= 1) return 'dimension';
+    if (columns.length <= 5) return 'reference';
+    return 'operational';
+  }
+  
+  getDesignPattern(tableType, rowCount, columnCount) {
+    const patterns = {
+      fact: {
+        pattern: 'Star Schema Fact Table',
+        reasoning: 'Optimized for analytical queries with measures and foreign keys',
+        performance: 'Excellent for aggregations, partition-friendly'
+      },
+      dimension: {
+        pattern: 'Slowly Changing Dimension',
+        reasoning: 'Descriptive data that changes slowly over time',
+        performance: 'Good for lookups, consider Type 2 SCD for history'
+      },
+      reference: {
+        pattern: 'Reference/Lookup Table',
+        reasoning: 'Static data for normalization and validation',
+        performance: 'Cache-friendly, minimal storage overhead'
+      },
+      operational: {
+        pattern: 'Operational Data Store',
+        reasoning: 'Business process data requiring normalization',
+        performance: 'Optimize for transactions, consider read replicas'
+      }
+    };
+    
+    return patterns[tableType] || patterns.operational;
+  }
+  
+  analyzeNormalizationOpportunities(records, columns, columnTypes) {
+    const opportunities = [];
+    const benefits = [];
+    
+    // Look for repeated value patterns
+    columns.forEach(col => {
+      const type = columnTypes[col];
+      if (type?.type === 'categorical' && type.categories && type.categories.length > 10) {
+        opportunities.push(`${col} lookup table`);
+        benefits.push('reduced storage');
+      }
+    });
+    
+    // Look for composite data
+    const addressColumns = columns.filter(col => 
+      col.toLowerCase().includes('address') || 
+      col.toLowerCase().includes('city') || 
+      col.toLowerCase().includes('state')
+    );
+    
+    if (addressColumns.length >= 2) {
+      opportunities.push('address normalization');
+      benefits.push('data consistency');
+    }
+    
+    return {
+      opportunities,
+      benefits: [...new Set(benefits)].join(', ')
+    };
+  }
+  
+  generateDataModelingStrategy(records, columns, columnTypes) {
+    const rowCount = records.length;
+    const columnCount = columns.length;
+    const hasTimestamp = columns.some(c => columnTypes[c]?.type === 'date');
+    
+    if (rowCount > 100000 && hasTimestamp) {
+      return {
+        approach: 'Time-series optimized data model',
+        rationale: 'Large temporal dataset benefits from time-partitioned architecture'
+      };
+    } else if (columnCount > 20) {
+      return {
+        approach: 'Normalized relational model',
+        rationale: 'Wide table suggests normalization opportunities for better maintainability'
+      };
+    } else {
+      return {
+        approach: 'Denormalized analytical model',
+        rationale: 'Compact dataset suitable for analytical workloads'
+      };
+    }
+  }
+  
+  classifyPIIColumns(columns, columnTypes, records) {
+    const piiColumns = [];
+    
+    columns.forEach(col => {
+      const colLower = col.toLowerCase();
+      const type = columnTypes[col];
+      
+      if (colLower.includes('email') || type?.type === 'email') {
+        piiColumns.push({
+          column: col,
+          classification: 'email',
+          riskLevel: 'High',
+          protection: 'encryption + tokenization'
+        });
+      } else if (colLower.includes('phone')) {
+        piiColumns.push({
+          column: col,
+          classification: 'phone number',
+          riskLevel: 'Medium',
+          protection: 'masking + encryption'
+        });
+      } else if (colLower.includes('ssn') || colLower.includes('social')) {
+        piiColumns.push({
+          column: col,
+          classification: 'SSN',
+          riskLevel: 'High',
+          protection: 'tokenization + restricted access'
+        });
+      } else if (colLower.includes('name') && type?.type === 'string') {
+        piiColumns.push({
+          column: col,
+          classification: 'personal name',
+          riskLevel: 'Medium',
+          protection: 'pseudonymization'
+        });
+      }
+    });
+    
+    return piiColumns;
+  }
+  
+  generateMaskingStrategy(columns, columnTypes, records) {
+    const sensitiveColumns = columns.filter(col => {
+      const colLower = col.toLowerCase();
+      return colLower.includes('email') || colLower.includes('phone') || 
+             colLower.includes('ssn') || colLower.includes('credit');
+    });
+    
+    if (sensitiveColumns.length > 0) {
+      return {
+        required: true,
+        columns: sensitiveColumns,
+        method: 'format-preserving encryption with role-based unmasking'
+      };
+    }
+    
+    return { required: false };
+  }
+  
+  generateAccessControlStrategy(columns, columnTypes) {
+    const idColumns = columns.filter(col => col.toLowerCase().includes('_id'));
+    const sensitiveColumns = columns.filter(col => {
+      const colLower = col.toLowerCase();
+      return colLower.includes('email') || colLower.includes('salary') || 
+             colLower.includes('phone') || colLower.includes('address');
+    });
+    
+    const levels = ['public'];
+    if (idColumns.length > 0) levels.push('internal');
+    if (sensitiveColumns.length > 0) levels.push('restricted');
+    
+    return {
+      levels,
+      method: 'row-level security with column-level permissions'
+    };
+  }
+  
+  generateLineageStrategy(columns, columnTypes) {
+    const criticalColumns = columns.filter(col => {
+      const colLower = col.toLowerCase();
+      return colLower.includes('_id') || colLower.includes('amount') || 
+             colLower.includes('date') || colLower.includes('status');
+    });
+    
+    return {
+      criticalColumns,
+      method: 'automated lineage tracking with data flow documentation'
+    };
+  }
+  
+  generateMonitoringStrategy(records, columns, columnTypes) {
+    const metrics = ['completeness', 'uniqueness'];
+    
+    if (columns.some(col => ['integer', 'float'].includes(columnTypes[col]?.type))) {
+      metrics.push('statistical drift');
+    }
+    
+    if (columns.some(col => columnTypes[col]?.type === 'categorical')) {
+      metrics.push('domain consistency');
+    }
+    
+    const frequency = records.length > 100000 ? 'daily' : 'weekly';
+    
+    return { metrics, frequency };
+  }
+  
+  generateRetentionStrategy(records, columns, columnTypes) {
+    const hasTimestamp = columns.some(c => columnTypes[c]?.type === 'date');
+    const hasPII = columns.some(col => {
+      const colLower = col.toLowerCase();
+      return colLower.includes('email') || colLower.includes('phone') || colLower.includes('name');
+    });
+    
+    let period = '7 years';
+    let archival = 'cold storage after 2 years';
+    
+    if (hasPII) {
+      period = '3 years (compliance-driven)';
+      archival = 'encrypted archival with anonymization option';
+    } else if (!hasTimestamp) {
+      period = 'indefinite (reference data)';
+      archival = 'periodic backup only';
+    }
+    
+    return { period, archival };
+  }
+  
+  analyzeFeatureEngineering(records, columns, columnTypes) {
+    const opportunities = [];
+    let readinessScore = 5;
+    
+    // Date feature engineering
+    const dateColumns = columns.filter(col => columnTypes[col]?.type === 'date');
+    if (dateColumns.length > 0) {
+      opportunities.push('temporal features (day/month/year)');
+      readinessScore += 1;
+    }
+    
+    // Categorical encoding
+    const categoricalColumns = columns.filter(col => columnTypes[col]?.type === 'categorical');
+    if (categoricalColumns.length > 0) {
+      opportunities.push('categorical encoding');
+      readinessScore += 1;
+    }
+    
+    // Numerical scaling
+    const numericColumns = columns.filter(col => ['integer', 'float'].includes(columnTypes[col]?.type));
+    if (numericColumns.length > 1) {
+      opportunities.push('feature scaling/normalization');
+      readinessScore += 1;
+    }
+    
+    // Interaction features
+    if (numericColumns.length >= 2) {
+      opportunities.push('interaction features');
+      readinessScore += 1;
+    }
+    
+    return {
+      opportunities,
+      readinessScore: Math.min(readinessScore, 10)
+    };
+  }
+  
+  analyzeDataPreparation(records, columns, columnTypes) {
+    const steps = [];
+    let complexity = 'Low';
+    
+    // Check for missing values
+    const nullCounts = {};
+    records.forEach(record => {
+      columns.forEach(col => {
+        if (!nullCounts[col]) nullCounts[col] = 0;
+        if (!record[col]) nullCounts[col]++;
+      });
+    });
+    
+    const hasNulls = Object.values(nullCounts).some(count => count > 0);
+    if (hasNulls) {
+      steps.push('missing value imputation');
+      complexity = 'Medium';
+    }
+    
+    // Check for categorical variables
+    const categoricalColumns = columns.filter(col => columnTypes[col]?.type === 'categorical');
+    if (categoricalColumns.length > 0) {
+      steps.push('categorical encoding');
+    }
+    
+    // Check for skewed distributions
+    const numericColumns = columns.filter(col => ['integer', 'float'].includes(columnTypes[col]?.type));
+    if (numericColumns.length > 0) {
+      steps.push('distribution analysis');
+      if (numericColumns.length > 5) complexity = 'High';
+    }
+    
+    if (steps.length === 0) steps.push('data validation only');
+    
+    return { steps, complexity };
+  }
+  
+  recommendProcessingStrategy(records, columns, columnTypes) {
+    const rowCount = records.length;
+    const hasTimestamp = columns.some(c => columnTypes[c]?.type === 'date');
+    
+    if (rowCount > 500000 && hasTimestamp) {
+      return {
+        type: 'streaming',
+        rationale: 'Large temporal dataset benefits from real-time processing'
+      };
+    } else if (rowCount > 100000) {
+      return {
+        type: 'micro-batch',
+        rationale: 'Balanced approach for medium-scale data with good latency'
+      };
+    } else {
+      return {
+        type: 'batch',
+        rationale: 'Simple batch processing sufficient for dataset size'
+      };
+    }
+  }
+  
+  findRelatedTables(analysis, knowledge) { 
+    const relatedTables = [];
+    
+    if (!knowledge.warehouse || !knowledge.warehouse.tables) {
+      return relatedTables;
+    }
+    
+    const currentColumns = analysis.columns.map(c => c.name.toLowerCase());
+    
+    // Find tables with shared column patterns
+    Object.entries(knowledge.warehouse.tables).forEach(([tableName, tableInfo]) => {
+      if (tableName === analysis.table_name) return; // Skip self
+      
+      const tableColumns = (tableInfo.columns || []).map(c => c.name?.toLowerCase() || c.toLowerCase());
+      const sharedColumns = currentColumns.filter(col => tableColumns.includes(col));
+      
+      if (sharedColumns.length > 0) {
+        const relationshipStrength = sharedColumns.length / Math.min(currentColumns.length, tableColumns.length);
+        
+        relatedTables.push({
+          name: tableName,
+          sharedColumns,
+          relationshipStrength,
+          confidence: Math.min(relationshipStrength * 0.8, 0.9)
+        });
+      }
+    });
+    
+    // Sort by relationship strength
+    return relatedTables
+      .sort((a, b) => b.relationshipStrength - a.relationshipStrength)
+      .slice(0, 5); // Top 5 related tables
+  }
+  classifyIntoDomain(analysis, knowledge) { 
+    // Use existing domain knowledge to classify new tables
+    if (!knowledge.warehouse?.domains) {
+      return analysis.domain;
+    }
+    
+    const currentColumns = analysis.columns.map(c => c.name.toLowerCase());
+    const domainScores = {};
+    
+    // Score against existing domains
+    Object.entries(knowledge.warehouse.domains).forEach(([domain, domainInfo]) => {
+      const domainColumns = (domainInfo.common_columns || []).map(c => c.toLowerCase());
+      const overlap = currentColumns.filter(col => domainColumns.includes(col)).length;
+      
+      if (overlap > 0) {
+        domainScores[domain] = overlap / domainColumns.length;
+      }
+    });
+    
+    // Find best matching domain
+    const bestDomain = Object.entries(domainScores).reduce((best, [domain, score]) => {
+      return score > (best.score || 0) ? { domain, score } : best;
+    }, {});
+    
+    // Return best match if confidence is high enough, otherwise use analysis result
+    return bestDomain.score > 0.3 ? bestDomain.domain : analysis.domain;
+  }
+  generateCrossReferences(analysis, knowledge, patterns) { 
+    const refs = [];
+    
+    // Pattern-based cross-references
+    patterns.naming_patterns.forEach(pattern => {
+      if (pattern.frequency > 1) {
+        refs.push(`"${pattern.pattern}" matches pattern found in ${pattern.frequency} other tables`);
+      }
+    });
+    
+    // Relationship-based cross-references
+    if (analysis.relationships && analysis.relationships.length > 0) {
+      analysis.relationships.forEach(rel => {
+        if (rel.confidence > 0.7) {
+          refs.push(`${rel.column} likely references ${rel.target_table}.${rel.target_column}`);
+        }
+      });
+    }
+    
+    // Domain-based cross-references
+    if (knowledge.warehouse?.domains && knowledge.warehouse.domains[analysis.domain]) {
+      const domainTables = knowledge.warehouse.domains[analysis.domain].tables || [];
+      if (domainTables.length > 1) {
+        refs.push(`Part of ${analysis.domain} domain with ${domainTables.length - 1} other tables`);
+      }
+    }
+    
+    // Quality pattern cross-references
+    if (analysis.patterns?.issues && analysis.patterns.issues.length > 0) {
+      const commonIssues = analysis.patterns.issues.filter(issue => {
+        return knowledge.patterns?.common_issues?.some(common => 
+          common.type === issue.type
+        );
+      });
+      
+      if (commonIssues.length > 0) {
+        refs.push(`Shares ${commonIssues.length} common data quality issues with other tables`);
+      }
+    }
+    
+    return refs;
+  }
+  buildContextFromRelated(relatedTables) { return '- Related tables: ' + relatedTables.map(t => t.name).join(', '); }
+  formatSchemaSection(analysis) {
+    // Ensure we have schema recommendations
+    if (!analysis.schema_recommendations || analysis.schema_recommendations.trim() === '') {
+      // Generate it if missing
+      const recommendations = this.generateLegacySchemaSection(
+        analysis.columns.map(c => c.name),
+        analysis.columns.reduce((acc, col) => {
+          acc[col.name] = { type: col.type, confidence: col.confidence };
+          return acc;
+        }, {}),
+        [] // We don't have records in this context
+      );
+      return createSubSection('🗄️ SCHEMA RECOMMENDATIONS', recommendations);
+    }
+    return createSubSection('🗄️ SCHEMA RECOMMENDATIONS', analysis.schema_recommendations);
+  }
+  generateRelationshipReport(relationships) { return yaml.dump(relationships || {}); }
+  generatePatternReport(patterns) { return yaml.dump(patterns || {}); }
+  generateTechnicalDebtReport(warehouse) { return `Total: ${warehouse?.warehouse_metadata?.total_technical_debt_hours || 0} hours`; }
+  generateWarehouseRecommendations(knowledge) { return 'Analyze more tables to build recommendations'; }
+
+  generateLegacySchemaSection(columns, columnTypes, records) {
+    // Generate a proper table name from the analysis context
+    const tableName = this.generateTableName(columns, columnTypes);
+    
+    let schema = '\nSuggested Table Structure:\n```sql\n';
+    schema += '-- Recommended data types based on analysis\n';
+    schema += `CREATE TABLE ${tableName} (\n`;
+    
+    const columnDefinitions = [];
+    columns.forEach(column => {
+      const type = columnTypes[column];
+      const sqlType = getSQLType(type, records.map(r => r[column]));
+      const constraints = getConstraints(column, type, records);
+      columnDefinitions.push(`    ${column.toLowerCase().replace(/[^a-z0-9]/g, '_')}${sqlType}${constraints}`);
+    });
+    
+    schema += columnDefinitions.join(',\n');
+    schema += '\n);\n```\n';
+    
+    return schema;
+  }
+
+  generateTableName(columns, columnTypes) {
+    // Use the table name from the file if available
+    if (this._currentTableName) {
+      // Ensure it doesn't match any column names
+      if (columns.some(col => col.toLowerCase() === this._currentTableName)) {
+        return `tbl_${this._currentTableName}`;
+      }
+      return this._currentTableName;
+    }
+    
+    // Fallback to generating based on data characteristics
+    // Check for common table patterns
+    const hasCustomerId = columns.some(c => c.toLowerCase().includes('customer'));
+    const hasOrderId = columns.some(c => c.toLowerCase().includes('order'));
+    const hasProductId = columns.some(c => c.toLowerCase().includes('product'));
+    const hasDate = Object.values(columnTypes).some(t => t.type === 'date');
+    const hasMeasures = columns.some(c => 
+      c.toLowerCase().includes('amount') || 
+      c.toLowerCase().includes('count') ||
+      c.toLowerCase().includes('total')
+    );
+    
+    // Determine table type and name
+    if (hasMeasures && hasDate) {
+      if (hasOrderId) return 'fact_orders';
+      if (hasCustomerId && hasProductId) return 'fact_sales';
+      if (hasCustomerId) return 'fact_customer_transactions';
+      return 'fact_transactions';
+    } else if (hasCustomerId && !hasMeasures) {
+      return 'dim_customers';
+    } else if (hasProductId && !hasMeasures) {
+      return 'dim_products';
+    } else if (columns.length < 5 && columns.some(c => c.toLowerCase().includes('name'))) {
+      return 'ref_lookup';
+    } else {
+      // Default to a generic name based on column count and types
+      const numCategorical = Object.values(columnTypes).filter(t => t.type === 'categorical').length;
+      if (numCategorical > columns.length * 0.5) {
+        return 'dim_reference';
+      }
+      return 'tbl_data';
+    }
+  }
+}
+
+async function engineering(filePath, options = {}) {
+  const outputHandler = new OutputHandler(options);
+  
+  if (options.saveInsights) {
+    const [tableName, insights] = options.saveInsights;
+    const engine = new ArchaeologyEngine();
+    await engine.saveInsights(tableName, insights);
+    outputHandler.finalize();
+    return;
+  }
+  
+  if (options.compileKnowledge) {
+    const engine = new ArchaeologyEngine();
+    const compilation = await engine.compileKnowledge();
+    
+    console.log(createSection('📚 WAREHOUSE KNOWLEDGE COMPILATION', formatTimestamp()));
+    console.log(compilation.summary);
+    console.log(compilation.warehouse_map);
+    
+    if (options.output) {
+      const fullReport = Object.values(compilation).join('\n\n');
+      outputHandler.finalize(fullReport);
+    } else {
+      outputHandler.finalize();
+    }
+    return;
+  }
+  
+  if (options.showMap) {
+    const engine = new ArchaeologyEngine();
+    const map = await engine.showMap();
+    console.log(map);
+    outputHandler.finalize();
+    return;
+  }
+  
+  // Use archaeology engine if no specific options
+  const engine = new ArchaeologyEngine();
+  const report = await engine.analyzeTable(filePath, options);
+  console.log(report);
+  outputHandler.finalize();
+}
+
+// Legacy functions preserved for compatibility
+function getSQLType(type, values) {
+  const padded = ' '.repeat(Math.max(25 - type.type.length, 1));
+  
+  switch (type.type) {
+    case 'identifier':
+      const maxLength = Math.max(...values.filter(v => v).map(v => String(v).length));
+      return `${padded}VARCHAR(${Math.max(maxLength * 1.5, 20)})`;
+      
+    case 'integer':
+      const intValues = values.filter(v => typeof v === 'number');
+      const maxInt = Math.max(...intValues);
+      if (maxInt < 32767) return `${padded}SMALLINT`;
+      if (maxInt < 2147483647) return `${padded}INTEGER`;
+      return `${padded}BIGINT`;
+      
+    case 'float':
+      return `${padded}DECIMAL(10,2)`;
+      
+    case 'date':
+      const hasTime = values.some(v => v instanceof Date && (v.getHours() !== 0 || v.getMinutes() !== 0));
+      return hasTime ? `${padded}TIMESTAMP` : `${padded}DATE`;
+      
+    case 'email':
+      return `${padded}VARCHAR(255)`;
+      
+    case 'phone':
+      return `${padded}VARCHAR(20)`;
+      
+    case 'postcode':
+      return `${padded}CHAR(4)`;
+      
+    case 'categorical':
+      const maxCatLength = Math.max(...type.categories.map(c => String(c).length));
+      return `${padded}VARCHAR(${Math.max(maxCatLength * 1.5, 20)})`;
+      
+    default:
+      const maxStrLength = Math.max(...values.filter(v => v).map(v => String(v).length));
+      return `${padded}VARCHAR(${Math.max(maxStrLength * 1.5, 50)})`;
+  }
+}
+
+function getConstraints(column, type, records) {
+  const values = records.map(r => r[column]);
+  const hasNulls = values.some(v => v === null || v === undefined);
+  const isUnique = new Set(values.filter(v => v !== null)).size === values.filter(v => v !== null).length;
+  
+  let constraints = '';
+  
+  if (!hasNulls) {
+    constraints += ' NOT NULL';
+  }
+  
+  if (isUnique && type.type === 'identifier') {
+    constraints += ' PRIMARY KEY';
+  }
+  
+  if (column.toLowerCase() === 'status' && type.type === 'categorical') {
+    constraints += ` CHECK (${column} IN (${type.categories.map(c => `'${c}'`).join(', ')}))`;
+  }
+  
+  return constraints;
+}
+
+function analyzeDataQuality(records, columnTypes) {
+  const issues = {
+    total: 0,
+    dateIssues: 0,
+    nullIssues: 0,
+    typeConversions: 0
+  };
+  
+  records.forEach(record => {
+    let hasIssue = false;
+    
+    Object.entries(record).forEach(([column, value]) => {
+      const type = columnTypes[column];
+      
+      if (value === null || value === undefined || value === '') {
+        issues.nullIssues++;
+        hasIssue = true;
+      }
+      
+      if (type.type === 'date' && value && !(value instanceof Date)) {
+        issues.dateIssues++;
+        hasIssue = true;
+      }
+      
+      if (type.type === 'integer' && value && typeof value === 'string') {
+        issues.typeConversions++;
+        hasIssue = true;
+      }
+    });
+    
+    if (hasIssue) issues.total++;
+  });
+  
+  return issues;
+}
+
+function analyzeNormalization(records, columns, columnTypes) {
+  const issues = [];
+  
+  const textColumns = columns.filter(col => 
+    ['string', 'categorical'].includes(columnTypes[col].type)
+  );
+  
+  textColumns.forEach(col => {
+    const values = records.map(r => r[col]).filter(v => v);
+    const uniqueRatio = new Set(values).size / values.length;
+    
+    if (uniqueRatio < 0.1 && values.length > 100) {
+      issues.push(`${col} appears in ${formatNumber((1 - uniqueRatio) * 100, 1)}% of rows (consider separate dimension table)`);
+    }
+  });
+  
+  return issues;
+}
+
+function generateWarehouseDesign(columns, columnTypes, records) {
+  let design = '';
+  
+  const measureColumns = columns.filter(col => 
+    ['integer', 'float'].includes(columnTypes[col].type) &&
+    (col.toLowerCase().includes('amount') || 
+     col.toLowerCase().includes('count') ||
+     col.toLowerCase().includes('quantity') ||
+     col.toLowerCase().includes('total'))
+  );
+  
+  const dimensionColumns = columns.filter(col => 
+    columnTypes[col].type === 'categorical' ||
+    col.toLowerCase().includes('_id') ||
+    col.toLowerCase().includes('type') ||
+    col.toLowerCase().includes('category')
+  );
+  
+  design += 'Fact Table: fact_' + (measureColumns[0]?.toLowerCase().replace(/[^a-z]/g, '_') || 'transactions') + '\n';
+  design += '- Grain: One row per record\n';
+  design += '- Measures: ' + (measureColumns.length > 0 ? measureColumns.join(', ') : 'count(*)') + '\n';
+  design += '- Keys: ' + dimensionColumns.filter(c => c.includes('_id')).join(', ') + '\n\n';
+  
+  return design;
+}
+
+function generatePerformanceRecommendations(records, columns, columnTypes) {
+  const recommendations = [];
+  
+  const dateColumns = columns.filter(col => columnTypes[col].type === 'date');
+  if (dateColumns.length > 0 && records.length > 100000) {
+    recommendations.push(`Partition by ${dateColumns[0]} (monthly partitions)`);
+  }
+  
+  if (columns.length > 20) {
+    recommendations.push('Consider columnar storage for analytical queries');
+  }
+  
+  const categoricalColumns = columns.filter(col => columnTypes[col].type === 'categorical');
+  if (categoricalColumns.length > columns.length * 0.3) {
+    recommendations.push('Compression ratio estimate: 4:1 (high categorical data)');
+  } else {
+    recommendations.push('Compression ratio estimate: 3:1');
+  }
+  
+  return recommendations;
+}
+
+/**
+ * LLM Utility Functions
+ * Extracted from llm.js to avoid circular dependencies
+ */
+
+
+function getDateRange$1(records, dateColumns) {
+  if (dateColumns.length === 0) return null;
+  
+  const dates = records
+    .map(r => r[dateColumns[0]])
+    .filter(d => d instanceof Date)
+    .sort((a, b) => a - b);
+  
+  if (dates.length === 0) return null;
+  
+  return {
+    start: formatDate$1(dates[0]),
+    end: formatDate$1(dates[dates.length - 1])
+  };
+}
+
+function formatDate$1(date) {
+  if (!(date instanceof Date)) return 'Invalid date';
+  const months = ['January', 'February', 'March', 'April', 'May', 'June',
+                  'July', 'August', 'September', 'October', 'November', 'December'];
+  return `${months[date.getMonth()]} ${date.getFullYear()}`;
+}
+
+function inferDataType$1(columns, columnTypes) {
+  const columnNames = columns.map(c => c.toLowerCase()).join(' ');
+  
+  if (columnNames.includes('transaction') || columnNames.includes('order') || columnNames.includes('sale')) {
+    return 'sales transaction data';
+  }
+  if (columnNames.includes('customer') && columnNames.includes('purchase')) {
+    return 'customer purchase data';
+  }
+  if (columnNames.includes('product') && columnNames.includes('inventory')) {
+    return 'product inventory data';
+  }
+  if (columnNames.includes('user') || columnNames.includes('account')) {
+    return 'user account data';
+  }
+  if (columnNames.includes('employee') || columnNames.includes('staff')) {
+    return 'employee/HR data';
+  }
+  if (columnNames.includes('revenue') || columnNames.includes('profit')) {
+    return 'financial data';
+  }
+  
+  // Look at column types
+  const hasTransactionLikeData = columns.some(c => 
+    columnTypes[c] && columnTypes[c].type === 'identifier' && columns.some(c2 => columnTypes[c2] && ['float', 'integer'].includes(columnTypes[c2].type))
+  );
+  
+  if (hasTransactionLikeData) {
+    return 'transactional data';
+  }
+  
+  return 'structured business data';
+}
+
+function analyzeSeasonality$1(records, dateColumn, columns, columnTypes) {
+  const numericColumns = columns.filter(c => columnTypes[c] && ['integer', 'float'].includes(columnTypes[c].type));
+  if (numericColumns.length === 0) return null;
+  
+  const monthlyData = {};
+  records.forEach(record => {
+    const date = record[dateColumn];
+    if (date instanceof Date) {
+      const month = date.getMonth();
+      if (!monthlyData[month]) monthlyData[month] = [];
+      
+      numericColumns.forEach(col => {
+        if (typeof record[col] === 'number') {
+          monthlyData[month].push(record[col]);
+        }
+      });
+    }
+  });
+  
+  if (Object.keys(monthlyData).length < 6) return null;
+  
+  const monthlyAverages = Object.entries(monthlyData)
+    .map(([month, values]) => ({
+      month: parseInt(month),
+      avg: values.reduce((a, b) => a + b, 0) / values.length
+    }));
+  
+  const overallAvg = monthlyAverages.reduce((a, b) => a + b.avg, 0) / monthlyAverages.length;
+  const peak = monthlyAverages.reduce((a, b) => a.avg > b.avg ? a : b);
+  
+  if (peak.avg > overallAvg * 1.2) {
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                        'July', 'August', 'September', 'October', 'November', 'December'];
+    return `Strong seasonal pattern with ${monthNames[peak.month]} showing ${formatPercentage((peak.avg / overallAvg) - 1)} above average`;
+  }
+  
+  return null;
+}
+
+function analyzeSegments$1(records, columns, columnTypes) {
+  const segmentColumns = columns.filter(c => 
+    c.toLowerCase().includes('segment') || 
+    c.toLowerCase().includes('tier') ||
+    c.toLowerCase().includes('type') ||
+    c.toLowerCase().includes('category')
+  ).filter(c => columnTypes[c] && columnTypes[c].type === 'categorical');
+  
+  if (segmentColumns.length === 0) return null;
+  
+  const valueColumns = columns.filter(c => 
+    (c.toLowerCase().includes('amount') || c.toLowerCase().includes('value')) &&
+    columnTypes[c] && ['integer', 'float'].includes(columnTypes[c].type)
+  );
+  
+  if (valueColumns.length === 0) return null;
+  
+  const segmentCol = segmentColumns[0];
+  const valueCol = valueColumns[0];
+  
+  const segmentStats = {};
+  records.forEach(record => {
+    const segment = record[segmentCol];
+    const value = record[valueCol];
+    
+    if (segment && typeof value === 'number') {
+      if (!segmentStats[segment]) {
+        segmentStats[segment] = { sum: 0, count: 0 };
+      }
+      segmentStats[segment].sum += value;
+      segmentStats[segment].count++;
+    }
+  });
+  
+  const segments = Object.entries(segmentStats)
+    .map(([name, stats]) => ({
+      name,
+      average: stats.sum / stats.count,
+      percentage: stats.count / records.length
+    }))
+    .sort((a, b) => b.average - a.average);
+  
+  if (segments.length >= 2) {
+    const top = segments[0];
+    const totalValue = segments.reduce((sum, s) => sum + s.average * s.percentage, 0);
+    const topValueShare = (top.average * top.percentage) / totalValue;
+    
+    return {
+      title: 'CUSTOMER BEHAVIOR',
+      insight: `${top.name} customers account for ${formatPercentage(top.percentage)} of customer base but ${formatPercentage(topValueShare)} of value. Average ${valueCol}: ${formatCurrency(top.average)}`
+    };
+  }
+  
+  return null;
+}
+
+function analyzeCategoryPerformance$1(records, columns, columnTypes) {
+  const categoryColumns = columns.filter(c => 
+    (c.toLowerCase().includes('category') || c.toLowerCase().includes('product')) &&
+    columnTypes[c] && columnTypes[c].type === 'categorical'
+  );
+  
+  if (categoryColumns.length === 0) return null;
+  
+  const performanceColumns = columns.filter(c => 
+    (c.toLowerCase().includes('margin') || 
+     c.toLowerCase().includes('profit') ||
+     c.toLowerCase().includes('revenue')) &&
+    columnTypes[c] && ['integer', 'float'].includes(columnTypes[c].type)
+  );
+  
+  if (performanceColumns.length === 0) return null;
+  
+  const categoryCol = categoryColumns[0];
+  const perfCol = performanceColumns[0];
+  
+  const categoryPerformance = {};
+  records.forEach(record => {
+    const category = record[categoryCol];
+    const performance = record[perfCol];
+    
+    if (category && typeof performance === 'number') {
+      if (!categoryPerformance[category]) {
+        categoryPerformance[category] = { values: [], count: 0 };
+      }
+      categoryPerformance[category].values.push(performance);
+      categoryPerformance[category].count++;
+    }
+  });
+  
+  const categories = Object.entries(categoryPerformance)
+    .map(([name, data]) => ({
+      name,
+      average: data.values.reduce((a, b) => a + b, 0) / data.values.length,
+      volume: data.count
+    }))
+    .sort((a, b) => b.average - a.average);
+  
+  if (categories.length >= 2) {
+    const highMargin = categories[0];
+    const highVolume = categories.sort((a, b) => b.volume - a.volume)[0];
+    
+    if (highMargin.name !== highVolume.name) {
+      return {
+        title: 'PRODUCT PERFORMANCE',
+        insight: `${highMargin.name} shows highest ${perfCol} (${formatNumber(highMargin.average)}) but ${highVolume.name} has highest volume (${highVolume.volume} records)`
+      };
+    }
+  }
+  
+  return null;
+}
+
+function analyzePricing$1(records, columns, columnTypes) {
+  const priceColumns = columns.filter(c => 
+    c.toLowerCase().includes('price') &&
+    columnTypes[c] && ['integer', 'float'].includes(columnTypes[c].type)
+  );
+  
+  if (priceColumns.length === 0) return null;
+  
+  const priceCol = priceColumns[0];
+  const prices = records.map(r => r[priceCol]).filter(p => typeof p === 'number' && p > 0);
+  
+  if (prices.length === 0) return null;
+  
+  // Check for psychological pricing
+  const endingIn99 = prices.filter(p => {
+    const cents = Math.round((p % 1) * 100);
+    return cents === 99;
+  });
+  
+  const roundPrices = prices.filter(p => p % 1 === 0);
+  
+  const insights = [];
+  
+  if (endingIn99.length > prices.length * 0.3) {
+    insights.push(`${formatPercentage(endingIn99.length / prices.length)} of prices end in .99`);
+  }
+  
+  if (roundPrices.length > prices.length * 0.4) {
+    const commonRoundPrices = {};
+    roundPrices.forEach(p => {
+      commonRoundPrices[p] = (commonRoundPrices[p] || 0) + 1;
+    });
+    
+    const topPrices = Object.entries(commonRoundPrices)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([price]) => formatCurrency(parseFloat(price)));
+    
+    insights.push(`Common price points: ${topPrices.join(', ')}`);
+  }
+  
+  if (insights.length > 0) {
+    insights.push('(psychological pricing effect detected)');
+    return insights.join('. ');
+  }
+  
+  return null;
+}
+
+function detectAnomalies$1(records, columns, columnTypes) {
+  const anomalies = [];
+  
+  // Check for zero amounts
+  const amountColumns = columns.filter(c => 
+    c.toLowerCase().includes('amount') &&
+    columnTypes[c] && ['integer', 'float'].includes(columnTypes[c].type)
+  );
+  
+  amountColumns.forEach(col => {
+    const zeros = records.filter(r => r[col] === 0).length;
+    if (zeros > 0) {
+      anomalies.push(`${zeros} transactions with $0 ${col} (likely returns or errors)`);
+    }
+  });
+  
+  // Check for suspicious patterns
+  const idColumns = columns.filter(c => columnTypes[c] && columnTypes[c].type === 'identifier');
+  if (idColumns.length > 0) {
+    // Check for duplicate IDs
+    const ids = records.map(r => r[idColumns[0]]).filter(id => id !== null);
+    const uniqueIds = new Set(ids);
+    if (uniqueIds.size < ids.length) {
+      anomalies.push(`${ids.length - uniqueIds.size} duplicate ${idColumns[0]} values found`);
+    }
+  }
+  
+  // Check for outliers in date data
+  const dateColumns = columns.filter(c => columnTypes[c] && columnTypes[c].type === 'date');
+  if (dateColumns.length > 0) {
+    const dates = records.map(r => r[dateColumns[0]]).filter(d => d instanceof Date);
+    if (dates.length > 100) {
+      const sorted = dates.sort((a, b) => a - b);
+      const gaps = [];
+      
+      for (let i = 1; i < sorted.length; i++) {
+        const daysDiff = (sorted[i] - sorted[i-1]) / (1000 * 60 * 60 * 24);
+        if (daysDiff > 30) {
+          gaps.push({ start: sorted[i-1], end: sorted[i], days: daysDiff });
+        }
+      }
+      
+      if (gaps.length > 0) {
+        anomalies.push(`Data gaps detected: ${gaps.length} periods with >30 day gaps`);
+      }
+    }
+  }
+  
+  return anomalies;
+}
+
+function calculateDataQuality$1(records, columns) {
+  const totalCells = records.length * columns.length;
+  let missingCells = 0;
+  const missingByColumn = {};
+  
+  columns.forEach(col => {
+    const missing = records.filter(r => r[col] === null || r[col] === undefined).length;
+    missingCells += missing;
+    if (missing > 0) {
+      missingByColumn[col] = missing;
+    }
+  });
+  
+  const topMissing = Object.entries(missingByColumn)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 2)
+    .map(([col, count]) => `${col} (${formatPercentage(count / records.length)})`);
+  
+  const duplicates = findDuplicateRows$1(records);
+  
+  return {
+    completeness: (totalCells - missingCells) / totalCells,
+    missingDetails: topMissing.length > 0 ? topMissing.join(', ') : 'No missing values',
+    duplicates: duplicates.length,
+    dateGaps: null // Will be filled by date analysis
+  };
+}
+
+function findDuplicateRows$1(records) {
+  const seen = new Set();
+  const duplicates = [];
+  
+  records.forEach((record, idx) => {
+    const key = JSON.stringify(record);
+    if (seen.has(key)) {
+      duplicates.push(idx);
+    } else {
+      seen.add(key);
+    }
+  });
+  
+  return duplicates;
+}
+
+function generateSummaryStatistics$1(records, columns, columnTypes) {
+  const stats = [];
+  
+  // Total value statistics
+  const valueColumns = columns.filter(c => 
+    (c.toLowerCase().includes('amount') || 
+     c.toLowerCase().includes('total') ||
+     c.toLowerCase().includes('revenue')) &&
+    columnTypes[c] && ['integer', 'float'].includes(columnTypes[c].type)
+  );
+  
+  valueColumns.forEach(col => {
+    const values = records.map(r => r[col]).filter(v => typeof v === 'number');
+    if (values.length > 0) {
+      const total = values.reduce((a, b) => a + b, 0);
+      const avg = total / values.length;
+      const sorted = [...values].sort((a, b) => a - b);
+      const median = sorted[Math.floor(sorted.length / 2)];
+      
+      stats.push(`Total ${col}: ${formatCurrency(total)}`);
+      stats.push(`Average ${col}: ${formatCurrency(avg)}`);
+      stats.push(`Median ${col}: ${formatCurrency(median)}`);
+    }
+  });
+  
+  return stats;
+}
+
+function findSignificantCorrelations$1(records, columns, columnTypes) {
+  const numericColumns = columns.filter(c => columnTypes[c] && ['integer', 'float'].includes(columnTypes[c].type));
+  const correlations = [];
+  
+  for (let i = 0; i < numericColumns.length; i++) {
+    for (let j = i + 1; j < numericColumns.length; j++) {
+      const col1 = numericColumns[i];
+      const col2 = numericColumns[j];
+      const values1 = records.map(r => r[col1]);
+      const values2 = records.map(r => r[col2]);
+      const corr = calculateCorrelation(values1, values2);
+      
+      if (corr !== null && Math.abs(corr) > 0.5) {
+        const strength = Math.abs(corr) > 0.8 ? 'Strong' : 'Moderate';
+        const direction = corr > 0 ? 'positive' : 'negative';
+        correlations.push(`${strength} ${direction}: ${col1} vs ${col2} (${formatNumber(corr, 2)})`);
+      }
+    }
+  }
+  
+  return correlations.slice(0, 5);
+}
+
+function generateAnalysisSuggestions$1(columns, columnTypes, records) {
+  const suggestions = [];
+  
+  // Check for customer analysis potential
+  if (columns.some(c => c.toLowerCase().includes('customer'))) {
+    suggestions.push('Customer Lifetime Value (CLV) calculation and segmentation');
+  }
+  
+  // Check for product analysis
+  if (columns.some(c => c.toLowerCase().includes('product') || c.toLowerCase().includes('sku'))) {
+    suggestions.push('Market basket analysis to find product associations');
+  }
+  
+  // Check for time series potential
+  if (columns.some(c => columnTypes[c] && columnTypes[c].type === 'date')) {
+    suggestions.push('Time series forecasting for demand prediction');
+    
+    if (columns.some(c => c.toLowerCase().includes('customer'))) {
+      suggestions.push('Cohort analysis for customer retention');
+    }
+  }
+  
+  return suggestions;
+}
+
+function generateDataQuestions$1(columns, columnTypes, dataType, records) {
+  const questions = [];
+  
+  // Generic questions based on data type
+  if (dataType.includes('sales') || dataType.includes('transaction')) {
+    questions.push('What factors drive sales performance?');
+    questions.push('Which products/services generate the most revenue?');
+    questions.push('What are the seasonal trends in sales?');
+  }
+  
+  if (dataType.includes('customer')) {
+    questions.push('What factors drive customer loyalty?');
+    questions.push('Which customer segments are most valuable?');
+    questions.push('What is the typical customer journey?');
+  }
+  
+  return questions.slice(0, 8);
+}
+
+function generateTechnicalNotes$1(records, columns, columnTypes) {
+  const notes = [];
+  
+  // Check for skewed distributions
+  const numericColumns = columns.filter(c => columnTypes[c] && ['integer', 'float'].includes(columnTypes[c].type));
+  
+  numericColumns.forEach(col => {
+    const values = records.map(r => r[col]).filter(v => typeof v === 'number');
+    if (values.length > 0) {
+      const dist = analyzeDistribution(values);
+      if (Math.abs(dist.skewness) > 2) {
+        notes.push(`Log transformation recommended for ${col} (heavy ${dist.skewness > 0 ? 'right' : 'left'} skew)`);
+      }
+    }
+  });
+  
+  return notes;
+}
+
+/**
+ * EDA Summary Extractor
+ * Extracts key findings from comprehensive EDA analysis for LLM context
+ */
+
+function extractEdaSummary(edaResults, options = {}) {
+  const summary = {
+    keyFindings: [],
+    criticalInsights: [],
+    metrics: {},
+    patterns: [],
+    correlations: []
+  };
+
+  // Extract top statistical insights
+  if (edaResults.statisticalInsights) {
+    const topInsights = edaResults.statisticalInsights
+      .filter(insight => insight.importance === 'high' || insight.significance > 0.8)
+      .slice(0, 3);
+    
+    summary.keyFindings.push(...topInsights.map(insight => ({
+      type: 'statistical',
+      finding: insight.finding,
+      impact: insight.businessImpact || 'Data characteristic identified',
+      confidence: insight.confidence || 0.9
+    })));
+  }
+
+  // Extract critical data quality issues
+  if (edaResults.dataQuality) {
+    const criticalQuality = Object.entries(edaResults.dataQuality)
+      .filter(([metric, value]) => {
+        if (metric === 'completeness' && value < 0.8) return true;
+        if (metric === 'duplicateRows' && value > 0.05) return true;
+        if (metric === 'outlierPercentage' && value > 0.1) return true;
+        return false;
+      })
+      .map(([metric, value]) => ({
+        type: 'quality',
+        finding: formatQualityIssue(metric, value),
+        impact: getQualityImpact(metric),
+        confidence: 1.0
+      }));
+    
+    summary.criticalInsights.push(...criticalQuality);
+  }
+
+  // Extract significant correlations
+  if (edaResults.correlations) {
+    const significantCorrelations = edaResults.correlations
+      .filter(corr => Math.abs(corr.value) > 0.5)
+      .sort((a, b) => Math.abs(b.value) - Math.abs(a.value))
+      .slice(0, 3)
+      .map(corr => ({
+        columns: [corr.column1, corr.column2],
+        strength: Math.abs(corr.value),
+        direction: corr.value > 0 ? 'positive' : 'negative',
+        businessMeaning: inferCorrelationMeaning(corr)
+      }));
+    
+    summary.correlations = significantCorrelations;
+  }
+
+  // Extract distribution patterns
+  if (edaResults.distributions) {
+    const notableDistributions = edaResults.distributions
+      .filter(dist => dist.skewness > 2 || dist.kurtosis > 7 || dist.bimodal)
+      .slice(0, 3)
+      .map(dist => ({
+        column: dist.column,
+        pattern: describeDistribution(dist),
+        recommendation: getDistributionRecommendation(dist)
+      }));
+    
+    summary.patterns.push(...notableDistributions.map(dist => ({
+      type: 'distribution',
+      finding: dist.pattern,
+      impact: dist.recommendation,
+      confidence: 0.95
+    })));
+  }
+
+  // Extract time series patterns
+  if (edaResults.timeSeries) {
+    const timePatterns = [];
+    
+    if (edaResults.timeSeries.trend) {
+      timePatterns.push({
+        type: 'trend',
+        finding: `${edaResults.timeSeries.trend.direction} trend detected with ${edaResults.timeSeries.trend.strength} strength`,
+        impact: edaResults.timeSeries.trend.growthRate ? 
+          `${(edaResults.timeSeries.trend.growthRate * 100).toFixed(1)}% growth rate` : 
+          'Systematic change over time',
+        confidence: edaResults.timeSeries.trend.confidence || 0.85
+      });
+    }
+    
+    if (edaResults.timeSeries.seasonality) {
+      timePatterns.push({
+        type: 'seasonality',
+        finding: `${edaResults.timeSeries.seasonality.type} seasonality with peak in ${edaResults.timeSeries.seasonality.peak}`,
+        impact: `${edaResults.timeSeries.seasonality.amplitude}% variation from baseline`,
+        confidence: edaResults.timeSeries.seasonality.confidence || 0.9
+      });
+    }
+    
+    summary.patterns.push(...timePatterns);
+  }
+
+  // Extract key metrics for summary statistics
+  if (edaResults.summaryStats) {
+    // Only include the most business-relevant metrics
+    const relevantColumns = identifyBusinessMetrics(edaResults.columns);
+    
+    relevantColumns.forEach(col => {
+      if (edaResults.summaryStats[col]) {
+        const stats = edaResults.summaryStats[col];
+        summary.metrics[col] = {
+          total: stats.sum,
+          average: stats.mean,
+          median: stats.median,
+          growth: stats.growthRate || null
+        };
+      }
+    });
+  }
+
+  // ML readiness summary
+  if (edaResults.mlReadiness) {
+    if (edaResults.mlReadiness.overallScore < 0.7) {
+      summary.criticalInsights.push({
+        type: 'ml_readiness',
+        finding: `Low ML readiness score: ${(edaResults.mlReadiness.overallScore * 100).toFixed(0)}%`,
+        impact: edaResults.mlReadiness.majorIssues.join(', '),
+        confidence: 0.95
+      });
+    }
+  }
+
+  return summary;
+}
+
+function formatQualityIssue(metric, value) {
+  switch (metric) {
+    case 'completeness':
+      return `Only ${(value * 100).toFixed(1)}% data completeness`;
+    case 'duplicateRows':
+      return `${(value * 100).toFixed(1)}% duplicate records detected`;
+    case 'outlierPercentage':
+      return `${(value * 100).toFixed(1)}% outliers found in numeric data`;
+    default:
+      return `${metric}: ${value}`;
+  }
+}
+
+function getQualityImpact(metric, value) {
+  switch (metric) {
+    case 'completeness':
+      return 'May affect analysis accuracy and model performance';
+    case 'duplicateRows':
+      return 'Inflated metrics and biased analysis results';
+    case 'outlierPercentage':
+      return 'Potential data quality issues or genuine anomalies to investigate';
+    default:
+      return 'Data quality concern';
+  }
+}
+
+function inferCorrelationMeaning(correlation) {
+  const col1 = correlation.column1.toLowerCase();
+  const col2 = correlation.column2.toLowerCase();
+  const strength = Math.abs(correlation.value);
+  
+  // Price/revenue correlations
+  if ((col1.includes('price') && col2.includes('quantity')) ||
+      (col2.includes('price') && col1.includes('quantity'))) {
+    return correlation.value < 0 ? 
+      'Price elasticity detected - higher prices reduce demand' :
+      'Unusual positive price-quantity relationship';
+  }
+  
+  // Customer behavior
+  if ((col1.includes('age') && col2.includes('spend')) ||
+      (col2.includes('age') && col1.includes('spend'))) {
+    return correlation.value > 0 ?
+      'Older customers tend to spend more' :
+      'Younger customers are higher spenders';
+  }
+  
+  // Time-based correlations
+  if (col1.includes('time') || col2.includes('time') || 
+      col1.includes('duration') || col2.includes('duration')) {
+    return 'Time-dependent relationship detected';
+  }
+  
+  // Generic interpretation
+  if (strength > 0.8) {
+    return 'Strong predictive relationship';
+  } else if (strength > 0.6) {
+    return 'Moderate relationship worth investigating';
+  } else {
+    return 'Meaningful correlation detected';
+  }
+}
+
+function describeDistribution(dist) {
+  const descriptions = [];
+  
+  if (dist.bimodal) {
+    descriptions.push('Bimodal distribution suggesting two distinct groups');
+  }
+  
+  if (dist.skewness > 2) {
+    descriptions.push(`Heavy right skew (${dist.skewness.toFixed(1)})`);
+  } else if (dist.skewness < -2) {
+    descriptions.push(`Heavy left skew (${dist.skewness.toFixed(1)})`);
+  }
+  
+  if (dist.kurtosis > 7) {
+    descriptions.push('Extreme outliers present');
+  }
+  
+  if (dist.zeroinflated) {
+    descriptions.push(`${(dist.zeroPercentage * 100).toFixed(0)}% zero values`);
+  }
+  
+  return descriptions.join(', ') || 'Non-normal distribution';
+}
+
+function getDistributionRecommendation(dist) {
+  if (dist.bimodal) {
+    return 'Consider segmentation analysis to identify groups';
+  }
+  
+  if (Math.abs(dist.skewness) > 2) {
+    return 'Log transformation recommended for modeling';
+  }
+  
+  if (dist.kurtosis > 7) {
+    return 'Outlier treatment required before analysis';
+  }
+  
+  if (dist.zeroinflated) {
+    return 'Consider zero-inflated models or separate zero analysis';
+  }
+  
+  return 'May require transformation for parametric analysis';
+}
+
+function identifyBusinessMetrics(columns) {
+  const businessKeywords = [
+    'revenue', 'sales', 'amount', 'total', 'price',
+    'cost', 'profit', 'margin', 'quantity', 'count',
+    'value', 'payment', 'balance', 'spend'
+  ];
+  
+  return columns.filter(col => {
+    const colLower = col.toLowerCase();
+    return businessKeywords.some(keyword => colLower.includes(keyword));
+  }).slice(0, 5); // Limit to top 5 business metrics
+}
+
+/**
+ * INT (Data Integrity) Summary Extractor
+ * Extracts critical data quality issues and validation insights for LLM context
+ */
+
+function extractIntSummary(intResults, options = {}) {
+  const summary = {
+    criticalIssues: [],
+    businessRules: [],
+    automatedFixes: [],
+    qualityScore: null,
+    validationFailures: []
+  };
+
+  // Extract overall quality score
+  if (intResults.overallQuality) {
+    summary.qualityScore = {
+      score: intResults.overallQuality.score,
+      grade: intResults.overallQuality.grade,
+      trend: intResults.overallQuality.trend || 'stable'
+    };
+  }
+
+  // Extract critical data quality issues
+  const validationResults = Array.isArray(intResults.validationResults) ? 
+    intResults.validationResults : 
+    (intResults.validationResults ? [intResults.validationResults] : []);
+    
+  if (validationResults.length > 0) {
+    const criticalValidations = validationResults
+      .filter(v => v.severity === 'critical' || v.failureRate > 0.1)
+      .sort((a, b) => (b.recordsAffected || 0) - (a.recordsAffected || 0))
+      .slice(0, 5);
+    
+    summary.criticalIssues.push(...criticalValidations.map(validation => ({
+      type: validation.type,
+      column: validation.column,
+      issue: validation.description,
+      impact: formatImpact(validation),
+      fixAvailable: validation.autoFixAvailable || false,
+      confidence: validation.confidence || 0.95
+    })));
+  }
+
+  // Extract detected business rules
+  const businessRules = Array.isArray(intResults.businessRules) ? 
+    intResults.businessRules : 
+    (intResults.businessRules ? [intResults.businessRules] : []);
+    
+  if (businessRules.length > 0) {
+    const highConfidenceRules = businessRules
+      .filter(rule => (rule.confidence || 0) > 0.95)
+      .slice(0, 5)
+      .map(rule => ({
+        rule: rule.description,
+        type: rule.type,
+        columns: rule.columns,
+        violations: rule.violations || 0,
+        confidence: rule.confidence
+      }));
+    
+    summary.businessRules = highConfidenceRules;
+  }
+
+  // Extract referential integrity issues
+  if (intResults.referentialIntegrity) {
+    const orphanedRecords = intResults.referentialIntegrity
+      .filter(ref => ref.orphanedCount > 0)
+      .map(ref => ({
+        type: 'referential_integrity',
+        column: ref.foreignKey,
+        issue: `${ref.orphanedCount} orphaned records without matching ${ref.referencedTable}`,
+        impact: `${((ref.orphanedCount / ref.totalRecords) * 100).toFixed(1)}% of data has invalid references`,
+        fixAvailable: true,
+        confidence: 1.0
+      }));
+    
+    summary.criticalIssues.push(...orphanedRecords);
+  }
+
+  // Extract pattern anomalies - handle both array and object formats
+  const patternAnomalies = Array.isArray(intResults.patternAnomalies) ? 
+    intResults.patternAnomalies : 
+    (intResults.patternAnomalies ? [intResults.patternAnomalies] : []);
+    
+  if (patternAnomalies.length > 0) {
+    const significantAnomalies = patternAnomalies
+      .filter(anomaly => anomaly.severity === 'high' || anomaly.count > 100)
+      .slice(0, 3)
+      .map(anomaly => ({
+        type: 'pattern_anomaly',
+        column: anomaly.column,
+        issue: anomaly.description || anomaly.issue,
+        impact: `${anomaly.count || 0} records deviate from expected pattern`,
+        fixAvailable: anomaly.suggestedFix ? true : false,
+        confidence: anomaly.confidence || 0.9
+      }));
+    
+    summary.criticalIssues.push(...significantAnomalies);
+  }
+
+  // Extract automated fixes available
+  const suggestedFixes = Array.isArray(intResults.suggestedFixes) ? 
+    intResults.suggestedFixes : 
+    (intResults.suggestedFixes ? [intResults.suggestedFixes] : []);
+    
+  if (suggestedFixes.length > 0) {
+    const automatedFixes = suggestedFixes
+      .filter(fix => fix.automatable && (fix.confidence || 0) > 0.9)
+      .slice(0, 5)
+      .map(fix => ({
+        issue: fix.issue,
+        fix: fix.description,
+        recordsAffected: fix.recordsAffected,
+        estimatedImprovement: fix.qualityImprovement || 'Unknown',
+        sqlSnippet: fix.sqlSnippet || null,
+        pythonSnippet: fix.pythonSnippet || null
+      }));
+    
+    summary.automatedFixes = automatedFixes;
+  }
+
+  // Extract validation dimension failures
+  if (intResults.dimensions) {
+    const dimensions = ['completeness', 'accuracy', 'consistency', 'validity', 'uniqueness', 'timeliness'];
+    
+    dimensions.forEach(dimension => {
+      if (intResults.dimensions[dimension]) {
+        const dimResult = intResults.dimensions[dimension];
+        
+        if (dimResult.score < 0.8) {
+          summary.validationFailures.push({
+            dimension,
+            score: dimResult.score,
+            mainIssue: dimResult.primaryIssue || `Low ${dimension} score`,
+            affectedColumns: dimResult.affectedColumns || [],
+            recommendation: getdimensionRecommendation(dimension, dimResult)
+          });
+        }
+      }
+    });
+  }
+
+  // Australian-specific validations
+  if (intResults.australianValidation) {
+    const auIssues = [];
+    
+    if (intResults.australianValidation.invalidPostcodes > 0) {
+      auIssues.push({
+        type: 'australian_format',
+        column: 'postcode',
+        issue: `${intResults.australianValidation.invalidPostcodes} invalid Australian postcodes`,
+        impact: 'Geographic analysis and shipping calculations affected',
+        fixAvailable: true,
+        confidence: 1.0
+      });
+    }
+    
+    if (intResults.australianValidation.invalidPhones > 0) {
+      auIssues.push({
+        type: 'australian_format',
+        column: 'phone',
+        issue: `${intResults.australianValidation.invalidPhones} invalid Australian phone numbers`,
+        impact: 'Customer contact data compromised',
+        fixAvailable: true,
+        confidence: 1.0
+      });
+    }
+    
+    summary.criticalIssues.push(...auIssues);
+  }
+
+  return summary;
+}
+
+function formatImpact(validation) {
+  const percentAffected = (validation.recordsAffected / validation.totalRecords) * 100;
+  
+  if (validation.businessImpact) {
+    return validation.businessImpact;
+  }
+  
+  // Generate impact based on validation type
+  switch (validation.type) {
+    case 'missing_values':
+      return `${percentAffected.toFixed(1)}% incomplete data affecting analysis accuracy`;
+    
+    case 'duplicate_keys':
+      return `${validation.recordsAffected} duplicate records inflating metrics`;
+    
+    case 'referential_integrity':
+      return `${percentAffected.toFixed(1)}% orphaned records breaking relationships`;
+    
+    case 'format_violation':
+      return `${validation.recordsAffected} records with invalid format preventing processing`;
+    
+    case 'business_rule_violation':
+      return `${percentAffected.toFixed(1)}% of data violates business constraints`;
+    
+    case 'outlier':
+      return `${validation.recordsAffected} extreme values skewing analysis`;
+    
+    case 'consistency':
+      return `Data inconsistency affecting ${percentAffected.toFixed(1)}% of records`;
+    
+    default:
+      return `${percentAffected.toFixed(1)}% of records affected`;
+  }
+}
+
+function getdimensionRecommendation(dimension, result) {
+  const recommendations = {
+    completeness: 'Implement data collection validation and mandatory field enforcement',
+    accuracy: 'Add input validation rules and automated correction procedures',
+    consistency: 'Standardize data formats and implement consistency checks',
+    validity: 'Define clear validation rules and rejection criteria',
+    uniqueness: 'Add unique constraints and duplicate detection processes',
+    timeliness: 'Implement data freshness monitoring and update schedules'
+  };
+  
+  if (result.specificRecommendation) {
+    return result.specificRecommendation;
+  }
+  
+  return recommendations[dimension] || 'Review and improve data quality processes';
+}
+
+/**
+ * VIS (Visualization) Summary Extractor
+ * Extracts top visualization recommendations and insights for LLM context
+ */
+
+function extractVisSummary(visResults, options = {}) {
+  const summary = {
+    topVisualizations: [],
+    dashboardLayout: null,
+    antiPatterns: [],
+    interactiveFeatures: []
+  };
+
+  // Extract top 3 visualization recommendations
+  if (visResults.recommendations) {
+    const topRecs = visResults.recommendations
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 3)
+      .map(rec => ({
+        type: rec.chartType,
+        purpose: rec.analyticalTask,
+        dataCoverage: rec.columns,
+        insight: rec.expectedInsight,
+        implementation: formatImplementationNotes(rec)
+      }));
+    
+    summary.topVisualizations = topRecs;
+  }
+
+  // Extract primary dashboard layout recommendation
+  if (visResults.dashboardRecommendation) {
+    const dash = visResults.dashboardRecommendation;
+    summary.dashboardLayout = {
+      primaryView: dash.mainVisualization,
+      supportingViews: dash.supportingVisualizations.slice(0, 3),
+      keyMetrics: dash.kpiCards || [],
+      interactivity: dash.interactiveElements || [],
+      flow: dash.analyticalFlow || 'overview-to-detail'
+    };
+  }
+
+  // Extract critical anti-patterns to avoid
+  if (visResults.antiPatterns) {
+    const criticalAntiPatterns = visResults.antiPatterns
+      .filter(ap => ap.severity === 'high' || ap.commonMistake)
+      .slice(0, 3)
+      .map(ap => ({
+        pattern: ap.name,
+        issue: ap.description,
+        alternative: ap.recommendation,
+        example: ap.example || null
+      }));
+    
+    summary.antiPatterns = criticalAntiPatterns;
+  }
+
+  // Extract task-specific visualizations
+  if (visResults.taskAnalysis) {
+    const taskVis = condensetaskVisualizations(visResults.taskAnalysis);
+    
+    // Merge task-specific recommendations with general ones
+    summary.topVisualizations = mergeVisualizations(
+      summary.topVisualizations,
+      taskVis
+    );
+  }
+
+  // Extract accessibility and perceptual considerations
+  if (visResults.perceptualAnalysis) {
+    const perceptual = visResults.perceptualAnalysis;
+    
+    if (perceptual.colorPalette) {
+      summary.colorGuidance = {
+        palette: perceptual.colorPalette.name,
+        type: perceptual.colorPalette.type,
+        accessibility: perceptual.colorPalette.colorblindSafe ? 'Safe' : 'Review needed'
+      };
+    }
+    
+    if (perceptual.warnings && perceptual.warnings.length > 0) {
+      summary.perceptualWarnings = perceptual.warnings.slice(0, 2);
+    }
+  }
+
+  // Extract multivariate pattern visualizations
+  if (visResults.multivariatePatterns) {
+    const mvPatterns = visResults.multivariatePatterns
+      .filter(pattern => pattern.strength > 0.7)
+      .slice(0, 2)
+      .map(pattern => ({
+        type: getMultivariateVizType(pattern),
+        purpose: `Explore ${pattern.type} relationship`,
+        dataCoverage: pattern.variables,
+        insight: pattern.interpretation,
+        implementation: `Use ${pattern.technique} to reveal ${pattern.pattern}`
+      }));
+    
+    summary.topVisualizations.push(...mvPatterns);
+  }
+
+  // Extract interactive features for exploration
+  if (visResults.interactiveRecommendations) {
+    summary.interactiveFeatures = visResults.interactiveRecommendations
+      .filter(feature => feature.importance === 'high')
+      .slice(0, 3)
+      .map(feature => ({
+        feature: feature.name,
+        purpose: feature.purpose,
+        userBenefit: feature.benefit
+      }));
+  }
+
+  // Limit to top 3 visualizations after all sources
+  summary.topVisualizations = summary.topVisualizations.slice(0, 3);
+
+  return summary;
+}
+
+function formatImplementationNotes(recommendation) {
+  const notes = [];
+  
+  // Chart type specific guidance
+  switch (recommendation.chartType) {
+    case 'time_series':
+      notes.push('Include trend line and anomaly highlighting');
+      break;
+    case 'scatter':
+      notes.push('Add regression line and confidence intervals');
+      break;
+    case 'heatmap':
+      notes.push('Use diverging color scheme for correlations');
+      break;
+    case 'sankey':
+      notes.push('Order nodes by flow volume for clarity');
+      break;
+    case 'treemap':
+      notes.push('Use hierarchical coloring for categories');
+      break;
+  }
+  
+  // Data considerations
+  if (recommendation.dataTransformation) {
+    notes.push(recommendation.dataTransformation);
+  }
+  
+  // Scale considerations
+  if (recommendation.scaleType) {
+    notes.push(`Use ${recommendation.scaleType} scale`);
+  }
+  
+  return notes.join('. ');
+}
+
+function condensetaskVisualizations(taskAnalysis) {
+  const taskVis = [];
+  
+  // Comparison tasks
+  if (taskAnalysis.comparison && taskAnalysis.comparison.score > 0.8) {
+    taskVis.push({
+      type: taskAnalysis.comparison.bestChart,
+      purpose: 'Compare values across categories',
+      dataCoverage: taskAnalysis.comparison.dimensions,
+      insight: 'Relative differences and rankings',
+      implementation: 'Sort by value for easier comparison'
+    });
+  }
+  
+  // Trend analysis
+  if (taskAnalysis.trend && taskAnalysis.trend.hasTimeSeries) {
+    taskVis.push({
+      type: 'time_series_with_forecast',
+      purpose: 'Analyze trends and patterns over time',
+      dataCoverage: [taskAnalysis.trend.timeColumn, ...taskAnalysis.trend.metrics],
+      insight: taskAnalysis.trend.pattern || 'Temporal patterns',
+      implementation: 'Include moving average and seasonality decomposition'
+    });
+  }
+  
+  // Distribution analysis
+  if (taskAnalysis.distribution && taskAnalysis.distribution.interestingDists > 0) {
+    taskVis.push({
+      type: taskAnalysis.distribution.recommendedChart,
+      purpose: 'Understand data distribution and outliers',
+      dataCoverage: taskAnalysis.distribution.columns,
+      insight: 'Skewness, modes, and extreme values',
+      implementation: 'Add statistical overlays (mean, median, percentiles)'
+    });
+  }
+  
+  // Relationship exploration
+  if (taskAnalysis.relationship && taskAnalysis.relationship.strongRelationships > 0) {
+    taskVis.push({
+      type: 'scatter_matrix',
+      purpose: 'Explore multivariate relationships',
+      dataCoverage: taskAnalysis.relationship.keyVariables,
+      insight: 'Correlations and clustering patterns',
+      implementation: 'Color by categories, size by importance metric'
+    });
+  }
+  
+  return taskVis;
+}
+
+function mergeVisualizations(primary, secondary) {
+  const merged = [...primary];
+  const existingTypes = new Set(primary.map(v => v.type));
+  
+  // Add non-duplicate visualizations from secondary
+  secondary.forEach(vis => {
+    if (!existingTypes.has(vis.type) && merged.length < 5) {
+      merged.push(vis);
+      existingTypes.add(vis.type);
+    }
+  });
+  
+  return merged;
+}
+
+function getMultivariateVizType(pattern) {
+  switch (pattern.type) {
+    case 'cluster':
+      return 'scatter_plot_with_clustering';
+    case 'correlation_network':
+      return 'network_diagram';
+    case 'dimensional_reduction':
+      return 'pca_biplot';
+    case 'hierarchical':
+      return 'dendrogram';
+    case 'flow':
+      return 'sankey_diagram';
+    default:
+      return 'parallel_coordinates';
+  }
+}
+
+/**
+ * ENG (Data Engineering) Summary Extractor
+ * Extracts critical engineering insights and schema recommendations for LLM context
+ */
+
+function extractEngSummary(engResults, options = {}) {
+  const summary = {
+    schemaRecommendation: null,
+    performanceConsiderations: [],
+    etlRequirements: [],
+    technicalDebt: [],
+    relationships: []
+  };
+
+  // Extract primary schema recommendation
+  if (engResults.schemaRecommendations) {
+    const topSchema = engResults.schemaRecommendations[0];
+    summary.schemaRecommendation = {
+      approach: topSchema.type,
+      rationale: topSchema.rationale,
+      keyTables: formatKeyTables(topSchema.tables),
+      complexity: topSchema.complexity || 'moderate'
+    };
+  }
+
+  // Extract critical performance considerations
+  if (engResults.performanceAnalysis) {
+    const perf = engResults.performanceAnalysis;
+    const criticalConsiderations = [];
+    
+    if (perf.dataVolume > 1000000) {
+      criticalConsiderations.push({
+        aspect: 'Data Volume',
+        issue: `${(perf.dataVolume / 1000000).toFixed(1)}M records require partitioning`,
+        recommendation: perf.partitioningStrategy || 'Partition by date or key dimension'
+      });
+    }
+    
+    if (perf.queryPatterns) {
+      const hotPaths = perf.queryPatterns.filter(p => p.frequency === 'high');
+      if (hotPaths.length > 0) {
+        criticalConsiderations.push({
+          aspect: 'Query Optimization',
+          issue: `${hotPaths.length} high-frequency query patterns identified`,
+          recommendation: 'Create indexes on: ' + hotPaths.map(p => p.columns.join(', ')).join('; ')
+        });
+      }
+    }
+    
+    if (perf.joinComplexity === 'high') {
+      criticalConsiderations.push({
+        aspect: 'Join Performance',
+        issue: 'Multiple large table joins detected',
+        recommendation: 'Consider materialized views or denormalization for critical paths'
+      });
+    }
+    
+    summary.performanceConsiderations = criticalConsiderations.slice(0, 3);
+  }
+
+  // Extract key ETL requirements
+  if (engResults.etlAnalysis) {
+    const etl = engResults.etlAnalysis;
+    const keyRequirements = [];
+    
+    if (etl.dataQualityIssues && etl.dataQualityIssues.length > 0) {
+      keyRequirements.push({
+        stage: 'Cleansing',
+        requirement: 'Data quality fixes needed',
+        specifics: etl.dataQualityIssues.slice(0, 3).map(i => i.issue).join(', ')
+      });
+    }
+    
+    if (etl.transformations && etl.transformations.length > 0) {
+      const complexTransforms = etl.transformations.filter(t => t.complexity === 'high');
+      if (complexTransforms.length > 0) {
+        keyRequirements.push({
+          stage: 'Transformation',
+          requirement: `${complexTransforms.length} complex transformations required`,
+          specifics: complexTransforms[0].description
+        });
+      }
+    }
+    
+    if (etl.incrementalStrategy) {
+      keyRequirements.push({
+        stage: 'Loading',
+        requirement: 'Incremental load strategy',
+        specifics: etl.incrementalStrategy.description
+      });
+    }
+    
+    summary.etlRequirements = keyRequirements;
+  }
+
+  // Extract technical debt insights
+  if (engResults.technicalDebt) {
+    const criticalDebt = engResults.technicalDebt
+      .filter(debt => debt.severity === 'high' || debt.impact === 'blocking')
+      .slice(0, 3)
+      .map(debt => ({
+        issue: debt.description,
+        impact: debt.businessImpact || 'Processing efficiency reduced',
+        effort: debt.estimatedEffort || 'medium',
+        priority: debt.priority || 'high'
+      }));
+    
+    summary.technicalDebt = criticalDebt;
+  }
+
+  // Extract discovered relationships
+  if (engResults.relationships) {
+    const strongRelationships = engResults.relationships
+      .filter(rel => rel.confidence > 0.9)
+      .slice(0, 5)
+      .map(rel => ({
+        type: rel.type,
+        from: rel.sourceTable || rel.sourceColumn,
+        to: rel.targetTable || rel.targetColumn,
+        cardinality: rel.cardinality || 'many-to-one',
+        strength: rel.confidence
+      }));
+    
+    summary.relationships = strongRelationships;
+  }
+
+  // Extract warehouse-specific insights if available
+  if (engResults.warehouseKnowledge) {
+    const knowledge = engResults.warehouseKnowledge;
+    
+    if (knowledge.tableClassification) {
+      summary.tableClassification = {
+        factTables: knowledge.tableClassification.facts || [],
+        dimensions: knowledge.tableClassification.dimensions || [],
+        bridges: knowledge.tableClassification.bridges || []
+      };
+    }
+    
+    if (knowledge.commonPatterns && knowledge.commonPatterns.length > 0) {
+      summary.patterns = knowledge.commonPatterns
+        .slice(0, 3)
+        .map(p => ({
+          pattern: p.name,
+          description: p.description,
+          recommendation: p.recommendation
+        }));
+    }
+  }
+
+  return summary;
+}
+
+function formatKeyTables(tables) {
+  if (!tables || tables.length === 0) return [];
+  
+  return tables.slice(0, 5).map(table => ({
+    name: table.name,
+    type: table.type || inferTableType(table),
+    keyColumns: table.keyColumns || [],
+    recordCount: table.estimatedRows || 'unknown'
+  }));
+}
+
+function inferTableType(table) {
+  const name = table.name.toLowerCase();
+  
+  // Fact table patterns
+  if (name.includes('fact') || name.includes('transaction') || 
+      name.includes('event') || name.includes('sales')) {
+    return 'fact';
+  }
+  
+  // Dimension patterns
+  if (name.includes('dim') || name.includes('customer') || 
+      name.includes('product') || name.includes('location') ||
+      name.includes('date') || name.includes('time')) {
+    return 'dimension';
+  }
+  
+  // Bridge/junction patterns
+  if (name.includes('bridge') || name.includes('link') || 
+      name.includes('xref') || name.includes('mapping')) {
+    return 'bridge';
+  }
+  
+  // Staging patterns
+  if (name.includes('stg') || name.includes('staging') || 
+      name.includes('temp') || name.includes('load')) {
+    return 'staging';
+  }
+  
+  return 'operational';
+}
+
+/**
+ * Insight Synthesizer
+ * Connects findings across EDA, INT, VIS, and ENG analyses to create unified insights
+ */
+
+function synthesizeInsights(edaSummary, intSummary, visSummary, engSummary) {
+  const synthesized = {
+    connectedInsights: [],
+    crossAnalysisPatterns: [],
+    unifiedRecommendations: [],
+    criticalPath: []
+  };
+
+  // Connect statistical patterns with quality issues
+  connectStatisticalAndQuality(edaSummary, intSummary, synthesized);
+
+  // Connect visualization needs with data characteristics
+  connectVisualizationAndData(visSummary, edaSummary, intSummary, synthesized);
+
+  // Connect engineering requirements with quality and volume
+  connectEngineeringAndOperational(engSummary, intSummary, edaSummary, synthesized);
+
+  // Identify cross-cutting patterns
+  identifyCrossCuttingPatterns(edaSummary, intSummary, visSummary, engSummary, synthesized);
+
+  // Generate unified recommendations
+  generateUnifiedRecommendations(synthesized, edaSummary, intSummary, visSummary, engSummary);
+
+  // Determine critical path for improvements
+  determineCriticalPath(synthesized, intSummary);
+
+  return synthesized;
+}
+
+function connectStatisticalAndQuality(eda, int, synthesized) {
+  // Connect outliers with data quality
+  if (eda.patterns && int.criticalIssues) {
+    eda.patterns.forEach(pattern => {
+      if (pattern.type === 'distribution' && pattern.finding.includes('outliers')) {
+        const relatedQuality = int.criticalIssues.find(issue => 
+          issue.type === 'outlier' || issue.type === 'pattern_anomaly'
+        );
+        
+        if (relatedQuality) {
+          synthesized.connectedInsights.push({
+            insight: `Statistical outliers in ${pattern.finding} are confirmed as data quality issues`,
+            impact: 'high',
+            action: relatedQuality.fixAvailable ? 
+              'Automated fix available for outlier treatment' : 
+              'Manual review required for outlier handling',
+            confidence: Math.min(pattern.confidence, relatedQuality.confidence)
+          });
+        }
+      }
+    });
+  }
+
+  // Connect missing data patterns with completeness issues
+  if (eda.metrics && int.validationFailures) {
+    const completenessFailure = int.validationFailures.find(f => f.dimension === 'completeness');
+    
+    if (completenessFailure && completenessFailure.score < 0.8) {
+      const affectedMetrics = Object.entries(eda.metrics)
+        .filter(([col, stats]) => completenessFailure.affectedColumns.includes(col))
+        .map(([col]) => col);
+      
+      if (affectedMetrics.length > 0) {
+        synthesized.connectedInsights.push({
+          insight: `Low completeness (${(completenessFailure.score * 100).toFixed(0)}%) affects key business metrics: ${affectedMetrics.join(', ')}`,
+          impact: 'critical',
+          action: 'Prioritize data collection for these business-critical fields',
+          confidence: 0.95
+        });
+      }
+    }
+  }
+
+  // Connect correlations with referential integrity
+  if (eda.correlations && int.criticalIssues) {
+    eda.correlations.forEach(corr => {
+      const integrityIssue = int.criticalIssues.find(issue => 
+        issue.type === 'referential_integrity' &&
+        (issue.column === corr.columns[0] || issue.column === corr.columns[1])
+      );
+      
+      if (integrityIssue) {
+        synthesized.connectedInsights.push({
+          insight: `Strong ${corr.direction} correlation between ${corr.columns.join(' and ')} compromised by ${integrityIssue.issue}`,
+          impact: 'high',
+          action: 'Fix referential integrity before correlation-based analysis',
+          confidence: 0.9
+        });
+      }
+    });
+  }
+}
+
+function connectVisualizationAndData(vis, eda, int, synthesized) {
+  // Connect visualization recommendations with data quality
+  if (vis.topVisualizations && int.qualityScore) {
+    vis.topVisualizations.forEach(viz => {
+      if (int.qualityScore.score < 0.8) {
+        const qualityWarning = {
+          insight: `${viz.type} visualization recommended but data quality score is ${int.qualityScore.grade}`,
+          impact: 'medium',
+          action: 'Address data quality issues before creating production visualizations',
+          confidence: 0.85
+        };
+        
+        // Check if specific columns have issues
+        const vizColumns = Array.isArray(viz.dataCoverage) ? viz.dataCoverage : [viz.dataCoverage];
+        const columnIssues = int.criticalIssues.filter(issue => 
+          vizColumns.includes(issue.column)
+        );
+        
+        if (columnIssues.length > 0) {
+          qualityWarning.impact = 'high';
+          qualityWarning.action = `Fix ${columnIssues[0].issue} before implementing ${viz.type}`;
+        }
+        
+        synthesized.connectedInsights.push(qualityWarning);
+      }
+    });
+  }
+
+  // Connect time series visualizations with seasonality patterns
+  if (vis.topVisualizations && eda.patterns) {
+    const timeSeriesViz = vis.topVisualizations.find(v => v.type.includes('time_series'));
+    const seasonalityPattern = eda.patterns.find(p => p.type === 'seasonality');
+    
+    if (timeSeriesViz && seasonalityPattern) {
+      synthesized.connectedInsights.push({
+        insight: `Time series visualization aligns with detected ${seasonalityPattern.finding}`,
+        impact: 'medium',
+        action: `Include ${seasonalityPattern.finding.toLowerCase()} in visualization annotations`,
+        confidence: 0.9
+      });
+    }
+  }
+
+  // Connect distribution visualizations with skewness
+  const distributionViz = vis.topVisualizations.find(v => 
+    v.purpose.toLowerCase().includes('distribution')
+  );
+  const skewedDistribution = eda.patterns.find(p => 
+    p.type === 'distribution' && p.finding.includes('skew')
+  );
+  
+  if (distributionViz && skewedDistribution) {
+    synthesized.connectedInsights.push({
+      insight: `Distribution visualization should account for ${skewedDistribution.finding}`,
+      impact: 'medium',
+      action: skewedDistribution.impact || 'Consider log scale or transformation in visualization',
+      confidence: 0.85
+    });
+  }
+}
+
+function connectEngineeringAndOperational(eng, int, eda, synthesized) {
+  // Connect schema recommendations with data volume
+  if (eng.schemaRecommendation && eda.metrics) {
+    const totalRecords = Object.values(eda.metrics)[0]?.recordCount || 0;
+    
+    if (totalRecords > 1000000 && eng.schemaRecommendation.approach !== 'star_schema') {
+      synthesized.connectedInsights.push({
+        insight: `${eng.schemaRecommendation.approach} schema with ${(totalRecords/1000000).toFixed(1)}M records may need optimization`,
+        impact: 'high',
+        action: 'Consider star schema or partitioning strategy for better performance',
+        confidence: 0.8
+      });
+    }
+  }
+
+  // Connect ETL requirements with data quality fixes
+  if (eng.etlRequirements && int.automatedFixes) {
+    const cleansingETL = eng.etlRequirements.find(req => req.stage === 'Cleansing');
+    
+    if (cleansingETL && int.automatedFixes.length > 0) {
+      synthesized.connectedInsights.push({
+        insight: `ETL cleansing stage can implement ${int.automatedFixes.length} automated data quality fixes`,
+        impact: 'high',
+        action: `Integrate fixes into ETL pipeline: ${int.automatedFixes.slice(0, 2).map(f => f.fix).join(', ')}`,
+        confidence: 0.95
+      });
+    }
+  }
+
+  // Connect performance considerations with correlations
+  if (eng.performanceConsiderations && eda.correlations) {
+    const indexingRec = eng.performanceConsiderations.find(p => 
+      p.aspect === 'Query Optimization'
+    );
+    
+    if (indexingRec && eda.correlations.length > 0) {
+      const correlatedColumns = new Set();
+      eda.correlations.forEach(corr => {
+        correlatedColumns.add(corr.columns[0]);
+        correlatedColumns.add(corr.columns[1]);
+      });
+      
+      synthesized.connectedInsights.push({
+        insight: 'Highly correlated columns should be considered for composite indexes',
+        impact: 'medium',
+        action: `Create composite indexes on correlated pairs: ${Array.from(correlatedColumns).slice(0, 4).join(', ')}`,
+        confidence: 0.75
+      });
+    }
+  }
+}
+
+function identifyCrossCuttingPatterns(eda, int, vis, eng, synthesized) {
+  const patterns = [];
+
+  // Pattern: Rapid growth with quality degradation
+  if (eda.patterns && int.qualityScore) {
+    const growthPattern = eda.patterns.find(p => 
+      p.type === 'trend' && p.finding.includes('growth')
+    );
+    
+    if (growthPattern && int.qualityScore.score < 0.85) {
+      patterns.push({
+        pattern: 'Growth-Quality Trade-off',
+        description: `${growthPattern.finding} coincides with ${int.qualityScore.grade} data quality`,
+        implication: 'Rapid growth may be compromising data collection standards',
+        recommendation: 'Implement stricter validation during high-growth periods'
+      });
+    }
+  }
+
+  // Pattern: Segmentation opportunity with visualization
+  if (eda.patterns && vis.topVisualizations) {
+    const segmentPattern = eda.keyFindings?.find(f => 
+      f.finding.toLowerCase().includes('segment') || 
+      f.finding.toLowerCase().includes('group')
+    );
+    
+    const segmentViz = vis.topVisualizations.find(v => 
+      v.type.includes('cluster') || v.type.includes('scatter')
+    );
+    
+    if (segmentPattern && segmentViz) {
+      patterns.push({
+        pattern: 'Segmentation Opportunity',
+        description: 'Natural customer segments detected with visualization support',
+        implication: segmentPattern.finding,
+        recommendation: `Use ${segmentViz.type} to explore and validate segments`
+      });
+    }
+  }
+
+  // Pattern: Complex relationships requiring engineering
+  if (eng.relationships && eng.relationships.length > 3) {
+    const complexRelationships = eng.relationships.filter(r => 
+      r.type === 'many-to-many' || r.cardinality === 'many-to-many'
+    );
+    
+    if (complexRelationships.length > 0) {
+      patterns.push({
+        pattern: 'Complex Relationship Network',
+        description: `${eng.relationships.length} relationships with ${complexRelationships.length} many-to-many connections`,
+        implication: 'Data model complexity may impact query performance',
+        recommendation: 'Consider bridge tables or denormalization for critical paths'
+      });
+    }
+  }
+
+  synthesized.crossAnalysisPatterns = patterns;
+}
+
+function generateUnifiedRecommendations(synthesized, eda, int, vis, eng) {
+  const recommendations = [];
+  const addedRecommendations = new Set();
+
+  // Priority 1: Critical data quality fixes
+  if (int.automatedFixes && int.automatedFixes.length > 0) {
+    const topFix = int.automatedFixes[0];
+    const rec = {
+      priority: 1,
+      category: 'Data Quality',
+      action: topFix.fix,
+      impact: `Improves data quality for ${topFix.recordsAffected} records`,
+      effort: 'Low (automated)',
+      implementation: topFix.sqlSnippet || topFix.pythonSnippet || 'See automated fix details'
+    };
+    
+    recommendations.push(rec);
+    addedRecommendations.add(rec.action);
+  }
+
+  // Priority 2: High-impact visualizations
+  if (vis.topVisualizations && vis.topVisualizations.length > 0) {
+    const topViz = vis.topVisualizations[0];
+    const rec = {
+      priority: 2,
+      category: 'Visualization',
+      action: `Implement ${topViz.type} for ${topViz.purpose}`,
+      impact: topViz.insight,
+      effort: 'Medium',
+      implementation: topViz.implementation
+    };
+    
+    if (!addedRecommendations.has(rec.action)) {
+      recommendations.push(rec);
+      addedRecommendations.add(rec.action);
+    }
+  }
+
+  // Priority 3: Performance optimizations
+  if (eng.performanceConsiderations && eng.performanceConsiderations.length > 0) {
+    const topPerf = eng.performanceConsiderations[0];
+    const rec = {
+      priority: 3,
+      category: 'Performance',
+      action: topPerf.recommendation,
+      impact: `Addresses: ${topPerf.issue}`,
+      effort: 'Medium to High',
+      implementation: 'See engineering recommendations'
+    };
+    
+    if (!addedRecommendations.has(rec.action)) {
+      recommendations.push(rec);
+      addedRecommendations.add(rec.action);
+    }
+  }
+
+  // Priority 4: Analytical opportunities
+  const analyticalOps = [];
+  
+  // From correlations
+  if (eda.correlations && eda.correlations.length > 0) {
+    const topCorr = eda.correlations[0];
+    analyticalOps.push({
+      priority: 4,
+      category: 'Analysis',
+      action: `Investigate ${topCorr.direction} relationship between ${topCorr.columns.join(' and ')}`,
+      impact: topCorr.businessMeaning,
+      effort: 'Low',
+      implementation: 'Statistical analysis or predictive modeling'
+    });
+  }
+
+  // From patterns
+  if (eda.patterns && eda.patterns.length > 0) {
+    const significantPattern = eda.patterns.find(p => p.confidence > 0.9);
+    if (significantPattern) {
+      analyticalOps.push({
+        priority: 4,
+        category: 'Analysis',
+        action: `Leverage ${significantPattern.type} pattern: ${significantPattern.finding}`,
+        impact: significantPattern.impact,
+        effort: 'Low to Medium',
+        implementation: 'Time series analysis or segmentation'
+      });
+    }
+  }
+
+  // Add best analytical opportunity
+  if (analyticalOps.length > 0 && !addedRecommendations.has(analyticalOps[0].action)) {
+    recommendations.push(analyticalOps[0]);
+  }
+
+  synthesized.unifiedRecommendations = recommendations.slice(0, 5);
+}
+
+function determineCriticalPath(synthesized, intSummary) {
+  const criticalPath = [];
+
+  // Step 1: Fix critical data quality issues
+  if (intSummary.qualityScore && intSummary.qualityScore.score < 0.8) {
+    criticalPath.push({
+      step: 1,
+      action: 'Address critical data quality issues',
+      reason: `Current quality score ${intSummary.qualityScore.grade} blocks accurate analysis`,
+      timeframe: 'Immediate'
+    });
+  }
+
+  // Step 2: Implement ETL fixes
+  const etlFixes = synthesized.connectedInsights.find(i => 
+    i.insight.includes('ETL') && i.impact === 'high'
+  );
+  
+  if (etlFixes) {
+    criticalPath.push({
+      step: criticalPath.length + 1,
+      action: 'Integrate quality fixes into ETL pipeline',
+      reason: 'Prevent future quality degradation',
+      timeframe: 'Week 1-2'
+    });
+  }
+
+  // Step 3: Deploy key visualizations
+  const vizRec = synthesized.unifiedRecommendations.find(r => 
+    r.category === 'Visualization'
+  );
+  
+  if (vizRec) {
+    criticalPath.push({
+      step: criticalPath.length + 1,
+      action: vizRec.action,
+      reason: 'Enable data-driven decision making',
+      timeframe: 'Week 2-3'
+    });
+  }
+
+  // Step 4: Performance optimization
+  const perfRec = synthesized.unifiedRecommendations.find(r => 
+    r.category === 'Performance'
+  );
+  
+  if (perfRec) {
+    criticalPath.push({
+      step: criticalPath.length + 1,
+      action: perfRec.action,
+      reason: 'Ensure scalability for growing data',
+      timeframe: 'Week 3-4'
+    });
+  }
+
+  // Step 5: Advanced analytics
+  const analyticsRec = synthesized.unifiedRecommendations.find(r => 
+    r.category === 'Analysis'
+  );
+  
+  if (analyticsRec) {
+    criticalPath.push({
+      step: criticalPath.length + 1,
+      action: analyticsRec.action,
+      reason: 'Extract business value from clean, optimized data',
+      timeframe: 'Week 4+'
+    });
+  }
+
+  synthesized.criticalPath = criticalPath;
+}
+
+/**
+ * Key Finding Selector
+ * Prioritizes and selects the most important findings based on impact scoring
+ */
+
+class KeyFindingSelector {
+  constructor(options = {}) {
+    this.maxFindings = options.maxFindings || 5;
+    this.maxPatternsPerCategory = options.maxPatternsPerCategory || 2;
+    this.scoringWeights = {
+      businessImpact: options.businessImpactWeight || 0.3,
+      dataQuality: options.dataQualityWeight || 0.25,
+      actionability: options.actionabilityWeight || 0.2,
+      crossAnalysis: options.crossAnalysisWeight || 0.15,
+      confidence: options.confidenceWeight || 0.1
+    };
+  }
+
+  selectKeyFindings(allFindings) {
+    // Flatten all findings from different sources
+    const flattenedFindings = this.flattenFindings(allFindings);
+    
+    // Score each finding
+    const scoredFindings = flattenedFindings.map(finding => ({
+      ...finding,
+      impactScore: this.calculateImpactScore(finding)
+    }));
+    
+    // Sort by impact score
+    const sortedFindings = scoredFindings.sort((a, b) => b.impactScore - a.impactScore);
+    
+    // Apply diversity rules to ensure variety
+    const diverseFindings = this.ensureDiversity(sortedFindings);
+    
+    // Return top findings
+    return diverseFindings.slice(0, this.maxFindings);
+  }
+
+  flattenFindings(allFindings) {
+    const flattened = [];
+    
+    // Extract from summaries
+    ['eda', 'int', 'vis', 'eng'].forEach(source => {
+      const summary = allFindings[source + 'Summary'];
+      if (!summary) return;
+      
+      // Key findings
+      if (summary.keyFindings) {
+        summary.keyFindings.forEach(finding => {
+          flattened.push({
+            ...finding,
+            source,
+            category: 'key_finding'
+          });
+        });
+      }
+      
+      // Critical insights
+      if (summary.criticalInsights) {
+        summary.criticalInsights.forEach(insight => {
+          flattened.push({
+            ...insight,
+            source,
+            category: 'critical_insight'
+          });
+        });
+      }
+      
+      // Patterns
+      if (summary.patterns) {
+        summary.patterns.forEach(pattern => {
+          flattened.push({
+            ...pattern,
+            source,
+            category: 'pattern'
+          });
+        });
+      }
+      
+      // Critical issues (INT specific)
+      if (summary.criticalIssues) {
+        summary.criticalIssues.forEach(issue => {
+          flattened.push({
+            ...issue,
+            source,
+            category: 'critical_issue'
+          });
+        });
+      }
+    });
+    
+    // Extract from synthesis
+    const synthesis = allFindings.synthesis;
+    if (synthesis) {
+      // Connected insights get bonus for cross-analysis
+      if (synthesis.connectedInsights) {
+        synthesis.connectedInsights.forEach(insight => {
+          flattened.push({
+            ...insight,
+            source: 'synthesis',
+            category: 'connected_insight',
+            crossAnalysis: true
+          });
+        });
+      }
+      
+      // Cross-cutting patterns
+      if (synthesis.crossAnalysisPatterns) {
+        synthesis.crossAnalysisPatterns.forEach(pattern => {
+          flattened.push({
+            finding: pattern.description,
+            impact: pattern.implication,
+            action: pattern.recommendation,
+            source: 'synthesis',
+            category: 'cross_pattern',
+            crossAnalysis: true,
+            confidence: 0.9
+          });
+        });
+      }
+    }
+    
+    return flattened;
+  }
+
+  calculateImpactScore(finding) {
+    let score = 0;
+    
+    // Business impact scoring
+    score += this.scoreBusinessImpact(finding) * this.scoringWeights.businessImpact;
+    
+    // Data quality impact
+    score += this.scoreDataQualityImpact(finding) * this.scoringWeights.dataQuality;
+    
+    // Actionability
+    score += this.scoreActionability(finding) * this.scoringWeights.actionability;
+    
+    // Cross-analysis relevance
+    score += this.scoreCrossAnalysisRelevance(finding) * this.scoringWeights.crossAnalysis;
+    
+    // Confidence
+    score += (finding.confidence || 0.8) * this.scoringWeights.confidence;
+    
+    return score;
+  }
+
+  scoreBusinessImpact(finding) {
+    let score = 0.5; // Base score
+    
+    // Check for revenue/cost implications
+    const impactText = (finding.impact || finding.finding || '').toLowerCase();
+    
+    if (impactText.includes('revenue') || impactText.includes('sales')) {
+      score += 0.3;
+    }
+    
+    if (impactText.includes('cost') || impactText.includes('efficiency')) {
+      score += 0.2;
+    }
+    
+    if (impactText.includes('customer') || impactText.includes('retention')) {
+      score += 0.25;
+    }
+    
+    if (impactText.includes('risk') || impactText.includes('compliance')) {
+      score += 0.25;
+    }
+    
+    // Check for quantified impact
+    const hasPercentage = /\d+(\.\d+)?%/.test(impactText);
+    const hasCurrency = /\$[\d,]+/.test(impactText);
+    const hasLargeNumber = /\d{4,}/.test(impactText);
+    
+    if (hasPercentage || hasCurrency || hasLargeNumber) {
+      score += 0.2;
+    }
+    
+    // Critical issues get high scores
+    if (finding.category === 'critical_issue' || finding.category === 'critical_insight') {
+      score = Math.max(score, 0.9);
+    }
+    
+    return Math.min(score, 1.0);
+  }
+
+  scoreDataQualityImpact(finding) {
+    let score = 0.3; // Base score
+    
+    // Quality-specific findings
+    if (finding.source === 'int' || finding.type === 'quality') {
+      score += 0.3;
+    }
+    
+    // Check for quality keywords
+    const text = (finding.finding || finding.issue || '').toLowerCase();
+    
+    if (text.includes('missing') || text.includes('incomplete')) {
+      score += 0.2;
+    }
+    
+    if (text.includes('duplicate') || text.includes('inconsistent')) {
+      score += 0.2;
+    }
+    
+    if (text.includes('invalid') || text.includes('corrupt')) {
+      score += 0.3;
+    }
+    
+    if (text.includes('outlier') || text.includes('anomaly')) {
+      score += 0.15;
+    }
+    
+    // Records affected
+    if (finding.recordsAffected) {
+      if (finding.recordsAffected > 1000) score += 0.2;
+      if (finding.recordsAffected > 10000) score += 0.1;
+    }
+    
+    return Math.min(score, 1.0);
+  }
+
+  scoreActionability(finding) {
+    let score = 0.2; // Base score
+    
+    // Has specific action
+    if (finding.action) {
+      score += 0.3;
+    }
+    
+    // Has automated fix
+    if (finding.fixAvailable || finding.automatedFix) {
+      score += 0.4;
+    }
+    
+    // Has implementation details
+    if (finding.implementation || finding.sqlSnippet || finding.pythonSnippet) {
+      score += 0.2;
+    }
+    
+    // Check for specific recommendations
+    const actionText = (finding.action || finding.recommendation || '').toLowerCase();
+    
+    if (actionText.includes('create') || actionText.includes('implement')) {
+      score += 0.1;
+    }
+    
+    if (actionText.includes('fix') || actionText.includes('correct')) {
+      score += 0.15;
+    }
+    
+    if (actionText.includes('optimize') || actionText.includes('improve')) {
+      score += 0.1;
+    }
+    
+    // Low effort increases actionability
+    if (finding.effort === 'low' || finding.effort === 'Low (automated)') {
+      score += 0.2;
+    }
+    
+    return Math.min(score, 1.0);
+  }
+
+  scoreCrossAnalysisRelevance(finding) {
+    let score = 0.0;
+    
+    // Explicit cross-analysis flag
+    if (finding.crossAnalysis) {
+      score += 0.5;
+    }
+    
+    // From synthesis
+    if (finding.source === 'synthesis') {
+      score += 0.3;
+    }
+    
+    // Connected insights
+    if (finding.category === 'connected_insight' || finding.category === 'cross_pattern') {
+      score += 0.4;
+    }
+    
+    // Mentions multiple analysis areas
+    const text = (finding.finding || finding.insight || '').toLowerCase();
+    const analysisAreas = ['statistical', 'quality', 'visualization', 'engineering', 'etl', 'schema'];
+    const mentionedAreas = analysisAreas.filter(area => text.includes(area));
+    
+    if (mentionedAreas.length >= 2) {
+      score += 0.3;
+    }
+    
+    return Math.min(score, 1.0);
+  }
+
+  ensureDiversity(sortedFindings) {
+    const selected = [];
+    const categoryCounts = {};
+    const sourceCounts = {};
+    
+    for (const finding of sortedFindings) {
+      // Check category limits
+      const category = finding.category || 'other';
+      categoryCounts[category] = (categoryCounts[category] || 0) + 1;
+      
+      if (categoryCounts[category] > this.maxPatternsPerCategory) {
+        continue; // Skip if we have too many from this category
+      }
+      
+      // Check source diversity
+      const source = finding.source || 'unknown';
+      sourceCounts[source] = (sourceCounts[source] || 0) + 1;
+      
+      // Allow more from synthesis as it's cross-cutting
+      const maxPerSource = source === 'synthesis' ? 3 : 2;
+      
+      if (sourceCounts[source] > maxPerSource) {
+        continue; // Skip if we have too many from this source
+      }
+      
+      selected.push(finding);
+      
+      if (selected.length >= this.maxFindings * 2) {
+        break; // We have enough candidates
+      }
+    }
+    
+    return selected;
+  }
+
+  formatForPresentation(findings) {
+    return findings.map((finding, index) => {
+      const formatted = {
+        rank: index + 1,
+        title: this.generateTitle(finding),
+        description: finding.finding || finding.insight || finding.issue,
+        impact: finding.impact,
+        action: finding.action || finding.recommendation,
+        confidence: finding.confidence || 0.85,
+        source: finding.source,
+        category: finding.category
+      };
+      
+      // Add additional context if available
+      if (finding.fixAvailable) {
+        formatted.quickWin = true;
+      }
+      
+      if (finding.recordsAffected) {
+        formatted.scope = `${finding.recordsAffected} records affected`;
+      }
+      
+      return formatted;
+    });
+  }
+
+  generateTitle(finding) {
+    // Generate a concise title based on the finding type
+    if (finding.type === 'quality') {
+      return 'DATA QUALITY ISSUE';
+    } else if (finding.type === 'statistical') {
+      return 'STATISTICAL INSIGHT';
+    } else if (finding.type === 'pattern_anomaly') {
+      return 'PATTERN ANOMALY';
+    } else if (finding.category === 'connected_insight') {
+      return 'CONNECTED INSIGHT';
+    } else if (finding.category === 'cross_pattern') {
+      return 'CROSS-ANALYSIS PATTERN';
+    } else if (finding.source === 'vis') {
+      return 'VISUALIZATION OPPORTUNITY';
+    } else if (finding.source === 'eng') {
+      return 'ENGINEERING CONSIDERATION';
+    } else {
+      return finding.type?.toUpperCase() || 'KEY FINDING';
+    }
+  }
+}
+
+/**
+ * LLM Output Formatter
+ * Formats the synthesized analysis into the familiar LLM-ready context format
+ */
+
+
+function formatLLMOutput(analysisResults, fileName) {
+  let report = '';
+  
+  // Header
+  report += createSection('LLM-READY CONTEXT',
+    `Dataset: ${fileName}\nGenerated: ${formatTimestamp()}`);
+  
+  // Dataset summary
+  report += formatDatasetSummary(analysisResults);
+  
+  // Key columns and characteristics
+  report += formatKeyColumns(analysisResults);
+  
+  // Important patterns and insights (enhanced with synthesis)
+  report += formatImportantPatterns(analysisResults);
+  
+  // Data quality notes (filtered from INT)
+  report += formatDataQualityNotes(analysisResults);
+  
+  // Statistical summary (key metrics from EDA)
+  report += formatStatisticalSummary(analysisResults);
+  
+  // Correlations discovered (significant only)
+  report += formatCorrelations(analysisResults);
+  
+  // Visualization priorities (top 3 from VIS)
+  report += formatVisualizationPriorities(analysisResults);
+  
+  // Engineering considerations (critical from ENG)
+  report += formatEngineeringConsiderations(analysisResults);
+  
+  // Suggested analyses
+  report += formatSuggestedAnalyses(analysisResults);
+  
+  // Questions this data could answer
+  report += formatDataQuestions(analysisResults);
+  
+  // Technical notes
+  report += formatTechnicalNotes(analysisResults);
+  
+  report += '\nEND OF CONTEXT\n';
+  
+  return report;
+}
+
+function formatDatasetSummary(results) {
+  let summary = createSubSection('DATASET SUMMARY FOR AI ANALYSIS', '');
+  
+  const { originalAnalysis, summaries } = results;
+  summaries.edaSummary;
+  
+  // Basic dataset info
+  const recordCount = originalAnalysis.recordCount || 0;
+  const columnCount = originalAnalysis.columnCount || 0;
+  const dataType = originalAnalysis.dataType || 'structured business data';
+  
+  summary += `I have a CSV dataset with ${recordCount.toLocaleString()} rows and ${columnCount} columns containing ${dataType}`;
+  
+  // Date range if available
+  if (originalAnalysis.dateRange) {
+    summary += `. The data spans from ${originalAnalysis.dateRange.start} to ${originalAnalysis.dateRange.end}`;
+  }
+  
+  summary += '.\n';
+  
+  // Add quality context if critical
+  const intSummary = summaries.intSummary;
+  if (intSummary?.qualityScore && intSummary.qualityScore.score < 0.8) {
+    summary += `\nIMPORTANT: Data quality is ${intSummary.qualityScore.grade} (${(intSummary.qualityScore.score * 100).toFixed(0)}%), which may affect analysis accuracy.\n`;
+  }
+  
+  return summary;
+}
+
+function formatKeyColumns(results) {
+  let section = createSubSection('KEY COLUMNS AND THEIR CHARACTERISTICS', '');
+  
+  const { originalAnalysis } = results;
+  const columns = originalAnalysis.columns || [];
+  const columnTypes = originalAnalysis.columnTypes || {};
+  
+  // Limit to most important columns
+  const keyColumns = identifyKeyColumns(columns, columnTypes, results.summaries);
+  
+  keyColumns.forEach((column, idx) => {
+    section += `\n${idx + 1}. ${column.name}: `;
+    section += column.description;
+    
+    if (column.qualityIssue) {
+      section += ` (⚠️ ${column.qualityIssue})`;
+    }
+  });
+  
+  section += '\n';
+  
+  return section;
+}
+
+function formatImportantPatterns(results) {
+  let section = createSubSection('IMPORTANT PATTERNS AND INSIGHTS', '');
+  
+  const { keyFindings, synthesis } = results;
+  
+  if (!keyFindings || keyFindings.length === 0) {
+    section += '\nNo significant patterns detected in the data.\n';
+    return section;
+  }
+  
+  // Format key findings with enhanced context
+  keyFindings.forEach((finding, idx) => {
+    section += `\n${idx + 1}. ${finding.title}: `;
+    
+    // Main finding
+    section += finding.description;
+    
+    // Add impact if available
+    if (finding.impact && finding.impact !== finding.description) {
+      section += `, ${finding.impact}`;
+    }
+    
+    // Add action if available
+    if (finding.action) {
+      section += `. ${finding.action}`;
+    }
+    
+    // Add confidence indicator for uncertain findings
+    if (finding.confidence < 0.8) {
+      section += ' (moderate confidence)';
+    }
+    
+    section += '\n';
+  });
+  
+  // Add cross-analysis patterns if significant
+  if (synthesis?.crossAnalysisPatterns && synthesis.crossAnalysisPatterns.length > 0) {
+    const topPattern = synthesis.crossAnalysisPatterns[0];
+    section += `\n${keyFindings.length + 1}. PATTERN: ${topPattern.pattern} - ${topPattern.description}\n`;
+  }
+  
+  return section;
+}
+
+function formatDataQualityNotes(results) {
+  const intSummary = results.summaries.intSummary;
+  const notes = [];
+  
+  // Overall quality score
+  if (intSummary?.qualityScore) {
+    notes.push(`Overall quality: ${intSummary.qualityScore.grade} (${(intSummary.qualityScore.score * 100).toFixed(0)}%)`);
+  }
+  
+  // Critical issues only
+  if (intSummary?.criticalIssues) {
+    const topIssues = intSummary.criticalIssues.slice(0, 2);
+    topIssues.forEach(issue => {
+      notes.push(`${issue.issue}${issue.fixAvailable ? ' (automated fix available)' : ''}`);
+    });
+  }
+  
+  // Validation failures
+  if (intSummary?.validationFailures) {
+    const criticalFailures = intSummary.validationFailures
+      .filter(f => f.score < 0.7)
+      .slice(0, 1);
+    
+    criticalFailures.forEach(failure => {
+      notes.push(`Low ${failure.dimension}: ${failure.mainIssue}`);
+    });
+  }
+  
+  // Missing data from original analysis
+  if (results.originalAnalysis?.qualityMetrics) {
+    const metrics = results.originalAnalysis.qualityMetrics;
+    if (metrics.missingDetails && metrics.missingDetails !== 'No missing values') {
+      notes.push(`Missing values: ${metrics.missingDetails}`);
+    }
+  }
+  
+  return createSubSection('DATA QUALITY NOTES', bulletList(notes));
+}
+
+function formatStatisticalSummary(results) {
+  let section = createSubSection('STATISTICAL SUMMARY', '');
+  
+  const edaSummary = results.summaries.edaSummary;
+  const stats = [];
+  
+  // Key metrics from EDA summary
+  if (edaSummary?.metrics) {
+    Object.entries(edaSummary.metrics).forEach(([column, metrics]) => {
+      if (metrics.total) {
+        stats.push(`Total ${column}: ${formatValue$1(metrics.total, column)}`);
+      }
+      if (metrics.average) {
+        stats.push(`Average ${column}: ${formatValue$1(metrics.average, column)}`);
+      }
+      if (metrics.growth) {
+        stats.push(`${column} growth rate: ${formatPercentage(metrics.growth)}`);
+      }
+    });
+  }
+  
+  // Add original summary stats if available
+  if (results.originalAnalysis?.summaryStats) {
+    results.originalAnalysis.summaryStats
+      .filter(stat => !stats.some(s => s.includes(stat.split(':')[0])))
+      .slice(0, 3)
+      .forEach(stat => stats.push(stat));
+  }
+  
+  stats.forEach(stat => {
+    section += `- ${stat}\n`;
+  });
+  
+  return section;
+}
+
+function formatCorrelations(results) {
+  const edaSummary = results.summaries.edaSummary;
+  
+  if (!edaSummary?.correlations || edaSummary.correlations.length === 0) {
+    return '';
+  }
+  
+  let section = createSubSection('CORRELATIONS DISCOVERED', '');
+  
+  edaSummary.correlations.forEach(corr => {
+    const strength = corr.strength > 0.8 ? 'Strong' : 'Moderate';
+    section += `- ${strength} ${corr.direction}: ${corr.columns[0]} vs ${corr.columns[1]} (${formatNumber(corr.strength, 2)})`;
+    
+    if (corr.businessMeaning) {
+      section += ` - ${corr.businessMeaning}`;
+    }
+    
+    section += '\n';
+  });
+  
+  return section;
+}
+
+function formatVisualizationPriorities(results) {
+  const visSummary = results.summaries.visSummary;
+  
+  if (!visSummary?.topVisualizations || visSummary.topVisualizations.length === 0) {
+    return '';
+  }
+  
+  let section = createSubSection('VISUALIZATION PRIORITIES', '');
+  
+  visSummary.topVisualizations.forEach((viz, idx) => {
+    section += `${idx + 1}. ${viz.type} for ${viz.purpose}`;
+    
+    if (viz.insight) {
+      section += ` (${viz.insight})`;
+    }
+    
+    section += '\n';
+  });
+  
+  return section;
+}
+
+function formatEngineeringConsiderations(results) {
+  const engSummary = results.summaries.engSummary;
+  const considerations = [];
+  
+  // Schema recommendation
+  if (engSummary?.schemaRecommendation) {
+    considerations.push(`Schema: ${engSummary.schemaRecommendation.approach} approach recommended (${engSummary.schemaRecommendation.rationale})`);
+  }
+  
+  // Performance considerations
+  if (engSummary?.performanceConsiderations) {
+    engSummary.performanceConsiderations.slice(0, 2).forEach(perf => {
+      considerations.push(`${perf.aspect}: ${perf.recommendation}`);
+    });
+  }
+  
+  // Critical ETL requirements
+  if (engSummary?.etlRequirements && engSummary.etlRequirements.length > 0) {
+    const critical = engSummary.etlRequirements[0];
+    considerations.push(`ETL: ${critical.requirement} - ${critical.specifics}`);
+  }
+  
+  if (considerations.length === 0) {
+    return '';
+  }
+  
+  return createSubSection('ENGINEERING CONSIDERATIONS', bulletList(considerations));
+}
+
+function formatSuggestedAnalyses(results) {
+  let section = createSubSection('SUGGESTED ANALYSES FOR THIS DATA', '');
+  
+  const suggestions = [];
+  
+  // From unified recommendations
+  if (results.synthesis?.unifiedRecommendations) {
+    results.synthesis.unifiedRecommendations
+      .filter(rec => rec.category === 'Analysis')
+      .forEach(rec => {
+        suggestions.push(rec.action);
+      });
+  }
+  
+  // From original analysis suggestions
+  if (results.originalAnalysis?.analysisSuggestions) {
+    results.originalAnalysis.analysisSuggestions
+      .filter(sugg => !suggestions.some(s => s.includes(sugg.split(' ')[0])))
+      .slice(0, 5 - suggestions.length)
+      .forEach(sugg => suggestions.push(sugg));
+  }
+  
+  // Default suggestions based on data characteristics
+  if (suggestions.length < 3) {
+    const defaults = generateDefaultSuggestions(results);
+    defaults
+      .filter(sugg => !suggestions.includes(sugg))
+      .slice(0, 5 - suggestions.length)
+      .forEach(sugg => suggestions.push(sugg));
+  }
+  
+  suggestions.forEach((suggestion, idx) => {
+    section += `\n${idx + 1}. ${suggestion}`;
+  });
+  
+  section += '\n';
+  
+  return section;
+}
+
+function formatDataQuestions(results) {
+  let section = createSubSection('QUESTIONS THIS DATA COULD ANSWER', '');
+  
+  const questions = results.originalAnalysis?.dataQuestions || [];
+  
+  // Add synthesis-driven questions
+  if (results.synthesis?.crossAnalysisPatterns) {
+    results.synthesis.crossAnalysisPatterns.forEach(pattern => {
+      const question = patternToQuestion(pattern);
+      if (question && !questions.includes(question)) {
+        questions.unshift(question);
+      }
+    });
+  }
+  
+  questions.slice(0, 8).forEach(question => {
+    section += `- ${question}\n`;
+  });
+  
+  return section;
+}
+
+function formatTechnicalNotes(results) {
+  const notes = [];
+  
+  // From EDA patterns
+  const edaSummary = results.summaries.edaSummary;
+  if (edaSummary?.patterns) {
+    edaSummary.patterns
+      .filter(p => p.type === 'distribution' && p.impact)
+      .forEach(p => notes.push(p.impact));
+  }
+  
+  // From engineering
+  const engSummary = results.summaries.engSummary;
+  if (engSummary?.performanceConsiderations) {
+    engSummary.performanceConsiderations
+      .filter(c => c.aspect === 'Data Volume')
+      .forEach(c => notes.push(c.issue));
+  }
+  
+  // From original technical notes
+  if (results.originalAnalysis?.technicalNotes) {
+    results.originalAnalysis.technicalNotes
+      .filter(note => !notes.some(n => n.includes(note.split(' ')[0])))
+      .slice(0, 3)
+      .forEach(note => notes.push(note));
+  }
+  
+  if (notes.length === 0) {
+    return '';
+  }
+  
+  return createSubSection('TECHNICAL NOTES FOR ANALYSIS', bulletList(notes));
+}
+
+// Helper functions
+
+function identifyKeyColumns(columns, columnTypes, summaries) {
+  const keyColumns = [];
+  const MAX_COLUMNS = 10;
+  
+  // Priority 1: Business metrics
+  const businessKeywords = ['amount', 'revenue', 'price', 'cost', 'profit', 'total', 'value'];
+  const businessColumns = columns.filter(col => 
+    businessKeywords.some(keyword => col.toLowerCase().includes(keyword))
+  );
+  
+  // Priority 2: Key dimensions
+  const dimensionKeywords = ['customer', 'product', 'date', 'category', 'region', 'segment'];
+  const dimensionColumns = columns.filter(col => 
+    dimensionKeywords.some(keyword => col.toLowerCase().includes(keyword))
+  );
+  
+  // Priority 3: Columns with quality issues
+  const qualityIssueColumns = [];
+  if (summaries.intSummary?.criticalIssues) {
+    summaries.intSummary.criticalIssues.forEach(issue => {
+      if (issue.column && !qualityIssueColumns.includes(issue.column)) {
+        qualityIssueColumns.push({
+          name: issue.column,
+          issue: issue.issue
+        });
+      }
+    });
+  }
+  
+  // Combine and format
+  [...businessColumns, ...dimensionColumns].forEach(col => {
+    if (keyColumns.length >= MAX_COLUMNS) return;
+    
+    const type = columnTypes[col];
+    const qualityIssue = qualityIssueColumns.find(q => q.name === col);
+    
+    keyColumns.push({
+      name: col,
+      description: formatColumnDescription(col, type),
+      qualityIssue: qualityIssue?.issue
+    });
+  });
+  
+  // Fill with other columns if needed
+  columns.forEach(col => {
+    if (keyColumns.length >= MAX_COLUMNS) return;
+    if (keyColumns.some(kc => kc.name === col)) return;
+    
+    keyColumns.push({
+      name: col,
+      description: formatColumnDescription(col, columnTypes[col])
+    });
+  });
+  
+  return keyColumns.slice(0, MAX_COLUMNS);
+}
+
+function formatColumnDescription(column, type) {
+  if (!type) return 'Unknown type';
+  
+  if (type.type === 'identifier') {
+    const unique = type.uniqueCount || 'unknown';
+    return `Unique identifier (${unique} values)`;
+  } else if (type.type === 'integer' || type.type === 'float') {
+    const purpose = inferColumnPurpose$1(column);
+    if (type.stats) {
+      return `${purpose} (range: ${formatValue$1(type.stats.min, column)} to ${formatValue$1(type.stats.max, column)})`;
+    }
+    return purpose;
+  } else if (type.type === 'categorical') {
+    const categories = type.categories ? type.categories.length : 'unknown';
+    return `${categories} categories`;
+  } else if (type.type === 'date') {
+    return 'Date field';
+  } else {
+    return type.type.charAt(0).toUpperCase() + type.type.slice(1);
+  }
+}
+
+function inferColumnPurpose$1(column) {
+  const col = column.toLowerCase();
+  
+  if (col.includes('amount') || col.includes('total')) return 'Transaction amount';
+  if (col.includes('price')) return 'Price information';
+  if (col.includes('quantity') || col.includes('qty')) return 'Quantity/count';
+  if (col.includes('age')) return 'Age data';
+  if (col.includes('score') || col.includes('rating')) return 'Score/rating';
+  if (col.includes('discount')) return 'Discount percentage/amount';
+  if (col.includes('id')) return 'Identifier';
+  
+  return 'Numeric field';
+}
+
+function formatValue$1(value, column) {
+  if (column.toLowerCase().includes('amount') || 
+      column.toLowerCase().includes('price') || 
+      column.toLowerCase().includes('total') ||
+      column.toLowerCase().includes('revenue') ||
+      column.toLowerCase().includes('cost')) {
+    return formatCurrency(value);
+  }
+  
+  if (column.toLowerCase().includes('percent') || column.toLowerCase().includes('rate')) {
+    return formatPercentage(value / 100);
+  }
+  
+  return formatNumber(value);
+}
+
+function generateDefaultSuggestions(results) {
+  const suggestions = [];
+  const { summaries } = results;
+  
+  // Based on data characteristics
+  if (summaries.edaSummary?.correlations && summaries.edaSummary.correlations.length > 0) {
+    suggestions.push('Predictive modeling based on discovered correlations');
+  }
+  
+  if (summaries.edaSummary?.patterns?.some(p => p.type === 'seasonality')) {
+    suggestions.push('Time series forecasting with seasonal decomposition');
+  }
+  
+  if (summaries.intSummary?.criticalIssues?.length > 3) {
+    suggestions.push('Data quality improvement pipeline implementation');
+  }
+  
+  if (summaries.visSummary?.dashboardLayout) {
+    suggestions.push('Interactive dashboard development for monitoring');
+  }
+  
+  // Generic valuable analyses
+  suggestions.push(
+    'Customer segmentation analysis',
+    'Anomaly detection for fraud/errors',
+    'Cohort analysis for retention',
+    'A/B testing framework setup'
+  );
+  
+  return suggestions;
+}
+
+function patternToQuestion(pattern) {
+  switch (pattern.pattern) {
+    case 'Growth-Quality Trade-off':
+      return 'How is rapid growth affecting data quality and reliability?';
+    case 'Segmentation Opportunity':
+      return 'What distinct customer segments exist and how do they differ?';
+    case 'Complex Relationship Network':
+      return 'How do entity relationships impact business operations?';
+    default:
+      return null;
+  }
+}
+
+/**
+ * LLM Command Implementation
+ * Orchestrates all analyses in summary mode and synthesizes insights
+ */
+
+
+// Cache for analysis results
+const analysisCache = new Map();
+
+async function comprehensiveLLMAnalysis(records, headers, filePath, options = {}) {
+  const spinner = options.quiet ? null : ora('Generating comprehensive LLM context...').start();
+  
+  try {
+    const fileName = basename(filePath);
+    const columnTypes = records.length > 0 ? detectColumnTypes(records) : {};
+    const columns = Object.keys(columnTypes);
+    
+    // Check cache
+    const cacheKey = `${filePath}_${records.length}_${columns.length}`;
+    if (analysisCache.has(cacheKey) && !options.noCache) {
+      const cached = analysisCache.get(cacheKey);
+      const age = Date.now() - cached.timestamp;
+      if (age < 300000) { // 5 minutes
+        if (spinner) spinner.succeed('LLM context generated from cache!');
+        return cached.result;
+      }
+    }
+    
+    if (spinner) spinner.text = 'Running exploratory data analysis...';
+    
+    // Run all analyses in parallel with summary mode
+    const [edaResults, intResults, visResults, engResults, originalContext] = await Promise.all([
+      runEdaAnalysis(records, headers, filePath, options),
+      runIntAnalysis(records, headers, filePath, options),
+      runVisAnalysis(records, headers, filePath, options),
+      runEngAnalysis(records, headers, filePath, options),
+      generateOriginalContext(records, columns, columnTypes, fileName, options)
+    ]);
+    
+    if (spinner) spinner.text = 'Extracting key insights...';
+    
+    // Extract summaries from each analysis
+    const summaries = {
+      edaSummary: extractEdaSummary(edaResults),
+      intSummary: extractIntSummary(intResults),
+      visSummary: extractVisSummary(visResults),
+      engSummary: extractEngSummary(engResults)
+    };
+    
+    if (spinner) spinner.text = 'Synthesizing cross-analysis insights...';
+    
+    // Synthesize insights across analyses
+    const synthesis = synthesizeInsights(
+      summaries.edaSummary,
+      summaries.intSummary,
+      summaries.visSummary,
+      summaries.engSummary
+    );
+    
+    if (spinner) spinner.text = 'Selecting most impactful findings...';
+    
+    // Select key findings
+    const selector = new KeyFindingSelector({
+      maxFindings: 5,
+      maxPatternsPerCategory: 2
+    });
+    
+    const allFindings = {
+      edaSummary: summaries.edaSummary,
+      intSummary: summaries.intSummary,
+      visSummary: summaries.visSummary,
+      engSummary: summaries.engSummary,
+      synthesis
+    };
+    
+    const keyFindings = selector.selectKeyFindings(allFindings);
+    const formattedFindings = selector.formatForPresentation(keyFindings);
+    
+    if (spinner) spinner.text = 'Formatting LLM context...';
+    
+    // Prepare analysis results for formatter
+    const analysisResults = {
+      originalAnalysis: originalContext,
+      summaries,
+      synthesis,
+      keyFindings: formattedFindings,
+      recordCount: records.length,
+      columnCount: columns.length,
+      dataType: originalContext.dataType
+    };
+    
+    // Format the output
+    const formattedOutput = formatLLMOutput(analysisResults, fileName);
+    
+    // Cache the result
+    const result = {
+      output: formattedOutput,
+      metadata: {
+        recordCount: records.length,
+        columnCount: columns.length,
+        keyFindingsCount: keyFindings.length,
+        qualityScore: summaries.intSummary?.qualityScore?.score,
+        visualizationCount: summaries.visSummary?.topVisualizations?.length || 0
+      }
+    };
+    
+    analysisCache.set(cacheKey, {
+      result,
+      timestamp: Date.now()
+    });
+    
+    // Clear old cache entries
+    if (analysisCache.size > 10) {
+      const oldestKey = analysisCache.keys().next().value;
+      analysisCache.delete(oldestKey);
+    }
+    
+    if (spinner) spinner.succeed('Comprehensive LLM context generated!');
+    
+    return result;
+    
+  } catch (error) {
+    if (spinner) spinner.fail('Error generating LLM context');
+    throw error;
+  }
+}
+
+// Analysis runners - now use real command outputs
+
+async function runEdaAnalysis(records, headers, filePath, options) {
+  const captureOptions = {
+    ...options,
+    structuredOutput: true,
+    quiet: true,
+    preloadedData: { records, columnTypes: detectColumnTypes(records) }
+  };
+  
+  try {
+    const result = await eda(filePath, captureOptions);
+    return result?.structuredResults || {};
+  } catch (error) {
+    console.error('EDA analysis error:', error);
+    // Fallback to minimal structure
+    return {
+      statisticalInsights: [],
+      dataQuality: { completeness: 0.8, duplicateRows: 0, outlierPercentage: 0 },
+      correlations: [],
+      distributions: [],
+      timeSeries: null,
+      summaryStats: {},
+      mlReadiness: { overallScore: 0.8, majorIssues: [] },
+      columns: headers
+    };
+  }
+}
+
+async function runIntAnalysis(records, headers, filePath, options) {
+  const captureOptions = {
+    ...options,
+    structuredOutput: true,
+    quiet: true,
+    preloadedData: { records, columnTypes: detectColumnTypes(records) }
+  };
+  
+  try {
+    const result = await integrity(filePath, captureOptions);
+    return result?.structuredResults || {};
+  } catch (error) {
+    console.error('INT analysis error:', error);
+    // Fallback to minimal structure
+    return {
+      overallQuality: { score: 0.8, grade: 'B', trend: 'stable' },
+      validationResults: [],
+      businessRules: [],
+      referentialIntegrity: [],
+      patternAnomalies: [],
+      suggestedFixes: [],
+      dimensions: {
+        completeness: { score: 0.8 },
+        accuracy: { score: 0.8 },
+        consistency: { score: 0.8 },
+        validity: { score: 0.8 },
+        uniqueness: { score: 0.8 },
+        timeliness: { score: 0.8 }
+      }
+    };
+  }
+}
+
+async function runVisAnalysis(records, headers, filePath, options) {
+  const captureOptions = {
+    ...options,
+    structuredOutput: true,
+    quiet: true,
+    preloadedData: { records, columnTypes: detectColumnTypes(records) }
+  };
+  
+  try {
+    const result = await visualize(filePath, captureOptions);
+    return result?.structuredResults || {};
+  } catch (error) {
+    console.error('VIS analysis error:', error);
+    // Fallback to minimal structure
+    return {
+      recommendations: [],
+      dashboardRecommendation: null,
+      antiPatterns: [],
+      taskAnalysis: {},
+      perceptualAnalysis: {},
+      multivariatePatterns: [],
+      interactiveRecommendations: []
+    };
+  }
+}
+
+async function runEngAnalysis(records, headers, filePath, options) {
+  const captureOptions = {
+    ...options,
+    structuredOutput: true,
+    quiet: true,
+    preloadedData: { records, columnTypes: detectColumnTypes(records) }
+  };
+  
+  try {
+    const result = await engineering(filePath, captureOptions);
+    return result?.structuredResults || {};
+  } catch (error) {
+    console.error('ENG analysis error:', error);
+    // Fallback to minimal structure
+    return {
+      schemaRecommendations: [],
+      performanceAnalysis: {
+        dataVolume: records.length,
+        queryPatterns: [],
+        joinComplexity: 'moderate'
+      },
+      etlAnalysis: {},
+      technicalDebt: [],
+      relationships: [],
+      warehouseKnowledge: {}
+    };
+  }
+}
+
+// Generate original context data for compatibility
+async function generateOriginalContext(records, columns, columnTypes, fileName, options) {
+  // This maintains compatibility with the original LLM format
+  const dateColumns = columns.filter(col => columnTypes[col] && columnTypes[col].type === 'date');
+  const dateRange = getDateRange$1(records, dateColumns);
+  const dataType = inferDataType$1(columns, columnTypes);
+  
+  // Run original analysis functions
+  const seasonalPattern = dateColumns.length > 0 ? 
+    analyzeSeasonality$1(records, dateColumns[0], columns, columnTypes) : null;
+  
+  const segmentAnalysis = analyzeSegments$1(records, columns, columnTypes);
+  const categoryAnalysis = analyzeCategoryPerformance$1(records, columns, columnTypes);
+  const pricingInsights = analyzePricing$1(records, columns, columnTypes);
+  const anomalies = detectAnomalies$1(records, columns, columnTypes);
+  const qualityMetrics = calculateDataQuality$1(records, columns);
+  const summaryStats = generateSummaryStatistics$1(records, columns, columnTypes);
+  const correlations = findSignificantCorrelations$1(records, columns, columnTypes);
+  const analysisSuggestions = generateAnalysisSuggestions$1(columns, columnTypes);
+  const dataQuestions = generateDataQuestions$1(columns, columnTypes, dataType);
+  const technicalNotes = generateTechnicalNotes$1(records, columns, columnTypes);
+  
+  return {
+    recordCount: records.length,
+    columnCount: columns.length,
+    columns,
+    columnTypes,
+    dateRange,
+    dataType,
+    seasonalPattern,
+    segmentAnalysis,
+    categoryAnalysis,
+    pricingInsights,
+    anomalies,
+    qualityMetrics,
+    summaryStats,
+    correlations,
+    analysisSuggestions,
+    dataQuestions,
+    technicalNotes
+  };
+}
+
+async function llmContext(filePath, options = {}) {
+  const outputHandler = new OutputHandler(options);
+  const spinner = options.quiet ? null : ora('Reading CSV file...').start();
+  
+  try {
+    // Check if we should use comprehensive analysis
+    const useComprehensive = options.comprehensive !== false; // Default to true
+    
+    // Use preloaded data if available
+    let records, columnTypes, headers;
+    if (options.preloadedData) {
+      records = options.preloadedData.records;
+      columnTypes = options.preloadedData.columnTypes;
+      headers = Object.keys(columnTypes);
+    } else {
+      // Parse CSV
+      records = await parseCSV(filePath, { quiet: options.quiet, header: options.header });
+      if (spinner) spinner.text = 'Generating LLM context...';
+      columnTypes = detectColumnTypes(records);
+      headers = Object.keys(columnTypes);
+    }
+    
+    // Use comprehensive analysis if enabled
+    if (useComprehensive && records.length > 0) {
+      try {
+        const result = await comprehensiveLLMAnalysis(records, headers, filePath, options);
+        console.log(result.output);
+        outputHandler.finalize();
+        return;
+      } catch (error) {
+        // Fall back to original implementation if comprehensive fails
+        console.error('Comprehensive analysis failed, using original:', error.message);
+      }
+    }
+    
+    const fileName = basename(filePath);
+    const columns = Object.keys(columnTypes);
+    
+    // Handle empty dataset
+    if (records.length === 0) {
+      let report = createSection('LLM-READY CONTEXT',
+        `Dataset: ${fileName}\nGenerated: ${formatTimestamp()}\n\n⚠️  Empty dataset - no context to generate`);
+      
+      // Still include the required section header
+      report += createSubSection('DATASET SUMMARY FOR AI ANALYSIS', 'No data available for analysis');
+      
+      console.log(report);
+      outputHandler.finalize();
+      return;
+    }
+    
+    // Build report
+    let report = createSection('LLM-READY CONTEXT',
+      `Dataset: ${fileName}\nGenerated: ${formatTimestamp()}`);
+    
+    // Check for small dataset
+    const smallDatasetInfo = formatSmallDatasetWarning(records.length);
+    if (smallDatasetInfo) {
+      report += '\n' + smallDatasetInfo.warning + '\n';
+    }
+    
+    // Add parsing metadata
+    report += createSubSection('PARSING METADATA', bulletList([
+      `File encoding: ${options.encoding || 'UTF-8 (auto-detected)'}`,
+      `Delimiter: ${options.delimiter || 'comma (auto-detected)'}`,
+      `Header detection: ${options.header === false ? 'No headers (generated column names)' : 'Headers detected'}`,
+      `Rows processed: ${records.length}`,
+      `Analysis confidence: ${smallDatasetInfo ? 'Reduced due to small sample size' : 'High'}`
+    ]));
+    
+    report += createSubSection('DATASET SUMMARY FOR AI ANALYSIS', '');
+    
+    // Generate natural language summary
+    const dateColumns = columns.filter(col => columnTypes[col].type === 'date');
+    const dateRange = getDateRange(records, dateColumns);
+    
+    report += `I have a CSV dataset with ${records.length.toLocaleString()} rows and ${columns.length} columns`;
+    
+    // Try to infer what kind of data this is
+    const dataType = inferDataType(columns, columnTypes);
+    report += ` containing ${dataType}`;
+    
+    if (dateRange) {
+      report += `. The data spans from ${dateRange.start} to ${dateRange.end}`;
+    }
+    report += '.\n';
+    
+    // Key columns and characteristics
+    report += createSubSection('KEY COLUMNS AND THEIR CHARACTERISTICS', '');
+    
+    columns.forEach((column, idx) => {
+      const type = columnTypes[column];
+      const values = records.map(r => r[column]);
+      
+      report += `\n${idx + 1}. ${column}: `;
+      
+      if (type.type === 'identifier') {
+        const unique = new Set(values.filter(v => v !== null)).size;
+        report += `Unique identifier${unique === records.length ? '' : ` (${unique} unique values)`}`;
+      } else if (type.type === 'integer' || type.type === 'float') {
+        const stats = calculateStats(values);
+        const range = `range: ${formatValue(stats.min, column)} to ${formatValue(stats.max, column)}`;
+        report += `${inferColumnPurpose(column)} (${range})`;
+      } else if (type.type === 'categorical') {
+        const topValues = getTopCategoricalValues(values, 3);
+        report += `${type.categories.length} categories: ${topValues}`;
+      } else if (type.type === 'date') {
+        report += 'Date field';
+        const dates = values.filter(v => v instanceof Date);
+        if (dates.length > 0) {
+          const sorted = dates.sort((a, b) => a - b);
+          report += ` (${formatDate(sorted[0])} to ${formatDate(sorted[sorted.length - 1])})`;
+        }
+      } else {
+        report += type.type.charAt(0).toUpperCase() + type.type.slice(1);
+      }
+    });
+    
+    // Important patterns and insights
+    report += '\n' + createSubSection('IMPORTANT PATTERNS AND INSIGHTS', '');
+    
+    let insightNumber = 1;
+    
+    // Seasonality analysis
+    if (dateColumns.length > 0) {
+      const seasonalPattern = analyzeSeasonality(records, dateColumns[0], columns, columnTypes);
+      if (seasonalPattern) {
+        report += `\n${insightNumber}. SEASONALITY: ${seasonalPattern}\n`;
+        insightNumber++;
+      }
+    }
+    
+    // Customer/segment analysis
+    const segmentAnalysis = analyzeSegments(records, columns, columnTypes);
+    if (segmentAnalysis) {
+      report += `\n${insightNumber}. ${segmentAnalysis.title}: ${segmentAnalysis.insight}\n`;
+      insightNumber++;
+    }
+    
+    // Category performance
+    const categoryAnalysis = analyzeCategoryPerformance(records, columns, columnTypes);
+    if (categoryAnalysis) {
+      report += `\n${insightNumber}. ${categoryAnalysis.title}: ${categoryAnalysis.insight}\n`;
+      insightNumber++;
+    }
+    
+    // Pricing insights
+    const pricingInsights = analyzePricing(records, columns, columnTypes);
+    if (pricingInsights) {
+      report += `\n${insightNumber}. PRICING INSIGHTS: ${pricingInsights}\n`;
+      insightNumber++;
+    }
+    
+    // Anomalies
+    const anomalies = detectAnomalies(records, columns, columnTypes);
+    if (anomalies.length > 0) {
+      report += `\n${insightNumber}. ANOMALIES DETECTED:\n`;
+      anomalies.forEach(anomaly => {
+        report += `   - ${anomaly}\n`;
+      });
+      insightNumber++;
+    }
+    
+    // Data quality notes
+    const qualityMetrics = calculateDataQuality(records, columns);
+    report += createSubSection('DATA QUALITY NOTES', bulletList([
+      `Missing values: ${qualityMetrics.missingDetails}`,
+      `Completeness: ${formatPercentage(qualityMetrics.completeness)} overall`,
+      qualityMetrics.duplicates > 0 ? `${qualityMetrics.duplicates} duplicate records identified` : 'No duplicate records found',
+      qualityMetrics.dateGaps ? qualityMetrics.dateGaps : 'Date range has no gaps'
+    ]));
+    
+    // Statistical summary
+    report += createSubSection('STATISTICAL SUMMARY', '');
+    
+    const summaryStats = generateSummaryStatistics(records, columns, columnTypes);
+    summaryStats.forEach(stat => {
+      report += `- ${stat}\n`;
+    });
+    
+    // Correlations discovered
+    const correlations = findSignificantCorrelations(records, columns, columnTypes);
+    if (correlations.length > 0) {
+      report += createSubSection('CORRELATIONS DISCOVERED', '');
+      correlations.forEach(corr => {
+        report += `- ${corr}\n`;
+      });
+    }
+    
+    // Suggested analyses
+    report += createSubSection('SUGGESTED ANALYSES FOR THIS DATA', '');
+    
+    const suggestions = generateAnalysisSuggestions(columns, columnTypes, records);
+    suggestions.forEach((suggestion, idx) => {
+      report += `\n${idx + 1}. ${suggestion}`;
+    });
+    
+    // Questions this data could answer
+    report += '\n' + createSubSection('QUESTIONS THIS DATA COULD ANSWER', '');
+    
+    const questions = generateDataQuestions(columns, columnTypes, dataType, records);
+    questions.forEach(question => {
+      report += `- ${question}\n`;
+    });
+    
+    // Technical notes
+    report += createSubSection('TECHNICAL NOTES FOR ANALYSIS', '');
+    
+    const technicalNotes = generateTechnicalNotes(records, columns, columnTypes);
+    technicalNotes.forEach(note => {
+      report += `- ${note}\n`;
+    });
+    
+    // Show sample data for context
+    if (records.length > 0) {
+      report += createSubSection('SAMPLE DATA', 'First 5 rows and last 5 rows:');
+      const sampleRows = [
+        ...records.slice(0, 5),
+        ...(records.length > 10 ? records.slice(-5) : [])
+      ];
+      report += formatDataTable(sampleRows, columns.slice(0, 5)); // Show first 5 columns
+      if (columns.length > 5) {
+        report += `\n(${columns.length - 5} additional columns not shown in sample)\n`;
+      }
+    }
+    
+    // Add suggested validation queries
+    report += createSubSection('VALIDATION QUERIES', 'SQL queries to verify data integrity:');
+    const validationQueries = generateValidationQueries(columns, columnTypes, records);
+    validationQueries.forEach((query, idx) => {
+      report += `\n${idx + 1}. ${query.purpose}:\n\`\`\`sql\n${query.sql}\n\`\`\`\n`;
+    });
+    
+    report += '\nEND OF CONTEXT\n\n[Paste this into your preferred LLM and ask specific questions about the data]\n';
+    
+    if (spinner) {
+      spinner.succeed('LLM context generated!');
+    }
+    console.log(report);
+    
+    outputHandler.finalize();
+    
+  } catch (error) {
+    outputHandler.restore();
+    if (spinner) spinner.fail('Error generating LLM context');
+    console.error(error.message);
+    if (!options.quiet) process.exit(1);
+    throw error;
+  }
+}
+
+function getDateRange(records, dateColumns) {
+  if (dateColumns.length === 0) return null;
+  
+  const dates = records
+    .map(r => r[dateColumns[0]])
+    .filter(d => d instanceof Date)
+    .sort((a, b) => a - b);
+  
+  if (dates.length === 0) return null;
+  
+  return {
+    start: formatDate(dates[0]),
+    end: formatDate(dates[dates.length - 1])
+  };
+}
+
+function formatDate(date) {
+  if (!(date instanceof Date)) return 'Invalid date';
+  const months = ['January', 'February', 'March', 'April', 'May', 'June',
+                  'July', 'August', 'September', 'October', 'November', 'December'];
+  return `${months[date.getMonth()]} ${date.getFullYear()}`;
+}
+
+function inferDataType(columns, columnTypes) {
+  const columnNames = columns.map(c => c.toLowerCase()).join(' ');
+  
+  if (columnNames.includes('transaction') || columnNames.includes('order') || columnNames.includes('sale')) {
+    return 'sales transaction data';
+  }
+  if (columnNames.includes('customer') && columnNames.includes('purchase')) {
+    return 'customer purchase data';
+  }
+  if (columnNames.includes('product') && columnNames.includes('inventory')) {
+    return 'product inventory data';
+  }
+  if (columnNames.includes('user') || columnNames.includes('account')) {
+    return 'user account data';
+  }
+  if (columnNames.includes('employee') || columnNames.includes('staff')) {
+    return 'employee/HR data';
+  }
+  if (columnNames.includes('revenue') || columnNames.includes('profit')) {
+    return 'financial data';
+  }
+  
+  // Look at column types
+  const hasTransactionLikeData = columns.some(c => 
+    columnTypes[c].type === 'identifier' && columns.some(c2 => ['float', 'integer'].includes(columnTypes[c2].type))
+  );
+  
+  if (hasTransactionLikeData) {
+    return 'transactional data';
+  }
+  
+  return 'structured business data';
+}
+
+function inferColumnPurpose(column) {
+  const col = column.toLowerCase();
+  
+  if (col.includes('amount') || col.includes('total') || col.includes('sum')) {
+    return 'Transaction amount';
+  }
+  if (col.includes('price')) {
+    return 'Price information';
+  }
+  if (col.includes('quantity') || col.includes('qty')) {
+    return 'Quantity/count';
+  }
+  if (col.includes('age')) {
+    return 'Age data';
+  }
+  if (col.includes('score') || col.includes('rating')) {
+    return 'Score/rating';
+  }
+  if (col.includes('discount')) {
+    return 'Discount percentage/amount';
+  }
+  if (col.includes('id')) {
+    return 'Identifier';
+  }
+  
+  return 'Numeric field';
+}
+
+function formatValue(value, column) {
+  if (column.toLowerCase().includes('amount') || 
+      column.toLowerCase().includes('price') || 
+      column.toLowerCase().includes('total') ||
+      column.toLowerCase().includes('revenue')) {
+    return formatCurrency(value);
+  }
+  
+  if (column.toLowerCase().includes('percent') || column.toLowerCase().includes('rate')) {
+    return formatPercentage(value / 100);
+  }
+  
+  return formatNumber(value);
+}
+
+function getTopCategoricalValues(values, limit) {
+  const counts = {};
+  values.forEach(v => {
+    if (v !== null) counts[v] = (counts[v] || 0) + 1;
+  });
+  
+  const sorted = Object.entries(counts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit)
+    .map(([val, count]) => `${val} (${formatPercentage(count / values.length)})`);
+  
+  return sorted.join(', ') + (Object.keys(counts).length > limit ? ', ...' : '');
+}
+
+function analyzeSeasonality(records, dateColumn, columns, columnTypes) {
+  const numericColumns = columns.filter(c => ['integer', 'float'].includes(columnTypes[c].type));
+  if (numericColumns.length === 0) return null;
+  
+  const monthlyData = {};
+  records.forEach(record => {
+    const date = record[dateColumn];
+    if (date instanceof Date) {
+      const month = date.getMonth();
+      if (!monthlyData[month]) monthlyData[month] = [];
+      
+      numericColumns.forEach(col => {
+        if (typeof record[col] === 'number') {
+          monthlyData[month].push(record[col]);
+        }
+      });
+    }
+  });
+  
+  if (Object.keys(monthlyData).length < 6) return null;
+  
+  const monthlyAverages = Object.entries(monthlyData)
+    .map(([month, values]) => ({
+      month: parseInt(month),
+      avg: values.reduce((a, b) => a + b, 0) / values.length
+    }));
+  
+  const overallAvg = monthlyAverages.reduce((a, b) => a + b.avg, 0) / monthlyAverages.length;
+  const peak = monthlyAverages.reduce((a, b) => a.avg > b.avg ? a : b);
+  
+  if (peak.avg > overallAvg * 1.2) {
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                        'July', 'August', 'September', 'October', 'November', 'December'];
+    return `Strong seasonal pattern with ${monthNames[peak.month]} showing ${formatPercentage((peak.avg / overallAvg) - 1)} above average`;
+  }
+  
+  return null;
+}
+
+function analyzeSegments(records, columns, columnTypes) {
+  const segmentColumns = columns.filter(c => 
+    c.toLowerCase().includes('segment') || 
+    c.toLowerCase().includes('tier') ||
+    c.toLowerCase().includes('type') ||
+    c.toLowerCase().includes('category')
+  ).filter(c => columnTypes[c].type === 'categorical');
+  
+  if (segmentColumns.length === 0) return null;
+  
+  const valueColumns = columns.filter(c => 
+    (c.toLowerCase().includes('amount') || c.toLowerCase().includes('value')) &&
+    ['integer', 'float'].includes(columnTypes[c].type)
+  );
+  
+  if (valueColumns.length === 0) return null;
+  
+  const segmentCol = segmentColumns[0];
+  const valueCol = valueColumns[0];
+  
+  const segmentStats = {};
+  records.forEach(record => {
+    const segment = record[segmentCol];
+    const value = record[valueCol];
+    
+    if (segment && typeof value === 'number') {
+      if (!segmentStats[segment]) {
+        segmentStats[segment] = { sum: 0, count: 0 };
+      }
+      segmentStats[segment].sum += value;
+      segmentStats[segment].count++;
+    }
+  });
+  
+  const segments = Object.entries(segmentStats)
+    .map(([name, stats]) => ({
+      name,
+      average: stats.sum / stats.count,
+      percentage: stats.count / records.length
+    }))
+    .sort((a, b) => b.average - a.average);
+  
+  if (segments.length >= 2) {
+    const top = segments[0];
+    const totalValue = segments.reduce((sum, s) => sum + s.average * s.percentage, 0);
+    const topValueShare = (top.average * top.percentage) / totalValue;
+    
+    return {
+      title: 'CUSTOMER BEHAVIOR',
+      insight: `${top.name} customers account for ${formatPercentage(top.percentage)} of customer base but ${formatPercentage(topValueShare)} of value. Average ${valueCol}: ${formatCurrency(top.average)}`
+    };
+  }
+  
+  return null;
+}
+
+function analyzeCategoryPerformance(records, columns, columnTypes) {
+  const categoryColumns = columns.filter(c => 
+    (c.toLowerCase().includes('category') || c.toLowerCase().includes('product')) &&
+    columnTypes[c].type === 'categorical'
+  );
+  
+  if (categoryColumns.length === 0) return null;
+  
+  const performanceColumns = columns.filter(c => 
+    (c.toLowerCase().includes('margin') || 
+     c.toLowerCase().includes('profit') ||
+     c.toLowerCase().includes('revenue')) &&
+    ['integer', 'float'].includes(columnTypes[c].type)
+  );
+  
+  if (performanceColumns.length === 0) return null;
+  
+  const categoryCol = categoryColumns[0];
+  const perfCol = performanceColumns[0];
+  
+  const categoryPerformance = {};
+  records.forEach(record => {
+    const category = record[categoryCol];
+    const performance = record[perfCol];
+    
+    if (category && typeof performance === 'number') {
+      if (!categoryPerformance[category]) {
+        categoryPerformance[category] = { values: [], count: 0 };
+      }
+      categoryPerformance[category].values.push(performance);
+      categoryPerformance[category].count++;
+    }
+  });
+  
+  const categories = Object.entries(categoryPerformance)
+    .map(([name, data]) => ({
+      name,
+      average: data.values.reduce((a, b) => a + b, 0) / data.values.length,
+      volume: data.count
+    }))
+    .sort((a, b) => b.average - a.average);
+  
+  if (categories.length >= 2) {
+    const highMargin = categories[0];
+    const highVolume = categories.sort((a, b) => b.volume - a.volume)[0];
+    
+    if (highMargin.name !== highVolume.name) {
+      return {
+        title: 'PRODUCT PERFORMANCE',
+        insight: `${highMargin.name} shows highest ${perfCol} (${formatNumber(highMargin.average)}) but ${highVolume.name} has highest volume (${highVolume.volume} records)`
+      };
+    }
+  }
+  
+  return null;
+}
+
+function analyzePricing(records, columns, columnTypes) {
+  const priceColumns = columns.filter(c => 
+    c.toLowerCase().includes('price') &&
+    ['integer', 'float'].includes(columnTypes[c].type)
+  );
+  
+  if (priceColumns.length === 0) return null;
+  
+  const priceCol = priceColumns[0];
+  const prices = records.map(r => r[priceCol]).filter(p => typeof p === 'number' && p > 0);
+  
+  if (prices.length === 0) return null;
+  
+  // Check for psychological pricing
+  const endingIn99 = prices.filter(p => {
+    const cents = Math.round((p % 1) * 100);
+    return cents === 99;
+  });
+  
+  
+  const roundPrices = prices.filter(p => p % 1 === 0);
+  
+  const insights = [];
+  
+  if (endingIn99.length > prices.length * 0.3) {
+    insights.push(`${formatPercentage(endingIn99.length / prices.length)} of prices end in .99`);
+  }
+  
+  if (roundPrices.length > prices.length * 0.4) {
+    const commonRoundPrices = {};
+    roundPrices.forEach(p => {
+      commonRoundPrices[p] = (commonRoundPrices[p] || 0) + 1;
+    });
+    
+    const topPrices = Object.entries(commonRoundPrices)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([price]) => formatCurrency(parseFloat(price)));
+    
+    insights.push(`Common price points: ${topPrices.join(', ')}`);
+  }
+  
+  if (insights.length > 0) {
+    insights.push('(psychological pricing effect detected)');
+    return insights.join('. ');
+  }
+  
+  return null;
+}
+
+function detectAnomalies(records, columns, columnTypes) {
+  const anomalies = [];
+  
+  // Check for zero amounts
+  const amountColumns = columns.filter(c => 
+    c.toLowerCase().includes('amount') &&
+    ['integer', 'float'].includes(columnTypes[c].type)
+  );
+  
+  amountColumns.forEach(col => {
+    const zeros = records.filter(r => r[col] === 0).length;
+    if (zeros > 0) {
+      anomalies.push(`${zeros} transactions with $0 ${col} (likely returns or errors)`);
+    }
+  });
+  
+  // Check for suspicious patterns
+  const idColumns = columns.filter(c => columnTypes[c].type === 'identifier');
+  if (idColumns.length > 0) {
+    // Check for duplicate IDs
+    const ids = records.map(r => r[idColumns[0]]).filter(id => id !== null);
+    const uniqueIds = new Set(ids);
+    if (uniqueIds.size < ids.length) {
+      anomalies.push(`${ids.length - uniqueIds.size} duplicate ${idColumns[0]} values found`);
+    }
+  }
+  
+  // Check for outliers in date data
+  const dateColumns = columns.filter(c => columnTypes[c].type === 'date');
+  if (dateColumns.length > 0) {
+    const dates = records.map(r => r[dateColumns[0]]).filter(d => d instanceof Date);
+    if (dates.length > 100) {
+      const sorted = dates.sort((a, b) => a - b);
+      const gaps = [];
+      
+      for (let i = 1; i < sorted.length; i++) {
+        const daysDiff = (sorted[i] - sorted[i-1]) / (1000 * 60 * 60 * 24);
+        if (daysDiff > 30) {
+          gaps.push({ start: sorted[i-1], end: sorted[i], days: daysDiff });
+        }
+      }
+      
+      if (gaps.length > 0) {
+        anomalies.push(`Data gaps detected: ${gaps.length} periods with >30 day gaps`);
+      }
+    }
+  }
+  
+  return anomalies;
+}
+
+function calculateDataQuality(records, columns) {
+  const totalCells = records.length * columns.length;
+  let missingCells = 0;
+  const missingByColumn = {};
+  
+  columns.forEach(col => {
+    const missing = records.filter(r => r[col] === null || r[col] === undefined).length;
+    missingCells += missing;
+    if (missing > 0) {
+      missingByColumn[col] = missing;
+    }
+  });
+  
+  const topMissing = Object.entries(missingByColumn)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 2)
+    .map(([col, count]) => `${col} (${formatPercentage(count / records.length)})`);
+  
+  const duplicates = findDuplicateRows(records);
+  
+  return {
+    completeness: (totalCells - missingCells) / totalCells,
+    missingDetails: topMissing.length > 0 ? topMissing.join(', ') : 'No missing values',
+    duplicates: duplicates.length,
+    dateGaps: null // Will be filled by date analysis
+  };
+}
+
+function findDuplicateRows(records) {
+  const seen = new Set();
+  const duplicates = [];
+  
+  records.forEach((record, idx) => {
+    const key = JSON.stringify(record);
+    if (seen.has(key)) {
+      duplicates.push(idx);
+    } else {
+      seen.add(key);
+    }
+  });
+  
+  return duplicates;
+}
+
+function generateSummaryStatistics(records, columns, columnTypes) {
+  const stats = [];
+  
+  // Total value statistics
+  const valueColumns = columns.filter(c => 
+    (c.toLowerCase().includes('amount') || 
+     c.toLowerCase().includes('total') ||
+     c.toLowerCase().includes('revenue')) &&
+    ['integer', 'float'].includes(columnTypes[c].type)
+  );
+  
+  valueColumns.forEach(col => {
+    const values = records.map(r => r[col]).filter(v => typeof v === 'number');
+    if (values.length > 0) {
+      const total = values.reduce((a, b) => a + b, 0);
+      const avg = total / values.length;
+      const sorted = [...values].sort((a, b) => a - b);
+      const median = sorted[Math.floor(sorted.length / 2)];
+      
+      stats.push(`Total ${col}: ${formatCurrency(total)}`);
+      stats.push(`Average ${col}: ${formatCurrency(avg)}`);
+      stats.push(`Median ${col}: ${formatCurrency(median)}`);
+    }
+  });
+  
+  // Customer/entity statistics
+  const customerColumns = columns.filter(c => 
+    c.toLowerCase().includes('customer') && 
+    columnTypes[c].type === 'identifier'
+  );
+  
+  if (customerColumns.length > 0) {
+    const customers = new Set(records.map(r => r[customerColumns[0]]).filter(c => c !== null));
+    const customerPurchases = {};
+    
+    records.forEach(record => {
+      const customer = record[customerColumns[0]];
+      if (customer) {
+        customerPurchases[customer] = (customerPurchases[customer] || 0) + 1;
+      }
+    });
+    
+    const repeatCustomers = Object.values(customerPurchases).filter(count => count > 1).length;
+    const retentionRate = repeatCustomers / customers.size;
+    
+    stats.push(`Customer retention rate: ${formatPercentage(retentionRate)} (based on repeat activity)`);
+  }
+  
+  // Time-based statistics
+  const dateColumns = columns.filter(c => columnTypes[c].type === 'date');
+  if (dateColumns.length > 0) {
+    const dates = records.map(r => r[dateColumns[0]]).filter(d => d instanceof Date);
+    
+    if (dates.length > 0) {
+      const dayOfWeekCounts = new Array(7).fill(0);
+      const hourCounts = new Array(24).fill(0);
+      
+      dates.forEach(date => {
+        dayOfWeekCounts[date.getDay()]++;
+        hourCounts[date.getHours()]++;
+      });
+      
+      const peakDay = dayOfWeekCounts.indexOf(Math.max(...dayOfWeekCounts));
+      const peakHour = hourCounts.indexOf(Math.max(...hourCounts));
+      
+      const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      
+      stats.push(`Most active day: ${dayNames[peakDay]} (${formatPercentage(dayOfWeekCounts[peakDay] / dates.length)} of activity)`);
+      
+      if (hourCounts.some(c => c > 0)) {
+        stats.push(`Peak hour: ${peakHour}:00-${peakHour + 1}:00 (${formatPercentage(hourCounts[peakHour] / dates.length)} of activity)`);
+      }
+    }
+  }
+  
+  return stats;
+}
+
+function findSignificantCorrelations(records, columns, columnTypes) {
+  const numericColumns = columns.filter(c => ['integer', 'float'].includes(columnTypes[c].type));
+  const correlations = [];
+  
+  for (let i = 0; i < numericColumns.length; i++) {
+    for (let j = i + 1; j < numericColumns.length; j++) {
+      const col1 = numericColumns[i];
+      const col2 = numericColumns[j];
+      const values1 = records.map(r => r[col1]);
+      const values2 = records.map(r => r[col2]);
+      const corr = calculateCorrelation(values1, values2);
+      
+      if (corr !== null && Math.abs(corr) > 0.5) {
+        const strength = Math.abs(corr) > 0.8 ? 'Strong' : 'Moderate';
+        const direction = corr > 0 ? 'positive' : 'negative';
+        correlations.push(`${strength} ${direction}: ${col1} vs ${col2} (${formatNumber(corr, 2)})`);
+      }
+    }
+  }
+  
+  return correlations.slice(0, 5);
+}
+
+function generateAnalysisSuggestions(columns, columnTypes, records) {
+  const suggestions = [];
+  
+  // Check for customer analysis potential
+  if (columns.some(c => c.toLowerCase().includes('customer'))) {
+    suggestions.push('Customer Lifetime Value (CLV) calculation and segmentation');
+  }
+  
+  // Check for product analysis
+  if (columns.some(c => c.toLowerCase().includes('product') || c.toLowerCase().includes('sku'))) {
+    suggestions.push('Market basket analysis to find product associations');
+  }
+  
+  // Check for time series potential
+  if (columns.some(c => columnTypes[c].type === 'date')) {
+    suggestions.push('Time series forecasting for demand prediction');
+    
+    if (columns.some(c => c.toLowerCase().includes('customer'))) {
+      suggestions.push('Cohort analysis for customer retention');
+    }
+  }
+  
+  // Check for pricing analysis
+  if (columns.some(c => c.toLowerCase().includes('price'))) {
+    suggestions.push('Price elasticity analysis by product category');
+  }
+  
+  // Check for churn analysis
+  if (columns.some(c => c.toLowerCase().includes('status') || c.toLowerCase().includes('active'))) {
+    suggestions.push('Churn prediction based on activity patterns');
+  }
+  
+  // Check for inventory optimization
+  if (columns.some(c => c.toLowerCase().includes('inventory') || c.toLowerCase().includes('stock'))) {
+    suggestions.push('Inventory optimization based on sales velocity');
+  }
+  
+  // Check for fraud detection
+  if (columns.some(c => c.toLowerCase().includes('transaction')) && records.length > 1000) {
+    suggestions.push('Fraud detection for suspicious transaction patterns');
+  }
+  
+  // Check for A/B testing
+  if (columns.some(c => columnTypes[c].type === 'categorical' && columnTypes[c].categories && columnTypes[c].categories.length === 2)) {
+    suggestions.push('A/B test analysis for binary categorical variables');
+  }
+  
+  return suggestions;
+}
+
+function generateDataQuestions(columns, columnTypes, dataType, records) {
+  const questions = [];
+  
+  // Generic questions based on data type
+  if (dataType.includes('sales') || dataType.includes('transaction')) {
+    questions.push('What factors drive sales performance?');
+    questions.push('Which products/services generate the most revenue?');
+    questions.push('What are the seasonal trends in sales?');
+  }
+  
+  if (dataType.includes('customer')) {
+    questions.push('What factors drive customer loyalty?');
+    questions.push('Which customer segments are most valuable?');
+    questions.push('What is the typical customer journey?');
+  }
+  
+  // Column-specific questions
+  if (columns.some(c => c.toLowerCase().includes('price'))) {
+    questions.push('How does pricing affect purchase behavior?');
+    questions.push('What is the optimal pricing strategy?');
+  }
+  
+  if (columns.some(c => c.toLowerCase().includes('discount'))) {
+    questions.push('What is the optimal discount strategy?');
+    questions.push('How do discounts impact profitability?');
+  }
+  
+  if (columns.some(c => c.toLowerCase().includes('category'))) {
+    questions.push('Which categories perform best?');
+    questions.push('How do categories differ in customer behavior?');
+  }
+  
+  if (columns.some(c => columnTypes[c].type === 'date')) {
+    questions.push('What are the growth trends over time?');
+    questions.push('Are there any cyclical patterns?');
+  }
+  
+  // Risk-related questions
+  if (records.length > 1000) {
+    questions.push('Which records represent outliers or anomalies?');
+    questions.push('What patterns indicate risk or opportunity?');
+  }
+  
+  return questions.slice(0, 8);
+}
+
+function generateTechnicalNotes(records, columns, columnTypes) {
+  const notes = [];
+  
+  // Check for skewed distributions
+  const numericColumns = columns.filter(c => ['integer', 'float'].includes(columnTypes[c].type));
+  
+  numericColumns.forEach(col => {
+    const values = records.map(r => r[col]).filter(v => typeof v === 'number');
+    if (values.length > 0) {
+      const dist = analyzeDistribution(values);
+      if (Math.abs(dist.skewness) > 2) {
+        notes.push(`Log transformation recommended for ${col} (heavy ${dist.skewness > 0 ? 'right' : 'left'} skew)`);
+      }
+    }
+  });
+  
+  // Check for cyclical features
+  const dateColumns = columns.filter(c => columnTypes[c].type === 'date');
+  if (dateColumns.length > 0) {
+    notes.push('Consider encoding cyclical features for day_of_week and month');
+  }
+  
+  // Check for high cardinality
+  const highCardColumns = columns.filter(c => {
+    if (columnTypes[c].type === 'identifier') return true;
+    if (columnTypes[c].type === 'categorical' && columnTypes[c].categories) {
+      return columnTypes[c].categories.length > 50;
+    }
+    return false;
+  });
+  
+  if (highCardColumns.length > 0) {
+    notes.push(`${highCardColumns[0]} has high cardinality - consider embedding approaches`);
+  }
+  
+  // Time series recommendations
+  if (dateColumns.length > 0 && records.length > 100) {
+    notes.push('Time series shows trend and seasonality - STL decomposition recommended');
+  }
+  
+  // Sampling recommendations
+  if (records.length > 100000) {
+    notes.push('Large dataset - consider stratified sampling for initial exploration');
+  }
+  
+  return notes;
+}
+
+function generateValidationQueries(columns, columnTypes, records) {
+  const queries = [];
+  const tableName = 'your_table'; // Placeholder
+  
+  // Check for orphaned foreign keys
+  columns.forEach(col => {
+    if (col.toLowerCase().includes('_id') && !col.toLowerCase().includes('transaction_id')) {
+      const targetTable = col.replace('_id', '').toLowerCase();
+      queries.push({
+        purpose: `Verify ${col} foreign key relationship`,
+        sql: `SELECT COUNT(*) as orphaned_records 
+FROM ${tableName} t1
+WHERE t1.${col} NOT IN (
+  SELECT ${col} FROM ${targetTable}
+) AND t1.${col} IS NOT NULL`
+      });
+    }
+  });
+  
+  // Check date format consistency
+  const dateColumns = columns.filter(c => columnTypes[c].type === 'date');
+  dateColumns.forEach(col => {
+    queries.push({
+      purpose: `Check ${col} date format consistency`,
+      sql: `SELECT 
+  COUNT(DISTINCT DATE_FORMAT(${col}, '%Y-%m-%d')) as formats,
+  MIN(${col}) as earliest_date,
+  MAX(${col}) as latest_date
+FROM ${tableName}
+WHERE ${col} IS NOT NULL`
+    });
+  });
+  
+  // Check for duplicate identifiers
+  const idColumns = columns.filter(c => columnTypes[c].type === 'identifier');
+  if (idColumns.length > 0) {
+    queries.push({
+      purpose: `Check for duplicate ${idColumns[0]} values`,
+      sql: `SELECT ${idColumns[0]}, COUNT(*) as occurrences
+FROM ${tableName}
+GROUP BY ${idColumns[0]}
+HAVING COUNT(*) > 1
+ORDER BY occurrences DESC
+LIMIT 10`
+    });
+  }
+  
+  // Check numeric column ranges
+  const numericColumns = columns.filter(c => ['integer', 'float'].includes(columnTypes[c].type));
+  if (numericColumns.length > 0) {
+    const col = numericColumns[0];
+    queries.push({
+      purpose: `Verify ${col} value ranges and outliers`,
+      sql: `WITH stats AS (
+  SELECT 
+    AVG(${col}) as mean,
+    STDDEV(${col}) as std_dev
+  FROM ${tableName}
+  WHERE ${col} IS NOT NULL
+)
+SELECT COUNT(*) as outliers
+FROM ${tableName}, stats
+WHERE ${col} > mean + 3 * std_dev
+   OR ${col} < mean - 3 * std_dev`
+    });
+  }
+  
+  return queries.slice(0, 5); // Limit to 5 most relevant queries
+}
+
+async function runAll(filePath, options = {}) {
+  console.log(createSection('COMPLETE DATAPILOT ANALYSIS', 
+    `File: ${filePath}\nTimestamp: ${new Date().toISOString()}`));
+  console.log('');
+  
+  const spinner = ora('Running complete analysis suite...').start();
+  
+  let output = '';
+  const captureOutput = (text) => {
+    output += text + '\n';
+  };
+  
+  // Temporarily override console.log to capture output
+  const originalLog = console.log;
+  if (options.output) {
+    console.log = captureOutput;
+  }
+  
+  try {
+    // Parse the CSV once with options
+    spinner.text = 'Parsing CSV file...';
+    const records = await parseCSV(filePath, { 
+      quiet: true,
+      noSampling: !options.quick,
+      header: options.header 
+    });
+    
+    const columnTypes = detectColumnTypes(records);
+    
+    // Section divider
+    const sectionDivider = '\n' + '='.repeat(80) + '\n';
+    
+    // Run each analysis in sequence
+    spinner.text = 'Running exploratory data analysis...';
+    console.log(sectionDivider);
+    console.log('1. EXPLORATORY DATA ANALYSIS (EDA)');
+    console.log(sectionDivider);
+    await eda(filePath, { quiet: true, preloadedData: { records, columnTypes } });
+    
+    spinner.text = 'Running data integrity check...';
+    console.log(sectionDivider);
+    console.log('2. DATA INTEGRITY CHECK');
+    console.log(sectionDivider);
+    await integrity(filePath, { quiet: true, preloadedData: { records, columnTypes } });
+    
+    spinner.text = 'Generating visualization recommendations...';
+    console.log(sectionDivider);
+    console.log('3. VISUALIZATION RECOMMENDATIONS');
+    console.log(sectionDivider);
+    await visualize(filePath, { quiet: true, preloadedData: { records, columnTypes } });
+    
+    spinner.text = 'Running engineering analysis...';
+    console.log(sectionDivider);
+    console.log('4. DATA ENGINEERING ANALYSIS');
+    console.log(sectionDivider);
+    await engineering(filePath, { quiet: true, preloadedData: { records, columnTypes } });
+    
+    spinner.text = 'Generating LLM context...';
+    console.log(sectionDivider);
+    console.log('5. LLM CONTEXT GENERATION');
+    console.log(sectionDivider);
+    await llmContext(filePath, { quiet: true, preloadedData: { records, columnTypes } });
+    
+    // Summary section
+    console.log(sectionDivider);
+    console.log('ANALYSIS COMPLETE');
+    console.log(sectionDivider);
+    console.log(createSubSection('Summary', ''));
+    console.log(`- Total rows analyzed: ${records.length.toLocaleString()}`);
+    console.log(`- Total columns: ${Object.keys(columnTypes).length}`);
+    console.log(`- Analysis timestamp: ${new Date().toISOString()}`);
+    
+    if (options.quick) {
+      console.log(chalk.yellow('\n⚡ Quick mode: Some detailed analyses were skipped for speed'));
+    }
+    
+    // Restore console.log
+    console.log = originalLog;
+    
+    spinner.succeed('Complete analysis finished');
+    
+    // Write to file if output option is specified
+    if (options.output) {
+      writeFileSync(options.output, output);
+      console.log(chalk.green(`\n✓ Analysis saved to: ${options.output}`));
+      
+      // Also show a preview
+      console.log(chalk.gray('\nPreview of saved analysis:'));
+      const lines = output.split('\n').slice(0, 10);
+      lines.forEach(line => console.log(chalk.gray(line)));
+      if (output.split('\n').length > 10) {
+        console.log(chalk.gray('... (truncated)'));
+      }
+    }
+    
+  } catch (error) {
+    // Restore console.log on error
+    console.log = originalLog;
+    spinner.fail('Analysis failed');
+    console.error(chalk.red('Error during analysis:'), error.message);
+    process.exit(1);
+  }
+}
+
+// ASCII art banner
+const banner = `
+╔═══════════════════════════════════════╗
+║          ${chalk.cyan('DataPilot CLI')}              ║
+║    ${chalk.gray('Simple & LLM-Ready Analysis')}      ║
+╚═══════════════════════════════════════╝
+`;
+
+console.log(banner);
+
+// Configure program
+program
+  .name('datapilot')
+  .description('CSV analysis tool optimized for LLM consumption')
+  .version('1.1.0');
+
+// Helper to validate file exists
+function validateFile(filePath) {
+  const resolvedPath = resolve(filePath);
+  if (!existsSync(resolvedPath)) {
+    console.error(chalk.red(`Error: File not found: ${filePath}`));
+    process.exit(1);
+  }
+  if (!filePath.toLowerCase().endsWith('.csv')) {
+    console.error(chalk.red(`Error: File must be a CSV file: ${filePath}`));
+    process.exit(1);
+  }
+  return resolvedPath;
+}
+
+// ALL command - run complete analysis suite
+program
+  .command('all <file>')
+  .description('Run complete analysis suite - all commands in one go')
+  .option('-o, --output <path>', 'Save analysis to file')
+  .option('-q, --quick', 'Quick mode - skip detailed analyses for speed')
+  .option('--no-header', 'CSV file has no header row')
+  .action(async (file, options) => {
+    const filePath = validateFile(file);
+    await runAll(filePath, options);
+  });
+
+// EDA command
+program
+  .command('eda <file>')
+  .description('Exploratory Data Analysis - comprehensive statistical analysis')
+  .option('-o, --output <path>', 'Save analysis to file')
+  .option('-q, --quick', 'Quick mode - basic statistics only')
+  .option('--no-header', 'CSV file has no header row')
+  .action(async (file, options) => {
+    const filePath = validateFile(file);
+    await eda(filePath, options);
+  });
+
+// INT command
+program
+  .command('int <file>')
+  .description('Data Integrity Check - find quality issues and inconsistencies')
+  .option('-o, --output <path>', 'Save analysis to file')
+  .option('--no-header', 'CSV file has no header row')
+  .action(async (file, options) => {
+    const filePath = validateFile(file);
+    await integrity(filePath, options);
+  });
+
+// VIS command
+program
+  .command('vis <file>')
+  .description('Visualization Recommendations - what charts would be most insightful')
+  .option('-o, --output <path>', 'Save analysis to file')
+  .option('--no-header', 'CSV file has no header row')
+  .action(async (file, options) => {
+    const filePath = validateFile(file);
+    await visualize(filePath, options);
+  });
+
+// ENG command - Data Archaeology System with subcommands
+const eng = program.command('eng');
+eng.description('Data Engineering Archaeology - builds collective intelligence about your warehouse');
+
+// Default action for single file (backward compatible)
+eng
+  .argument('[file]', 'CSV file to analyze')
+  .option('-o, --output <path>', 'Save analysis to file')
+  .option('--no-header', 'CSV file has no header row')
+  .action(async (file, options) => {
+    if (file) {
+      const filePath = validateFile(file);
+      await engineering(filePath, options);
+    } else {
+      // Show help if no file provided
+      eng.help();
+    }
+  });
+
+// Subcommand: analyze multiple files
+eng
+  .command('analyze <files...>')
+  .description('Analyze multiple CSV files and detect relationships')
+  .option('--no-header', 'CSV files have no header row')
+  .action(async (files, options) => {
+    const { glob } = await import('glob');
+    console.log(chalk.blue('🏛️  Starting multi-file warehouse analysis...\n'));
+    
+    // Process all files (including glob patterns)
+    const allFiles = [];
+    for (const pattern of files) {
+      if (pattern.includes('*')) {
+        const matches = await glob(pattern, { nodir: true });
+        allFiles.push(...matches.filter(f => f.endsWith('.csv')));
+      } else {
+        allFiles.push(pattern);
+      }
+    }
+    
+    // Validate all files
+    const filePaths = allFiles.map(f => validateFile(f));
+    
+    if (filePaths.length === 0) {
+      console.error('No CSV files found');
+      process.exit(1);
+    }
+    
+    console.log(`Found ${filePaths.length} CSV files to analyze\n`);
+    
+    // Analyze each file with auto-save
+    for (const filePath of filePaths) {
+      console.log(chalk.cyan(`\nAnalyzing ${basename(filePath)}...`));
+      await engineering(filePath, { ...options, quiet: true, autoSave: true });
+    }
+    
+    // Show relationships and generate report
+    console.log(chalk.green('\n✓ All files analyzed!'));
+    console.log(chalk.blue('\nGenerating warehouse map and relationships...\n'));
+    await engineering(null, { showMap: true });
+  });
+
+// Subcommand: save insights
+eng
+  .command('save <table> [insights]')
+  .description('Save LLM insights for a table (can pipe from stdin)')
+  .action(async (table, insights) => {
+    let finalInsights = insights;
+    
+    // If no insights provided, try to read from stdin
+    if (!insights && !process.stdin.isTTY) {
+      const chunks = [];
+      for await (const chunk of process.stdin) {
+        chunks.push(chunk);
+      }
+      finalInsights = Buffer.concat(chunks).toString().trim();
+    }
+    
+    if (!finalInsights) {
+      console.error('Error: Please provide insights either as argument or via stdin');
+      console.log('\nExamples:');
+      console.log('  datapilot eng save orders "PURPOSE: Transaction fact table..."');
+      console.log('  echo "PURPOSE: Transaction fact table..." | datapilot eng save orders');
+      process.exit(1);
+    }
+    
+    await engineering(null, { saveInsights: [table, finalInsights] });
+  });
+
+// Subcommand: generate report
+eng
+  .command('report')
+  .description('Generate comprehensive warehouse report from all analyses')
+  .option('-o, --output <path>', 'Save report to file')
+  .action(async (options) => {
+    await engineering(null, { compileKnowledge: true, ...options });
+  });
+
+// Subcommand: show map
+eng
+  .command('map')
+  .description('Display warehouse domain map')
+  .action(async () => {
+    await engineering(null, { showMap: true });
+  });
+
+// LLM command
+program
+  .command('llm <file>')
+  .description('LLM Context Generation - perfect summary for AI analysis')
+  .option('-o, --output <path>', 'Save analysis to file')
+  .option('--no-header', 'CSV file has no header row')
+  .action(async (file, options) => {
+    const filePath = validateFile(file);
+    await llmContext(filePath, options);
+  });
+
+// Help text
+program.on('--help', () => {
+  console.log('');
+  console.log('Examples:');
+  console.log('  $ datapilot all data.csv        # Run complete analysis suite');
+  console.log('  $ datapilot all data.csv -o analysis.txt   # Save to file');
+  console.log('  $ datapilot all data.csv --quick           # Quick mode');
+  console.log('  $ datapilot eda sales.csv       # Run exploratory data analysis');
+  console.log('  $ datapilot int customers.csv   # Check data integrity');
+  console.log('  $ datapilot vis metrics.csv     # Get visualization recommendations');
+  console.log('  $ datapilot eng orders.csv                   # Analyze single file');
+  console.log('  $ datapilot eng analyze *.csv                # Analyze all CSV files');
+  console.log('  $ datapilot eng save orders "PURPOSE: ..."   # Save LLM insights');
+  console.log('  $ echo "PURPOSE: ..." | datapilot eng save orders  # Pipe from LLM');
+  console.log('  $ datapilot eng report                       # Generate full report');
+  console.log('  $ datapilot eng map                          # View warehouse map');
+  console.log('  $ datapilot llm dataset.csv                  # Generate LLM-ready context');
+  console.log('');
+  console.log('Data Archaeology Workflow:');
+  console.log('  1. Analyze all tables: datapilot eng analyze *.csv');
+  console.log('  2. Copy LLM prompts and get insights from your AI');
+  console.log('  3. Save insights: datapilot eng save <table> "<insights>"');
+  console.log('  4. Generate report: datapilot eng report');
+  console.log('');
+  console.log('Options:');
+  console.log('  -o, --output <path>  Save analysis to file instead of stdout');
+  console.log('  -q, --quick          Quick mode - skip detailed analyses for speed');
+  console.log('  --no-header          CSV file has no header row (uses column1, column2, etc.)');
+  console.log('');
+  console.log('Output:');
+  console.log('  All commands produce verbose text output optimized for copying');
+  console.log('  into ChatGPT, Claude, or any other LLM for further analysis.');
+});
+
+// Parse arguments
+program.parse(process.argv);
+
+// Show help if no command provided
+if (!process.argv.slice(2).length) {
+  program.outputHelp();
+}

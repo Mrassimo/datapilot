@@ -13,7 +13,7 @@ import { integrity as intCommand } from '../int.js';
 import { visualize as visCommand } from '../vis.js';
 import { engineering as engCommand } from '../eng.js';
 
-// Import current llm functions for compatibility
+// Import LLM utility functions
 import { 
   getDateRange, 
   inferDataType, 
@@ -28,7 +28,7 @@ import {
   generateAnalysisSuggestions,
   generateDataQuestions,
   generateTechnicalNotes
-} from '../llm.js';
+} from './utils/llmUtils.js';
 
 // Import summarizers
 import { extractEdaSummary } from './summarizers/edaSummarizer.js';

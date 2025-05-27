@@ -4,11 +4,13 @@
   "description": "Transform CSV chaos into crystal-clear insights with smart LLM-ready analysis",
   "main": "bin/datapilot.js",
   "bin": {
-    "datapilot": "./bin/datapilot.js"
+    "datapilot": "./dist/datapilot.js"
   },
   "type": "module",
   "scripts": {
-    "test": "node tests/run_tests.js"
+    "test": "node tests/run_tests.js",
+    "build": "rollup -c",
+    "build:watch": "rollup -c -w"
   },
   "keywords": [
     "csv",
@@ -39,5 +41,12 @@
   },
   "engines": {
     "node": ">=14.0.0"
+  },
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^28.0.3",
+    "@rollup/plugin-json": "^6.1.0",
+    "@rollup/plugin-node-resolve": "^16.0.1",
+    "rollup": "^4.41.1",
+    "rollup-plugin-preserve-shebang": "^1.0.1"
   }
 }

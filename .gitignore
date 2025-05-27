@@ -8,3 +8,6 @@ tests/fixtures/test.txt
 *.tmp
 coverage/
 *. Datapilot
+
+# Keep dist folder for self-contained distribution
+!dist/
