@@ -11,16 +11,17 @@ export default {
     inlineDynamicImports: true
   },
   external: [
-    // Keep Node.js built-ins external
+    // ONLY keep Node.js built-ins external - bundle ALL npm dependencies for Windows compatibility
     'fs', 'path', 'url', 'stream', 'util', 'events', 'crypto', 'os', 'readline', 'process',
-    // Keep problematic dependencies external (bundling issues)
-    'figlet', 'blessed', 'terminal-kit'
+    // Exclude problematic packages that have bundling issues
+    'figlet'
   ],
   plugins: [
     preserveShebang(),
     resolve({
       preferBuiltins: true,
-      exportConditions: ['node']
+      exportConditions: ['node'],
+      browser: false
     }),
     commonjs(),
     json()

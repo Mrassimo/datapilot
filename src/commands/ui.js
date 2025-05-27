@@ -4,8 +4,10 @@
  */
 
 // Note: blessed has bundling issues, using simpler alternatives
-import { prompt } from 'enquirer';
-import figlet from 'figlet';
+import enquirer from 'enquirer';
+const { prompt } = enquirer;
+// Remove figlet import - use fallback ASCII for Windows compatibility
+// import figlet from 'figlet';
 import boxen from 'boxen';
 import { createSpinner } from 'nanospinner';
 import chalk from 'chalk';
@@ -98,34 +100,28 @@ export async function interactiveUI() {
             break;
           case 'exit':
             running = false;
-            await showGoodbyeAnimation();
             break;
         }
       } catch (error) {
-        if (error.message.includes('User cancelled')) {
-          // Handle graceful cancellation
-          console.log(chalk.yellow('\n✋ Operation cancelled'));
-          await sleep(1000);
-          continue;
-        }
-        
-        console.error(chalk.red('\n❌ Error: ') + error.message);
-        const shouldContinue = await prompt({
+        console.error(chalk.red('An error occurred:'), error.message);
+        const continueChoice = await prompt({
           type: 'confirm',
           name: 'continue',
-          message: 'Continue using DataPilot?',
+          message: 'Would you like to continue?',
           initial: true
         });
         
-        if (!shouldContinue.continue) {
+        if (!continueChoice.continue) {
           running = false;
-          await showGoodbyeAnimation();
         }
       }
     }
+    
+    // Goodbye animation
+    await showGoodbyeAnimation();
+    
   } catch (error) {
-    console.error(chalk.red('\n💥 Critical error: ') + error.message);
-    console.log(chalk.yellow('Exiting DataPilot...'));
+    console.error(chalk.red('Fatal error in interactive UI:'), error.message);
     process.exit(1);
   }
 }
@@ -133,26 +129,19 @@ export async function interactiveUI() {
 async function showWelcomeAnimation() {
   console.clear();
   
-  // Simple ASCII art header (fallback if figlet fails)
-  let title;
-  try {
-    title = figlet.textSync('DataPilot', { 
-      font: 'Big',
-      horizontalLayout: 'fitted'
-    });
-  } catch (error) {
-    // Fallback ASCII art
-    title = `
+  // Use static ASCII art for maximum Windows compatibility (no figlet)
+  const title = `
   ____        _        ____  _ _       _   
  |  _ \\  __ _| |_ __ _|  _ \\(_) | ___ | |_ 
  | | | |/ _\` | __/ _\` | |_) | | |/ _ \\| __|
  | |_| | (_| | || (_| |  __/| | | (_) | |_ 
  |____/ \\__,_|\\__\\__,_|_|   |_|_|\\___/ \\__|
-    `;
-  }
+                                           
+        🚀 CSV Analysis Made Simple 🚀    
+  `;
   
   // Animate the title with colors
-  const lines = title.split('\n');
+  const lines = title.split('\\n');
   for (let i = 0; i < lines.length; i++) {
     const gradientName = Object.keys(gradients)[i % Object.keys(gradients).length];
     console.log(gradients[gradientName](lines[i]));
@@ -163,17 +152,16 @@ async function showWelcomeAnimation() {
   
   // Welcome message with box
   const welcomeMsg = boxen(
-    gradients.rainbow('🚀 Welcome to DataPilot Interactive! 🚀\n\n') +
-    '✨ Your fun, colorful data analysis companion\n' +
-    '🎯 Perfect for beginners and experts alike\n' +
-    '🎨 Beautiful visualizations and insights\n' +
-    '🤖 AI-ready analysis generation',
+    gradients.rainbow('🚀 Welcome to DataPilot Interactive! 🚀\\n\\n') +
+    '✨ Your fun, colorful data analysis companion\\n' +
+    '🎯 Perfect for beginners and experts alike\\n' +
+    '📊 Discover insights in your CSV data\\n' +
+    '🤖 LLM-ready analysis output',
     {
       padding: 1,
       margin: 1,
-      borderStyle: 'double',
-      borderColor: 'cyan',
-      backgroundColor: 'black'
+      borderStyle: 'round',
+      borderColor: 'cyan'
     }
   );
   
@@ -182,21 +170,19 @@ async function showWelcomeAnimation() {
 }
 
 async function showMainMenu() {
-  console.log('\n' + gradients.cosmic('🌟 What would you like to do today? 🌟\n'));
-  
   const response = await prompt({
     type: 'select',
     name: 'action',
-    message: 'Choose your adventure:',
+    message: gradients.cyan('🚀 What would you like to do?'),
     choices: [
       {
         name: 'analyze',
-        message: '📊 Analyze a CSV file',
-        hint: 'Guided analysis with file browser, preview, and multiple analysis types'
+        message: '📊 Analyze CSV Data',
+        hint: 'Smart file discovery and guided analysis'
       },
       {
         name: 'demo',
-        message: '🎭 Try Demo with Sample Data',
+        message: '🎭 Try Demo Mode',
         hint: 'See DataPilot in action with built-in sample datasets'
       },
       {
@@ -212,7 +198,7 @@ async function showMainMenu() {
 
 async function runGuidedAnalysis() {
   console.clear();
-  console.log(gradients.ocean('🔍 Guided Analysis Mode 🔍\n'));
+  console.log(gradients.ocean('🔍 Guided Analysis Mode 🔍\\n'));
   
   // Step 1: File selection
   const filePath = await selectFile();
@@ -239,32 +225,53 @@ async function runGuidedAnalysis() {
 }
 
 async function selectFile() {
+  // Auto-discover CSV files in current directory
+  const discoveredFiles = await discoverCSVFiles();
+  
+  const choices = [];
+  
+  // Add discovered files if any
+  if (discoveredFiles.length > 0) {
+    choices.push({
+      name: 'discovered',
+      message: `🎯 Use discovered CSV files (${discoveredFiles.length} found)`,
+      hint: discoveredFiles.slice(0, 3).map(f => path.basename(f)).join(', ') + (discoveredFiles.length > 3 ? '...' : '')
+    });
+  }
+  
+  choices.push(
+    { name: 'browse', message: '📂 Browse files interactively' },
+    { name: 'path', message: '⌨️  Type file path directly' },
+    { name: 'recent', message: '🕐 Use recent files' },
+    { name: 'workspace', message: '🏢 Workspace mode (multiple CSVs)' },
+    { name: 'back', message: '← Back to main menu' }
+  );
+  
   const methods = await prompt({
     type: 'select',
     name: 'method',
     message: 'How would you like to select your CSV file?',
-    choices: [
-      { name: 'browse', message: '📂 Browse files interactively' },
-      { name: 'path', message: '⌨️  Type file path directly' },
-      { name: 'recent', message: '🕐 Use recent files' },
-      { name: 'back', message: '← Back to main menu' }
-    ]
+    choices
   });
   
   switch (methods.method) {
+    case 'discovered':
+      return await selectFromDiscovered(discoveredFiles);
     case 'browse':
       return await browseFiles();
     case 'path':
       return await enterFilePath();
     case 'recent':
       return await selectRecentFile();
+    case 'workspace':
+      return await workspaceMode(discoveredFiles);
     case 'back':
       return null;
   }
 }
 
 async function browseFiles() {
-  console.log(gradients.forest('\n🌲 File Browser 🌲\n'));
+  console.log(gradients.forest('\\n🌲 File Browser 🌲\\n'));
   
   let currentDir = process.cwd();
   
@@ -297,65 +304,45 @@ async function browseFiles() {
       items
         .filter(item => item.isFile() && item.name.endsWith('.csv'))
         .forEach(file => {
-          const filePath = path.join(currentDir, file.name);
-          try {
-            const stats = fs.statSync(filePath);
-            const size = formatFileSize(stats.size);
-            choices.push({
-              name: filePath,
-              message: `📄 ${file.name} (${size})`,
-              value: filePath,
-              hint: 'CSV file ready for analysis!'
-            });
-          } catch (error) {
-            // Skip files we can't read
-          }
+          choices.push({
+            name: path.join(currentDir, file.name),
+            message: `📊 ${file.name}`,
+            value: path.join(currentDir, file.name)
+          });
         });
       
-      if (choices.length === 0) {
-        console.log(chalk.yellow('No CSV files or directories found in this location.'));
-        choices.push({
-          name: 'back',
-          message: '← Go back to parent directory',
-          value: path.dirname(currentDir)
-        });
-      }
-      
+      // Add exit option
       choices.push({
-        name: 'cancel',
-        message: '❌ Cancel and return to main menu',
-        value: null
+        name: 'exit',
+        message: '← Back to file selection',
+        value: 'exit'
       });
       
-      const selection = await prompt({
+      const result = await prompt({
         type: 'select',
-        name: 'selected',
-        message: `Current directory: ${gradients.cyan(currentDir)}`,
+        name: 'selection',
+        message: `Current: ${currentDir}`,
         choices
       });
       
-      if (!selection.selected) return null;
-      
-      if (selection.selected.endsWith('.csv')) {
-        return selection.selected;
-      } else {
-        currentDir = selection.selected;
-      }
-    } catch (error) {
-      console.error(chalk.red(`Error reading directory: ${error.message}`));
-      
-      const goBack = await prompt({
-        type: 'confirm',
-        name: 'back',
-        message: 'Go back to parent directory?',
-        initial: true
-      });
-      
-      if (goBack.back && currentDir !== '/') {
-        currentDir = path.dirname(currentDir);
-      } else {
+      if (result.selection === 'exit') {
         return null;
       }
+      
+      const selected = result.selection;
+      
+      // Check if it's a directory
+      if (fs.statSync(selected).isDirectory()) {
+        currentDir = selected;
+        continue;
+      }
+      
+      // It's a file, return it
+      return selected;
+      
+    } catch (error) {
+      console.log(chalk.red(`Error reading directory: ${error.message}`));
+      return null;
     }
   }
 }
@@ -363,297 +350,211 @@ async function browseFiles() {
 async function enterFilePath() {
   const response = await prompt({
     type: 'input',
-    name: 'path',
+    name: 'filePath',
     message: 'Enter the path to your CSV file:',
     validate: (input) => {
-      if (!input) return 'Please enter a file path';
+      if (!input.trim()) return 'Please enter a file path';
       if (!fs.existsSync(input)) return 'File does not exist';
       if (!input.endsWith('.csv')) return 'Please select a CSV file';
       return true;
     }
   });
   
-  return response.path;
+  return response.filePath;
 }
 
 async function selectRecentFile() {
   const recentFiles = getRecentFiles();
   
   if (recentFiles.length === 0) {
-    console.log(gradients.sunset('📚 No recent files found yet!'));
-    console.log(chalk.gray('Analyze some files first, and they\'ll appear here.'));
-    await sleep(2000);
+    console.log(gradients.yellow('No recent files found.'));
+    await prompt({
+      type: 'confirm',
+      name: 'continue',
+      message: 'Press Enter to continue...'
+    });
     return null;
   }
   
-  console.log(gradients.sunset('\n📚 Recent Files 📚\n'));
-  
-  const choices = recentFiles.map((file, index) => ({
+  const choices = recentFiles.map(file => ({
     name: file.path,
-    message: `📄 ${path.basename(file.path)} (${formatDate(new Date(file.lastUsed))})`,
-    value: file.path,
-    hint: `Last used: ${file.lastUsed}`
+    message: `📊 ${path.basename(file.path)}`,
+    hint: `Last used: ${new Date(file.lastUsed).toLocaleDateString()}`
   }));
   
-  choices.push({
-    name: 'back',
-    message: '← Back to file selection',
-    value: null
-  });
+  choices.push({ name: 'back', message: '← Back to file selection' });
   
-  const selection = await prompt({
+  const response = await prompt({
     type: 'select',
-    name: 'selected',
-    message: 'Choose a recent file:',
+    name: 'file',
+    message: 'Select a recent file:',
     choices
   });
   
-  return selection.selected;
+  return response.file === 'back' ? null : response.file;
 }
 
-// Recent files management
 function getRecentFiles() {
   try {
     if (fs.existsSync(RECENT_FILES_PATH)) {
-      const content = fs.readFileSync(RECENT_FILES_PATH, 'utf8');
-      return JSON.parse(content);
+      return JSON.parse(fs.readFileSync(RECENT_FILES_PATH, 'utf8'));
     }
   } catch (error) {
-    console.error(chalk.yellow('Warning: Could not read recent files'));
+    // Ignore errors
   }
   return [];
 }
 
 function addRecentFile(filePath) {
+  const recentFiles = getRecentFiles();
+  
+  // Remove if already exists
+  const filtered = recentFiles.filter(f => f.path !== filePath);
+  
+  // Add to front
+  filtered.unshift({
+    path: filePath,
+    lastUsed: new Date().toISOString()
+  });
+  
+  // Keep only MAX_RECENT_FILES
+  const trimmed = filtered.slice(0, MAX_RECENT_FILES);
+  
   try {
-    let recentFiles = getRecentFiles();
-    
-    // Remove if already exists
-    recentFiles = recentFiles.filter(f => f.path !== filePath);
-    
-    // Add to beginning
-    recentFiles.unshift({
-      path: filePath,
-      lastUsed: new Date().toISOString()
-    });
-    
-    // Keep only recent files
-    recentFiles = recentFiles.slice(0, MAX_RECENT_FILES);
-    
-    // Ensure directory exists
-    const dir = path.dirname(RECENT_FILES_PATH);
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-    
-    fs.writeFileSync(RECENT_FILES_PATH, JSON.stringify(recentFiles, null, 2));
+    fs.writeFileSync(RECENT_FILES_PATH, JSON.stringify(trimmed, null, 2));
   } catch (error) {
-    // Silently fail - not critical
-    console.error(chalk.yellow('Warning: Could not save to recent files'));
+    // Ignore errors
   }
 }
 
-function formatDate(date) {
-  const now = new Date();
-  const diff = now - date;
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-  
-  if (days === 0) return 'Today';
-  if (days === 1) return 'Yesterday';
-  if (days < 7) return `${days} days ago`;
-  return date.toLocaleDateString();
-}
-
 async function showFilePreview(filePath) {
-  console.clear();
-  console.log(gradients.fire('🔍 File Preview 🔍\n'));
-  
-  const spinner = createSpinner('Reading file...').start();
+  const spinner = createSpinner('Loading file preview...').start();
   
   try {
     const stats = fs.statSync(filePath);
-    const records = await parseCSV(filePath, { limit: 5 });
-    const columnTypes = detectColumnTypes(records);
+    const { data: records, headers } = await parseCSV(filePath);
+    const columnTypes = detectColumnTypes(records, headers);
     
     spinner.success({ text: 'File loaded successfully!' });
+    
+    // File info
+    const previewBox = boxen(
+      `📄 File: ${path.basename(filePath)}\\n` +
+      `📊 Size: ${formatFileSize(stats.size)}\\n` +
+      `📈 Rows: ~${records.length}+ rows\\n` +
+      `🏛️  Columns: ${Object.keys(columnTypes).length} columns\\n\\n` +
+      `📋 Preview:\\n${formatPreviewTable(records, headers)}`,
+      {
+        padding: 1,
+        borderColor: 'blue'
+      }
+    );
+    
+    console.log('\\n' + previewBox);
     
     // Add to recent files
     addRecentFile(filePath);
     
-    const previewBox = boxen(
-      `📄 File: ${chalk.cyan(path.basename(filePath))}\n` +
-      `📊 Size: ${formatFileSize(stats.size)}\n` +
-      `📈 Rows: ${chalk.green('~' + records.length + '+ rows')}\n` +
-      `🏛️  Columns: ${chalk.blue(Object.keys(columnTypes).length + ' columns')}\n\n` +
-      `${gradients.rainbow('First 5 rows preview:')}\n` +
-      formatPreviewTable(records, Object.keys(columnTypes)),
-      {
-        padding: 1,
-        margin: 1,
-        borderStyle: 'round',
-        borderColor: 'green'
-      }
-    );
-    
-    console.log(previewBox);
-    
-    const choices = [
-      { name: 'continue', message: '✅ Continue with analysis', value: true },
-      { name: 'back', message: '← Choose different file', value: false },
-      { name: 'exit', message: '❌ Exit to main menu', value: 'exit' }
-    ];
-    
-    const proceed = await prompt({
-      type: 'select',
-      name: 'action',
-      message: 'What would you like to do?',
-      choices
-    });
-    
-    if (proceed.action === 'exit') {
-      throw new Error('User cancelled');
-    }
-    
-    if (!proceed.action) {
-      throw new Error('Back to file selection');
-    }
-    
   } catch (error) {
-    spinner.error({ text: `Error reading file: ${error.message}` });
+    spinner.error({ text: `Error loading file: ${error.message}` });
     throw error;
   }
 }
 
 async function selectAnalysisType() {
-  console.log('\n' + gradients.cosmic('🎯 Choose Your Analysis Adventure! 🎯\n'));
-  
   const response = await prompt({
     type: 'select',
-    name: 'type',
-    message: 'What type of analysis would you like?',
+    name: 'analysis',
+    message: 'What type of analysis would you like to run?',
     choices: [
-      {
-        name: 'complete',
-        message: '🚀 Complete Analysis (All insights)',
-        hint: 'Run all analysis types for comprehensive insights'
-      },
-      {
-        name: 'eda',
-        message: '📊 Exploratory Data Analysis',
-        hint: 'Statistical insights, correlations, distributions'
-      },
-      {
-        name: 'quality',
-        message: '🔍 Data Quality Check',
-        hint: 'Find missing values, duplicates, inconsistencies'
-      },
-      {
-        name: 'visual',
-        message: '📈 Visualization Recommendations',
-        hint: 'Best charts and graphs for your data'
-      },
-      {
-        name: 'llm',
-        message: '🤖 AI-Ready Context',
-        hint: 'Perfect summary for ChatGPT, Claude, etc.'
-      }
+      { name: 'complete', message: '🚀 Complete Analysis (All commands)' },
+      { name: 'eda', message: '📊 Exploratory Data Analysis' },
+      { name: 'int', message: '🔍 Data Integrity Check' },
+      { name: 'vis', message: '📈 Visualization Recommendations' },
+      { name: 'llm', message: '🤖 LLM Context Generation' }
     ]
   });
   
-  return response.type;
+  return response.analysis;
 }
 
+let currentResult = null;
+
 async function runAnalysisWithAnimation(filePath, analysisType) {
-  console.clear();
-  console.log(gradients.rainbow('🎪 Analysis in Progress! 🎪\n'));
+  console.log(gradients.fire('\\n🔥 Running Analysis 🔥\\n'));
   
-  const messages = [
-    '🔍 Reading your data...',
-    '🧮 Crunching numbers...',
-    '📊 Finding patterns...',
-    '🎯 Generating insights...',
-    '✨ Adding magic touches...',
-    '🎉 Almost done!'
-  ];
-  
-  let messageIndex = 0;
-  const spinner = createSpinner(messages[messageIndex]).start();
-  
-  // Animate through messages
-  const messageInterval = setInterval(() => {
-    messageIndex = (messageIndex + 1) % messages.length;
-    spinner.update({ text: messages[messageIndex] });
-  }, 1500);
+  const spinner = createSpinner('Parsing CSV file...').start();
   
   try {
-    // Run the actual analysis
-    let result;
-    const options = { structuredOutput: true, quiet: true };
+    const { data, headers } = await parseCSV(filePath);
+    spinner.update({ text: 'CSV parsed successfully!' });
+    await sleep(500);
     
-    switch (analysisType) {
-      case 'complete':
-        // Run all analyses
-        result = {
-          eda: await eda(filePath, options),
-          quality: await integrity(filePath, options),
-          visual: await visualize(filePath, options),
-          llm: await llmContext(filePath, options)
-        };
-        break;
-      case 'eda':
-        result = await eda(filePath, options);
-        break;
-      case 'quality':
-        result = await integrity(filePath, options);
-        break;
-      case 'visual':
-        result = await visualize(filePath, options);
-        break;
-      case 'llm':
-        result = await llmContext(filePath, options);
-        break;
+    if (analysisType === 'complete') {
+      const analyses = ['eda', 'int', 'vis', 'llm'];
+      let combinedResult = '';
+      
+      for (const analysis of analyses) {
+        spinner.update({ text: `Running ${analysis.toUpperCase()} analysis...` });
+        
+        let result;
+        switch (analysis) {
+          case 'eda':
+            result = await eda(data, headers, filePath, {});
+            break;
+          case 'int':
+            result = await integrity(data, headers, filePath, {});
+            break;
+          case 'vis':
+            result = await visualize(data, headers, filePath, {});
+            break;
+          case 'llm':
+            result = await llmContext(data, headers, filePath, {});
+            break;
+        }
+        
+        combinedResult += `\\n\\n=== ${analysis.toUpperCase()} ANALYSIS ===\\n\\n${result}`;
+        await sleep(1000);
+      }
+      
+      currentResult = combinedResult;
+    } else {
+      spinner.update({ text: `Running ${analysisType.toUpperCase()} analysis...` });
+      
+      let result;
+      switch (analysisType) {
+        case 'eda':
+          result = await eda(data, headers, filePath, {});
+          break;
+        case 'int':
+          result = await integrity(data, headers, filePath, {});
+          break;
+        case 'vis':
+          result = await visualize(data, headers, filePath, {});
+          break;
+        case 'llm':
+          result = await llmContext(data, headers, filePath, {});
+          break;
+      }
+      
+      currentResult = result;
     }
     
-    clearInterval(messageInterval);
-    spinner.success({ text: gradients.rainbow('Analysis complete! 🎉') });
-    
-    // Store result for display
-    global.lastAnalysisResult = result;
+    spinner.success({ text: 'Analysis complete! 🎉' });
     
   } catch (error) {
-    clearInterval(messageInterval);
     spinner.error({ text: `Analysis failed: ${error.message}` });
     throw error;
   }
 }
 
 async function showResults() {
-  console.log('\n' + gradients.fire('🎊 Your Analysis Results! 🎊\n'));
-  
-  const result = global.lastAnalysisResult;
-  
-  if (!result) {
-    console.log('No results to display.');
+  if (!currentResult) {
+    console.log(chalk.red('No results to display.'));
     return;
   }
   
-  // Beautiful results display
-  if (result.eda || result.quality || result.visual || result.llm) {
-    console.log(gradients.ocean('📋 Analysis Summary:\n'));
-    
-    if (result.eda) {
-      console.log('✅ ' + chalk.green('Exploratory Data Analysis completed'));
-    }
-    if (result.quality) {
-      console.log('✅ ' + chalk.blue('Data Quality Check completed'));
-    }
-    if (result.visual) {
-      console.log('✅ ' + chalk.magenta('Visualization Recommendations completed'));
-    }
-    if (result.llm) {
-      console.log('✅ ' + chalk.cyan('AI-Ready Context generated'));
-    }
-  }
+  console.log(gradients.rainbow('\\n🎉 Analysis Results 🎉\\n'));
   
   // Always offer save first
   const wantToSave = await prompt({
@@ -664,117 +565,62 @@ async function showResults() {
   });
   
   if (wantToSave.save) {
-    await saveResults(result);
+    await saveResults(currentResult);
   }
   
-  let keepShowing = true;
-  while (keepShowing) {
-    const viewOptions = await prompt({
-      type: 'select',
-      name: 'view',
-      message: 'What would you like to do with your results?',
-      choices: [
-        { name: 'summary', message: '📄 Quick Summary' },
-        { name: 'detailed', message: '📊 Detailed Results' },
-        { name: 'save', message: '💾 Save to File' },
-        { name: 'copy', message: '📋 Copy for AI Analysis' },
-        { name: 'select', message: '📋 View Results (for copying)' },
-        { name: 'back', message: '← Back to Analysis Options' },
-        { name: 'menu', message: '🏠 Return to Main Menu' }
-      ]
-    });
-    
-    switch (viewOptions.view) {
-      case 'summary':
-        await showResultSummary(result);
-        break;
-      case 'detailed':
-        await showDetailedResults(result);
-        break;
-      case 'save':
-        await saveResults(result);
-        break;
-      case 'copy':
-        await copyForAI(result);
-        break;
-      case 'select':
-        await showSelectableResults(result);
-        break;
-      case 'back':
-        // Go back to analysis type selection
-        throw new Error('Back to analysis');
-      case 'menu':
-        keepShowing = false;
-        break;
-    }
-  }
-}
-
-async function showResultSummary(result) {
-  console.log('\n' + gradients.rainbow('📊 Analysis Summary 📊\n'));
-  
-  // This would show a beautiful summary of key findings
-  const summaryBox = boxen(
-    gradients.cosmic('🎯 Key Findings:\n\n') +
-    '• Data quality score: ' + gradients.green('85%') + '\n' +
-    '• Most important column: ' + gradients.yellow('revenue') + '\n' +
-    '• Best visualization: ' + gradients.blue('time series chart') + '\n' +
-    '• Recommended analysis: ' + gradients.purple('seasonal patterns') + '\n\n' +
-    gradients.fire('💡 Pro tip: Use the detailed view for more insights!'),
-    {
-      padding: 1,
-      borderStyle: 'double',
-      borderColor: 'yellow'
-    }
-  );
-  
-  console.log(summaryBox);
-  
-  await prompt({
-    type: 'confirm',
-    name: 'continue',
-    message: 'Continue?',
-    initial: true
+  // Then offer other options
+  const action = await prompt({
+    type: 'select',
+    name: 'action',
+    message: 'What would you like to do with the results?',
+    choices: [
+      { name: 'view', message: '👀 View results in terminal' },
+      { name: 'copy', message: '📋 Show selectable text for copying' },
+      { name: 'ai', message: '🤖 Format for AI analysis' },
+      { name: 'back', message: '← Back to main menu' }
+    ]
   });
+  
+  switch (action.action) {
+    case 'view':
+      await viewResults(currentResult);
+      break;
+    case 'copy':
+      await showSelectableResults(currentResult);
+      break;
+    case 'ai':
+      await copyForAI(currentResult);
+      break;
+    case 'back':
+      return;
+  }
 }
 
-async function showDetailedResults(result) {
-  console.log('\n' + gradients.fire('📈 Detailed Analysis Results 📈\n'));
-  
-  // This would show the actual analysis output in a formatted way
-  console.log('Detailed results would be displayed here...');
-  console.log('(Implementation would format the actual analysis output beautifully)');
+async function viewResults(result) {
+  console.clear();
+  console.log(gradients.cosmic('📊 Analysis Results 📊\\n'));
+  console.log(result);
   
   await prompt({
     type: 'confirm',
     name: 'continue',
-    message: 'Continue?',
-    initial: true
+    message: '\\nPress Enter to continue...'
   });
 }
 
 async function saveResults(result) {
-  const choices = [
-    { name: 'quick', message: '⚡ Quick Save (datapilot-analysis.txt)', value: 'quick' },
-    { name: 'custom', message: '📝 Choose custom filename', value: 'custom' },
-    { name: 'timestamped', message: '📅 Save with timestamp', value: 'timestamped' },
-    { name: 'back', message: '← Back to results menu', value: 'back' }
-  ];
-  
   const saveChoice = await prompt({
     type: 'select',
-    name: 'choice',
-    message: 'How would you like to save your results?',
-    choices
+    name: 'format',
+    message: 'Choose filename format:',
+    choices: [
+      { name: 'custom', message: '✏️  Custom filename' },
+      { name: 'timestamped', message: '🕐 Auto-timestamped filename' }
+    ]
   });
   
-  if (saveChoice.choice === 'back') return;
-  
   let filename;
-  switch (saveChoice.choice) {
-    case 'quick':
-      filename = 'datapilot-analysis.txt';
-      break;
+  switch (saveChoice.format) {
     case 'custom':
       const response = await prompt({
         type: 'input',
@@ -803,7 +649,7 @@ async function saveResults(result) {
     if (typeof result === 'string') {
       output = result;
     } else {
-      output = `DataPilot Analysis Results\nGenerated: ${new Date().toISOString()}\n\n`;
+      output = `DataPilot Analysis Results\\nGenerated: ${new Date().toISOString()}\\n\\n`;
       output += JSON.stringify(result, null, 2);
     }
     
@@ -818,9 +664,9 @@ async function saveResults(result) {
     });
     
     if (openFile.open) {
-      console.log(chalk.cyan('\n📄 Saved content preview:'));
+      console.log(chalk.cyan('\\n📄 Saved content preview:'));
       console.log(chalk.gray('─'.repeat(50)));
-      console.log(output.slice(0, 500) + (output.length > 500 ? '\n...(truncated)' : ''));
+      console.log(output.slice(0, 500) + (output.length > 500 ? '\\n...(truncated)' : ''));
       console.log(chalk.gray('─'.repeat(50)));
     }
     
@@ -838,14 +684,14 @@ async function saveResults(result) {
 }
 
 async function copyForAI(result) {
-  console.log('\n' + gradients.cosmic('🤖 AI-Ready Analysis Context 🤖\n'));
+  console.log('\\n' + gradients.cosmic('🤖 AI-Ready Analysis Context 🤖\\n'));
   
   const contextBox = boxen(
-    gradients.rainbow('Perfect for AI Analysis!\n\n') +
-    '🎯 Copy this analysis and paste into:\n' +
-    '• ChatGPT for insights\n' +
-    '• Claude for deep analysis\n' +
-    '• Any AI assistant for questions\n\n' +
+    gradients.rainbow('Perfect for AI Analysis!\\n\\n') +
+    '🎯 Copy this analysis and paste into:\\n' +
+    '• ChatGPT for insights\\n' +
+    '• Claude for deep analysis\\n' +
+    '• Any AI assistant for questions\\n\\n' +
     gradients.fire('💡 Ask: "What are the key patterns in this data?"'),
     {
       padding: 1,
@@ -865,7 +711,7 @@ async function copyForAI(result) {
 }
 
 async function showSelectableResults(result) {
-  console.log('\n' + gradients.fire('📋 Analysis Results (Select All to Copy) 📋\n'));
+  console.log('\\n' + gradients.fire('📋 Analysis Results (Select All to Copy) 📋\\n'));
   
   console.log(chalk.yellow('='.repeat(60)));
   console.log(chalk.cyan('DATAPILOT ANALYSIS RESULTS'));
@@ -901,7 +747,7 @@ async function showSelectableResults(result) {
 
 async function runDemo() {
   console.clear();
-  console.log(gradients.sunset('🎭 Demo Mode 🎭\n'));
+  console.log(gradients.sunset('🎭 Demo Mode 🎭\\n'));
   
   const demoChoice = await prompt({
     type: 'select',
@@ -921,7 +767,7 @@ async function runDemo() {
   const testFile = `tests/fixtures/test_sales.csv`;
   
   if (fs.existsSync(testFile)) {
-    console.log(gradients.fire('\n🎪 Running demo with sample data! 🎪\n'));
+    console.log(gradients.fire('\\n🎪 Running demo with sample data! 🎪\\n'));
     await runAnalysisWithAnimation(testFile, 'complete');
     await showResults();
   } else {
@@ -932,30 +778,21 @@ async function runDemo() {
 async function showGoodbyeAnimation() {
   console.clear();
   
-  let goodbye;
-  try {
-    goodbye = figlet.textSync('Thank You!', { 
-      font: 'Big',
-      horizontalLayout: 'fitted'
-    });
-  } catch (error) {
-    // Fallback
-    goodbye = `
+  const goodbye = `
   _____ _                 _      __   __           _ 
  |_   _| |__   __ _ _ __ | | __  \\ \\ / /__  _   _| |
    | | | '_ \\ / _\` | '_ \\| |/ /   \\ V / _ \\| | | | |
    | | | | | | (_| | | | |   <     | | (_) | |_| |_|
    |_| |_| |_|\\__,_|_| |_|_|\\_\\    |_|\\___/ \\__,_(_)
     `;
-  }
   
   console.log(gradients.rainbow(goodbye));
   
   const thankYouBox = boxen(
-    gradients.cosmic('🎉 Thanks for using DataPilot! 🎉\n\n') +
-    '✨ Hope you discovered amazing insights!\n' +
-    '📊 Your data has stories to tell\n' +
-    '🚀 Keep exploring and analyzing\n' +
+    gradients.cosmic('🎉 Thanks for using DataPilot! 🎉\\n\\n') +
+    '✨ Hope you discovered amazing insights!\\n' +
+    '📊 Your data has stories to tell\\n' +
+    '🚀 Keep exploring and analyzing\\n' +
     '💫 See you next time!',
     {
       padding: 1,
@@ -988,8 +825,8 @@ function formatPreviewTable(records, columns) {
   let table = '';
   
   // Headers
-  table += columns.slice(0, 4).join(' | ') + '\n';
-  table += columns.slice(0, 4).map(() => '---').join(' | ') + '\n';
+  table += columns.slice(0, 4).join(' | ') + '\\n';
+  table += columns.slice(0, 4).map(() => '---').join(' | ') + '\\n';
   
   // Data rows
   records.slice(0, 3).forEach(record => {
@@ -997,12 +834,327 @@ function formatPreviewTable(records, columns) {
       const value = record[col];
       return String(value || '').slice(0, 10);
     });
-    table += row.join(' | ') + '\n';
+    table += row.join(' | ') + '\\n';
   });
   
   if (columns.length > 4) {
-    table += `\n... and ${columns.length - 4} more columns`;
+    table += `\\n... and ${columns.length - 4} more columns`;
   }
   
   return table;
 }
+
+// Enhanced CSV Discovery Functions
+async function discoverCSVFiles(directory = process.cwd()) {
+  try {
+    const items = await fs.promises.readdir(directory, { withFileTypes: true });
+    const csvFiles = items
+      .filter(item => item.isFile() && item.name.endsWith('.csv'))
+      .map(file => path.join(directory, file.name));
+    
+    // Also check common data directories
+    const commonDataDirs = ['data', 'csv', 'datasets', 'files'];
+    for (const dir of commonDataDirs) {
+      const dirPath = path.join(directory, dir);
+      try {
+        const dataDirItems = await fs.promises.readdir(dirPath, { withFileTypes: true });
+        const dataCsvFiles = dataDirItems
+          .filter(item => item.isFile() && item.name.endsWith('.csv'))
+          .map(file => path.join(dirPath, file.name));
+        csvFiles.push(...dataCsvFiles);
+      } catch (error) {
+        // Directory doesn't exist, continue
+      }
+    }
+    
+    return csvFiles;
+  } catch (error) {
+    return [];
+  }
+}
+
+async function selectFromDiscovered(files) {
+  if (files.length === 0) return null;
+  
+  console.log(gradients.cyan('\\n🎯 Discovered CSV Files 🎯\\n'));
+  
+  // Show file previews
+  const choices = [];
+  for (const file of files) {
+    try {
+      const stats = await fs.promises.stat(file);
+      const sizeStr = formatFileSize(stats.size);
+      choices.push({
+        name: file,
+        message: `📊 ${path.basename(file)} (${sizeStr})`,
+        hint: `Location: ${path.dirname(file)}`
+      });
+    } catch (error) {
+      choices.push({
+        name: file,
+        message: `📊 ${path.basename(file)}`,
+        hint: 'File info unavailable'
+      });
+    }
+  }
+  
+  choices.push({ name: 'back', message: '← Back to file selection' });
+  
+  const response = await prompt({
+    type: 'select',
+    name: 'file',
+    message: 'Select a CSV file to analyze:',
+    choices
+  });
+  
+  return response.file === 'back' ? null : response.file;
+}
+
+async function workspaceMode(discoveredFiles) {
+  console.log(gradients.rainbow('\\n🏢 Workspace Mode 🏢\\n'));
+  console.log('Analyze multiple CSV files together and detect relationships\\n');
+  
+  if (discoveredFiles.length === 0) {
+    console.log(gradients.yellow('No CSV files found in current directory.'));
+    console.log('Please navigate to a directory with CSV files or use browse mode.\\n');
+    await prompt({ type: 'confirm', name: 'continue', message: 'Press Enter to continue...' });
+    return null;
+  }
+  
+  // Show workspace summary
+  const totalSize = await calculateTotalSize(discoveredFiles);
+  console.log(boxen(
+    `📁 Found ${discoveredFiles.length} CSV files\\n` +
+    `📊 Total size: ${formatFileSize(totalSize)}\\n` +
+    `🔍 Ready for batch analysis`,
+    { padding: 1, borderColor: 'cyan' }
+  ));
+  
+  const action = await prompt({
+    type: 'select',
+    name: 'action',
+    message: 'What would you like to do?',
+    choices: [
+      { name: 'analyze-all', message: '🚀 Analyze all files (EDA + INT + VIS)' },
+      { name: 'custom', message: '⚙️ Custom analysis selection' },
+      { name: 'relationships', message: '🔗 Detect relationships between files' },
+      { name: 'individual', message: '👆 Select individual file' },
+      { name: 'back', message: '← Back to file selection' }
+    ]
+  });
+  
+  switch (action.action) {
+    case 'analyze-all':
+      return await batchAnalyzeFiles(discoveredFiles, ['eda', 'int', 'vis']);
+    case 'custom':
+      return await customBatchAnalysis(discoveredFiles);
+    case 'relationships':
+      return await analyzeRelationships(discoveredFiles);
+    case 'individual':
+      return await selectFromDiscovered(discoveredFiles);
+    case 'back':
+      return null;
+  }
+}
+
+async function batchAnalyzeFiles(files, analysisTypes) {
+  console.log(gradients.fire('\\n🔥 Starting Batch Analysis 🔥\\n'));
+  
+  const results = [];
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    console.log(`\\n📊 Analyzing file ${i + 1}/${files.length}: ${path.basename(file)}`);
+    
+    try {
+      // Parse CSV first
+      const { data, headers } = await parseCSV(file);
+      
+      // Run selected analyses
+      for (const analysisType of analysisTypes) {
+        console.log(`  🔍 Running ${analysisType.toUpperCase()} analysis...`);
+        
+        let analysisResult;
+        switch (analysisType) {
+          case 'eda':
+            analysisResult = await eda(data, headers, file, {});
+            break;
+          case 'int':
+            analysisResult = await integrity(data, headers, file, {});
+            break;
+          case 'vis':
+            analysisResult = await visualize(data, headers, file, {});
+            break;
+          case 'llm':
+            analysisResult = await llmContext(data, headers, file, {});
+            break;
+        }
+        
+        results.push({
+          file: path.basename(file),
+          analysis: analysisType,
+          result: analysisResult
+        });
+      }
+    } catch (error) {
+      console.log(`  ❌ Error analyzing ${path.basename(file)}: ${error.message}`);
+      results.push({
+        file: path.basename(file),
+        error: error.message
+      });
+    }
+  }
+  
+  // Show batch summary
+  await showBatchSummary(results);
+  return 'batch-complete';
+}
+
+async function customBatchAnalysis(files) {
+  const analysisChoices = await prompt({
+    type: 'multiselect',
+    name: 'analyses',
+    message: 'Select analyses to run on all files:',
+    choices: [
+      { name: 'eda', message: '📊 Exploratory Data Analysis' },
+      { name: 'int', message: '🔍 Data Integrity Check' },
+      { name: 'vis', message: '📈 Visualization Recommendations' },
+      { name: 'llm', message: '🤖 LLM Context Generation' }
+    ]
+  });
+  
+  if (analysisChoices.analyses.length === 0) {
+    console.log(gradients.yellow('No analyses selected.'));
+    return null;
+  }
+  
+  return await batchAnalyzeFiles(files, analysisChoices.analyses);
+}
+
+async function analyzeRelationships(files) {
+  console.log(gradients.cosmic('\\n🔗 Analyzing File Relationships 🔗\\n'));
+  
+  // Simple relationship analysis based on column names
+  const relationships = [];
+  const fileSchemas = [];
+  
+  for (const file of files) {
+    try {
+      const { data, headers } = await parseCSV(file);
+      const columnTypes = detectColumnTypes(data, headers);
+      fileSchemas.push({
+        file: path.basename(file),
+        headers,
+        types: columnTypes,
+        sampleData: data.slice(0, 5)
+      });
+    } catch (error) {
+      console.log(`❌ Could not analyze ${path.basename(file)}: ${error.message}`);
+    }
+  }
+  
+  // Find potential relationships
+  for (let i = 0; i < fileSchemas.length; i++) {
+    for (let j = i + 1; j < fileSchemas.length; j++) {
+      const schema1 = fileSchemas[i];
+      const schema2 = fileSchemas[j];
+      
+      // Find common columns
+      const commonColumns = schema1.headers.filter(h => schema2.headers.includes(h));
+      if (commonColumns.length > 0) {
+        relationships.push({
+          file1: schema1.file,
+          file2: schema2.file,
+          commonColumns,
+          relationshipType: 'shared_columns'
+        });
+      }
+    }
+  }
+  
+  // Display relationship analysis
+  console.log(boxen(
+    `🔍 Relationship Analysis Results\\n\\n` +
+    `📁 Files analyzed: ${fileSchemas.length}\\n` +
+    `🔗 Relationships found: ${relationships.length}`,
+    { padding: 1, borderColor: 'magenta' }
+  ));
+  
+  if (relationships.length > 0) {
+    console.log('\\n🔗 Detected Relationships:');
+    relationships.forEach(rel => {
+      console.log(`  📊 ${rel.file1} ↔ ${rel.file2}`);
+      console.log(`     Common columns: ${rel.commonColumns.join(', ')}`);
+    });
+  } else {
+    console.log('\\n📊 No obvious relationships detected between files.');
+  }
+  
+  await prompt({ type: 'confirm', name: 'continue', message: '\\nPress Enter to continue...' });
+  return null;
+}
+
+async function showBatchSummary(results) {
+  console.log(gradients.rainbow('\\n🏁 Batch Analysis Complete! 🏁\\n'));
+  
+  const successful = results.filter(r => !r.error);
+  const failed = results.filter(r => r.error);
+  
+  console.log(boxen(
+    `✅ Successful analyses: ${successful.length}\\n` +
+    `❌ Failed analyses: ${failed.length}\\n` +
+    `📊 Total files processed: ${results.length}`,
+    { padding: 1, borderColor: 'green' }
+  ));
+  
+  if (failed.length > 0) {
+    console.log('\\n❌ Failed Files:');
+    failed.forEach(f => {
+      console.log(`  📄 ${f.file}: ${f.error}`);
+    });
+  }
+  
+  // Always offer save first
+  const wantToSave = await prompt({
+    type: 'confirm',
+    name: 'save',
+    message: '💾 Would you like to save batch analysis results?',
+    initial: true
+  });
+  
+  if (wantToSave.save) {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const outputFile = `batch-analysis-${timestamp}.txt`;
+    
+    let output = '# DataPilot Batch Analysis Results\\n\\n';
+    results.forEach(r => {
+      output += `## ${r.file}\\n`;
+      if (r.error) {
+        output += `Error: ${r.error}\\n\\n`;
+      } else {
+        output += `Analysis: ${r.analysis}\\n`;
+        output += r.result + '\\n\\n';
+      }
+    });
+    
+    await fs.promises.writeFile(outputFile, output);
+    console.log(gradients.green(`\\n💾 Results saved to: ${outputFile}`));
+  }
+  
+  await prompt({ type: 'confirm', name: 'continue', message: '\\nPress Enter to continue...' });
+}
+
+// Additional utility functions
+async function calculateTotalSize(files) {
+  let total = 0;
+  for (const file of files) {
+    try {
+      const stats = await fs.promises.stat(file);
+      total += stats.size;
+    } catch (error) {
+      // File might not exist, skip
+    }
+  }
+  return total;
+}
+
+// Export already done above with function declaration

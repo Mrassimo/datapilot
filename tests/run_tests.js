@@ -4,6 +4,7 @@ import { execSync } from 'child_process';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { runUXScenarios } from './ux_scenarios.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -256,6 +257,35 @@ async function main() {
   
   // Run performance test
   runPerformanceTest();
+  
+  // UX Scenario tests (if --ux flag is provided)
+  const args = process.argv.slice(2);
+  if (args.includes('--ux') || args.includes('--all')) {
+    log('\n=== UX Scenario Tests ===', 'blue');
+    log('Testing user experience workflows and accessibility...', 'yellow');
+    
+    try {
+      const uxResults = await runUXScenarios();
+      
+      log(`UX Tests - Passed: ${uxResults.passed}, Failed: ${uxResults.failed}`, 
+          uxResults.failed > 0 ? 'red' : 'green');
+      
+      // Add UX results to main results
+      results.passed += uxResults.passed;
+      results.failed += uxResults.failed;
+      
+      if (uxResults.performance && uxResults.performance.length > 0) {
+        log('\nUX Performance Metrics:', 'blue');
+        uxResults.performance.forEach(metric => {
+          log(`  ${metric.operation}: ${metric.duration}ms, ${(metric.memoryDelta / 1024 / 1024).toFixed(1)}MB`, 'yellow');
+        });
+      }
+      
+    } catch (error) {
+      log(`UX scenario tests failed: ${error.message}`, 'red');
+      results.failed++;
+    }
+  }
   
   // Generate report
   log('\n=== Test Results ===', 'blue');
