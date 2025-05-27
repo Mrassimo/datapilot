@@ -28,8 +28,22 @@ console.log(`Time: ${new Date().toISOString()}\n`);
 
 // Test runners based on platform
 const testRunners = {
+  engineUnit: {
+    name: 'TUI Engine Unit Tests',
+    command: 'node',
+    args: [path.join(__dirname, 'tui_engine_test.js')],
+    platforms: ['all']
+  },
+  
+  engineFlow: {
+    name: 'TUI Engine Flow Tests',
+    command: 'node',
+    args: [path.join(__dirname, 'tui_flow_test.js')],
+    platforms: ['all']
+  },
+  
   automated: {
-    name: 'Automated TUI Tests',
+    name: 'Automated TUI Tests (E2E)',
     command: 'node',
     args: [path.join(__dirname, 'automated_tui_test.js')],
     platforms: ['all']
