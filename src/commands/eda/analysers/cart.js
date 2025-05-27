@@ -1,5 +1,4 @@
-import mlCart from 'ml-cart';
-const { DecisionTreeRegression } = mlCart;
+import { DecisionTreeRegression } from 'ml-cart';
 
 export function performCARTAnalysis(records, columns, columnTypes, targetColumn = null) {
   // Prepare data for CART analysis
