@@ -13,7 +13,7 @@ export function extractEdaSummary(edaResults, options = {}) {
   };
 
   // Extract top statistical insights
-  if (edaResults.statisticalInsights && Array.isArray(edaResults.statisticalInsights)) {
+  if (edaResults.statisticalInsights && Array.isArray(edaResults.statisticalInsights) && edaResults.statisticalInsights.length > 0) {
     const topInsights = edaResults.statisticalInsights
       .filter(insight => insight && (insight.importance === 'high' || insight.significance > 0.8))
       .slice(0, 3);
@@ -46,10 +46,10 @@ export function extractEdaSummary(edaResults, options = {}) {
   }
 
   // Extract significant correlations
-  if (edaResults.correlations && Array.isArray(edaResults.correlations)) {
+  if (edaResults.correlations && Array.isArray(edaResults.correlations) && edaResults.correlations.length > 0) {
     const significantCorrelations = edaResults.correlations
       .filter(corr => corr && corr.value && Math.abs(corr.value) > 0.5)
-      .sort((a, b) => Math.abs(b.value) - Math.abs(a.value))
+      .sort((a, b) => Math.abs(b.value || 0) - Math.abs(a.value || 0))
       .slice(0, 3)
       .map(corr => ({
         columns: [corr.column1, corr.column2],
@@ -62,7 +62,7 @@ export function extractEdaSummary(edaResults, options = {}) {
   }
 
   // Extract distribution patterns
-  if (edaResults.distributions && Array.isArray(edaResults.distributions)) {
+  if (edaResults.distributions && Array.isArray(edaResults.distributions) && edaResults.distributions.length > 0) {
     const notableDistributions = edaResults.distributions
       .filter(dist => dist && (dist.skewness > 2 || dist.kurtosis > 7 || dist.bimodal))
       .slice(0, 3)

@@ -12,9 +12,10 @@ export function extractVisSummary(visResults, options = {}) {
   };
 
   // Extract top 3 visualization recommendations
-  if (visResults.recommendations) {
+  if (visResults.recommendations && Array.isArray(visResults.recommendations) && visResults.recommendations.length > 0) {
     const topRecs = visResults.recommendations
-      .sort((a, b) => b.score - a.score)
+      .filter(rec => rec && rec.score !== undefined)
+      .sort((a, b) => (b.score || 0) - (a.score || 0))
       .slice(0, 3)
       .map(rec => ({
         type: rec.chartType,
@@ -32,7 +33,7 @@ export function extractVisSummary(visResults, options = {}) {
     const dash = visResults.dashboardRecommendation;
     summary.dashboardLayout = {
       primaryView: dash.mainVisualization,
-      supportingViews: dash.supportingVisualizations.slice(0, 3),
+      supportingViews: dash.supportingVisualizations && Array.isArray(dash.supportingVisualizations) ? dash.supportingVisualizations.slice(0, 3) : [],
       keyMetrics: dash.kpiCards || [],
       interactivity: dash.interactiveElements || [],
       flow: dash.analyticalFlow || 'overview-to-detail'
@@ -40,9 +41,9 @@ export function extractVisSummary(visResults, options = {}) {
   }
 
   // Extract critical anti-patterns to avoid
-  if (visResults.antiPatterns) {
+  if (visResults.antiPatterns && Array.isArray(visResults.antiPatterns) && visResults.antiPatterns.length > 0) {
     const criticalAntiPatterns = visResults.antiPatterns
-      .filter(ap => ap.severity === 'high' || ap.commonMistake)
+      .filter(ap => ap && (ap.severity === 'high' || ap.commonMistake))
       .slice(0, 3)
       .map(ap => ({
         pattern: ap.name,
@@ -77,15 +78,15 @@ export function extractVisSummary(visResults, options = {}) {
       };
     }
     
-    if (perceptual.warnings && perceptual.warnings.length > 0) {
+    if (perceptual.warnings && Array.isArray(perceptual.warnings) && perceptual.warnings.length > 0) {
       summary.perceptualWarnings = perceptual.warnings.slice(0, 2);
     }
   }
 
   // Extract multivariate pattern visualizations
-  if (visResults.multivariatePatterns) {
+  if (visResults.multivariatePatterns && Array.isArray(visResults.multivariatePatterns) && visResults.multivariatePatterns.length > 0) {
     const mvPatterns = visResults.multivariatePatterns
-      .filter(pattern => pattern.strength > 0.7)
+      .filter(pattern => pattern && pattern.strength > 0.7)
       .slice(0, 2)
       .map(pattern => ({
         type: getMultivariateVizType(pattern),

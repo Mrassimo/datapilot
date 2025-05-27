@@ -12,8 +12,8 @@ export function analyseValidity(data, headers, columnTypes) {
   const validationRules = detectValidationRules(data, headers, columnTypes);
   const columnValidation = {};
 
-  headers.forEach((header, colIndex) => {
-    const columnData = data.map(row => row[colIndex]).filter(val => val !== null && val !== '');
+  headers.forEach((header) => {
+    const columnData = data.map(row => row[header]).filter(val => val !== null && val !== '');
     const rules = validationRules[header];
     
     columnValidation[header] = {
@@ -139,8 +139,8 @@ export function analyseValidity(data, headers, columnTypes) {
 function detectValidationRules(data, headers, columnTypes) {
   const rules = {};
 
-  headers.forEach((header, colIndex) => {
-    const columnData = data.map(row => row[colIndex]).filter(val => val !== null && val !== '');
+  headers.forEach((header) => {
+    const columnData = data.map(row => row[header]).filter(val => val !== null && val !== '');
     if (columnData.length === 0) return;
 
     const headerLower = header.toLowerCase();

@@ -63,11 +63,11 @@ export function extractEngSummary(engResults, options = {}) {
     const etl = engResults.etlAnalysis;
     const keyRequirements = [];
     
-    if (etl.dataQualityIssues && etl.dataQualityIssues.length > 0) {
+    if (etl.dataQualityIssues && Array.isArray(etl.dataQualityIssues) && etl.dataQualityIssues.length > 0) {
       keyRequirements.push({
         stage: 'Cleansing',
         requirement: 'Data quality fixes needed',
-        specifics: etl.dataQualityIssues.slice(0, 3).map(i => i.issue).join(', ')
+        specifics: etl.dataQualityIssues.slice(0, 3).map(i => i && i.issue || 'Unknown issue').join(', ')
       });
     }
     
@@ -94,9 +94,9 @@ export function extractEngSummary(engResults, options = {}) {
   }
 
   // Extract technical debt insights
-  if (engResults.technicalDebt) {
+  if (engResults.technicalDebt && Array.isArray(engResults.technicalDebt) && engResults.technicalDebt.length > 0) {
     const criticalDebt = engResults.technicalDebt
-      .filter(debt => debt.severity === 'high' || debt.impact === 'blocking')
+      .filter(debt => debt && (debt.severity === 'high' || debt.impact === 'blocking'))
       .slice(0, 3)
       .map(debt => ({
         issue: debt.description,
@@ -109,9 +109,9 @@ export function extractEngSummary(engResults, options = {}) {
   }
 
   // Extract discovered relationships
-  if (engResults.relationships) {
+  if (engResults.relationships && Array.isArray(engResults.relationships) && engResults.relationships.length > 0) {
     const strongRelationships = engResults.relationships
-      .filter(rel => rel.confidence > 0.9)
+      .filter(rel => rel && rel.confidence > 0.9)
       .slice(0, 5)
       .map(rel => ({
         type: rel.type,
@@ -136,7 +136,7 @@ export function extractEngSummary(engResults, options = {}) {
       };
     }
     
-    if (knowledge.commonPatterns && knowledge.commonPatterns.length > 0) {
+    if (knowledge.commonPatterns && Array.isArray(knowledge.commonPatterns) && knowledge.commonPatterns.length > 0) {
       summary.patterns = knowledge.commonPatterns
         .slice(0, 3)
         .map(p => ({

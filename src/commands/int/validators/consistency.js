@@ -29,8 +29,8 @@ export function analyseConsistency(data, headers) {
     results.score -= issue.severity === 'critical' ? 10 : 5;
   });
 
-  headers.forEach((header, colIndex) => {
-    const columnData = data.map(row => row[colIndex]).filter(val => val !== null && val !== '');
+  headers.forEach((header) => {
+    const columnData = data.map(row => row[header]).filter(val => val !== null && val !== '');
     
     const formatIssues = checkFormatConsistency(columnData, header);
     if (formatIssues.length > 0) {
@@ -92,9 +92,10 @@ export function analyseConsistency(data, headers) {
 function checkCrossColumnConsistency(data, headers) {
   const issues = [];
 
-  const dateColumns = headers.map((h, i) => ({ header: h, index: i }))
-    .filter(col => col.header.toLowerCase().includes('date') || 
-                   col.header.toLowerCase().includes('time'));
+  const dateColumns = headers
+    .filter(h => h.toLowerCase().includes('date') || 
+                 h.toLowerCase().includes('time'))
+    .map(h => ({ header: h }));
 
   for (let i = 0; i < dateColumns.length - 1; i++) {
     for (let j = i + 1; j < dateColumns.length; j++) {
@@ -108,19 +109,19 @@ function checkCrossColumnConsistency(data, headers) {
     }
   }
 
-  const ageColumn = headers.findIndex(h => h.toLowerCase().includes('age'));
-  const birthDateColumn = headers.findIndex(h => 
+  const ageColumn = headers.find(h => h.toLowerCase().includes('age'));
+  const birthDateColumn = headers.find(h => 
     h.toLowerCase().includes('birth') || h.toLowerCase().includes('dob'));
   
-  if (ageColumn !== -1 && birthDateColumn !== -1) {
-    const ageConsistency = checkAgeDateConsistency(data, ageColumn, birthDateColumn);
+  if (ageColumn && birthDateColumn) {
+    const ageConsistency = checkAgeDateConsistency(data, ageColumn, birthDateColumn, headers);
     if (ageConsistency) {
       issues.push(ageConsistency);
     }
   }
 
-  const statusColumn = headers.findIndex(h => h.toLowerCase().includes('status'));
-  if (statusColumn !== -1) {
+  const statusColumn = headers.find(h => h.toLowerCase().includes('status'));
+  if (statusColumn) {
     const statusIssues = checkStatusConsistency(data, headers, statusColumn);
     issues.push(...statusIssues);
   }
@@ -145,8 +146,8 @@ function checkTemporalLogic(data, col1, col2) {
   if (!rules) return null;
 
   data.forEach((row, index) => {
-    const date1 = parseDate(row[col1.index]);
-    const date2 = parseDate(row[col2.index]);
+    const date1 = parseDate(row[col1.header]);
+    const date2 = parseDate(row[col2.header]);
     
     if (date1 && date2) {
       if (rules.relationship === 'before' && date1 > date2) {
@@ -154,8 +155,8 @@ function checkTemporalLogic(data, col1, col2) {
         if (examples.length < 5) {
           examples.push({
             row: index + 1,
-            [col1.header]: row[col1.index],
-            [col2.header]: row[col2.index]
+            [col1.header]: row[col1.header],
+            [col2.header]: row[col2.header]
           });
         }
       } else if (rules.relationship === 'after' && date1 < date2) {
@@ -163,8 +164,8 @@ function checkTemporalLogic(data, col1, col2) {
         if (examples.length < 5) {
           examples.push({
             row: index + 1,
-            [col1.header]: row[col1.index],
-            [col2.header]: row[col2.index]
+            [col1.header]: row[col1.header],
+            [col2.header]: row[col2.header]
           });
         }
       }
@@ -205,14 +206,14 @@ function getTemporalRules(field1, field2) {
   return null;
 }
 
-function checkAgeDateConsistency(data, ageIndex, birthDateIndex) {
+function checkAgeDateConsistency(data, ageColumn, birthDateColumn, headers) {
   let inconsistentCount = 0;
   const examples = [];
   const currentYear = new Date().getFullYear();
 
   data.forEach((row, index) => {
-    const age = parseInt(row[ageIndex]);
-    const birthDate = parseDate(row[birthDateIndex]);
+    const age = parseInt(row[ageColumn]);
+    const birthDate = parseDate(row[birthDateColumn]);
     
     if (!isNaN(age) && birthDate) {
       const birthYear = birthDate.getFullYear();
@@ -224,7 +225,7 @@ function checkAgeDateConsistency(data, ageIndex, birthDateIndex) {
           examples.push({
             row: index + 1,
             statedAge: age,
-            birthDate: row[birthDateIndex],
+            birthDate: row[birthDateColumn],
             calculatedAge: calculatedAge
           });
         }
@@ -245,12 +246,12 @@ function checkAgeDateConsistency(data, ageIndex, birthDateIndex) {
   return null;
 }
 
-function checkStatusConsistency(data, headers, statusIndex) {
+function checkStatusConsistency(data, headers, statusColumn) {
   const issues = [];
   const statusValues = {};
 
   data.forEach((row, rowIndex) => {
-    const status = row[statusIndex];
+    const status = row[statusColumn];
     if (!status) return;
 
     if (!statusValues[status]) {
@@ -261,9 +262,9 @@ function checkStatusConsistency(data, headers, statusIndex) {
     }
     statusValues[status].count++;
 
-    headers.forEach((header, colIndex) => {
-      if (colIndex !== statusIndex) {
-        const value = row[colIndex];
+    headers.forEach((header) => {
+      if (header !== statusColumn) {
+        const value = row[header];
         if (value !== null && value !== '') {
           const pattern = `${header}:${value}`;
           if (!statusValues[status].associatedPatterns[pattern]) {
@@ -415,18 +416,19 @@ function toTitleCase(str) {
 
 function findCaseVariations(data, headers) {
   const variations = [];
-  const textColumns = headers.map((h, i) => ({ header: h, index: i }))
-    .filter(col => {
-      const sample = data.slice(0, 100).map(row => row[col.index])
+  const textColumns = headers
+    .filter(h => {
+      const sample = data.slice(0, 100).map(row => row[h])
         .filter(v => v && typeof v === 'string');
       return sample.length > 10 && sample.some(v => isNaN(parseFloat(v)));
-    });
+    })
+    .map(h => ({ header: h }));
 
   textColumns.forEach(col => {
     const valueGroups = {};
     
     data.forEach(row => {
-      const value = row[col.index];
+      const value = row[col.header];
       if (value && typeof value === 'string') {
         const normalized = value.toLowerCase().trim();
         if (!valueGroups[normalized]) {
@@ -485,10 +487,11 @@ function checkNamingConsistency(data, headers) {
 
 function findAddressColumns(headers) {
   const addressTerms = ['address', 'street', 'city', 'state', 'postcode', 'zip', 'country'];
-  return headers.map((h, i) => ({ header: h, index: i }))
-    .filter(col => addressTerms.some(term => 
-      col.header.toLowerCase().includes(term)
-    ));
+  return headers
+    .filter(h => addressTerms.some(term => 
+      h.toLowerCase().includes(term)
+    ))
+    .map(h => ({ header: h }));
 }
 
 function checkGeographicConsistency(data, addressColumns) {
@@ -518,8 +521,8 @@ function checkGeographicConsistency(data, addressColumns) {
     const examples = [];
 
     data.forEach((row, index) => {
-      const postcode = parseInt(row[postcodeCol.index]);
-      const state = row[stateCol.index];
+      const postcode = parseInt(row[postcodeCol.header]);
+      const state = row[stateCol.header];
 
       if (!isNaN(postcode) && state && auPostcodeRanges[state]) {
         const validRanges = auPostcodeRanges[state];

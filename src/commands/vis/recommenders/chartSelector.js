@@ -191,9 +191,21 @@ export class ChartSelector {
     const scoredCandidates = this.scoreCandidates(candidates, task, dataProfile, constraints);
     const filtered = this.applyConstraints(scoredCandidates, constraints);
     
+    // Ensure we have a primary chart
+    if (!filtered || filtered.length === 0) {
+      return {
+        primary: null,
+        alternatives: [],
+        reasoning: 'No suitable visualizations found for this data and task combination'
+      };
+    }
+    
+    // Safely extract alternatives, ensuring we don't go out of bounds
+    const alternatives = filtered.length > 1 ? filtered.slice(1, Math.min(4, filtered.length)) : [];
+    
     return {
       primary: filtered[0],
-      alternatives: filtered.slice(1, 4),
+      alternatives: alternatives,
       reasoning: this.explainSelection(filtered[0], task, dataProfile)
     };
   }

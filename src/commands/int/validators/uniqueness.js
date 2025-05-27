@@ -9,8 +9,8 @@ export function analyseUniqueness(data, headers) {
 
   const uniquenessAnalysis = {};
   
-  headers.forEach((header, colIndex) => {
-    const columnData = data.map(row => row[colIndex]).filter(val => val !== null && val !== '');
+  headers.forEach((header) => {
+    const columnData = data.map(row => row[header]).filter(val => val !== null && val !== '');
     if (columnData.length === 0) return;
 
     const analysis = analyseColumnUniqueness(columnData, header);
@@ -175,8 +175,8 @@ function findCompositeDuplicates(data, headers) {
     const compositeKeys = {};
     
     data.forEach((row, index) => {
-      const key = combination.indices
-        .map(idx => row[idx])
+      const key = combination.fields
+        .map(field => row[field])
         .filter(val => val !== null && val !== '')
         .join('|');
       
@@ -214,19 +214,19 @@ function findCompositeDuplicates(data, headers) {
 function generateCandidateCombinations(headers) {
   const combinations = [];
   
-  const keyFields = headers.map((h, i) => ({ header: h, index: i }))
-    .filter(field => {
-      const lower = field.header.toLowerCase();
+  const keyFields = headers
+    .filter(h => {
+      const lower = h.toLowerCase();
       return lower.includes('name') || lower.includes('email') || 
              lower.includes('phone') || lower.includes('address') ||
              lower.includes('id') || lower.includes('code');
-    });
+    })
+    .map(h => ({ header: h }));
 
   for (let i = 0; i < keyFields.length - 1; i++) {
     for (let j = i + 1; j < keyFields.length; j++) {
       combinations.push({
-        fields: [keyFields[i].header, keyFields[j].header],
-        indices: [keyFields[i].index, keyFields[j].index]
+        fields: [keyFields[i].header, keyFields[j].header]
       });
     }
   }
@@ -239,12 +239,13 @@ function analyseNearDuplicates(data, headers) {
     return analyseSampledNearDuplicates(data, headers, 1000);
   }
 
-  const textColumns = headers.map((h, i) => ({ header: h, index: i }))
-    .filter(col => {
-      const sample = data.slice(0, 100).map(row => row[col.index])
+  const textColumns = headers
+    .filter(h => {
+      const sample = data.slice(0, 100).map(row => row[h])
         .filter(v => v && typeof v === 'string');
       return sample.length > 50;
-    });
+    })
+    .map(h => ({ header: h }));
 
   if (textColumns.length === 0) return [];
 
@@ -292,12 +293,13 @@ function analyseSampledNearDuplicates(data, headers, sampleSize) {
     sample.push({ data: data[i], originalIndex: i });
   }
 
-  const textColumns = headers.map((h, i) => ({ header: h, index: i }))
-    .filter(col => {
-      const testSample = sample.slice(0, 100).map(s => s.data[col.index])
+  const textColumns = headers
+    .filter(h => {
+      const testSample = sample.slice(0, 100).map(s => s.data[h])
         .filter(v => v && typeof v === 'string');
       return testSample.length > 50;
-    });
+    })
+    .map(h => ({ header: h }));
 
   if (textColumns.length === 0) return [];
 
@@ -340,8 +342,8 @@ function calculateRecordSimilarity(record1, record2, textColumns) {
   let comparedFields = 0;
 
   textColumns.forEach(col => {
-    const val1 = String(record1[col.index] || '').toLowerCase().trim();
-    const val2 = String(record2[col.index] || '').toLowerCase().trim();
+    const val1 = String(record1[col.header] || '').toLowerCase().trim();
+    const val2 = String(record2[col.header] || '').toLowerCase().trim();
 
     if (val1 && val2) {
       const similarity = calculateStringSimilarity(val1, val2);

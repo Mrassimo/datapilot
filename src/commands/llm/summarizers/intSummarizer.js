@@ -26,9 +26,9 @@ export function extractIntSummary(intResults, options = {}) {
     intResults.validationResults : 
     (intResults.validationResults ? [intResults.validationResults] : []);
     
-  if (validationResults.length > 0) {
+  if (validationResults && validationResults.length > 0) {
     const criticalValidations = validationResults
-      .filter(v => v.severity === 'critical' || v.failureRate > 0.1)
+      .filter(v => v && (v.severity === 'critical' || v.failureRate > 0.1))
       .sort((a, b) => (b.recordsAffected || 0) - (a.recordsAffected || 0))
       .slice(0, 5);
     
@@ -47,9 +47,9 @@ export function extractIntSummary(intResults, options = {}) {
     intResults.businessRules : 
     (intResults.businessRules ? [intResults.businessRules] : []);
     
-  if (businessRules.length > 0) {
+  if (businessRules && businessRules.length > 0) {
     const highConfidenceRules = businessRules
-      .filter(rule => (rule.confidence || 0) > 0.95)
+      .filter(rule => rule && (rule.confidence || 0) > 0.95)
       .slice(0, 5)
       .map(rule => ({
         rule: rule.description,
@@ -63,9 +63,9 @@ export function extractIntSummary(intResults, options = {}) {
   }
 
   // Extract referential integrity issues
-  if (intResults.referentialIntegrity) {
+  if (intResults.referentialIntegrity && Array.isArray(intResults.referentialIntegrity)) {
     const orphanedRecords = intResults.referentialIntegrity
-      .filter(ref => ref.orphanedCount > 0)
+      .filter(ref => ref && ref.orphanedCount > 0)
       .map(ref => ({
         type: 'referential_integrity',
         column: ref.foreignKey,
@@ -83,9 +83,9 @@ export function extractIntSummary(intResults, options = {}) {
     intResults.patternAnomalies : 
     (intResults.patternAnomalies ? [intResults.patternAnomalies] : []);
     
-  if (patternAnomalies.length > 0) {
+  if (patternAnomalies && patternAnomalies.length > 0) {
     const significantAnomalies = patternAnomalies
-      .filter(anomaly => anomaly.severity === 'high' || anomaly.count > 100)
+      .filter(anomaly => anomaly && (anomaly.severity === 'high' || anomaly.count > 100))
       .slice(0, 3)
       .map(anomaly => ({
         type: 'pattern_anomaly',
@@ -104,9 +104,9 @@ export function extractIntSummary(intResults, options = {}) {
     intResults.suggestedFixes : 
     (intResults.suggestedFixes ? [intResults.suggestedFixes] : []);
     
-  if (suggestedFixes.length > 0) {
+  if (suggestedFixes && suggestedFixes.length > 0) {
     const automatedFixes = suggestedFixes
-      .filter(fix => fix.automatable && (fix.confidence || 0) > 0.9)
+      .filter(fix => fix && fix.automatable && (fix.confidence || 0) > 0.9)
       .slice(0, 5)
       .map(fix => ({
         issue: fix.issue,

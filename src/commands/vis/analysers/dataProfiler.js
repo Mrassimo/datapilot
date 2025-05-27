@@ -513,25 +513,49 @@ export class DataProfiler {
   
   countGeographicColumns(columns, columnTypes) {
     const geoKeywords = ['state', 'country', 'city', 'region', 'location', 'address', 
-                        'postcode', 'zip', 'latitude', 'longitude', 'lat', 'lon', 'lng'];
+                        'postcode', 'zip', 'latitude', 'longitude', 'lat', 'lon', 'lng',
+                        'suburb', 'district', 'province', 'county', 'area'];
     
     return columns.filter(col => {
-      const isGeo = geoKeywords.some(keyword => col.toLowerCase().includes(keyword));
-      const isAppropriateType = ['categorical', 'postcode', 'string', 'float', 'integer']
-        .includes(columnTypes[col]?.type || 'unknown');
-      return isGeo && isAppropriateType;
+      const colLower = col.toLowerCase();
+      const colType = columnTypes[col]?.type;
+      
+      // Check for geographic keywords
+      const hasGeoKeyword = geoKeywords.some(keyword => colLower.includes(keyword));
+      
+      // Check for coordinate patterns (lat/long)
+      const isCoordinate = (colLower.includes('lat') || colLower.includes('lon') || 
+                           colLower.includes('lng')) && ['float', 'integer'].includes(colType);
+      
+      // Check for appropriate data type (exclude 'unknown' type)
+      const isAppropriateType = colType && colType !== 'unknown' && 
+        ['categorical', 'postcode', 'string', 'float', 'integer'].includes(colType);
+      
+      return (hasGeoKeyword || isCoordinate) && isAppropriateType;
     }).length;
   }
   
   findGeographicColumns(columns, columnTypes) {
     const geoKeywords = ['state', 'country', 'city', 'region', 'location', 'address', 
-                        'postcode', 'zip', 'latitude', 'longitude', 'lat', 'lon', 'lng'];
+                        'postcode', 'zip', 'latitude', 'longitude', 'lat', 'lon', 'lng',
+                        'suburb', 'district', 'province', 'county', 'area'];
     
     return columns.filter(col => {
-      const isGeo = geoKeywords.some(keyword => col.toLowerCase().includes(keyword));
-      const isAppropriateType = ['categorical', 'postcode', 'string', 'float', 'integer']
-        .includes(columnTypes[col]?.type || 'unknown');
-      return isGeo && isAppropriateType;
+      const colLower = col.toLowerCase();
+      const colType = columnTypes[col]?.type;
+      
+      // Check for geographic keywords
+      const hasGeoKeyword = geoKeywords.some(keyword => colLower.includes(keyword));
+      
+      // Check for coordinate patterns (lat/long)
+      const isCoordinate = (colLower.includes('lat') || colLower.includes('lon') || 
+                           colLower.includes('lng')) && ['float', 'integer'].includes(colType);
+      
+      // Check for appropriate data type (exclude 'unknown' type)
+      const isAppropriateType = colType && colType !== 'unknown' && 
+        ['categorical', 'postcode', 'string', 'float', 'integer'].includes(colType);
+      
+      return (hasGeoKeyword || isCoordinate) && isAppropriateType;
     });
   }
 }

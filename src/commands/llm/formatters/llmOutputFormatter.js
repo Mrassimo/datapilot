@@ -311,9 +311,9 @@ function formatSuggestedAnalyses(results) {
   }
   
   // From original analysis suggestions
-  if (results.originalAnalysis?.analysisSuggestions) {
+  if (results.originalAnalysis?.analysisSuggestions && Array.isArray(results.originalAnalysis.analysisSuggestions)) {
     results.originalAnalysis.analysisSuggestions
-      .filter(sugg => !suggestions.some(s => s.includes(sugg.split(' ')[0])))
+      .filter(sugg => sugg && !suggestions.some(s => s.includes(sugg.split(' ')[0])))
       .slice(0, 5 - suggestions.length)
       .forEach(sugg => suggestions.push(sugg));
   }
@@ -321,10 +321,12 @@ function formatSuggestedAnalyses(results) {
   // Default suggestions based on data characteristics
   if (suggestions.length < 3) {
     const defaults = generateDefaultSuggestions(results);
-    defaults
-      .filter(sugg => !suggestions.includes(sugg))
-      .slice(0, 5 - suggestions.length)
-      .forEach(sugg => suggestions.push(sugg));
+    if (defaults && Array.isArray(defaults)) {
+      defaults
+        .filter(sugg => sugg && !suggestions.includes(sugg))
+        .slice(0, 5 - suggestions.length)
+        .forEach(sugg => suggestions.push(sugg));
+    }
   }
   
   suggestions.forEach((suggestion, idx) => {

@@ -11,8 +11,8 @@ export function analyseAccuracy(data, headers, columnTypes) {
 
   const accuracyChecks = {};
 
-  headers.forEach((header, colIndex) => {
-    const columnData = data.map(row => row[colIndex]).filter(val => val !== null && val !== '');
+  headers.forEach((header) => {
+    const columnData = data.map(row => row[header]).filter(val => val !== null && val !== '');
     const type = columnTypes[header];
 
     accuracyChecks[header] = {
@@ -71,7 +71,7 @@ export function analyseAccuracy(data, headers, columnTypes) {
       }
     }
 
-    const businessRules = detectBusinessRuleViolations(columnData, header, data, headers, colIndex);
+    const businessRules = detectBusinessRuleViolations(columnData, header, data, headers);
     if (businessRules.length > 0) {
       accuracyChecks[header].businessRuleViolations = businessRules;
       businessRules.forEach(rule => {
@@ -318,7 +318,7 @@ function calculateKurtosis(values) {
          (3 * Math.pow(n - 1, 2)) / ((n - 2) * (n - 3));
 }
 
-function detectBusinessRuleViolations(columnData, header, allData, allHeaders, colIndex) {
+function detectBusinessRuleViolations(columnData, header, allData, allHeaders) {
   const violations = [];
   const headerLower = header.toLowerCase();
 
@@ -327,10 +327,10 @@ function detectBusinessRuleViolations(columnData, header, allData, allHeaders, c
     if (relatedColumns.length > 0) {
       let violationCount = 0;
       allData.forEach((row, rowIndex) => {
-        const total = parseFloat(row[colIndex]);
+        const total = parseFloat(row[header]);
         if (!isNaN(total)) {
           const sum = relatedColumns.reduce((acc, relCol) => {
-            const val = parseFloat(row[relCol.index]);
+            const val = parseFloat(row[relCol.header]);
             return acc + (isNaN(val) ? 0 : val);
           }, 0);
           
@@ -368,7 +368,7 @@ function findRelatedColumns(totalColumn, allHeaders) {
         (headerLower.includes(baseName) || baseName.includes(headerLower)) &&
         !headerLower.includes('total') && 
         !headerLower.includes('sum')) {
-      related.push({ header, index });
+      related.push({ header });
     }
   });
 
@@ -377,9 +377,10 @@ function findRelatedColumns(totalColumn, allHeaders) {
 
 function checkReferentialIntegrity(data, headers) {
   const issues = [];
-  const idColumns = headers.map((h, i) => ({ header: h, index: i }))
-    .filter(col => col.header.toLowerCase().includes('_id') || 
-                   col.header.toLowerCase().endsWith('id'));
+  const idColumns = headers
+    .filter(h => h.toLowerCase().includes('_id') || 
+                 h.toLowerCase().endsWith('id'))
+    .map(h => ({ header: h }));
 
   idColumns.forEach(idCol => {
     const referencedEntity = idCol.header.toLowerCase()
@@ -390,7 +391,7 @@ function checkReferentialIntegrity(data, headers) {
     const idCounts = {};
 
     data.forEach(row => {
-      const id = row[idCol.index];
+      const id = row[idCol.header];
       if (id !== null && id !== '') {
         uniqueIds.add(id);
         idCounts[id] = (idCounts[id] || 0) + 1;

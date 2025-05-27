@@ -139,7 +139,7 @@ export function analyseTimeliness(data, headers) {
 function identifyDateColumns(data, headers) {
   const dateColumns = [];
   
-  headers.forEach((header, index) => {
+  headers.forEach((header) => {
     const headerLower = header.toLowerCase();
     const isLikelyDate = headerLower.includes('date') || 
                         headerLower.includes('time') ||
@@ -149,17 +149,17 @@ function identifyDateColumns(data, headers) {
                         headerLower.includes('_at') ||
                         headerLower.includes('_on');
 
-    if (isLikelyDate || isDateColumn(data, index)) {
-      dateColumns.push({ header, index });
+    if (isLikelyDate || isDateColumn(data, header)) {
+      dateColumns.push({ header });
     }
   });
 
   return dateColumns;
 }
 
-function isDateColumn(data, colIndex) {
+function isDateColumn(data, header) {
   const sample = data.slice(0, Math.min(100, data.length))
-    .map(row => row[colIndex])
+    .map(row => row[header])
     .filter(val => val !== null && val !== '');
 
   if (sample.length === 0) return false;
@@ -182,7 +182,7 @@ function analyseDateColumn(data, dateCol) {
   const futureDates = [];
   
   data.forEach((row, index) => {
-    const value = row[dateCol.index];
+    const value = row[dateCol.header];
     if (value === null || value === '') return;
 
     const date = parseDate(value);
@@ -357,8 +357,8 @@ function analyseUpdatePatterns(data, createdCol, modifiedCol) {
   const modificationAges = [];
 
   data.forEach((row, index) => {
-    const created = parseDate(row[createdCol.index]);
-    const modified = parseDate(row[modifiedCol.index]);
+    const created = parseDate(row[createdCol.header]);
+    const modified = parseDate(row[modifiedCol.header]);
 
     if (created && modified) {
       if (created.getTime() === modified.getTime()) {

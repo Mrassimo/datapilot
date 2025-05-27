@@ -6,6 +6,7 @@ import { OutputHandler } from '../utils/output.js';
 import { statSync } from 'fs';
 import { basename } from 'path';
 import { KnowledgeBase } from '../utils/knowledgeBase.js';
+import { createRelationshipValidator } from './eng/validators/relationshipValidator.js';
 import ora from 'ora';
 import chalk from 'chalk';
 import yaml from 'js-yaml';
@@ -143,7 +144,7 @@ class ArchaeologyEngine {
       tech_debt_hours: this.estimateTechnicalDebt(records, columns, columnTypes),
       domain: this.guessDomain(fileName, columns),
       likely_purpose: this.guessTablePurpose(fileName, columns, columnTypes),
-      relationships: this.detectPotentialRelationships(columns, columnTypes),
+      relationships: this.detectPotentialRelationships(columns, columnTypes, records),
       patterns: this.detectTablePatterns(columns, records, columnTypes),
       schema_recommendations: this.generateSchemaRecommendations(columns, columnTypes, records),
       etl_recommendations: this.generateETLRecommendations(records, columns, columnTypes),
@@ -464,8 +465,11 @@ NEXT_INVESTIGATE: [what tables to analyze next]`;
   }
 
   // Enhanced analysis methods with advanced pattern recognition
-  detectPotentialRelationships(columns, columnTypes) {
+  detectPotentialRelationships(columns, columnTypes, records = []) {
     const relationships = [];
+    
+    // Create validator for data-driven validation
+    const validator = records.length > 0 ? createRelationshipValidator(records, columns, columnTypes) : null;
     
     // Advanced foreign key pattern analysis
     columns.forEach(column => {
@@ -475,16 +479,29 @@ NEXT_INVESTIGATE: [what tables to analyze next]`;
       // Sophisticated ID pattern detection
       if (colLower.includes('_id') || colLower.endsWith('id')) {
         const tableHint = this.extractTableFromId(colLower);
-        const confidence = this.calculateFKConfidence(column, type, tableHint);
+        const nameBasedConfidence = this.calculateFKConfidence(column, type, tableHint);
         
-        if (tableHint && confidence > 0.5) {
+        if (tableHint && nameBasedConfidence > 0.5) {
+          const targetTable = this.pluralizeTableName(tableHint);
+          let finalConfidence = nameBasedConfidence;
+          let dataValidation = null;
+          
+          // Perform data validation if validator is available
+          if (validator) {
+            dataValidation = validator.validateForeignKey(column, targetTable);
+            // Combine name-based and data-based confidence
+            finalConfidence = (nameBasedConfidence * 0.4 + dataValidation.confidence * 0.6);
+          }
+          
           relationships.push({
             type: 'foreign_key',
             column: column,
-            confidence: confidence,
-            target_table: this.pluralizeTableName(tableHint),
+            confidence: finalConfidence,
+            target_table: targetTable,
             target_column: 'id',
-            evidence: this.buildFKEvidence(column, type, tableHint, confidence)
+            evidence: this.buildFKEvidence(column, type, tableHint, finalConfidence),
+            dataValidation: dataValidation,
+            validationIssues: dataValidation?.issues || []
           });
         }
       }
@@ -492,29 +509,53 @@ NEXT_INVESTIGATE: [what tables to analyze next]`;
       // Enhanced code/reference pattern analysis
       if ((colLower.includes('code') || colLower.includes('cd')) && type.type === 'categorical') {
         const domain = this.extractDomainFromCode(colLower);
-        const confidence = this.calculateCodeConfidence(column, type);
+        const nameBasedConfidence = this.calculateCodeConfidence(column, type);
+        const targetTable = `ref_${domain}_codes`;
+        let finalConfidence = nameBasedConfidence;
+        let dataValidation = null;
+        
+        // Perform data validation if validator is available
+        if (validator) {
+          dataValidation = validator.validateForeignKey(column, targetTable, 'code');
+          // Combine name-based and data-based confidence
+          finalConfidence = (nameBasedConfidence * 0.4 + dataValidation.confidence * 0.6);
+        }
         
         relationships.push({
           type: 'lookup_reference',
           column: column,
-          confidence: confidence,
-          target_table: `ref_${domain}_codes`,
+          confidence: finalConfidence,
+          target_table: targetTable,
           target_column: 'code',
-          evidence: `Code pattern (${type.categories?.length || 'unknown'} distinct values) suggests lookup table relationship`
+          evidence: `Code pattern (${type.categories?.length || 'unknown'} distinct values) suggests lookup table relationship`,
+          dataValidation: dataValidation,
+          validationIssues: dataValidation?.issues || []
         });
       }
       
       // Advanced categorical pattern analysis
       if ((colLower.includes('type') || colLower.includes('category') || colLower.includes('status')) && type.type === 'categorical') {
-        const confidence = this.calculateCategoricalConfidence(column, type);
+        const nameBasedConfidence = this.calculateCategoricalConfidence(column, type);
+        const targetTable = `ref_${colLower.replace(/[^a-z]/g, '_')}s`;
+        let finalConfidence = nameBasedConfidence;
+        let dataValidation = null;
+        
+        // Perform data validation if validator is available
+        if (validator) {
+          dataValidation = validator.validateForeignKey(column, targetTable, 'name');
+          // Combine name-based and data-based confidence
+          finalConfidence = (nameBasedConfidence * 0.4 + dataValidation.confidence * 0.6);
+        }
         
         relationships.push({
           type: 'enum_reference',
           column: column,
-          confidence: confidence,
-          target_table: `ref_${colLower.replace(/[^a-z]/g, '_')}s`,
+          confidence: finalConfidence,
+          target_table: targetTable,
           target_column: 'name',
-          evidence: `Categorical field (${type.categories?.length || 'unknown'} values) suggests enumeration reference`
+          evidence: `Categorical field (${type.categories?.length || 'unknown'} values) suggests enumeration reference`,
+          dataValidation: dataValidation,
+          validationIssues: dataValidation?.issues || []
         });
       }
       
@@ -1038,8 +1079,39 @@ NEXT_INVESTIGATE: [what tables to analyze next]`;
     return Math.round(score * 10) / 10;
   }
 
-  generateSchemaRecommendations(columns, columnTypes, records) { 
-    return this.generateLegacySchemaSection(columns, columnTypes, records); 
+  generateSchemaRecommendations(columns, columnTypes, records) {
+    const relationships = this.detectPotentialRelationships(columns, columnTypes, records);
+    let recommendations = this.generateLegacySchemaSection(columns, columnTypes, records);
+    
+    // Add relationships section if any were found
+    if (relationships && relationships.length > 0) {
+      recommendations += '\nDetected Relationships:\n';
+      relationships.forEach(rel => {
+        // Handle cross-column relationships which use 'columns' instead of 'column'
+        const sourceColumn = rel.column || (rel.columns ? rel.columns.join(', ') : 'unknown');
+        recommendations += `\n- ${sourceColumn} → ${rel.target_table}.${rel.target_column}`;
+        recommendations += `\n  Type: ${rel.type}, Confidence: ${(rel.confidence * 100).toFixed(0)}%`;
+        recommendations += `\n  Evidence: ${rel.evidence}`;
+        
+        // Add validation results if available
+        if (rel.dataValidation) {
+          recommendations += `\n  Data Validation: ${rel.dataValidation.validationType} - Confidence: ${(rel.dataValidation.confidence * 100).toFixed(0)}%`;
+          if (rel.dataValidation.issues && rel.dataValidation.issues.length > 0) {
+            recommendations += '\n  Issues Found:';
+            rel.dataValidation.issues.forEach(issue => {
+              recommendations += `\n    - ${issue}`;
+            });
+          }
+          if (rel.dataValidation.details) {
+            Object.entries(rel.dataValidation.details).forEach(([key, value]) => {
+              recommendations += `\n    ${key}: ${value}`;
+            });
+          }
+        }
+      });
+    }
+    
+    return recommendations;
   }
 
   generateETLRecommendations(records, columns, columnTypes) {

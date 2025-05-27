@@ -22,8 +22,8 @@ export function analyseCompleteness(data, headers) {
   });
 
   data.forEach((row, rowIndex) => {
-    headers.forEach((header, colIndex) => {
-      const value = row[colIndex];
+    headers.forEach((header) => {
+      const value = row[header];  // Access by column name, not index
       const stats = columnStats[header];
 
       if (value === null || value === undefined || value === '') {
