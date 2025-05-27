@@ -5,10 +5,33 @@
 
 // Note: blessed has bundling issues, using simpler alternatives
 import { prompt } from 'enquirer';
-import gradient from 'gradient-string';
 import figlet from 'figlet';
 import boxen from 'boxen';
 import { createSpinner } from 'nanospinner';
+import chalk from 'chalk';
+
+// Color fallbacks for gradient-string issues - removed to avoid bundling issues
+
+// Safe color functions with fallbacks
+const safeColors = {
+  rainbow: (text) => {
+    try {
+      return chalk.red(text.slice(0, text.length/6)) + 
+             chalk.yellow(text.slice(text.length/6, text.length/3)) + 
+             chalk.green(text.slice(text.length/3, text.length/2)) + 
+             chalk.cyan(text.slice(text.length/2, 2*text.length/3)) + 
+             chalk.blue(text.slice(2*text.length/3, 5*text.length/6)) + 
+             chalk.magenta(text.slice(5*text.length/6));
+    } catch (error) {
+      return chalk.cyan(text);
+    }
+  },
+  ocean: (text) => chalk.blue(text),
+  sunset: (text) => chalk.yellow(text),
+  forest: (text) => chalk.green(text),
+  fire: (text) => chalk.red(text),
+  cosmic: (text) => chalk.magenta(text)
+};
 import fs from 'fs';
 import path from 'path';
 import { parseCSV, detectColumnTypes } from '../utils/parser.js';
@@ -17,55 +40,67 @@ import { integrity } from './int.js';
 import { visualize } from './vis.js';
 import { llmContext } from './llm.js';
 
-// Fun gradient themes
-const gradients = {
-  rainbow: gradient('red', 'orange', 'yellow', 'green', 'blue', 'indigo', 'violet'),
-  ocean: gradient('blue', 'cyan', 'teal'),
-  sunset: gradient('orange', 'red', 'purple'),
-  forest: gradient('green', 'lime', 'cyan'),
-  fire: gradient('red', 'orange', 'yellow'),
-  cosmic: gradient('purple', 'blue', 'cyan', 'green')
-};
+// Use safe color functions instead of gradients
+const gradients = safeColors;
+
+// Recent files storage
+const RECENT_FILES_PATH = path.join(process.env.HOME || process.env.USERPROFILE, '.datapilot_recent.json');
+const MAX_RECENT_FILES = 10;
+
+// Navigation state
+let navigationStack = [];
 
 export async function interactiveUI() {
   console.clear();
   
-  // Welcome animation
-  await showWelcomeAnimation();
-  
-  // Main interactive loop
-  let running = true;
-  while (running) {
-    try {
-      const action = await showMainMenu();
-      
-      switch (action) {
-        case 'analyze':
-          await runGuidedAnalysis();
-          break;
-        case 'learn':
-          await showLearningMode();
-          break;
-        case 'explore':
-          await showFileExplorer();
-          break;
-        case 'demo':
-          await runDemo();
-          break;
-        case 'exit':
+  try {
+    // Welcome animation
+    await showWelcomeAnimation();
+    
+    // Main interactive loop
+    let running = true;
+    while (running) {
+      try {
+        const action = await showMainMenu();
+        
+        switch (action) {
+          case 'analyze':
+            await runGuidedAnalysis();
+            break;
+          case 'demo':
+            await runDemo();
+            break;
+          case 'exit':
+            running = false;
+            await showGoodbyeAnimation();
+            break;
+        }
+      } catch (error) {
+        if (error.message.includes('User cancelled')) {
+          // Handle graceful cancellation
+          console.log(chalk.yellow('\n✋ Operation cancelled'));
+          await sleep(1000);
+          continue;
+        }
+        
+        console.error(chalk.red('\n❌ Error: ') + error.message);
+        const shouldContinue = await prompt({
+          type: 'confirm',
+          name: 'continue',
+          message: 'Continue using DataPilot?',
+          initial: true
+        });
+        
+        if (!shouldContinue.continue) {
           running = false;
           await showGoodbyeAnimation();
-          break;
+        }
       }
-    } catch (error) {
-      console.error('Error in UI:', error.message);
-      await prompt({
-        type: 'confirm',
-        name: 'continue',
-        message: 'Continue using DataPilot?',
-        initial: true
-      });
     }
+  } catch (error) {
+    console.error(chalk.red('\n💥 Critical error: ') + error.message);
+    console.log(chalk.yellow('Exiting DataPilot...'));
+    process.exit(1);
   }
 }
 
@@ -130,23 +165,13 @@ async function showMainMenu() {
     choices: [
       {
         name: 'analyze',
-        message: '📊 Analyze a CSV file (Guided analysis)',
-        hint: 'Step-by-step data analysis with beautiful results'
-      },
-      {
-        name: 'learn',
-        message: '🎓 Learning Mode (Understand data analysis)',
-        hint: 'Interactive tutorials and explanations'
-      },
-      {
-        name: 'explore',
-        message: '📁 File Explorer (Browse and preview files)',
-        hint: 'Find and preview CSV files with interactive browser'
+        message: '📊 Analyze a CSV file',
+        hint: 'Guided analysis with file browser, preview, and multiple analysis types'
       },
       {
         name: 'demo',
-        message: '🎭 Demo Mode (Try with sample data)',
-        hint: 'See DataPilot in action with built-in examples'
+        message: '🎭 Try Demo with Sample Data',
+        hint: 'See DataPilot in action with built-in sample datasets'
       },
       {
         name: 'exit',
@@ -301,10 +326,91 @@ async function enterFilePath() {
 }
 
 async function selectRecentFile() {
-  // This would integrate with the warehouse knowledge from eng command
-  console.log(gradients.sunset('📚 Recent files feature coming soon!'));
-  await sleep(1000);
-  return null;
+  const recentFiles = getRecentFiles();
+  
+  if (recentFiles.length === 0) {
+    console.log(gradients.sunset('📚 No recent files found yet!'));
+    console.log(chalk.gray('Analyze some files first, and they\'ll appear here.'));
+    await sleep(2000);
+    return null;
+  }
+  
+  console.log(gradients.sunset('\n📚 Recent Files 📚\n'));
+  
+  const choices = recentFiles.map((file, index) => ({
+    name: file.path,
+    message: `📄 ${path.basename(file.path)} (${formatDate(new Date(file.lastUsed))})`,
+    value: file.path,
+    hint: `Last used: ${file.lastUsed}`
+  }));
+  
+  choices.push({
+    name: 'back',
+    message: '← Back to file selection',
+    value: null
+  });
+  
+  const selection = await prompt({
+    type: 'select',
+    name: 'selected',
+    message: 'Choose a recent file:',
+    choices
+  });
+  
+  return selection.selected;
+}
+
+// Recent files management
+function getRecentFiles() {
+  try {
+    if (fs.existsSync(RECENT_FILES_PATH)) {
+      const content = fs.readFileSync(RECENT_FILES_PATH, 'utf8');
+      return JSON.parse(content);
+    }
+  } catch (error) {
+    console.error(chalk.yellow('Warning: Could not read recent files'));
+  }
+  return [];
+}
+
+function addRecentFile(filePath) {
+  try {
+    let recentFiles = getRecentFiles();
+    
+    // Remove if already exists
+    recentFiles = recentFiles.filter(f => f.path !== filePath);
+    
+    // Add to beginning
+    recentFiles.unshift({
+      path: filePath,
+      lastUsed: new Date().toISOString()
+    });
+    
+    // Keep only recent files
+    recentFiles = recentFiles.slice(0, MAX_RECENT_FILES);
+    
+    // Ensure directory exists
+    const dir = path.dirname(RECENT_FILES_PATH);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    
+    fs.writeFileSync(RECENT_FILES_PATH, JSON.stringify(recentFiles, null, 2));
+  } catch (error) {
+    // Silently fail - not critical
+    console.error(chalk.yellow('Warning: Could not save to recent files'));
+  }
+}
+
+function formatDate(date) {
+  const now = new Date();
+  const diff = now - date;
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  
+  if (days === 0) return 'Today';
+  if (days === 1) return 'Yesterday';
+  if (days < 7) return `${days} days ago`;
+  return date.toLocaleDateString();
 }
 
 async function showFilePreview(filePath) {
@@ -320,11 +426,14 @@ async function showFilePreview(filePath) {
     
     spinner.success({ text: 'File loaded successfully!' });
     
+    // Add to recent files
+    addRecentFile(filePath);
+    
     const previewBox = boxen(
-      `📄 File: ${gradients.cyan(path.basename(filePath))}\n` +
+      `📄 File: ${chalk.cyan(path.basename(filePath))}\n` +
       `📊 Size: ${formatFileSize(stats.size)}\n` +
-      `📈 Rows: ${gradients.green('~' + records.length + '+ rows')}\n` +
-      `🏛️  Columns: ${gradients.blue(Object.keys(columnTypes).length + ' columns')}\n\n` +
+      `📈 Rows: ${chalk.green('~' + records.length + '+ rows')}\n` +
+      `🏛️  Columns: ${chalk.blue(Object.keys(columnTypes).length + ' columns')}\n\n` +
       `${gradients.rainbow('First 5 rows preview:')}\n` +
       formatPreviewTable(records, Object.keys(columnTypes)),
       {
@@ -337,15 +446,25 @@ async function showFilePreview(filePath) {
     
     console.log(previewBox);
     
+    const choices = [
+      { name: 'continue', message: '✅ Continue with analysis', value: true },
+      { name: 'back', message: '← Choose different file', value: false },
+      { name: 'exit', message: '❌ Exit to main menu', value: 'exit' }
+    ];
+    
     const proceed = await prompt({
-      type: 'confirm',
-      name: 'continue',
-      message: 'Does this look correct? Continue with analysis?',
-      initial: true
+      type: 'select',
+      name: 'action',
+      message: 'What would you like to do?',
+      choices
     });
     
-    if (!proceed.continue) {
-      throw new Error('Analysis cancelled by user');
+    if (proceed.action === 'exit') {
+      throw new Error('User cancelled');
+    }
+    
+    if (!proceed.action) {
+      throw new Error('Back to file selection');
     }
     
   } catch (error) {
@@ -472,45 +591,55 @@ async function showResults() {
     console.log(gradients.ocean('📋 Analysis Summary:\n'));
     
     if (result.eda) {
-      console.log('✅ ' + gradients.green('Exploratory Data Analysis completed'));
+      console.log('✅ ' + chalk.green('Exploratory Data Analysis completed'));
     }
     if (result.quality) {
-      console.log('✅ ' + gradients.blue('Data Quality Check completed'));
+      console.log('✅ ' + chalk.blue('Data Quality Check completed'));
     }
     if (result.visual) {
-      console.log('✅ ' + gradients.purple('Visualization Recommendations completed'));
+      console.log('✅ ' + chalk.magenta('Visualization Recommendations completed'));
     }
     if (result.llm) {
-      console.log('✅ ' + gradients.cyan('AI-Ready Context generated'));
+      console.log('✅ ' + chalk.cyan('AI-Ready Context generated'));
     }
   }
   
-  const viewOptions = await prompt({
-    type: 'select',
-    name: 'view',
-    message: 'How would you like to view your results?',
-    choices: [
-      { name: 'summary', message: '📄 Quick Summary' },
-      { name: 'detailed', message: '📊 Detailed Results' },
-      { name: 'save', message: '💾 Save to File' },
-      { name: 'copy', message: '📋 Copy for AI Analysis' },
-      { name: 'skip', message: '⏭️  Continue to Main Menu' }
-    ]
-  });
-  
-  switch (viewOptions.view) {
-    case 'summary':
-      await showResultSummary(result);
-      break;
-    case 'detailed':
-      await showDetailedResults(result);
-      break;
-    case 'save':
-      await saveResults(result);
-      break;
-    case 'copy':
-      await copyForAI(result);
-      break;
+  let keepShowing = true;
+  while (keepShowing) {
+    const viewOptions = await prompt({
+      type: 'select',
+      name: 'view',
+      message: 'How would you like to view your results?',
+      choices: [
+        { name: 'summary', message: '📄 Quick Summary' },
+        { name: 'detailed', message: '📊 Detailed Results' },
+        { name: 'save', message: '💾 Save to File' },
+        { name: 'copy', message: '📋 Copy for AI Analysis' },
+        { name: 'back', message: '← Back to Analysis Options' },
+        { name: 'menu', message: '🏠 Return to Main Menu' }
+      ]
+    });
+    
+    switch (viewOptions.view) {
+      case 'summary':
+        await showResultSummary(result);
+        break;
+      case 'detailed':
+        await showDetailedResults(result);
+        break;
+      case 'save':
+        await saveResults(result);
+        break;
+      case 'copy':
+        await copyForAI(result);
+        break;
+      case 'back':
+        // Go back to analysis type selection
+        throw new Error('Back to analysis');
+      case 'menu':
+        keepShowing = false;
+        break;
+    }
   }
 }
 
@@ -558,22 +687,87 @@ async function showDetailedResults(result) {
 }
 
 async function saveResults(result) {
-  const response = await prompt({
-    type: 'input',
-    name: 'filename',
-    message: 'Enter filename to save results:',
-    initial: 'datapilot-analysis.txt'
+  const choices = [
+    { name: 'quick', message: '⚡ Quick Save (datapilot-analysis.txt)', value: 'quick' },
+    { name: 'custom', message: '📝 Choose custom filename', value: 'custom' },
+    { name: 'timestamped', message: '📅 Save with timestamp', value: 'timestamped' },
+    { name: 'back', message: '← Back to results menu', value: 'back' }
+  ];
+  
+  const saveChoice = await prompt({
+    type: 'select',
+    name: 'choice',
+    message: 'How would you like to save your results?',
+    choices
   });
   
-  const spinner = createSpinner('Saving results...').start();
+  if (saveChoice.choice === 'back') return;
+  
+  let filename;
+  switch (saveChoice.choice) {
+    case 'quick':
+      filename = 'datapilot-analysis.txt';
+      break;
+    case 'custom':
+      const response = await prompt({
+        type: 'input',
+        name: 'filename',
+        message: 'Enter filename:',
+        initial: 'my-analysis.txt',
+        validate: (input) => {
+          if (!input.trim()) return 'Please enter a filename';
+          if (!input.endsWith('.txt')) return 'Please use .txt extension';
+          return true;
+        }
+      });
+      filename = response.filename;
+      break;
+    case 'timestamped':
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      filename = `datapilot-analysis-${timestamp}.txt`;
+      break;
+  }
+  
+  const spinner = createSpinner(`Saving results to ${filename}...`).start();
   
   try {
-    // Save formatted results to file
-    fs.writeFileSync(response.filename, JSON.stringify(result, null, 2));
-    spinner.success({ text: `Results saved to ${response.filename}!` });
+    // Format results as readable text
+    let output = '';
+    if (typeof result === 'string') {
+      output = result;
+    } else {
+      output = `DataPilot Analysis Results\nGenerated: ${new Date().toISOString()}\n\n`;
+      output += JSON.stringify(result, null, 2);
+    }
+    
+    fs.writeFileSync(filename, output);
+    spinner.success({ text: `✅ Results saved to ${filename}!` });
+    
+    const openFile = await prompt({
+      type: 'confirm',
+      name: 'open',
+      message: 'Would you like to view the saved file?',
+      initial: false
+    });
+    
+    if (openFile.open) {
+      console.log(chalk.cyan('\n📄 Saved content preview:'));
+      console.log(chalk.gray('─'.repeat(50)));
+      console.log(output.slice(0, 500) + (output.length > 500 ? '\n...(truncated)' : ''));
+      console.log(chalk.gray('─'.repeat(50)));
+    }
+    
   } catch (error) {
-    spinner.error({ text: `Error saving file: ${error.message}` });
+    spinner.error({ text: `❌ Error saving file: ${error.message}` });
+    console.error(chalk.red('Save failed. Please check file permissions and try again.'));
   }
+  
+  await prompt({
+    type: 'confirm',
+    name: 'continue',
+    message: 'Continue?',
+    initial: true
+  });
 }
 
 async function copyForAI(result) {
@@ -603,139 +797,7 @@ async function copyForAI(result) {
   });
 }
 
-async function showLearningMode() {
-  console.clear();
-  console.log(gradients.forest('🎓 Learning Mode 🎓\n'));
-  
-  const topics = await prompt({
-    type: 'select',
-    name: 'topic',
-    message: 'What would you like to learn about?',
-    choices: [
-      { name: 'basics', message: '📚 Data Analysis Basics' },
-      { name: 'statistics', message: '📊 Statistics Explained' },
-      { name: 'visualization', message: '📈 Data Visualization Guide' },
-      { name: 'quality', message: '🔍 Data Quality Principles' },
-      { name: 'ai', message: '🤖 AI & Data Analysis' },
-      { name: 'back', message: '← Back to main menu' }
-    ]
-  });
-  
-  if (topics.topic === 'back') return;
-  
-  await showLearningContent(topics.topic);
-}
-
-async function showLearningContent(topic) {
-  console.log('\n' + gradients.rainbow(`📖 Learning: ${topic} 📖\n`));
-  
-  const content = {
-    basics: `
-🎯 Data Analysis Basics
-
-Data analysis is like being a detective! 🔍
-You look at information to find patterns and stories.
-
-Key steps:
-1. 📥 Collect data (like your CSV file)
-2. 🔍 Explore what's inside  
-3. 📊 Find patterns and trends
-4. 💡 Draw insights and conclusions
-5. 📈 Visualize your findings
-
-DataPilot helps with ALL of these steps!
-    `,
-    statistics: `
-📊 Statistics Made Simple
-
-Statistics help us understand data better:
-
-• Mean (Average): Add all numbers ÷ count
-• Median: The middle number when sorted
-• Mode: The most common value
-• Standard Deviation: How spread out data is
-
-📈 Correlation: How two things relate
-📉 Distribution: How data is spread out
-
-Don't worry - DataPilot calculates these for you!
-    `,
-    visualization: `
-📈 Data Visualization Guide
-
-Charts tell stories your data wants to share:
-
-📊 Bar Chart: Compare categories
-📈 Line Chart: Show trends over time  
-🥧 Pie Chart: Show parts of a whole
-📉 Scatter Plot: Find relationships
-📋 Table: Show exact values
-
-DataPilot recommends the BEST charts for your data!
-    `,
-    quality: `
-🔍 Data Quality Principles
-
-Good data = Good insights! Here's what to check:
-
-✅ Completeness: Are values missing?
-✅ Accuracy: Are values correct?
-✅ Consistency: Same format throughout?
-✅ Validity: Do values make sense?
-✅ Uniqueness: No unwanted duplicates?
-
-DataPilot automatically checks ALL of these!
-    `,
-    ai: `
-🤖 AI & Data Analysis
-
-AI can supercharge your analysis:
-
-💬 Ask questions in plain English
-🔍 Find hidden patterns  
-📊 Generate insights automatically
-📈 Create visualizations
-📝 Write reports
-
-DataPilot creates perfect summaries for AI tools like ChatGPT and Claude!
-    `
-  };
-  
-  const learningBox = boxen(
-    content[topic] || 'Content coming soon!',
-    {
-      padding: 1,
-      margin: 1,
-      borderStyle: 'double',
-      borderColor: 'blue'
-    }
-  );
-  
-  console.log(learningBox);
-  
-  await prompt({
-    type: 'confirm',
-    name: 'continue',
-    message: gradients.cosmic('Got it! Ready to continue?'),
-    initial: true
-  });
-}
-
-async function showFileExplorer() {
-  console.clear();
-  console.log(gradients.ocean('📁 File Explorer 📁\n'));
-  
-  // This would be a more advanced file browser
-  console.log('Advanced file explorer coming soon!');
-  console.log('For now, use the guided analysis for file browsing.');
-  
-  await prompt({
-    type: 'confirm',
-    name: 'continue',
-    message: 'Return to main menu?',
-    initial: true
-  });
-}
+// Learning mode and file explorer removed - focusing on core functionality
 
 async function runDemo() {
   console.clear();
