@@ -1,13 +1,35 @@
+# Dependencies
 node_modules/
+
+# Logs and temporary files
 *.log
+*.tmp
+logs/
+
+# System files
 .DS_Store
+Thumbs.db
+
+# Test outputs (excluded from repo)
 tests/outputs/
 tests/fixtures/large_test.csv
 tests/fixtures/test.txt
+
+# Environment files
 .env
-*.tmp
+.env.local
+
+# Coverage reports
 coverage/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temporary DataPilot files
 *. Datapilot
 
-# Keep dist folder for self-contained distribution
+# Include important dist folder for self-contained package
 !dist/
