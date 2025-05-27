@@ -1,5 +1,5 @@
 {
-  "timestamp": "2025-05-27T21:29:51.162Z",
+  "timestamp": "2025-05-27T22:00:13.697Z",
   "platform": {
     "os": "darwin",
     "arch": "arm64",
@@ -9,32 +9,32 @@
     {
       "suite": "TUI Engine Unit Tests",
       "exitCode": 0,
-      "duration": 0.2,
+      "duration": 0.21,
       "success": true
     },
     {
       "suite": "TUI Engine Flow Tests",
       "exitCode": 0,
-      "duration": 0.18,
+      "duration": 0.14,
       "success": true
     },
     {
       "suite": "Automated TUI Tests (E2E)",
       "exitCode": 1,
-      "duration": 37.11,
+      "duration": 40.09,
       "success": false
     },
     {
       "suite": "Interactive Simulation Tests",
-      "exitCode": 0,
-      "duration": 10.07,
-      "success": true
+      "exitCode": 1,
+      "duration": 0.05,
+      "success": false
     }
   ],
   "summary": {
     "total": 4,
-    "passed": 3,
-    "failed": 1,
-    "totalDuration": 47.56
+    "passed": 2,
+    "failed": 2,
+    "totalDuration": 40.49
   }
 }

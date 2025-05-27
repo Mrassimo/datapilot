@@ -1,0 +1,52 @@
+{
+  "timestamp": "2025-05-27T22:00:13.629Z",
+  "platform": "darwin",
+  "node": "v23.6.1",
+  "results": {
+    "passed": 0,
+    "failed": 8,
+    "skipped": 1,
+    "errors": [
+      {
+        "suite": "TUI Startup and Exit",
+        "test": "Should start and display welcome message",
+        "error": "Timeout waiting for pattern: /Welcome.*DataPilot.*Interactive|DataPilot.*Interactive/i"
+      },
+      {
+        "suite": "TUI Startup and Exit",
+        "test": "Should handle immediate exit gracefully",
+        "error": "Timeout waiting for pattern: /What.*would.*you.*like.*to.*do|DataPilot.*Interactive/i"
+      },
+      {
+        "suite": "File Selection",
+        "test": "Should browse for CSV files",
+        "error": "Timeout waiting for pattern: /What.*would.*you.*like.*to.*do/i"
+      },
+      {
+        "suite": "File Selection",
+        "test": "Should handle invalid file selection",
+        "error": "Timeout waiting for pattern: /What.*would.*you.*like.*to.*do/i"
+      },
+      {
+        "suite": "Analysis Workflow",
+        "test": "Should complete demo analysis",
+        "error": "Timeout waiting for pattern: /What.*would.*you.*like.*to.*do/i"
+      },
+      {
+        "suite": "Encoding and Special Characters",
+        "test": "Should handle non-ASCII characters in prompts",
+        "error": "Timeout waiting for pattern: /DataPilot.*Interactive/i"
+      },
+      {
+        "suite": "Performance and Stability",
+        "test": "Should handle rapid input without crashing",
+        "error": "Timeout waiting for pattern: /What.*would.*you.*like.*to.*do/i"
+      },
+      {
+        "suite": "Performance and Stability",
+        "test": "Should recover from interrupted operations",
+        "error": "Timeout waiting for pattern: /What.*would.*you.*like.*to.*do/i"
+      }
+    ]
+  }
+}

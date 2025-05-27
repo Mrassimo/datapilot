@@ -68,22 +68,32 @@ export class TUIEngine {
       {
         name: 'analyze',
         message: '📊 Analyze CSV Data',
-        hint: 'Smart file discovery and guided analysis'
+        hint: '🔍 Smart file discovery and guided analysis'
       },
       {
         name: 'demo',
         message: '🎭 Try Demo Mode',
-        hint: 'See DataPilot in action with built-in sample datasets'
+        hint: '🎯 Experience DataPilot with built-in sample datasets'
       },
       {
         name: 'memory',
         message: '🧠 Manage Memories',
-        hint: 'View, delete, or manage DataPilot\'s warehouse knowledge'
+        hint: '🗄️  View, delete, or manage warehouse knowledge'
+      },
+      {
+        name: 'learning',
+        message: '🎓 Learning Mode',
+        hint: '📚 Interactive tutorials and data science concepts'
+      },
+      {
+        name: 'settings',
+        message: '⚙️  Settings & Preferences',
+        hint: '🛠️  Configure DataPilot behavior and appearance'
       },
       {
         name: 'exit',
         message: '👋 Exit DataPilot',
-        hint: 'Thanks for using DataPilot!'
+        hint: '✨ Thanks for exploring data with us!'
       }
     ];
   }
@@ -98,6 +108,10 @@ export class TUIEngine {
         return await this.startDemo();
       case 'memory':
         return await this.startMemoryManager();
+      case 'learning':
+        return await this.startLearningMode();
+      case 'settings':
+        return await this.startSettings();
       case 'exit':
         return { action: 'exit', message: 'Goodbye!' };
       default:
@@ -508,5 +522,39 @@ export class TUIEngine {
     }
     
     return results;
+  }
+
+  // === Learning Mode ===
+  
+  async startLearningMode() {
+    return {
+      action: 'learning',
+      message: 'Learning mode initialized',
+      modules: [
+        'Data Analysis Fundamentals',
+        'Exploratory Data Analysis (EDA)',
+        'Data Quality & Integrity',
+        'Visualization Best Practices',
+        'Data Engineering Principles',
+        'AI-Ready Data Preparation'
+      ]
+    };
+  }
+
+  // === Settings ===
+  
+  async startSettings() {
+    return {
+      action: 'settings',
+      message: 'Settings initialized',
+      options: [
+        'Color Theme Selection',
+        'Default Analysis Types',
+        'Memory Management Preferences',
+        'Default File Search Paths',
+        'Performance Optimization',
+        'Notification Preferences'
+      ]
+    };
   }
 }

@@ -109,10 +109,22 @@ export async function interactiveUI() {
 async function showMainMenu(engine) {
   const choices = engine.getMainMenuChoices();
   
+  // Enhanced main menu header
+  console.log('\\n' + boxen(
+    gradients.rainbow('🌟 MAIN MENU 🌟\\n') +
+    gradients.cyan('Choose your data adventure:'),
+    {
+      padding: { top: 0, bottom: 0, left: 2, right: 2 },
+      borderStyle: 'single',
+      borderColor: 'cyan',
+      textAlignment: 'center'
+    }
+  ));
+  
   const response = await prompt({
     type: 'select',
     name: 'action',
-    message: gradients.cyan('🚀 What would you like to do?'),
+    message: gradients.cyan('🚀 What would you like to explore today?'),
     choices: choices
   });
   
@@ -132,6 +144,12 @@ async function handleMainMenuAction(engine, action) {
     case 'memory':
       await showMemoryManager(engine, result);
       break;
+    case 'learning':
+      await showLearningMode(engine, result);
+      break;
+    case 'settings':
+      await showSettings(engine, result);
+      break;
     case 'exit':
       // Exit handled in main loop
       break;
@@ -143,7 +161,16 @@ async function handleMainMenuAction(engine, action) {
 
 async function showGuidedAnalysis(engine, analysisResult) {
   console.clear();
-  console.log(gradients.ocean('🔍 Guided Analysis Mode 🔍\\n'));
+  
+  // Enhanced guided analysis header
+  const analysisHeader = `
+  ╔═════════════════════════════════════════════════════════════╗
+  ║                  🔍 GUIDED ANALYSIS MODE 🔍                 ║
+  ║              Transform CSV data into insights                ║
+  ╚═════════════════════════════════════════════════════════════╝`;
+  
+  console.log(gradients.ocean(analysisHeader));
+  console.log();
   
   // Step 1: File selection
   const filePath = await selectFile(engine, analysisResult.csvFiles);
@@ -282,7 +309,16 @@ async function runAnalysisWithAnimation(engine, filePath, analysisType) {
 
 async function showDemo(engine, demoResult) {
   console.clear();
-  console.log(gradients.fire('🎭 Demo Mode 🎭\\n'));
+  
+  // Enhanced demo mode header
+  const demoHeader = `
+  ╔═════════════════════════════════════════════════════════════╗
+  ║                     🎭 DEMO MODE 🎭                        ║
+  ║               Try DataPilot with sample data                 ║
+  ╚═════════════════════════════════════════════════════════════╝`;
+  
+  console.log(gradients.fire(demoHeader));
+  console.log();
   
   if (demoResult.datasets.length === 0) {
     console.log(chalk.yellow('No demo datasets found. Please ensure test fixtures are available.'));
@@ -325,7 +361,16 @@ async function showDemo(engine, demoResult) {
 
 async function showMemoryManager(engine, memoryResult) {
   console.clear();
-  console.log(gradients.ocean('🧠 Memory Manager 🧠\\n'));
+  
+  // Enhanced memory manager header
+  const memoryHeader = `
+  ╔═════════════════════════════════════════════════════════════╗
+  ║                   🧠 MEMORY MANAGER 🧠                     ║
+  ║              Manage DataPilot's warehouse knowledge         ║
+  ╚═════════════════════════════════════════════════════════════╝`;
+  
+  console.log(gradients.ocean(memoryHeader));
+  console.log();
   
   // Display summary
   console.log(boxen(
@@ -388,7 +433,16 @@ async function showMemoryManager(engine, memoryResult) {
 
 async function showMemoryList(engine) {
   console.clear();
-  console.log(gradients.ocean('📋 All Memories\\n'));
+  
+  // Enhanced memory list header
+  const memoryListHeader = `
+  ╔═════════════════════════════════════════════════════════════╗
+  ║                   📋 ALL MEMORIES 📋                       ║
+  ║                View your analysis history                    ║
+  ╚═════════════════════════════════════════════════════════════╝`;
+  
+  console.log(gradients.ocean(memoryListHeader));
+  console.log();
   
   const memories = await engine.listMemories();
   
@@ -499,8 +553,32 @@ async function exportMemories(engine) {
 
 async function showSessionMemories() {
   console.clear();
-  console.log(gradients.ocean('⏱️  Session Memory Manager\\n'));
-  console.log(chalk.yellow('Feature coming soon!\\n'));
+  
+  // Enhanced session memories header
+  const sessionHeader = `
+  ╔═════════════════════════════════════════════════════════════╗
+  ║                ⏱️  SESSION MEMORY MANAGER ⏱️                ║
+  ║              Temporary analysis contexts (Coming Soon!)      ║
+  ╚═════════════════════════════════════════════════════════════╝`;
+  
+  console.log(gradients.ocean(sessionHeader));
+  
+  console.log('\\n' + boxen(
+    gradients.yellow('🚧 Feature Under Development 🚧\\n\\n') +
+    'Session memories will enable:\\n' +
+    gradients.green('• 📁 Temporary analysis sessions\\n') +
+    gradients.blue('• 🎯 Directory-scoped memories\\n') +
+    gradients.cyan('• ⚡ Quick save/load contexts\\n') +
+    gradients.magenta('• 🤝 Team knowledge sharing'),
+    {
+      padding: 1,
+      borderStyle: 'round',
+      borderColor: 'yellow',
+      title: '🔮 Coming Soon',
+      titleAlignment: 'center'
+    }
+  ));
+  console.log();
   console.log('Session memories will allow you to:');
   console.log('  • Create temporary analysis sessions');
   console.log('  • Scope memories to specific directories');
@@ -515,19 +593,139 @@ async function showResults() {
   console.log(chalk.gray('(In the actual implementation, results would be shown here)'));
 }
 
-// Animation functions remain the same
+// Enhanced animation functions with better ASCII art
 async function showWelcomeAnimation() {
-  const title = 'DataPilot Interactive UI';
-  console.log('\\n' + gradients.rainbow(title));
-  console.log(gradients.cyan('━'.repeat(title.length)));
-  console.log(gradients.green('🚀 Welcome to the interactive analysis experience!'));
-  console.log(gradients.blue('   Navigate with arrows, select with Enter\\n'));
+  // Clear screen and show enhanced DataPilot ASCII art
+  console.clear();
   
-  // Small delay for effect
-  await new Promise(resolve => setTimeout(resolve, 500));
+  const logo = `
+  ██████╗  █████╗ ████████╗ █████╗ ██████╗ ██╗██╗      ██████╗ ████████╗
+  ██╔══██╗██╔══██╗╚══██╔══╝██╔══██╗██╔══██╗██║██║     ██╔═══██╗╚══██╔══╝
+  ██║  ██║███████║   ██║   ███████║██████╔╝██║██║     ██║   ██║   ██║   
+  ██║  ██║██╔══██║   ██║   ██╔══██║██╔═══╝ ██║██║     ██║   ██║   ██║   
+  ██████╔╝██║  ██║   ██║   ██║  ██║██║     ██║███████╗╚██████╔╝   ██║   
+  ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝╚═╝     ╚═╝╚══════╝ ╚═════╝    ╚═╝   
+                      🛩️ Your Data Analysis Co-Pilot 🛩️`;
+
+  console.log(gradients.rainbow(logo));
+  
+  // Enhanced welcome message with better styling
+  console.log('\\n' + boxen(
+    gradients.cyan('✨ Welcome to DataPilot Interactive Terminal UI! ✨\\n\\n') +
+    gradients.green('🎯 Perfect for beginners and experts alike\\n') +
+    gradients.blue('🎨 Beautiful insights and visualizations\\n') +
+    gradients.yellow('🤖 AI-ready analysis generation\\n') +
+    gradients.magenta('🚀 Zero installation, maximum insights\\n\\n') +
+    gradients.gray('Navigate: ↑↓ arrows | Select: Enter | Exit: Ctrl+C'),
+    {
+      padding: 1,
+      margin: 1,
+      borderStyle: 'double',
+      borderColor: 'cyan',
+      title: '🌟 Interactive Data Analysis Engine 🌟',
+      titleAlignment: 'center'
+    }
+  ));
+  
+  // Animated loading effect
+  const spinner = createSpinner('Initializing DataPilot...').start();
+  await new Promise(resolve => setTimeout(resolve, 800));
+  spinner.success({ text: 'Ready to analyze your data! 🎉' });
+  
+  console.log();
 }
 
 async function showGoodbyeAnimation() {
-  console.log('\\n' + gradients.sunset('👋 Thanks for using DataPilot!'));
-  console.log(gradients.ocean('   Happy analyzing! 📊✨\\n'));
+  console.clear();
+  
+  const farewellArt = `
+  ╔══════════════════════════════════════════════════════════════╗
+  ║                    🛩️ DataPilot Signing Off 🛩️                ║
+  ╚══════════════════════════════════════════════════════════════╝`;
+  
+  console.log(gradients.sunset(farewellArt));
+  
+  console.log('\\n' + boxen(
+    gradients.cyan('Thank you for using DataPilot! 🙏\\n\\n') +
+    gradients.green('🎯 Data insights discovered\\n') +
+    gradients.blue('📊 Knowledge gained\\n') +
+    gradients.yellow('🚀 Analysis complete\\n\\n') +
+    gradients.ocean('Come back soon for more data adventures! 📈✨'),
+    {
+      padding: 1,
+      margin: 1,
+      borderStyle: 'round',
+      borderColor: 'yellow',
+      title: '👋 Farewell Message',
+      titleAlignment: 'center'
+    }
+  ));
+  
+  console.log('\\n' + gradients.rainbow('   ▶ Happy analyzing! Keep discovering insights! ◀\\n'));
+}
+
+async function showLearningMode(engine, result) {
+  console.clear();
+  
+  // Enhanced learning mode header
+  const learningHeader = `
+  ╔═════════════════════════════════════════════════════════════╗
+  ║                   🎓 LEARNING MODE 🎓                      ║
+  ║             Interactive data science tutorials               ║
+  ╚═════════════════════════════════════════════════════════════╝`;
+  
+  console.log(gradients.green(learningHeader));
+  
+  console.log('\\n' + boxen(
+    gradients.yellow('📚 Learning Modules Coming Soon! 📚\\n\\n') +
+    'Interactive tutorials will cover:\\n' +
+    gradients.green('• 📊 Data Analysis Fundamentals\\n') +
+    gradients.blue('• 🔍 Exploratory Data Analysis (EDA)\\n') +
+    gradients.cyan('• 🛡️  Data Quality & Integrity\\n') +
+    gradients.magenta('• 📈 Visualization Best Practices\\n') +
+    gradients.yellow('• 🏗️  Data Engineering Principles\\n') +
+    gradients.red('• 🤖 AI-Ready Data Preparation'),
+    {
+      padding: 1,
+      borderStyle: 'round',
+      borderColor: 'green',
+      title: '🎯 Educational Content',
+      titleAlignment: 'center'
+    }
+  ));
+  
+  await prompt({ type: 'confirm', name: 'continue', message: '\\nPress Enter to continue...' });
+}
+
+async function showSettings(engine, result) {
+  console.clear();
+  
+  // Enhanced settings header
+  const settingsHeader = `
+  ╔═════════════════════════════════════════════════════════════╗
+  ║                ⚙️  SETTINGS & PREFERENCES ⚙️                ║
+  ║                Configure DataPilot behavior                  ║
+  ╚═════════════════════════════════════════════════════════════╝`;
+  
+  console.log(gradients.blue(settingsHeader));
+  
+  console.log('\\n' + boxen(
+    gradients.yellow('🛠️  Configuration Options Coming Soon! 🛠️\\n\\n') +
+    'Settings will include:\\n' +
+    gradients.green('• 🎨 Color Theme Selection\\n') +
+    gradients.blue('• 📊 Default Analysis Types\\n') +
+    gradients.cyan('• 💾 Memory Management Preferences\\n') +
+    gradients.magenta('• 📁 Default File Search Paths\\n') +
+    gradients.yellow('• ⚡ Performance Optimization\\n') +
+    gradients.red('• 🔔 Notification Preferences'),
+    {
+      padding: 1,
+      borderStyle: 'round',
+      borderColor: 'blue',
+      title: '⚙️  Customization',
+      titleAlignment: 'center'
+    }
+  ));
+  
+  await prompt({ type: 'confirm', name: 'continue', message: '\\nPress Enter to continue...' });
 }
