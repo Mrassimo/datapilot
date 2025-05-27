@@ -11,8 +11,10 @@ export default {
     inlineDynamicImports: true
   },
   external: [
-    // ONLY keep Node.js built-ins external - bundle ALL npm dependencies
-    'fs', 'path', 'url', 'stream', 'util', 'events', 'crypto', 'os', 'readline', 'process'
+    // Keep Node.js built-ins external
+    'fs', 'path', 'url', 'stream', 'util', 'events', 'crypto', 'os', 'readline', 'process',
+    // Keep problematic dependencies external (bundling issues)
+    'figlet', 'blessed', 'terminal-kit'
   ],
   plugins: [
     preserveShebang(),

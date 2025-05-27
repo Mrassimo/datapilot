@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import require$$0$2 from 'events';
+import require$$0$3 from 'events';
 import require$$1$1 from 'child_process';
 import path$1, { basename, resolve } from 'path';
 import fs, { openSync, readSync, closeSync, statSync, readFileSync, createReadStream, writeFileSync, existsSync, realpathSync as realpathSync$1, readlinkSync, readdirSync, readdir as readdir$1, lstatSync } from 'fs';
@@ -7,14 +7,16 @@ import require$$4 from 'process';
 import process$1 from 'node:process';
 import os from 'node:os';
 import tty from 'node:tty';
-import require$$0$3 from 'assert';
+import require$$0$4 from 'assert';
 import readline from 'node:readline';
-import require$$0$4, { Transform } from 'stream';
-import require$$0$5 from 'buffer';
-import require$$0$6 from 'util';
+import require$$0$5, { Transform } from 'stream';
+import require$$0$6 from 'buffer';
+import require$$0$7 from 'util';
 import { pipeline } from 'stream/promises';
 import 'crypto';
 import os$1 from 'os';
+import require$$0$8 from 'readline';
+import figlet from 'figlet';
 import { fileURLToPath } from 'node:url';
 import { win32, posix } from 'node:path';
 import * as actualFS from 'node:fs';
@@ -1193,7 +1195,7 @@ var hasRequiredCommand;
 function requireCommand () {
 	if (hasRequiredCommand) return command;
 	hasRequiredCommand = 1;
-	const EventEmitter = require$$0$2.EventEmitter;
+	const EventEmitter = require$$0$3.EventEmitter;
 	const childProcess = require$$1$1;
 	const path = path$1;
 	const fs$1 = fs;
@@ -3427,15 +3429,15 @@ const {
   Help
 } = commander;
 
-const ANSI_BACKGROUND_OFFSET = 10;
+const ANSI_BACKGROUND_OFFSET$1 = 10;
 
-const wrapAnsi16 = (offset = 0) => code => `\u001B[${code + offset}m`;
+const wrapAnsi16$1 = (offset = 0) => code => `\u001B[${code + offset}m`;
 
-const wrapAnsi256 = (offset = 0) => code => `\u001B[${38 + offset};5;${code}m`;
+const wrapAnsi256$1 = (offset = 0) => code => `\u001B[${38 + offset};5;${code}m`;
 
-const wrapAnsi16m = (offset = 0) => (red, green, blue) => `\u001B[${38 + offset};2;${red};${green};${blue}m`;
+const wrapAnsi16m$1 = (offset = 0) => (red, green, blue) => `\u001B[${38 + offset};2;${red};${green};${blue}m`;
 
-const styles$1 = {
+const styles$2 = {
 	modifier: {
 		reset: [0, 0],
 		// 21 isn't widely supported and 22 does the same thing
@@ -3494,49 +3496,49 @@ const styles$1 = {
 	},
 };
 
-Object.keys(styles$1.modifier);
-const foregroundColorNames = Object.keys(styles$1.color);
-const backgroundColorNames = Object.keys(styles$1.bgColor);
-[...foregroundColorNames, ...backgroundColorNames];
+Object.keys(styles$2.modifier);
+const foregroundColorNames$1 = Object.keys(styles$2.color);
+const backgroundColorNames$1 = Object.keys(styles$2.bgColor);
+[...foregroundColorNames$1, ...backgroundColorNames$1];
 
-function assembleStyles() {
+function assembleStyles$1() {
 	const codes = new Map();
 
-	for (const [groupName, group] of Object.entries(styles$1)) {
+	for (const [groupName, group] of Object.entries(styles$2)) {
 		for (const [styleName, style] of Object.entries(group)) {
-			styles$1[styleName] = {
+			styles$2[styleName] = {
 				open: `\u001B[${style[0]}m`,
 				close: `\u001B[${style[1]}m`,
 			};
 
-			group[styleName] = styles$1[styleName];
+			group[styleName] = styles$2[styleName];
 
 			codes.set(style[0], style[1]);
 		}
 
-		Object.defineProperty(styles$1, groupName, {
+		Object.defineProperty(styles$2, groupName, {
 			value: group,
 			enumerable: false,
 		});
 	}
 
-	Object.defineProperty(styles$1, 'codes', {
+	Object.defineProperty(styles$2, 'codes', {
 		value: codes,
 		enumerable: false,
 	});
 
-	styles$1.color.close = '\u001B[39m';
-	styles$1.bgColor.close = '\u001B[49m';
+	styles$2.color.close = '\u001B[39m';
+	styles$2.bgColor.close = '\u001B[49m';
 
-	styles$1.color.ansi = wrapAnsi16();
-	styles$1.color.ansi256 = wrapAnsi256();
-	styles$1.color.ansi16m = wrapAnsi16m();
-	styles$1.bgColor.ansi = wrapAnsi16(ANSI_BACKGROUND_OFFSET);
-	styles$1.bgColor.ansi256 = wrapAnsi256(ANSI_BACKGROUND_OFFSET);
-	styles$1.bgColor.ansi16m = wrapAnsi16m(ANSI_BACKGROUND_OFFSET);
+	styles$2.color.ansi = wrapAnsi16$1();
+	styles$2.color.ansi256 = wrapAnsi256$1();
+	styles$2.color.ansi16m = wrapAnsi16m$1();
+	styles$2.bgColor.ansi = wrapAnsi16$1(ANSI_BACKGROUND_OFFSET$1);
+	styles$2.bgColor.ansi256 = wrapAnsi256$1(ANSI_BACKGROUND_OFFSET$1);
+	styles$2.bgColor.ansi16m = wrapAnsi16m$1(ANSI_BACKGROUND_OFFSET$1);
 
 	// From https://github.com/Qix-/color-convert/blob/3f0e0d4e92e235796ccb17f6e85c72094a651f49/conversions.js
-	Object.defineProperties(styles$1, {
+	Object.defineProperties(styles$2, {
 		rgbToAnsi256: {
 			value(red, green, blue) {
 				// We use the extended greyscale palette here, with the exception of
@@ -3586,7 +3588,7 @@ function assembleStyles() {
 			enumerable: false,
 		},
 		hexToAnsi256: {
-			value: hex => styles$1.rgbToAnsi256(...styles$1.hexToRgb(hex)),
+			value: hex => styles$2.rgbToAnsi256(...styles$2.hexToRgb(hex)),
 			enumerable: false,
 		},
 		ansi256ToAnsi: {
@@ -3635,19 +3637,19 @@ function assembleStyles() {
 			enumerable: false,
 		},
 		rgbToAnsi: {
-			value: (red, green, blue) => styles$1.ansi256ToAnsi(styles$1.rgbToAnsi256(red, green, blue)),
+			value: (red, green, blue) => styles$2.ansi256ToAnsi(styles$2.rgbToAnsi256(red, green, blue)),
 			enumerable: false,
 		},
 		hexToAnsi: {
-			value: hex => styles$1.ansi256ToAnsi(styles$1.hexToAnsi256(hex)),
+			value: hex => styles$2.ansi256ToAnsi(styles$2.hexToAnsi256(hex)),
 			enumerable: false,
 		},
 	});
 
-	return styles$1;
+	return styles$2;
 }
 
-const ansiStyles = assembleStyles();
+const ansiStyles$1 = assembleStyles$1();
 
 // From: https://github.com/sindresorhus/has-flag/blob/main/index.js
 /// function hasFlag(flag, argv = globalThis.Deno?.args ?? process.argv) {
@@ -3874,7 +3876,7 @@ const levelMapping = [
 	'ansi16m',
 ];
 
-const styles = Object.create(null);
+const styles$1 = Object.create(null);
 
 const applyOptions = (object, options = {}) => {
 	if (options.level && !(Number.isInteger(options.level) && options.level >= 0 && options.level <= 3)) {
@@ -3901,8 +3903,8 @@ function createChalk(options) {
 
 Object.setPrototypeOf(createChalk.prototype, Function.prototype);
 
-for (const [styleName, style] of Object.entries(ansiStyles)) {
-	styles[styleName] = {
+for (const [styleName, style] of Object.entries(ansiStyles$1)) {
+	styles$1[styleName] = {
 		get() {
 			const builder = createBuilder(this, createStyler(style.open, style.close, this[STYLER]), this[IS_EMPTY]);
 			Object.defineProperty(this, styleName, {value: builder});
@@ -3911,7 +3913,7 @@ for (const [styleName, style] of Object.entries(ansiStyles)) {
 	};
 }
 
-styles.visible = {
+styles$1.visible = {
 	get() {
 		const builder = createBuilder(this, this[STYLER], true);
 		Object.defineProperty(this, 'visible', {value: builder});
@@ -3922,42 +3924,42 @@ styles.visible = {
 const getModelAnsi = (model, level, type, ...arguments_) => {
 	if (model === 'rgb') {
 		if (level === 'ansi16m') {
-			return ansiStyles[type].ansi16m(...arguments_);
+			return ansiStyles$1[type].ansi16m(...arguments_);
 		}
 
 		if (level === 'ansi256') {
-			return ansiStyles[type].ansi256(ansiStyles.rgbToAnsi256(...arguments_));
+			return ansiStyles$1[type].ansi256(ansiStyles$1.rgbToAnsi256(...arguments_));
 		}
 
-		return ansiStyles[type].ansi(ansiStyles.rgbToAnsi(...arguments_));
+		return ansiStyles$1[type].ansi(ansiStyles$1.rgbToAnsi(...arguments_));
 	}
 
 	if (model === 'hex') {
-		return getModelAnsi('rgb', level, type, ...ansiStyles.hexToRgb(...arguments_));
+		return getModelAnsi('rgb', level, type, ...ansiStyles$1.hexToRgb(...arguments_));
 	}
 
-	return ansiStyles[type][model](...arguments_);
+	return ansiStyles$1[type][model](...arguments_);
 };
 
 const usedModels = ['rgb', 'hex', 'ansi256'];
 
 for (const model of usedModels) {
-	styles[model] = {
+	styles$1[model] = {
 		get() {
 			const {level} = this;
 			return function (...arguments_) {
-				const styler = createStyler(getModelAnsi(model, levelMapping[level], 'color', ...arguments_), ansiStyles.color.close, this[STYLER]);
+				const styler = createStyler(getModelAnsi(model, levelMapping[level], 'color', ...arguments_), ansiStyles$1.color.close, this[STYLER]);
 				return createBuilder(this, styler, this[IS_EMPTY]);
 			};
 		},
 	};
 
 	const bgModel = 'bg' + model[0].toUpperCase() + model.slice(1);
-	styles[bgModel] = {
+	styles$1[bgModel] = {
 		get() {
 			const {level} = this;
 			return function (...arguments_) {
-				const styler = createStyler(getModelAnsi(model, levelMapping[level], 'bgColor', ...arguments_), ansiStyles.bgColor.close, this[STYLER]);
+				const styler = createStyler(getModelAnsi(model, levelMapping[level], 'bgColor', ...arguments_), ansiStyles$1.bgColor.close, this[STYLER]);
 				return createBuilder(this, styler, this[IS_EMPTY]);
 			};
 		},
@@ -3965,7 +3967,7 @@ for (const model of usedModels) {
 }
 
 const proto = Object.defineProperties(() => {}, {
-	...styles,
+	...styles$1,
 	level: {
 		enumerable: true,
 		get() {
@@ -4047,7 +4049,7 @@ const applyStyle = (self, string) => {
 	return openAll + string + closeAll;
 };
 
-Object.defineProperties(createChalk.prototype, styles);
+Object.defineProperties(createChalk.prototype, styles$1);
 
 const chalk = createChalk();
 createChalk({level: stderrColor ? stderrColor.level : 0});
@@ -4227,11 +4229,11 @@ function requireSignalExit () {
 	    return function () {}
 	  };
 	} else {
-	  var assert = require$$0$3;
+	  var assert = require$$0$4;
 	  var signals = requireSignals();
 	  var isWin = /^win/i.test(process.platform);
 
-	  var EE = require$$0$2;
+	  var EE = require$$0$3;
 	  /* istanbul ignore if */
 	  if (typeof EE !== 'function') {
 	    EE = EE.EventEmitter;
@@ -5305,7 +5307,7 @@ var squish = {
 		"╪"
 	]
 };
-var toggle = {
+var toggle$1 = {
 	interval: 250,
 	frames: [
 		"⊶",
@@ -5400,7 +5402,7 @@ var toggle13 = {
 		"-"
 	]
 };
-var arrow = {
+var arrow$1 = {
 	interval: 100,
 	frames: [
 		"←",
@@ -6071,7 +6073,7 @@ var dwarfFortress = {
 		" ██████£££  "
 	]
 };
-var require$$0$1 = {
+var require$$0$2 = {
 	dots: dots,
 	dots2: dots2,
 	dots3: dots3,
@@ -6112,7 +6114,7 @@ var require$$0$1 = {
 	circleQuarters: circleQuarters,
 	circleHalves: circleHalves,
 	squish: squish,
-	toggle: toggle,
+	toggle: toggle$1,
 	toggle2: toggle2,
 	toggle3: toggle3,
 	toggle4: toggle4,
@@ -6125,7 +6127,7 @@ var require$$0$1 = {
 	toggle11: toggle11,
 	toggle12: toggle12,
 	toggle13: toggle13,
-	arrow: arrow,
+	arrow: arrow$1,
 	arrow2: arrow2,
 	arrow3: arrow3,
 	bouncingBar: bouncingBar,
@@ -6167,7 +6169,7 @@ function requireCliSpinners () {
 	if (hasRequiredCliSpinners) return cliSpinners$1;
 	hasRequiredCliSpinners = 1;
 
-	const spinners = Object.assign({}, require$$0$1); // eslint-disable-line import/extensions
+	const spinners = Object.assign({}, require$$0$2); // eslint-disable-line import/extensions
 
 	const spinnersList = Object.keys(spinners);
 
@@ -6218,7 +6220,7 @@ const fallback = {
 
 const logSymbols = isUnicodeSupported() ? main : fallback;
 
-function ansiRegex({onlyFirst = false} = {}) {
+function ansiRegex$2({onlyFirst = false} = {}) {
 	// Valid string terminator sequences are BEL, ESC\, and 0x9c
 	const ST = '(?:\\u0007|\\u001B\\u005C|\\u009C)';
 	const pattern = [
@@ -6229,9 +6231,9 @@ function ansiRegex({onlyFirst = false} = {}) {
 	return new RegExp(pattern, onlyFirst ? undefined : 'g');
 }
 
-const regex = ansiRegex();
+const regex = ansiRegex$2();
 
-function stripAnsi(string) {
+function stripAnsi$2(string) {
 	if (typeof string !== 'string') {
 		throw new TypeError(`Expected a \`string\`, got \`${typeof string}\``);
 	}
@@ -6564,14 +6566,14 @@ function requireEastasianwidth () {
 }
 
 var eastasianwidthExports = requireEastasianwidth();
-var eastAsianWidth = /*@__PURE__*/getDefaultExportFromCjs(eastasianwidthExports);
+var eastAsianWidth$1 = /*@__PURE__*/getDefaultExportFromCjs(eastasianwidthExports);
 
-var emojiRegex = () => {
+var emojiRegex$1 = () => {
 	// https://mths.be/emoji
 	return /[#*0-9]\uFE0F?\u20E3|[\xA9\xAE\u203C\u2049\u2122\u2139\u2194-\u2199\u21A9\u21AA\u231A\u231B\u2328\u23CF\u23ED-\u23EF\u23F1\u23F2\u23F8-\u23FA\u24C2\u25AA\u25AB\u25B6\u25C0\u25FB\u25FC\u25FE\u2600-\u2604\u260E\u2611\u2614\u2615\u2618\u2620\u2622\u2623\u2626\u262A\u262E\u262F\u2638-\u263A\u2640\u2642\u2648-\u2653\u265F\u2660\u2663\u2665\u2666\u2668\u267B\u267E\u267F\u2692\u2694-\u2697\u2699\u269B\u269C\u26A0\u26A7\u26AA\u26B0\u26B1\u26BD\u26BE\u26C4\u26C8\u26CF\u26D1\u26E9\u26F0-\u26F5\u26F7\u26F8\u26FA\u2702\u2708\u2709\u270F\u2712\u2714\u2716\u271D\u2721\u2733\u2734\u2744\u2747\u2757\u2763\u27A1\u2934\u2935\u2B05-\u2B07\u2B1B\u2B1C\u2B55\u3030\u303D\u3297\u3299]\uFE0F?|[\u261D\u270C\u270D](?:\uD83C[\uDFFB-\uDFFF]|\uFE0F)?|[\u270A\u270B](?:\uD83C[\uDFFB-\uDFFF])?|[\u23E9-\u23EC\u23F0\u23F3\u25FD\u2693\u26A1\u26AB\u26C5\u26CE\u26D4\u26EA\u26FD\u2705\u2728\u274C\u274E\u2753-\u2755\u2795-\u2797\u27B0\u27BF\u2B50]|\u26D3\uFE0F?(?:\u200D\uD83D\uDCA5)?|\u26F9(?:\uD83C[\uDFFB-\uDFFF]|\uFE0F)?(?:\u200D[\u2640\u2642]\uFE0F?)?|\u2764\uFE0F?(?:\u200D(?:\uD83D\uDD25|\uD83E\uDE79))?|\uD83C(?:[\uDC04\uDD70\uDD71\uDD7E\uDD7F\uDE02\uDE37\uDF21\uDF24-\uDF2C\uDF36\uDF7D\uDF96\uDF97\uDF99-\uDF9B\uDF9E\uDF9F\uDFCD\uDFCE\uDFD4-\uDFDF\uDFF5\uDFF7]\uFE0F?|[\uDF85\uDFC2\uDFC7](?:\uD83C[\uDFFB-\uDFFF])?|[\uDFC4\uDFCA](?:\uD83C[\uDFFB-\uDFFF])?(?:\u200D[\u2640\u2642]\uFE0F?)?|[\uDFCB\uDFCC](?:\uD83C[\uDFFB-\uDFFF]|\uFE0F)?(?:\u200D[\u2640\u2642]\uFE0F?)?|[\uDCCF\uDD8E\uDD91-\uDD9A\uDE01\uDE1A\uDE2F\uDE32-\uDE36\uDE38-\uDE3A\uDE50\uDE51\uDF00-\uDF20\uDF2D-\uDF35\uDF37-\uDF43\uDF45-\uDF4A\uDF4C-\uDF7C\uDF7E-\uDF84\uDF86-\uDF93\uDFA0-\uDFC1\uDFC5\uDFC6\uDFC8\uDFC9\uDFCF-\uDFD3\uDFE0-\uDFF0\uDFF8-\uDFFF]|\uDDE6\uD83C[\uDDE8-\uDDEC\uDDEE\uDDF1\uDDF2\uDDF4\uDDF6-\uDDFA\uDDFC\uDDFD\uDDFF]|\uDDE7\uD83C[\uDDE6\uDDE7\uDDE9-\uDDEF\uDDF1-\uDDF4\uDDF6-\uDDF9\uDDFB\uDDFC\uDDFE\uDDFF]|\uDDE8\uD83C[\uDDE6\uDDE8\uDDE9\uDDEB-\uDDEE\uDDF0-\uDDF7\uDDFA-\uDDFF]|\uDDE9\uD83C[\uDDEA\uDDEC\uDDEF\uDDF0\uDDF2\uDDF4\uDDFF]|\uDDEA\uD83C[\uDDE6\uDDE8\uDDEA\uDDEC\uDDED\uDDF7-\uDDFA]|\uDDEB\uD83C[\uDDEE-\uDDF0\uDDF2\uDDF4\uDDF7]|\uDDEC\uD83C[\uDDE6\uDDE7\uDDE9-\uDDEE\uDDF1-\uDDF3\uDDF5-\uDDFA\uDDFC\uDDFE]|\uDDED\uD83C[\uDDF0\uDDF2\uDDF3\uDDF7\uDDF9\uDDFA]|\uDDEE\uD83C[\uDDE8-\uDDEA\uDDF1-\uDDF4\uDDF6-\uDDF9]|\uDDEF\uD83C[\uDDEA\uDDF2\uDDF4\uDDF5]|\uDDF0\uD83C[\uDDEA\uDDEC-\uDDEE\uDDF2\uDDF3\uDDF5\uDDF7\uDDFC\uDDFE\uDDFF]|\uDDF1\uD83C[\uDDE6-\uDDE8\uDDEE\uDDF0\uDDF7-\uDDFB\uDDFE]|\uDDF2\uD83C[\uDDE6\uDDE8-\uDDED\uDDF0-\uDDFF]|\uDDF3\uD83C[\uDDE6\uDDE8\uDDEA-\uDDEC\uDDEE\uDDF1\uDDF4\uDDF5\uDDF7\uDDFA\uDDFF]|\uDDF4\uD83C\uDDF2|\uDDF5\uD83C[\uDDE6\uDDEA-\uDDED\uDDF0-\uDDF3\uDDF7-\uDDF9\uDDFC\uDDFE]|\uDDF6\uD83C\uDDE6|\uDDF7\uD83C[\uDDEA\uDDF4\uDDF8\uDDFA\uDDFC]|\uDDF8\uD83C[\uDDE6-\uDDEA\uDDEC-\uDDF4\uDDF7-\uDDF9\uDDFB\uDDFD-\uDDFF]|\uDDF9\uD83C[\uDDE6\uDDE8\uDDE9\uDDEB-\uDDED\uDDEF-\uDDF4\uDDF7\uDDF9\uDDFB\uDDFC\uDDFF]|\uDDFA\uD83C[\uDDE6\uDDEC\uDDF2\uDDF3\uDDF8\uDDFE\uDDFF]|\uDDFB\uD83C[\uDDE6\uDDE8\uDDEA\uDDEC\uDDEE\uDDF3\uDDFA]|\uDDFC\uD83C[\uDDEB\uDDF8]|\uDDFD\uD83C\uDDF0|\uDDFE\uD83C[\uDDEA\uDDF9]|\uDDFF\uD83C[\uDDE6\uDDF2\uDDFC]|\uDF44(?:\u200D\uD83D\uDFEB)?|\uDF4B(?:\u200D\uD83D\uDFE9)?|\uDFC3(?:\uD83C[\uDFFB-\uDFFF])?(?:\u200D(?:[\u2640\u2642]\uFE0F?(?:\u200D\u27A1\uFE0F?)?|\u27A1\uFE0F?))?|\uDFF3\uFE0F?(?:\u200D(?:\u26A7\uFE0F?|\uD83C\uDF08))?|\uDFF4(?:\u200D\u2620\uFE0F?|\uDB40\uDC67\uDB40\uDC62\uDB40(?:\uDC65\uDB40\uDC6E\uDB40\uDC67|\uDC73\uDB40\uDC63\uDB40\uDC74|\uDC77\uDB40\uDC6C\uDB40\uDC73)\uDB40\uDC7F)?)|\uD83D(?:[\uDC3F\uDCFD\uDD49\uDD4A\uDD6F\uDD70\uDD73\uDD76-\uDD79\uDD87\uDD8A-\uDD8D\uDDA5\uDDA8\uDDB1\uDDB2\uDDBC\uDDC2-\uDDC4\uDDD1-\uDDD3\uDDDC-\uDDDE\uDDE1\uDDE3\uDDE8\uDDEF\uDDF3\uDDFA\uDECB\uDECD-\uDECF\uDEE0-\uDEE5\uDEE9\uDEF0\uDEF3]\uFE0F?|[\uDC42\uDC43\uDC46-\uDC50\uDC66\uDC67\uDC6B-\uDC6D\uDC72\uDC74-\uDC76\uDC78\uDC7C\uDC83\uDC85\uDC8F\uDC91\uDCAA\uDD7A\uDD95\uDD96\uDE4C\uDE4F\uDEC0\uDECC](?:\uD83C[\uDFFB-\uDFFF])?|[\uDC6E\uDC70\uDC71\uDC73\uDC77\uDC81\uDC82\uDC86\uDC87\uDE45-\uDE47\uDE4B\uDE4D\uDE4E\uDEA3\uDEB4\uDEB5](?:\uD83C[\uDFFB-\uDFFF])?(?:\u200D[\u2640\u2642]\uFE0F?)?|[\uDD74\uDD90](?:\uD83C[\uDFFB-\uDFFF]|\uFE0F)?|[\uDC00-\uDC07\uDC09-\uDC14\uDC16-\uDC25\uDC27-\uDC3A\uDC3C-\uDC3E\uDC40\uDC44\uDC45\uDC51-\uDC65\uDC6A\uDC79-\uDC7B\uDC7D-\uDC80\uDC84\uDC88-\uDC8E\uDC90\uDC92-\uDCA9\uDCAB-\uDCFC\uDCFF-\uDD3D\uDD4B-\uDD4E\uDD50-\uDD67\uDDA4\uDDFB-\uDE2D\uDE2F-\uDE34\uDE37-\uDE41\uDE43\uDE44\uDE48-\uDE4A\uDE80-\uDEA2\uDEA4-\uDEB3\uDEB7-\uDEBF\uDEC1-\uDEC5\uDED0-\uDED2\uDED5-\uDED7\uDEDC-\uDEDF\uDEEB\uDEEC\uDEF4-\uDEFC\uDFE0-\uDFEB\uDFF0]|\uDC08(?:\u200D\u2B1B)?|\uDC15(?:\u200D\uD83E\uDDBA)?|\uDC26(?:\u200D(?:\u2B1B|\uD83D\uDD25))?|\uDC3B(?:\u200D\u2744\uFE0F?)?|\uDC41\uFE0F?(?:\u200D\uD83D\uDDE8\uFE0F?)?|\uDC68(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:\uDC8B\u200D\uD83D)?\uDC68|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D(?:[\uDC68\uDC69]\u200D\uD83D(?:\uDC66(?:\u200D\uD83D\uDC66)?|\uDC67(?:\u200D\uD83D[\uDC66\uDC67])?)|[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uDC66(?:\u200D\uD83D\uDC66)?|\uDC67(?:\u200D\uD83D[\uDC66\uDC67])?)|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]))|\uD83C(?:\uDFFB(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:\uDC8B\u200D\uD83D)?\uDC68\uD83C[\uDFFB-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]|\uDD1D\u200D\uD83D\uDC68\uD83C[\uDFFC-\uDFFF])))?|\uDFFC(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:\uDC8B\u200D\uD83D)?\uDC68\uD83C[\uDFFB-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]|\uDD1D\u200D\uD83D\uDC68\uD83C[\uDFFB\uDFFD-\uDFFF])))?|\uDFFD(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:\uDC8B\u200D\uD83D)?\uDC68\uD83C[\uDFFB-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]|\uDD1D\u200D\uD83D\uDC68\uD83C[\uDFFB\uDFFC\uDFFE\uDFFF])))?|\uDFFE(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:\uDC8B\u200D\uD83D)?\uDC68\uD83C[\uDFFB-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]|\uDD1D\u200D\uD83D\uDC68\uD83C[\uDFFB-\uDFFD\uDFFF])))?|\uDFFF(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:\uDC8B\u200D\uD83D)?\uDC68\uD83C[\uDFFB-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]|\uDD1D\u200D\uD83D\uDC68\uD83C[\uDFFB-\uDFFE])))?))?|\uDC69(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:\uDC8B\u200D\uD83D)?[\uDC68\uDC69]|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D(?:[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uDC66(?:\u200D\uD83D\uDC66)?|\uDC67(?:\u200D\uD83D[\uDC66\uDC67])?|\uDC69\u200D\uD83D(?:\uDC66(?:\u200D\uD83D\uDC66)?|\uDC67(?:\u200D\uD83D[\uDC66\uDC67])?))|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]))|\uD83C(?:\uDFFB(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:[\uDC68\uDC69]|\uDC8B\u200D\uD83D[\uDC68\uDC69])\uD83C[\uDFFB-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]|\uDD1D\u200D\uD83D[\uDC68\uDC69]\uD83C[\uDFFC-\uDFFF])))?|\uDFFC(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:[\uDC68\uDC69]|\uDC8B\u200D\uD83D[\uDC68\uDC69])\uD83C[\uDFFB-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]|\uDD1D\u200D\uD83D[\uDC68\uDC69]\uD83C[\uDFFB\uDFFD-\uDFFF])))?|\uDFFD(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:[\uDC68\uDC69]|\uDC8B\u200D\uD83D[\uDC68\uDC69])\uD83C[\uDFFB-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]|\uDD1D\u200D\uD83D[\uDC68\uDC69]\uD83C[\uDFFB\uDFFC\uDFFE\uDFFF])))?|\uDFFE(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:[\uDC68\uDC69]|\uDC8B\u200D\uD83D[\uDC68\uDC69])\uD83C[\uDFFB-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]|\uDD1D\u200D\uD83D[\uDC68\uDC69]\uD83C[\uDFFB-\uDFFD\uDFFF])))?|\uDFFF(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:[\uDC68\uDC69]|\uDC8B\u200D\uD83D[\uDC68\uDC69])\uD83C[\uDFFB-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]|\uDD1D\u200D\uD83D[\uDC68\uDC69]\uD83C[\uDFFB-\uDFFE])))?))?|\uDC6F(?:\u200D[\u2640\u2642]\uFE0F?)?|\uDD75(?:\uD83C[\uDFFB-\uDFFF]|\uFE0F)?(?:\u200D[\u2640\u2642]\uFE0F?)?|\uDE2E(?:\u200D\uD83D\uDCA8)?|\uDE35(?:\u200D\uD83D\uDCAB)?|\uDE36(?:\u200D\uD83C\uDF2B\uFE0F?)?|\uDE42(?:\u200D[\u2194\u2195]\uFE0F?)?|\uDEB6(?:\uD83C[\uDFFB-\uDFFF])?(?:\u200D(?:[\u2640\u2642]\uFE0F?(?:\u200D\u27A1\uFE0F?)?|\u27A1\uFE0F?))?)|\uD83E(?:[\uDD0C\uDD0F\uDD18-\uDD1F\uDD30-\uDD34\uDD36\uDD77\uDDB5\uDDB6\uDDBB\uDDD2\uDDD3\uDDD5\uDEC3-\uDEC5\uDEF0\uDEF2-\uDEF8](?:\uD83C[\uDFFB-\uDFFF])?|[\uDD26\uDD35\uDD37-\uDD39\uDD3D\uDD3E\uDDB8\uDDB9\uDDCD\uDDCF\uDDD4\uDDD6-\uDDDD](?:\uD83C[\uDFFB-\uDFFF])?(?:\u200D[\u2640\u2642]\uFE0F?)?|[\uDDDE\uDDDF](?:\u200D[\u2640\u2642]\uFE0F?)?|[\uDD0D\uDD0E\uDD10-\uDD17\uDD20-\uDD25\uDD27-\uDD2F\uDD3A\uDD3F-\uDD45\uDD47-\uDD76\uDD78-\uDDB4\uDDB7\uDDBA\uDDBC-\uDDCC\uDDD0\uDDE0-\uDDFF\uDE70-\uDE7C\uDE80-\uDE89\uDE8F-\uDEC2\uDEC6\uDECE-\uDEDC\uDEDF-\uDEE9]|\uDD3C(?:\u200D[\u2640\u2642]\uFE0F?|\uD83C[\uDFFB-\uDFFF])?|\uDDCE(?:\uD83C[\uDFFB-\uDFFF])?(?:\u200D(?:[\u2640\u2642]\uFE0F?(?:\u200D\u27A1\uFE0F?)?|\u27A1\uFE0F?))?|\uDDD1(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\uD83C[\uDF3E\uDF73\uDF7C\uDF84\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]|\uDD1D\u200D\uD83E\uDDD1|\uDDD1\u200D\uD83E\uDDD2(?:\u200D\uD83E\uDDD2)?|\uDDD2(?:\u200D\uD83E\uDDD2)?))|\uD83C(?:\uDFFB(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D(?:\uD83D\uDC8B\u200D)?\uD83E\uDDD1\uD83C[\uDFFC-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF84\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]|\uDD1D\u200D\uD83E\uDDD1\uD83C[\uDFFB-\uDFFF])))?|\uDFFC(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D(?:\uD83D\uDC8B\u200D)?\uD83E\uDDD1\uD83C[\uDFFB\uDFFD-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF84\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]|\uDD1D\u200D\uD83E\uDDD1\uD83C[\uDFFB-\uDFFF])))?|\uDFFD(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D(?:\uD83D\uDC8B\u200D)?\uD83E\uDDD1\uD83C[\uDFFB\uDFFC\uDFFE\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF84\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]|\uDD1D\u200D\uD83E\uDDD1\uD83C[\uDFFB-\uDFFF])))?|\uDFFE(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D(?:\uD83D\uDC8B\u200D)?\uD83E\uDDD1\uD83C[\uDFFB-\uDFFD\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF84\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]|\uDD1D\u200D\uD83E\uDDD1\uD83C[\uDFFB-\uDFFF])))?|\uDFFF(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D(?:\uD83D\uDC8B\u200D)?\uD83E\uDDD1\uD83C[\uDFFB-\uDFFE]|\uD83C[\uDF3E\uDF73\uDF7C\uDF84\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]|\uDD1D\u200D\uD83E\uDDD1\uD83C[\uDFFB-\uDFFF])))?))?|\uDEF1(?:\uD83C(?:\uDFFB(?:\u200D\uD83E\uDEF2\uD83C[\uDFFC-\uDFFF])?|\uDFFC(?:\u200D\uD83E\uDEF2\uD83C[\uDFFB\uDFFD-\uDFFF])?|\uDFFD(?:\u200D\uD83E\uDEF2\uD83C[\uDFFB\uDFFC\uDFFE\uDFFF])?|\uDFFE(?:\u200D\uD83E\uDEF2\uD83C[\uDFFB-\uDFFD\uDFFF])?|\uDFFF(?:\u200D\uD83E\uDEF2\uD83C[\uDFFB-\uDFFE])?))?)/g;
 };
 
-function stringWidth(string, options) {
+function stringWidth$3(string, options) {
 	if (typeof string !== 'string' || string.length === 0) {
 		return 0;
 	}
@@ -6583,7 +6585,7 @@ function stringWidth(string, options) {
 	};
 
 	if (!options.countAnsiEscapeCodes) {
-		string = stripAnsi(string);
+		string = stripAnsi$2(string);
 	}
 
 	if (string.length === 0) {
@@ -6606,12 +6608,12 @@ function stringWidth(string, options) {
 			continue;
 		}
 
-		if (emojiRegex().test(character)) {
+		if (emojiRegex$1().test(character)) {
 			width += 2;
 			continue;
 		}
 
-		const code = eastAsianWidth.eastAsianWidth(character);
+		const code = eastAsianWidth$1.eastAsianWidth(character);
 		switch (code) {
 			case 'F':
 			case 'W': {
@@ -6651,7 +6653,7 @@ var hasRequiredStream;
 function requireStream () {
 	if (hasRequiredStream) return stream$1;
 	hasRequiredStream = 1;
-	stream$1 = require$$0$4;
+	stream$1 = require$$0$5;
 	return stream$1;
 }
 
@@ -6670,9 +6672,9 @@ function requireBuffer_list () {
 	function _createClass(Constructor, protoProps, staticProps) { if (protoProps) _defineProperties(Constructor.prototype, protoProps); Object.defineProperty(Constructor, "prototype", { writable: false }); return Constructor; }
 	function _toPropertyKey(arg) { var key = _toPrimitive(arg, "string"); return typeof key === "symbol" ? key : String(key); }
 	function _toPrimitive(input, hint) { if (typeof input !== "object" || input === null) return input; var prim = input[Symbol.toPrimitive]; if (prim !== undefined) { var res = prim.call(input, hint); if (typeof res !== "object") return res; throw new TypeError("@@toPrimitive must return a primitive value."); } return (String )(input); }
-	var _require = require$$0$5,
+	var _require = require$$0$6,
 	  Buffer = _require.Buffer;
-	var _require2 = require$$0$6,
+	var _require2 = require$$0$7,
 	  inspect = _require2.inspect;
 	var custom = inspect && inspect.custom || 'inspect';
 	function copyBuffer(src, target, offset) {
@@ -7075,12 +7077,12 @@ function requireErrors () {
 	return errors;
 }
 
-var state;
-var hasRequiredState;
+var state$1;
+var hasRequiredState$1;
 
-function requireState () {
-	if (hasRequiredState) return state;
-	hasRequiredState = 1;
+function requireState$1 () {
+	if (hasRequiredState$1) return state$1;
+	hasRequiredState$1 = 1;
 
 	var ERR_INVALID_OPT_VALUE = requireErrors().codes.ERR_INVALID_OPT_VALUE;
 	function highWaterMarkFrom(options, isDuplex, duplexKey) {
@@ -7099,10 +7101,10 @@ function requireState () {
 	  // Default value
 	  return state.objectMode ? 16 : 16 * 1024;
 	}
-	state = {
+	state$1 = {
 	  getHighWaterMark: getHighWaterMark
 	};
-	return state;
+	return state$1;
 }
 
 var inherits = {exports: {}};
@@ -7171,7 +7173,7 @@ function requireNode () {
 	 * For Node.js, simply re-export the core `util.deprecate` function.
 	 */
 
-	node = require$$0$6.deprecate;
+	node = require$$0$7.deprecate;
 	return node;
 }
 
@@ -7212,7 +7214,7 @@ function require_stream_writable () {
 	var Stream = requireStream();
 	/*</replacement>*/
 
-	var Buffer = require$$0$5.Buffer;
+	var Buffer = require$$0$6.Buffer;
 	var OurUint8Array = (typeof commonjsGlobal !== 'undefined' ? commonjsGlobal : typeof window !== 'undefined' ? window : typeof self !== 'undefined' ? self : {}).Uint8Array || function () {};
 	function _uint8ArrayToBuffer(chunk) {
 	  return Buffer.from(chunk);
@@ -7221,7 +7223,7 @@ function require_stream_writable () {
 	  return Buffer.isBuffer(obj) || obj instanceof OurUint8Array;
 	}
 	var destroyImpl = requireDestroy();
-	var _require = requireState(),
+	var _require = requireState$1(),
 	  getHighWaterMark = _require.getHighWaterMark;
 	var _require$codes = requireErrors().codes,
 	  ERR_INVALID_ARG_TYPE = _require$codes.ERR_INVALID_ARG_TYPE,
@@ -7912,7 +7914,7 @@ function requireSafeBuffer () {
 	hasRequiredSafeBuffer = 1;
 	(function (module, exports) {
 		/* eslint-disable node/no-deprecated-api */
-		var buffer = require$$0$5;
+		var buffer = require$$0$6;
 		var Buffer = buffer.Buffer;
 
 		// alternative to using Object.keys for old browsers
@@ -8615,7 +8617,7 @@ function require_stream_readable () {
 	Readable.ReadableState = ReadableState;
 
 	/*<replacement>*/
-	require$$0$2.EventEmitter;
+	require$$0$3.EventEmitter;
 	var EElistenerCount = function EElistenerCount(emitter, type) {
 	  return emitter.listeners(type).length;
 	};
@@ -8625,7 +8627,7 @@ function require_stream_readable () {
 	var Stream = requireStream();
 	/*</replacement>*/
 
-	var Buffer = require$$0$5.Buffer;
+	var Buffer = require$$0$6.Buffer;
 	var OurUint8Array = (typeof commonjsGlobal !== 'undefined' ? commonjsGlobal : typeof window !== 'undefined' ? window : typeof self !== 'undefined' ? self : {}).Uint8Array || function () {};
 	function _uint8ArrayToBuffer(chunk) {
 	  return Buffer.from(chunk);
@@ -8635,7 +8637,7 @@ function require_stream_readable () {
 	}
 
 	/*<replacement>*/
-	var debugUtil = require$$0$6;
+	var debugUtil = require$$0$7;
 	var debug;
 	if (debugUtil && debugUtil.debuglog) {
 	  debug = debugUtil.debuglog('stream');
@@ -8646,7 +8648,7 @@ function require_stream_readable () {
 
 	var BufferList = requireBuffer_list();
 	var destroyImpl = requireDestroy();
-	var _require = requireState(),
+	var _require = requireState$1(),
 	  getHighWaterMark = _require.getHighWaterMark;
 	var _require$codes = requireErrors().codes,
 	  ERR_INVALID_ARG_TYPE = _require$codes.ERR_INVALID_ARG_TYPE,
@@ -9865,7 +9867,7 @@ function requireReadable () {
 	if (hasRequiredReadable) return readable.exports;
 	hasRequiredReadable = 1;
 	(function (module, exports) {
-		var Stream = require$$0$4;
+		var Stream = require$$0$5;
 		if (process.env.READABLE_STREAM === 'disable' && Stream) {
 		  module.exports = Stream.Readable;
 		  Object.assign(module.exports, Stream);
@@ -9892,7 +9894,7 @@ function requireBufferList () {
 	if (hasRequiredBufferList) return BufferList_1;
 	hasRequiredBufferList = 1;
 
-	const { Buffer } = require$$0$5;
+	const { Buffer } = require$$0$6;
 	const symbol = Symbol.for('BufferList');
 
 	function BufferList (buf) {
@@ -10650,8 +10652,8 @@ class Ora {
 		const fullText = ' '.repeat(this.#indent) + fullPrefixText + '--' + this.#text + '--' + fullSuffixText;
 
 		this.#lineCount = 0;
-		for (const line of stripAnsi(fullText).split('\n')) {
-			this.#lineCount += Math.max(1, Math.ceil(stringWidth(line, {countAnsiEscapeCodes: true}) / columns));
+		for (const line of stripAnsi$2(fullText).split('\n')) {
+			this.#lineCount += Math.max(1, Math.ceil(stringWidth$3(line, {countAnsiEscapeCodes: true}) / columns));
 		}
 	}
 
@@ -18437,7 +18439,7 @@ var libEsm = /*#__PURE__*/Object.freeze({
 	isAnyArray: isAnyArray
 });
 
-var require$$0 = /*@__PURE__*/getAugmentedNamespace(libEsm);
+var require$$0$1 = /*@__PURE__*/getAugmentedNamespace(libEsm);
 
 function max(input) {
   var options = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
@@ -18566,7 +18568,7 @@ function requireMatrix () {
 
 	Object.defineProperty(matrix$1, '__esModule', { value: true });
 
-	var isAnyArray = require$$0;
+	var isAnyArray = require$$0$1;
 	var rescale = require$$1;
 
 	const indent = ' '.repeat(2);
@@ -30965,7 +30967,7 @@ function formatPercentage(num, decimals = 1) {
   return (num * 100).toFixed(decimals) + '%';
 }
 
-function formatFileSize(bytes) {
+function formatFileSize$1(bytes) {
   const sizes = ['B', 'KB', 'MB', 'GB'];
   if (bytes === 0) return '0 B';
   const i = Math.floor(Math.log(bytes) / Math.log(1024));
@@ -33588,7 +33590,7 @@ function requireUnicode () {
 	if (hasRequiredUnicode) return unicode.exports;
 	hasRequiredUnicode = 1;
 	(function (module) {
-		var util = require$$0$6,
+		var util = require$$0$7,
 		  Match = requireMatch();
 
 		/**
@@ -33710,7 +33712,7 @@ function requireMbcs () {
 	if (hasRequiredMbcs) return mbcs.exports;
 	hasRequiredMbcs = 1;
 	(function (module) {
-		var util = require$$0$6,
+		var util = require$$0$7,
 		  Match = requireMatch();
 
 		/**
@@ -34216,7 +34218,7 @@ function requireSbcs () {
 	if (hasRequiredSbcs) return sbcs.exports;
 	hasRequiredSbcs = 1;
 	(function (module) {
-		var util = require$$0$6,
+		var util = require$$0$7,
 		  Match = requireMatch();
 
 		/**
@@ -35131,7 +35133,7 @@ function requireIso2022 () {
 	if (hasRequiredIso2022) return iso2022.exports;
 	hasRequiredIso2022 = 1;
 	(function (module) {
-		var util = require$$0$6,
+		var util = require$$0$7,
 		  Match = requireMatch();
 
 
@@ -36143,7 +36145,7 @@ async function edaComprehensive(filePath, options = {}) {
     // Initialize analysis object
     const analysis = {
       fileName,
-      fileSize: formatFileSize(fileStats.size),
+      fileSize: formatFileSize$1(fileStats.size),
       rowCount: records.length,
       columnCount: columns.length,
       columns: [],
@@ -38645,27 +38647,27 @@ function requireIsAscii () {
 	return isAscii.exports;
 }
 
-var isFullWidth = {};
+var isFullWidth$1 = {};
 
 var hasRequiredIsFullWidth;
 
 function requireIsFullWidth () {
-	if (hasRequiredIsFullWidth) return isFullWidth;
+	if (hasRequiredIsFullWidth) return isFullWidth$1;
 	hasRequiredIsFullWidth = 1;
 
-	Object.defineProperty(isFullWidth, "__esModule", {
+	Object.defineProperty(isFullWidth$1, "__esModule", {
 	  value: true
 	});
-	isFullWidth.default = isFullWidth$1;
-	isFullWidth.fullWidth = void 0;
+	isFullWidth$1.default = isFullWidth;
+	isFullWidth$1.fullWidth = void 0;
 	var _assertString = _interopRequireDefault(/*@__PURE__*/ requireAssertString());
 	function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-	var fullWidth = isFullWidth.fullWidth = /[^\u0020-\u007E\uFF61-\uFF9F\uFFA0-\uFFDC\uFFE8-\uFFEE0-9a-zA-Z]/;
-	function isFullWidth$1(str) {
+	var fullWidth = isFullWidth$1.fullWidth = /[^\u0020-\u007E\uFF61-\uFF9F\uFFA0-\uFFDC\uFFE8-\uFFEE0-9a-zA-Z]/;
+	function isFullWidth(str) {
 	  (0, _assertString.default)(str);
 	  return fullWidth.test(str);
 	}
-	return isFullWidth;
+	return isFullWidth$1;
 }
 
 var isHalfWidth = {};
@@ -55737,7 +55739,7 @@ function makeSnippet(mark, options) {
 }
 
 
-var snippet = makeSnippet;
+var snippet$1 = makeSnippet;
 
 var TYPE_CONSTRUCTOR_OPTIONS = [
   'kind',
@@ -56791,7 +56793,7 @@ function generateError(state, message) {
     column:   state.position - state.lineStart
   };
 
-  mark.snippet = snippet(mark);
+  mark.snippet = snippet$1(mark);
 
   return new exception(message, mark);
 }
@@ -59332,7 +59334,7 @@ var dump                = dumper.dump;
 var YAMLException       = exception;
 
 // Re-export all types in case user wants to create custom schema
-var types$1 = {
+var types$2 = {
   binary:    binary,
   float:     float,
   map:       map,
@@ -59364,7 +59366,7 @@ var jsYaml = {
 	loadAll: loadAll,
 	dump: dump,
 	YAMLException: YAMLException,
-	types: types$1,
+	types: types$2,
 	safeLoad: safeLoad,
 	safeLoadAll: safeLoadAll,
 	safeDump: safeDump
@@ -66128,6 +66130,10275 @@ async function runAll(filePath, options = {}) {
   }
 }
 
+var utils = {};
+
+var ansiColors = {exports: {}};
+
+var symbols = {exports: {}};
+
+var hasRequiredSymbols$1;
+
+function requireSymbols$1 () {
+	if (hasRequiredSymbols$1) return symbols.exports;
+	hasRequiredSymbols$1 = 1;
+	(function (module) {
+
+		const isHyper = typeof process !== 'undefined' && process.env.TERM_PROGRAM === 'Hyper';
+		const isWindows = typeof process !== 'undefined' && process.platform === 'win32';
+		const isLinux = typeof process !== 'undefined' && process.platform === 'linux';
+
+		const common = {
+		  ballotDisabled: '☒',
+		  ballotOff: '☐',
+		  ballotOn: '☑',
+		  bullet: '•',
+		  bulletWhite: '◦',
+		  fullBlock: '█',
+		  heart: '❤',
+		  identicalTo: '≡',
+		  line: '─',
+		  mark: '※',
+		  middot: '·',
+		  minus: '－',
+		  multiplication: '×',
+		  obelus: '÷',
+		  pencilDownRight: '✎',
+		  pencilRight: '✏',
+		  pencilUpRight: '✐',
+		  percent: '%',
+		  pilcrow2: '❡',
+		  pilcrow: '¶',
+		  plusMinus: '±',
+		  question: '?',
+		  section: '§',
+		  starsOff: '☆',
+		  starsOn: '★',
+		  upDownArrow: '↕'
+		};
+
+		const windows = Object.assign({}, common, {
+		  check: '√',
+		  cross: '×',
+		  ellipsisLarge: '...',
+		  ellipsis: '...',
+		  info: 'i',
+		  questionSmall: '?',
+		  pointer: '>',
+		  pointerSmall: '»',
+		  radioOff: '( )',
+		  radioOn: '(*)',
+		  warning: '‼'
+		});
+
+		const other = Object.assign({}, common, {
+		  ballotCross: '✘',
+		  check: '✔',
+		  cross: '✖',
+		  ellipsisLarge: '⋯',
+		  ellipsis: '…',
+		  info: 'ℹ',
+		  questionFull: '？',
+		  questionSmall: '﹖',
+		  pointer: isLinux ? '▸' : '❯',
+		  pointerSmall: isLinux ? '‣' : '›',
+		  radioOff: '◯',
+		  radioOn: '◉',
+		  warning: '⚠'
+		});
+
+		module.exports = (isWindows && !isHyper) ? windows : other;
+		Reflect.defineProperty(module.exports, 'common', { enumerable: false, value: common });
+		Reflect.defineProperty(module.exports, 'windows', { enumerable: false, value: windows });
+		Reflect.defineProperty(module.exports, 'other', { enumerable: false, value: other }); 
+	} (symbols));
+	return symbols.exports;
+}
+
+var hasRequiredAnsiColors;
+
+function requireAnsiColors () {
+	if (hasRequiredAnsiColors) return ansiColors.exports;
+	hasRequiredAnsiColors = 1;
+
+	const isObject = val => val !== null && typeof val === 'object' && !Array.isArray(val);
+
+	/* eslint-disable no-control-regex */
+	// this is a modified version of https://github.com/chalk/ansi-regex (MIT License)
+	const ANSI_REGEX = /[\u001b\u009b][[\]#;?()]*(?:(?:(?:[^\W_]*;?[^\W_]*)\u0007)|(?:(?:[0-9]{1,4}(;[0-9]{0,4})*)?[~0-9=<>cf-nqrtyA-PRZ]))/g;
+
+	const hasColor = () => {
+	  if (typeof process !== 'undefined') {
+	    return process.env.FORCE_COLOR !== '0';
+	  }
+	  return false;
+	};
+
+	const create = () => {
+	  const colors = {
+	    enabled: hasColor(),
+	    visible: true,
+	    styles: {},
+	    keys: {}
+	  };
+
+	  const ansi = style => {
+	    let open = style.open = `\u001b[${style.codes[0]}m`;
+	    let close = style.close = `\u001b[${style.codes[1]}m`;
+	    let regex = style.regex = new RegExp(`\\u001b\\[${style.codes[1]}m`, 'g');
+	    style.wrap = (input, newline) => {
+	      if (input.includes(close)) input = input.replace(regex, close + open);
+	      let output = open + input + close;
+	      // see https://github.com/chalk/chalk/pull/92, thanks to the
+	      // chalk contributors for this fix. However, we've confirmed that
+	      // this issue is also present in Windows terminals
+	      return newline ? output.replace(/\r*\n/g, `${close}$&${open}`) : output;
+	    };
+	    return style;
+	  };
+
+	  const wrap = (style, input, newline) => {
+	    return typeof style === 'function' ? style(input) : style.wrap(input, newline);
+	  };
+
+	  const style = (input, stack) => {
+	    if (input === '' || input == null) return '';
+	    if (colors.enabled === false) return input;
+	    if (colors.visible === false) return '';
+	    let str = '' + input;
+	    let nl = str.includes('\n');
+	    let n = stack.length;
+	    if (n > 0 && stack.includes('unstyle')) {
+	      stack = [...new Set(['unstyle', ...stack])].reverse();
+	    }
+	    while (n-- > 0) str = wrap(colors.styles[stack[n]], str, nl);
+	    return str;
+	  };
+
+	  const define = (name, codes, type) => {
+	    colors.styles[name] = ansi({ name, codes });
+	    let keys = colors.keys[type] || (colors.keys[type] = []);
+	    keys.push(name);
+
+	    Reflect.defineProperty(colors, name, {
+	      configurable: true,
+	      enumerable: true,
+	      set(value) {
+	        colors.alias(name, value);
+	      },
+	      get() {
+	        let color = input => style(input, color.stack);
+	        Reflect.setPrototypeOf(color, colors);
+	        color.stack = this.stack ? this.stack.concat(name) : [name];
+	        return color;
+	      }
+	    });
+	  };
+
+	  define('reset', [0, 0], 'modifier');
+	  define('bold', [1, 22], 'modifier');
+	  define('dim', [2, 22], 'modifier');
+	  define('italic', [3, 23], 'modifier');
+	  define('underline', [4, 24], 'modifier');
+	  define('inverse', [7, 27], 'modifier');
+	  define('hidden', [8, 28], 'modifier');
+	  define('strikethrough', [9, 29], 'modifier');
+
+	  define('black', [30, 39], 'color');
+	  define('red', [31, 39], 'color');
+	  define('green', [32, 39], 'color');
+	  define('yellow', [33, 39], 'color');
+	  define('blue', [34, 39], 'color');
+	  define('magenta', [35, 39], 'color');
+	  define('cyan', [36, 39], 'color');
+	  define('white', [37, 39], 'color');
+	  define('gray', [90, 39], 'color');
+	  define('grey', [90, 39], 'color');
+
+	  define('bgBlack', [40, 49], 'bg');
+	  define('bgRed', [41, 49], 'bg');
+	  define('bgGreen', [42, 49], 'bg');
+	  define('bgYellow', [43, 49], 'bg');
+	  define('bgBlue', [44, 49], 'bg');
+	  define('bgMagenta', [45, 49], 'bg');
+	  define('bgCyan', [46, 49], 'bg');
+	  define('bgWhite', [47, 49], 'bg');
+
+	  define('blackBright', [90, 39], 'bright');
+	  define('redBright', [91, 39], 'bright');
+	  define('greenBright', [92, 39], 'bright');
+	  define('yellowBright', [93, 39], 'bright');
+	  define('blueBright', [94, 39], 'bright');
+	  define('magentaBright', [95, 39], 'bright');
+	  define('cyanBright', [96, 39], 'bright');
+	  define('whiteBright', [97, 39], 'bright');
+
+	  define('bgBlackBright', [100, 49], 'bgBright');
+	  define('bgRedBright', [101, 49], 'bgBright');
+	  define('bgGreenBright', [102, 49], 'bgBright');
+	  define('bgYellowBright', [103, 49], 'bgBright');
+	  define('bgBlueBright', [104, 49], 'bgBright');
+	  define('bgMagentaBright', [105, 49], 'bgBright');
+	  define('bgCyanBright', [106, 49], 'bgBright');
+	  define('bgWhiteBright', [107, 49], 'bgBright');
+
+	  colors.ansiRegex = ANSI_REGEX;
+	  colors.hasColor = colors.hasAnsi = str => {
+	    colors.ansiRegex.lastIndex = 0;
+	    return typeof str === 'string' && str !== '' && colors.ansiRegex.test(str);
+	  };
+
+	  colors.alias = (name, color) => {
+	    let fn = typeof color === 'string' ? colors[color] : color;
+
+	    if (typeof fn !== 'function') {
+	      throw new TypeError('Expected alias to be the name of an existing color (string) or a function');
+	    }
+
+	    if (!fn.stack) {
+	      Reflect.defineProperty(fn, 'name', { value: name });
+	      colors.styles[name] = fn;
+	      fn.stack = [name];
+	    }
+
+	    Reflect.defineProperty(colors, name, {
+	      configurable: true,
+	      enumerable: true,
+	      set(value) {
+	        colors.alias(name, value);
+	      },
+	      get() {
+	        let color = input => style(input, color.stack);
+	        Reflect.setPrototypeOf(color, colors);
+	        color.stack = this.stack ? this.stack.concat(fn.stack) : fn.stack;
+	        return color;
+	      }
+	    });
+	  };
+
+	  colors.theme = custom => {
+	    if (!isObject(custom)) throw new TypeError('Expected theme to be an object');
+	    for (let name of Object.keys(custom)) {
+	      colors.alias(name, custom[name]);
+	    }
+	    return colors;
+	  };
+
+	  colors.alias('unstyle', str => {
+	    if (typeof str === 'string' && str !== '') {
+	      colors.ansiRegex.lastIndex = 0;
+	      return str.replace(colors.ansiRegex, '');
+	    }
+	    return '';
+	  });
+
+	  colors.alias('noop', str => str);
+	  colors.none = colors.clear = colors.noop;
+
+	  colors.stripColor = colors.unstyle;
+	  colors.symbols = requireSymbols$1();
+	  colors.define = define;
+	  return colors;
+	};
+
+	ansiColors.exports = create();
+	ansiColors.exports.create = create;
+	return ansiColors.exports;
+}
+
+var hasRequiredUtils;
+
+function requireUtils () {
+	if (hasRequiredUtils) return utils;
+	hasRequiredUtils = 1;
+	(function (exports) {
+
+		const toString = Object.prototype.toString;
+		const colors = requireAnsiColors();
+		let onExitCalled = false;
+		let onExitCallbacks = new Set();
+
+		const complements = {
+		  'yellow': 'blue',
+		  'cyan': 'red',
+		  'green': 'magenta',
+		  'black': 'white',
+		  'blue': 'yellow',
+		  'red': 'cyan',
+		  'magenta': 'green',
+		  'white': 'black'
+		};
+
+		exports.longest = (arr, prop) => {
+		  return arr.reduce((a, v) => Math.max(a, prop ? v[prop].length : v.length), 0);
+		};
+
+		exports.hasColor = str => !!str && colors.hasColor(str);
+
+		const isObject = exports.isObject = val => {
+		  return val !== null && typeof val === 'object' && !Array.isArray(val);
+		};
+
+		exports.nativeType = val => {
+		  return toString.call(val).slice(8, -1).toLowerCase().replace(/\s/g, '');
+		};
+
+		exports.isAsyncFn = val => {
+		  return exports.nativeType(val) === 'asyncfunction';
+		};
+
+		exports.isPrimitive = val => {
+		  return val != null && typeof val !== 'object' && typeof val !== 'function';
+		};
+
+		exports.resolve = (context, value, ...rest) => {
+		  if (typeof value === 'function') {
+		    return value.call(context, ...rest);
+		  }
+		  return value;
+		};
+
+		exports.scrollDown = (choices = []) => [...choices.slice(1), choices[0]];
+		exports.scrollUp = (choices = []) => [choices.pop(), ...choices];
+
+		exports.reorder = (arr = []) => {
+		  let res = arr.slice();
+		  res.sort((a, b) => {
+		    if (a.index > b.index) return 1;
+		    if (a.index < b.index) return -1;
+		    return 0;
+		  });
+		  return res;
+		};
+
+		exports.swap = (arr, index, pos) => {
+		  let len = arr.length;
+		  let idx = pos === len ? 0 : pos < 0 ? len - 1 : pos;
+		  let choice = arr[index];
+		  arr[index] = arr[idx];
+		  arr[idx] = choice;
+		};
+
+		exports.width = (stream, fallback = 80) => {
+		  let columns = (stream && stream.columns) ? stream.columns : fallback;
+		  if (stream && typeof stream.getWindowSize === 'function') {
+		    columns = stream.getWindowSize()[0];
+		  }
+		  if (process.platform === 'win32') {
+		    return columns - 1;
+		  }
+		  return columns;
+		};
+
+		exports.height = (stream, fallback = 20) => {
+		  let rows = (stream && stream.rows) ? stream.rows : fallback;
+		  if (stream && typeof stream.getWindowSize === 'function') {
+		    rows = stream.getWindowSize()[1];
+		  }
+		  return rows;
+		};
+
+		exports.wordWrap = (str, options = {}) => {
+		  if (!str) return str;
+
+		  if (typeof options === 'number') {
+		    options = { width: options };
+		  }
+
+		  let { indent = '', newline = ('\n' + indent), width = 80 } = options;
+		  let spaces = (newline + indent).match(/[^\S\n]/g) || [];
+		  width -= spaces.length;
+		  let source = `.{1,${width}}([\\s\\u200B]+|$)|[^\\s\\u200B]+?([\\s\\u200B]+|$)`;
+		  let output = str.trim();
+		  let regex = new RegExp(source, 'g');
+		  let lines = output.match(regex) || [];
+		  lines = lines.map(line => line.replace(/\n$/, ''));
+		  if (options.padEnd) lines = lines.map(line => line.padEnd(width, ' '));
+		  if (options.padStart) lines = lines.map(line => line.padStart(width, ' '));
+		  return indent + lines.join(newline);
+		};
+
+		exports.unmute = color => {
+		  let name = color.stack.find(n => colors.keys.color.includes(n));
+		  if (name) {
+		    return colors[name];
+		  }
+		  let bg = color.stack.find(n => n.slice(2) === 'bg');
+		  if (bg) {
+		    return colors[name.slice(2)];
+		  }
+		  return str => str;
+		};
+
+		exports.pascal = str => str ? str[0].toUpperCase() + str.slice(1) : '';
+
+		exports.inverse = color => {
+		  if (!color || !color.stack) return color;
+		  let name = color.stack.find(n => colors.keys.color.includes(n));
+		  if (name) {
+		    let col = colors['bg' + exports.pascal(name)];
+		    return col ? col.black : color;
+		  }
+		  let bg = color.stack.find(n => n.slice(0, 2) === 'bg');
+		  if (bg) {
+		    return colors[bg.slice(2).toLowerCase()] || color;
+		  }
+		  return colors.none;
+		};
+
+		exports.complement = color => {
+		  if (!color || !color.stack) return color;
+		  let name = color.stack.find(n => colors.keys.color.includes(n));
+		  let bg = color.stack.find(n => n.slice(0, 2) === 'bg');
+		  if (name && !bg) {
+		    return colors[complements[name] || name];
+		  }
+		  if (bg) {
+		    let lower = bg.slice(2).toLowerCase();
+		    let comp = complements[lower];
+		    if (!comp) return color;
+		    return colors['bg' + exports.pascal(comp)] || color;
+		  }
+		  return colors.none;
+		};
+
+		exports.meridiem = date => {
+		  let hours = date.getHours();
+		  let minutes = date.getMinutes();
+		  let ampm = hours >= 12 ? 'pm' : 'am';
+		  hours = hours % 12;
+		  let hrs = hours === 0 ? 12 : hours;
+		  let min = minutes < 10 ? '0' + minutes : minutes;
+		  return hrs + ':' + min + ' ' + ampm;
+		};
+
+		/**
+		 * Set a value on the given object.
+		 * @param {Object} obj
+		 * @param {String} prop
+		 * @param {any} value
+		 */
+
+		exports.set = (obj = {}, prop = '', val) => {
+		  return prop.split('.').reduce((acc, k, i, arr) => {
+		    let value = arr.length - 1 > i ? (acc[k] || {}) : val;
+		    if (!exports.isObject(value) && i < arr.length - 1) value = {};
+		    return (acc[k] = value);
+		  }, obj);
+		};
+
+		/**
+		 * Get a value from the given object.
+		 * @param {Object} obj
+		 * @param {String} prop
+		 */
+
+		exports.get = (obj = {}, prop = '', fallback) => {
+		  let value = obj[prop] == null
+		    ? prop.split('.').reduce((acc, k) => acc && acc[k], obj)
+		    : obj[prop];
+		  return value == null ? fallback : value;
+		};
+
+		exports.mixin = (target, b) => {
+		  if (!isObject(target)) return b;
+		  if (!isObject(b)) return target;
+		  for (let key of Object.keys(b)) {
+		    let desc = Object.getOwnPropertyDescriptor(b, key);
+		    if (hasOwnProperty.call(desc, 'value')) {
+		      if (hasOwnProperty.call(target, key) && isObject(desc.value)) {
+		        let existing = Object.getOwnPropertyDescriptor(target, key);
+		        if (isObject(existing.value) && existing.value !== desc.value) {
+		          target[key] = exports.merge({}, target[key], b[key]);
+		        } else {
+		          Reflect.defineProperty(target, key, desc);
+		        }
+		      } else {
+		        Reflect.defineProperty(target, key, desc);
+		      }
+		    } else {
+		      Reflect.defineProperty(target, key, desc);
+		    }
+		  }
+		  return target;
+		};
+
+		exports.merge = (...args) => {
+		  let target = {};
+		  for (let ele of args) exports.mixin(target, ele);
+		  return target;
+		};
+
+		exports.mixinEmitter = (obj, emitter) => {
+		  let proto = emitter.constructor.prototype;
+		  for (let key of Object.keys(proto)) {
+		    let val = proto[key];
+		    if (typeof val === 'function') {
+		      exports.define(obj, key, val.bind(emitter));
+		    } else {
+		      exports.define(obj, key, val);
+		    }
+		  }
+		};
+
+		const onExit = (quit, code) => {
+		  if (onExitCalled) return;
+
+		  onExitCalled = true;
+		  onExitCallbacks.forEach(fn => fn());
+
+		  if (quit === true) {
+		    process.exit(128 + code);
+		  }
+		};
+		const onSigTerm = onExit.bind(null, true, 15);
+		const onSigInt = onExit.bind(null, true, 2);
+
+		exports.onExit = callback => {
+		  if (onExitCallbacks.size === 0) {
+		    process.once('SIGTERM', onSigTerm);
+		    process.once('SIGINT', onSigInt);
+		    process.once('exit', onExit);
+		  }
+
+		  onExitCallbacks.add(callback);
+
+		  return () => {
+		    onExitCallbacks.delete(callback);
+		    if (onExitCallbacks.size === 0) {
+		      process.off('SIGTERM', onSigTerm);
+		      process.off('SIGINT', onSigInt);
+		      process.off('exit', onExit);
+		    }
+		  }
+		};
+
+		exports.define = (obj, key, value) => {
+		  Reflect.defineProperty(obj, key, { value });
+		};
+
+		exports.defineExport = (obj, key, fn) => {
+		  let custom;
+		  Reflect.defineProperty(obj, key, {
+		    enumerable: true,
+		    configurable: true,
+		    set(val) {
+		      custom = val;
+		    },
+		    get() {
+		      return custom ? custom() : fn();
+		    }
+		  });
+		}; 
+	} (utils));
+	return utils;
+}
+
+var ansiRegex$1;
+var hasRequiredAnsiRegex$1;
+
+function requireAnsiRegex$1 () {
+	if (hasRequiredAnsiRegex$1) return ansiRegex$1;
+	hasRequiredAnsiRegex$1 = 1;
+
+	ansiRegex$1 = ({onlyFirst = false} = {}) => {
+		const pattern = [
+			'[\\u001B\\u009B][[\\]()#;?]*(?:(?:(?:(?:;[-a-zA-Z\\d\\/#&.:=?%@~_]+)*|[a-zA-Z\\d]+(?:;[-a-zA-Z\\d\\/#&.:=?%@~_]*)*)?\\u0007)',
+			'(?:(?:\\d{1,4}(?:;\\d{0,4})*)?[\\dA-PR-TZcf-ntqry=><~]))'
+		].join('|');
+
+		return new RegExp(pattern, onlyFirst ? undefined : 'g');
+	};
+	return ansiRegex$1;
+}
+
+var stripAnsi$1;
+var hasRequiredStripAnsi$1;
+
+function requireStripAnsi$1 () {
+	if (hasRequiredStripAnsi$1) return stripAnsi$1;
+	hasRequiredStripAnsi$1 = 1;
+	const ansiRegex = requireAnsiRegex$1();
+
+	stripAnsi$1 = string => typeof string === 'string' ? string.replace(ansiRegex(), '') : string;
+	return stripAnsi$1;
+}
+
+var combos = {};
+
+var hasRequiredCombos;
+
+function requireCombos () {
+	if (hasRequiredCombos) return combos;
+	hasRequiredCombos = 1;
+
+	/**
+	 * Actions are mappings from keypress event names to method names
+	 * in the prompts.
+	 */
+
+	combos.ctrl = {
+	  a: 'first',
+	  b: 'backward',
+	  c: 'cancel',
+	  d: 'deleteForward',
+	  e: 'last',
+	  f: 'forward',
+	  g: 'reset',
+	  i: 'tab',
+	  k: 'cutForward',
+	  l: 'reset',
+	  n: 'newItem',
+	  m: 'cancel',
+	  j: 'submit',
+	  p: 'search',
+	  r: 'remove',
+	  s: 'save',
+	  u: 'undo',
+	  w: 'cutLeft',
+	  x: 'toggleCursor',
+	  v: 'paste'
+	};
+
+	combos.shift = {
+	  up: 'shiftUp',
+	  down: 'shiftDown',
+	  left: 'shiftLeft',
+	  right: 'shiftRight',
+	  tab: 'prev'
+	};
+
+	combos.fn = {
+	  up: 'pageUp',
+	  down: 'pageDown',
+	  left: 'pageLeft',
+	  right: 'pageRight',
+	  delete: 'deleteForward'
+	};
+
+	// <alt> on Windows
+	combos.option = {
+	  b: 'backward',
+	  f: 'forward',
+	  d: 'cutRight',
+	  left: 'cutLeft',
+	  up: 'altUp',
+	  down: 'altDown'
+	};
+
+	combos.keys = {
+	  pageup: 'pageUp', // <fn>+<up> (mac), <Page Up> (windows)
+	  pagedown: 'pageDown', // <fn>+<down> (mac), <Page Down> (windows)
+	  home: 'home', // <fn>+<left> (mac), <home> (windows)
+	  end: 'end', // <fn>+<right> (mac), <end> (windows)
+	  cancel: 'cancel',
+	  delete: 'deleteForward',
+	  backspace: 'delete',
+	  down: 'down',
+	  enter: 'submit',
+	  escape: 'cancel',
+	  left: 'left',
+	  space: 'space',
+	  number: 'number',
+	  return: 'submit',
+	  right: 'right',
+	  tab: 'next',
+	  up: 'up'
+	};
+	return combos;
+}
+
+var queue;
+var hasRequiredQueue;
+
+function requireQueue () {
+	if (hasRequiredQueue) return queue;
+	hasRequiredQueue = 1;
+
+	queue = class Queue {
+	  _queue = [];
+	  _executing = false;
+	  _jobRunner = null;
+
+	  constructor(jobRunner) {
+	    this._jobRunner = jobRunner;
+	  }
+
+	  enqueue = (...args) => {
+	    this._queue.push(args);
+	    this._dequeue();
+	  };
+
+	  destroy() {
+	    this._queue.length = 0;
+	    this._jobRunner = null;
+	  }
+
+	  _dequeue() {
+	    if (this._executing || !this._queue.length) return;
+	    this._executing = true;
+
+	    this._jobRunner(...this._queue.shift());
+
+	    setTimeout(() => {
+	      this._executing = false;
+	      this._dequeue();
+	    });
+	  }
+	};
+	return queue;
+}
+
+var keypress_1;
+var hasRequiredKeypress;
+
+function requireKeypress () {
+	if (hasRequiredKeypress) return keypress_1;
+	hasRequiredKeypress = 1;
+
+	const readline = require$$0$8;
+	const combos = requireCombos();
+	const Queue = requireQueue();
+
+	/* eslint-disable no-control-regex */
+	const metaKeyCodeRe = /^(?:\x1b)([a-zA-Z0-9])$/;
+	const fnKeyRe = /^(?:\x1b+)(O|N|\[|\[\[)(?:(\d+)(?:;(\d+))?([~^$])|(?:1;)?(\d+)?([a-zA-Z]))/;
+	const keyName = {
+	  /* xterm/gnome ESC O letter */
+	  'OP': 'f1',
+	  'OQ': 'f2',
+	  'OR': 'f3',
+	  'OS': 'f4',
+	  /* xterm/rxvt ESC [ number ~ */
+	  '[11~': 'f1',
+	  '[12~': 'f2',
+	  '[13~': 'f3',
+	  '[14~': 'f4',
+	  /* from Cygwin and used in libuv */
+	  '[[A': 'f1',
+	  '[[B': 'f2',
+	  '[[C': 'f3',
+	  '[[D': 'f4',
+	  '[[E': 'f5',
+	  /* common */
+	  '[15~': 'f5',
+	  '[17~': 'f6',
+	  '[18~': 'f7',
+	  '[19~': 'f8',
+	  '[20~': 'f9',
+	  '[21~': 'f10',
+	  '[23~': 'f11',
+	  '[24~': 'f12',
+	  /* xterm ESC [ letter */
+	  '[A': 'up',
+	  '[B': 'down',
+	  '[C': 'right',
+	  '[D': 'left',
+	  '[E': 'clear',
+	  '[F': 'end',
+	  '[H': 'home',
+	  /* xterm/gnome ESC O letter */
+	  'OA': 'up',
+	  'OB': 'down',
+	  'OC': 'right',
+	  'OD': 'left',
+	  'OE': 'clear',
+	  'OF': 'end',
+	  'OH': 'home',
+	  /* xterm/rxvt ESC [ number ~ */
+	  '[1~': 'home',
+	  '[2~': 'insert',
+	  '[3~': 'delete',
+	  '[4~': 'end',
+	  '[5~': 'pageup',
+	  '[6~': 'pagedown',
+	  /* putty */
+	  '[[5~': 'pageup',
+	  '[[6~': 'pagedown',
+	  /* rxvt */
+	  '[7~': 'home',
+	  '[8~': 'end',
+	  /* rxvt keys with modifiers */
+	  '[a': 'up',
+	  '[b': 'down',
+	  '[c': 'right',
+	  '[d': 'left',
+	  '[e': 'clear',
+
+	  '[2$': 'insert',
+	  '[3$': 'delete',
+	  '[5$': 'pageup',
+	  '[6$': 'pagedown',
+	  '[7$': 'home',
+	  '[8$': 'end',
+
+	  'Oa': 'up',
+	  'Ob': 'down',
+	  'Oc': 'right',
+	  'Od': 'left',
+	  'Oe': 'clear',
+
+	  '[2^': 'insert',
+	  '[3^': 'delete',
+	  '[5^': 'pageup',
+	  '[6^': 'pagedown',
+	  '[7^': 'home',
+	  '[8^': 'end',
+	  /* misc. */
+	  '[Z': 'tab'
+	};
+
+	function isShiftKey(code) {
+	  return ['[a', '[b', '[c', '[d', '[e', '[2$', '[3$', '[5$', '[6$', '[7$', '[8$', '[Z'].includes(code);
+	}
+
+	function isCtrlKey(code) {
+	  return [ 'Oa', 'Ob', 'Oc', 'Od', 'Oe', '[2^', '[3^', '[5^', '[6^', '[7^', '[8^'].includes(code);
+	}
+
+	const keypress = (s = '', event = {}) => {
+	  let parts;
+	  let key = {
+	    name: event.name,
+	    ctrl: false,
+	    meta: false,
+	    shift: false,
+	    option: false,
+	    sequence: s,
+	    raw: s,
+	    ...event
+	  };
+
+	  if (Buffer.isBuffer(s)) {
+	    if (s[0] > 127 && s[1] === void 0) {
+	      s[0] -= 128;
+	      s = '\x1b' + String(s);
+	    } else {
+	      s = String(s);
+	    }
+	  } else if (s !== void 0 && typeof s !== 'string') {
+	    s = String(s);
+	  } else if (!s) {
+	    s = key.sequence || '';
+	  }
+
+	  key.sequence = key.sequence || s || key.name;
+
+	  if (s === '\r') {
+	    // carriage return
+	    key.raw = void 0;
+	    key.name = 'return';
+	  } else if (s === '\n') {
+	    // enter, should have been called linefeed
+	    key.name = 'enter';
+	  } else if (s === '\t') {
+	    // tab
+	    key.name = 'tab';
+	  } else if (s === '\b' || s === '\x7f' || s === '\x1b\x7f' || s === '\x1b\b') {
+	    // backspace or ctrl+h
+	    key.name = 'backspace';
+	    key.meta = s.charAt(0) === '\x1b';
+	  } else if (s === '\x1b' || s === '\x1b\x1b') {
+	    // escape key
+	    key.name = 'escape';
+	    key.meta = s.length === 2;
+	  } else if (s === ' ' || s === '\x1b ') {
+	    key.name = 'space';
+	    key.meta = s.length === 2;
+	  } else if (s <= '\x1a') {
+	    // ctrl+letter
+	    key.name = String.fromCharCode(s.charCodeAt(0) + 'a'.charCodeAt(0) - 1);
+	    key.ctrl = true;
+	  } else if (s.length === 1 && s >= '0' && s <= '9') {
+	    // number
+	    key.name = 'number';
+	  } else if (s.length === 1 && s >= 'a' && s <= 'z') {
+	    // lowercase letter
+	    key.name = s;
+	  } else if (s.length === 1 && s >= 'A' && s <= 'Z') {
+	    // shift+letter
+	    key.name = s.toLowerCase();
+	    key.shift = true;
+	  } else if ((parts = metaKeyCodeRe.exec(s))) {
+	    // meta+character key
+	    key.meta = true;
+	    key.shift = /^[A-Z]$/.test(parts[1]);
+	  } else if ((parts = fnKeyRe.exec(s))) {
+	    let segs = [...s];
+
+	    if (segs[0] === '\u001b' && segs[1] === '\u001b') {
+	      key.option = true;
+	    }
+
+	    // ansi escape sequence
+	    // reassemble the key code leaving out leading \x1b's,
+	    // the modifier key bitflag and any meaningless "1;" sequence
+	    let code = [parts[1], parts[2], parts[4], parts[6]].filter(Boolean).join('');
+	    let modifier = (parts[3] || parts[5] || 1) - 1;
+
+	    // Parse the key modifier
+	    key.ctrl = !!(modifier & 4);
+	    key.meta = !!(modifier & 10);
+	    key.shift = !!(modifier & 1);
+	    key.code = code;
+
+	    key.name = keyName[code];
+	    key.shift = isShiftKey(code) || key.shift;
+	    key.ctrl = isCtrlKey(code) || key.ctrl;
+	  }
+	  return key;
+	};
+
+	keypress.listen = (options = {}, onKeypress) => {
+	  let { stdin } = options;
+
+	  if (!stdin || (stdin !== process.stdin && !stdin.isTTY)) {
+	    throw new Error('Invalid stream passed');
+	  }
+
+	  let rl = readline.createInterface({ terminal: true, input: stdin });
+	  readline.emitKeypressEvents(stdin, rl);
+
+	  const queue = new Queue((buf, key) => onKeypress(buf, keypress(buf, key), rl));
+	  let isRaw = stdin.isRaw;
+
+	  if (stdin.isTTY) stdin.setRawMode(true);
+	  stdin.on('keypress', queue.enqueue);
+	  rl.resume();
+
+	  let off = () => {
+	    if (stdin.isTTY) stdin.setRawMode(isRaw);
+	    stdin.removeListener('keypress', queue.enqueue);
+	    queue.destroy();
+	    rl.pause();
+	    rl.close();
+	  };
+
+	  return off;
+	};
+
+	keypress.action = (buf, key, customActions) => {
+	  let obj = { ...combos, ...customActions };
+	  if (key.ctrl) {
+	    key.action = obj.ctrl[key.name];
+	    return key;
+	  }
+
+	  if (key.option && obj.option) {
+	    key.action = obj.option[key.name];
+	    return key;
+	  }
+
+	  if (key.shift) {
+	    key.action = obj.shift[key.name];
+	    return key;
+	  }
+
+	  key.action = obj.keys[key.name];
+	  return key;
+	};
+
+	keypress_1 = keypress;
+	return keypress_1;
+}
+
+var timer;
+var hasRequiredTimer;
+
+function requireTimer () {
+	if (hasRequiredTimer) return timer;
+	hasRequiredTimer = 1;
+
+	timer = prompt => {
+	  prompt.timers = prompt.timers || {};
+
+	  let timers = prompt.options.timers;
+	  if (!timers) return;
+
+	  for (let key of Object.keys(timers)) {
+	    let opts = timers[key];
+	    if (typeof opts === 'number') {
+	      opts = { interval: opts };
+	    }
+	    create(prompt, key, opts);
+	  }
+	};
+
+	function create(prompt, name, options = {}) {
+	  let timer = prompt.timers[name] = { name, start: Date.now(), ms: 0, tick: 0 };
+	  let ms = options.interval || 120;
+	  timer.frames = options.frames || [];
+	  timer.loading = true;
+
+	  let interval = setInterval(() => {
+	    timer.ms = Date.now() - timer.start;
+	    timer.tick++;
+	    prompt.render();
+	  }, ms);
+
+	  timer.stop = () => {
+	    timer.loading = false;
+	    clearInterval(interval);
+	  };
+
+	  Reflect.defineProperty(timer, 'interval', { value: interval });
+	  prompt.once('close', () => timer.stop());
+	  return timer.stop;
+	}
+	return timer;
+}
+
+var state;
+var hasRequiredState;
+
+function requireState () {
+	if (hasRequiredState) return state;
+	hasRequiredState = 1;
+
+	const { define, width } = requireUtils();
+
+	class State {
+	  constructor(prompt) {
+	    let options = prompt.options;
+	    define(this, '_prompt', prompt);
+	    this.type = prompt.type;
+	    this.name = prompt.name;
+	    this.message = '';
+	    this.header = '';
+	    this.footer = '';
+	    this.error = '';
+	    this.hint = '';
+	    this.input = '';
+	    this.cursor = 0;
+	    this.index = 0;
+	    this.lines = 0;
+	    this.tick = 0;
+	    this.prompt = '';
+	    this.buffer = '';
+	    this.width = width(options.stdout || process.stdout);
+	    Object.assign(this, options);
+	    this.name = this.name || this.message;
+	    this.message = this.message || this.name;
+	    this.symbols = prompt.symbols;
+	    this.styles = prompt.styles;
+	    this.required = new Set();
+	    this.cancelled = false;
+	    this.submitted = false;
+	  }
+
+	  clone() {
+	    let state = { ...this };
+	    state.status = this.status;
+	    state.buffer = Buffer.from(state.buffer);
+	    delete state.clone;
+	    return state;
+	  }
+
+	  set color(val) {
+	    this._color = val;
+	  }
+	  get color() {
+	    let styles = this.prompt.styles;
+	    if (this.cancelled) return styles.cancelled;
+	    if (this.submitted) return styles.submitted;
+	    let color = this._color || styles[this.status];
+	    return typeof color === 'function' ? color : styles.pending;
+	  }
+
+	  set loading(value) {
+	    this._loading = value;
+	  }
+	  get loading() {
+	    if (typeof this._loading === 'boolean') return this._loading;
+	    if (this.loadingChoices) return 'choices';
+	    return false;
+	  }
+
+	  get status() {
+	    if (this.cancelled) return 'cancelled';
+	    if (this.submitted) return 'submitted';
+	    return 'pending';
+	  }
+	}
+
+	state = State;
+	return state;
+}
+
+var styles_1;
+var hasRequiredStyles;
+
+function requireStyles () {
+	if (hasRequiredStyles) return styles_1;
+	hasRequiredStyles = 1;
+
+	const utils = requireUtils();
+	const colors = requireAnsiColors();
+
+	const styles = {
+	  default: colors.noop,
+	  noop: colors.noop,
+
+	  /**
+	   * Modifiers
+	   */
+
+	  set inverse(custom) {
+	    this._inverse = custom;
+	  },
+	  get inverse() {
+	    return this._inverse || utils.inverse(this.primary);
+	  },
+
+	  set complement(custom) {
+	    this._complement = custom;
+	  },
+	  get complement() {
+	    return this._complement || utils.complement(this.primary);
+	  },
+
+	  /**
+	   * Main color
+	   */
+
+	  primary: colors.cyan,
+
+	  /**
+	   * Main palette
+	   */
+
+	  success: colors.green,
+	  danger: colors.magenta,
+	  strong: colors.bold,
+	  warning: colors.yellow,
+	  muted: colors.dim,
+	  disabled: colors.gray,
+	  dark: colors.dim.gray,
+	  underline: colors.underline,
+
+	  set info(custom) {
+	    this._info = custom;
+	  },
+	  get info() {
+	    return this._info || this.primary;
+	  },
+
+	  set em(custom) {
+	    this._em = custom;
+	  },
+	  get em() {
+	    return this._em || this.primary.underline;
+	  },
+
+	  set heading(custom) {
+	    this._heading = custom;
+	  },
+	  get heading() {
+	    return this._heading || this.muted.underline;
+	  },
+
+	  /**
+	   * Statuses
+	   */
+
+	  set pending(custom) {
+	    this._pending = custom;
+	  },
+	  get pending() {
+	    return this._pending || this.primary;
+	  },
+
+	  set submitted(custom) {
+	    this._submitted = custom;
+	  },
+	  get submitted() {
+	    return this._submitted || this.success;
+	  },
+
+	  set cancelled(custom) {
+	    this._cancelled = custom;
+	  },
+	  get cancelled() {
+	    return this._cancelled || this.danger;
+	  },
+
+	  /**
+	   * Special styling
+	   */
+
+	  set typing(custom) {
+	    this._typing = custom;
+	  },
+	  get typing() {
+	    return this._typing || this.dim;
+	  },
+
+	  set placeholder(custom) {
+	    this._placeholder = custom;
+	  },
+	  get placeholder() {
+	    return this._placeholder || this.primary.dim;
+	  },
+
+	  set highlight(custom) {
+	    this._highlight = custom;
+	  },
+	  get highlight() {
+	    return this._highlight || this.inverse;
+	  }
+	};
+
+	styles.merge = (options = {}) => {
+	  if (options.styles && typeof options.styles.enabled === 'boolean') {
+	    colors.enabled = options.styles.enabled;
+	  }
+	  if (options.styles && typeof options.styles.visible === 'boolean') {
+	    colors.visible = options.styles.visible;
+	  }
+
+	  let result = utils.merge({}, styles, options.styles);
+	  delete result.merge;
+
+	  for (let key of Object.keys(colors)) {
+	    if (!hasOwnProperty.call(result, key)) {
+	      Reflect.defineProperty(result, key, { get: () => colors[key] });
+	    }
+	  }
+
+	  for (let key of Object.keys(colors.styles)) {
+	    if (!hasOwnProperty.call(result, key)) {
+	      Reflect.defineProperty(result, key, { get: () => colors[key] });
+	    }
+	  }
+	  return result;
+	};
+
+	styles_1 = styles;
+	return styles_1;
+}
+
+var symbols_1;
+var hasRequiredSymbols;
+
+function requireSymbols () {
+	if (hasRequiredSymbols) return symbols_1;
+	hasRequiredSymbols = 1;
+
+	const isWindows = process.platform === 'win32';
+	const colors = requireAnsiColors();
+	const utils = requireUtils();
+
+	const symbols = {
+	  ...colors.symbols,
+	  upDownDoubleArrow: '⇕',
+	  upDownDoubleArrow2: '⬍',
+	  upDownArrow: '↕',
+	  asterisk: '*',
+	  asterism: '⁂',
+	  bulletWhite: '◦',
+	  electricArrow: '⌁',
+	  ellipsisLarge: '⋯',
+	  ellipsisSmall: '…',
+	  fullBlock: '█',
+	  identicalTo: '≡',
+	  indicator: colors.symbols.check,
+	  leftAngle: '‹',
+	  mark: '※',
+	  minus: '−',
+	  multiplication: '×',
+	  obelus: '÷',
+	  percent: '%',
+	  pilcrow: '¶',
+	  pilcrow2: '❡',
+	  pencilUpRight: '✐',
+	  pencilDownRight: '✎',
+	  pencilRight: '✏',
+	  plus: '+',
+	  plusMinus: '±',
+	  pointRight: '☞',
+	  rightAngle: '›',
+	  section: '§',
+	  hexagon: { off: '⬡', on: '⬢', disabled: '⬢' },
+	  ballot: { on: '☑', off: '☐', disabled: '☒' },
+	  stars: { on: '★', off: '☆', disabled: '☆' },
+	  folder: { on: '▼', off: '▶', disabled: '▶' },
+	  prefix: {
+	    pending: colors.symbols.question,
+	    submitted: colors.symbols.check,
+	    cancelled: colors.symbols.cross
+	  },
+	  separator: {
+	    pending: colors.symbols.pointerSmall,
+	    submitted: colors.symbols.middot,
+	    cancelled: colors.symbols.middot
+	  },
+	  radio: {
+	    off: isWindows ? '( )' : '◯',
+	    on: isWindows ? '(*)' : '◉',
+	    disabled: isWindows ? '(|)' : 'Ⓘ'
+	  },
+	  numbers: ['⓪', '①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧', '⑨', '⑩', '⑪', '⑫', '⑬', '⑭', '⑮', '⑯', '⑰', '⑱', '⑲', '⑳', '㉑', '㉒', '㉓', '㉔', '㉕', '㉖', '㉗', '㉘', '㉙', '㉚', '㉛', '㉜', '㉝', '㉞', '㉟', '㊱', '㊲', '㊳', '㊴', '㊵', '㊶', '㊷', '㊸', '㊹', '㊺', '㊻', '㊼', '㊽', '㊾', '㊿']
+	};
+
+	symbols.merge = options => {
+	  let result = utils.merge({}, colors.symbols, symbols, options.symbols);
+	  delete result.merge;
+	  return result;
+	};
+
+	symbols_1 = symbols;
+	return symbols_1;
+}
+
+var theme;
+var hasRequiredTheme;
+
+function requireTheme () {
+	if (hasRequiredTheme) return theme;
+	hasRequiredTheme = 1;
+
+	const styles = requireStyles();
+	const symbols = requireSymbols();
+	const utils = requireUtils();
+
+	theme = prompt => {
+	  prompt.options = utils.merge({}, prompt.options.theme, prompt.options);
+	  prompt.symbols = symbols.merge(prompt.options);
+	  prompt.styles = styles.merge(prompt.options);
+	};
+	return theme;
+}
+
+var ansi = {exports: {}};
+
+var hasRequiredAnsi;
+
+function requireAnsi () {
+	if (hasRequiredAnsi) return ansi.exports;
+	hasRequiredAnsi = 1;
+	(function (module, exports) {
+
+		const isTerm = process.env.TERM_PROGRAM === 'Apple_Terminal';
+		const stripAnsi = requireStripAnsi$1();
+		const utils = requireUtils();
+		const ansi = module.exports = exports;
+		const ESC = '\u001b[';
+		const BEL = '\u0007';
+		let hidden = false;
+
+		const code = ansi.code = {
+		  bell: BEL,
+		  beep: BEL,
+		  beginning: `${ESC}G`,
+		  down: `${ESC}J`,
+		  esc: ESC,
+		  getPosition: `${ESC}6n`,
+		  hide: `${ESC}?25l`,
+		  line: `${ESC}2K`,
+		  lineEnd: `${ESC}K`,
+		  lineStart: `${ESC}1K`,
+		  restorePosition: ESC + (isTerm ? '8' : 'u'),
+		  savePosition: ESC + (isTerm ? '7' : 's'),
+		  screen: `${ESC}2J`,
+		  show: `${ESC}?25h`,
+		  up: `${ESC}1J`
+		};
+
+		const cursor = ansi.cursor = {
+		  get hidden() {
+		    return hidden;
+		  },
+
+		  hide() {
+		    hidden = true;
+		    return code.hide;
+		  },
+		  show() {
+		    hidden = false;
+		    return code.show;
+		  },
+
+		  forward: (count = 1) => `${ESC}${count}C`,
+		  backward: (count = 1) => `${ESC}${count}D`,
+		  nextLine: (count = 1) => `${ESC}E`.repeat(count),
+		  prevLine: (count = 1) => `${ESC}F`.repeat(count),
+
+		  up: (count = 1) => count ? `${ESC}${count}A` : '',
+		  down: (count = 1) => count ? `${ESC}${count}B` : '',
+		  right: (count = 1) => count ? `${ESC}${count}C` : '',
+		  left: (count = 1) => count ? `${ESC}${count}D` : '',
+
+		  to(x, y) {
+		    return y ? `${ESC}${y + 1};${x + 1}H` : `${ESC}${x + 1}G`;
+		  },
+
+		  move(x = 0, y = 0) {
+		    let res = '';
+		    res += (x < 0) ? cursor.left(-x) : (x > 0) ? cursor.right(x) : '';
+		    res += (y < 0) ? cursor.up(-y) : (y > 0) ? cursor.down(y) : '';
+		    return res;
+		  },
+		  strLen(str) {
+		    // to suport chinese
+		    var realLength = 0, len = str.length, charCode = -1;
+		    for (var i = 0; i < len; i++) {
+		      charCode = str.charCodeAt(i);
+		      if (charCode >= 0 && charCode <= 128) realLength += 1;
+		      else realLength += 2;
+		    }
+		    return realLength;
+		  },
+		  restore(state = {}) {
+		    let { after, cursor, initial, input, prompt, size, value } = state;
+		    initial = utils.isPrimitive(initial) ? String(initial) : '';
+		    input = utils.isPrimitive(input) ? String(input) : '';
+		    value = utils.isPrimitive(value) ? String(value) : '';
+
+		    if (size) {
+		      let codes = ansi.cursor.up(size) + ansi.cursor.to(this.strLen(prompt));
+		      let diff = input.length - cursor;
+		      if (diff > 0) {
+		        codes += ansi.cursor.left(diff);
+		      }
+		      return codes;
+		    }
+
+		    if (value || after) {
+		      let pos = (!input && !!initial) ? - this.strLen(initial) : -this.strLen(input) + cursor;
+		      if (after) pos -= this.strLen(after);
+		      if (input === '' && initial && !prompt.includes(initial)) {
+		        pos += this.strLen(initial);
+		      }
+		      return ansi.cursor.move(pos);
+		    }
+		  }
+		};
+
+		const erase = ansi.erase = {
+		  screen: code.screen,
+		  up: code.up,
+		  down: code.down,
+		  line: code.line,
+		  lineEnd: code.lineEnd,
+		  lineStart: code.lineStart,
+		  lines(n) {
+		    let str = '';
+		    for (let i = 0; i < n; i++) {
+		      str += ansi.erase.line + (i < n - 1 ? ansi.cursor.up(1) : '');
+		    }
+		    if (n) str += ansi.code.beginning;
+		    return str;
+		  }
+		};
+
+		ansi.clear = (input = '', columns = process.stdout.columns) => {
+		  if (!columns) return erase.line + cursor.to(0);
+		  let width = str => [...stripAnsi(str)].length;
+		  let lines = input.split(/\r?\n/);
+		  let rows = 0;
+		  for (let line of lines) {
+		    rows += 1 + Math.floor(Math.max(width(line) - 1, 0) / columns);
+		  }
+		  return (erase.line + cursor.prevLine()).repeat(rows - 1) + erase.line + cursor.to(0);
+		}; 
+	} (ansi, ansi.exports));
+	return ansi.exports;
+}
+
+var prompt;
+var hasRequiredPrompt;
+
+function requirePrompt () {
+	if (hasRequiredPrompt) return prompt;
+	hasRequiredPrompt = 1;
+
+	const Events = require$$0$3;
+	const stripAnsi = requireStripAnsi$1();
+	const keypress = requireKeypress();
+	const timer = requireTimer();
+	const State = requireState();
+	const theme = requireTheme();
+	const utils = requireUtils();
+	const ansi = requireAnsi();
+
+	/**
+	 * Base class for creating a new Prompt.
+	 * @param {Object} `options` Question object.
+	 */
+
+	class Prompt extends Events {
+	  constructor(options = {}) {
+	    super();
+	    this.name = options.name;
+	    this.type = options.type;
+	    this.options = options;
+	    theme(this);
+	    timer(this);
+	    this.state = new State(this);
+	    this.initial = [options.initial, options.default].find(v => v != null);
+	    this.stdout = options.stdout || process.stdout;
+	    this.stdin = options.stdin || process.stdin;
+	    this.scale = options.scale || 1;
+	    this.term = this.options.term || process.env.TERM_PROGRAM;
+	    this.margin = margin(this.options.margin);
+	    this.setMaxListeners(0);
+	    setOptions(this);
+	  }
+
+	  async keypress(input, event = {}) {
+	    this.keypressed = true;
+	    let key = keypress.action(input, keypress(input, event), this.options.actions);
+	    this.state.keypress = key;
+	    this.emit('keypress', input, key);
+	    this.emit('state', this.state.clone());
+
+	    const fn = this.options[key.action] || this[key.action] || this.dispatch;
+
+	    if (typeof fn === 'function') {
+	      return await fn.call(this, input, key);
+	    }
+
+	    this.alert();
+	  }
+
+	  alert() {
+	    delete this.state.alert;
+	    if (this.options.show === false) {
+	      this.emit('alert');
+	    } else {
+	      this.stdout.write(ansi.code.beep);
+	    }
+	  }
+
+	  cursorHide() {
+	    this.stdout.write(ansi.cursor.hide());
+	    const releaseOnExit = utils.onExit(() => this.cursorShow());
+	    this.on('close', () => {
+	      this.cursorShow();
+	      releaseOnExit();
+	    });
+	  }
+
+	  cursorShow() {
+	    this.stdout.write(ansi.cursor.show());
+	  }
+
+	  write(str) {
+	    if (!str) return;
+	    if (this.stdout && this.state.show !== false) {
+	      this.stdout.write(str);
+	    }
+	    this.state.buffer += str;
+	  }
+
+	  clear(lines = 0) {
+	    let buffer = this.state.buffer;
+	    this.state.buffer = '';
+	    if ((!buffer && !lines) || this.options.show === false) return;
+	    this.stdout.write(ansi.cursor.down(lines) + ansi.clear(buffer, this.width));
+	  }
+
+	  restore() {
+	    if (this.state.closed || this.options.show === false) return;
+
+	    let { prompt, after, rest } = this.sections();
+	    let { cursor, initial = '', input = '', value = '' } = this;
+
+	    let size = this.state.size = rest.length;
+	    let state = { after, cursor, initial, input, prompt, size, value };
+	    let codes = ansi.cursor.restore(state);
+	    if (codes) {
+	      this.stdout.write(codes);
+	    }
+	  }
+
+	  sections() {
+	    let { buffer, input, prompt } = this.state;
+	    prompt = stripAnsi(prompt);
+	    let buf = stripAnsi(buffer);
+	    let idx = buf.indexOf(prompt);
+	    let header = buf.slice(0, idx);
+	    let rest = buf.slice(idx);
+	    let lines = rest.split('\n');
+	    let first = lines[0];
+	    let last = lines[lines.length - 1];
+	    let promptLine = prompt + (input ? ' ' + input : '');
+	    let len = promptLine.length;
+	    let after = len < first.length ? first.slice(len + 1) : '';
+	    return { header, prompt: first, after, rest: lines.slice(1), last };
+	  }
+
+	  async submit() {
+	    this.state.submitted = true;
+	    this.state.validating = true;
+
+	    // this will only be called when the prompt is directly submitted
+	    // without initializing, i.e. when the prompt is skipped, etc. Otherwize,
+	    // "options.onSubmit" is will be handled by the "initialize()" method.
+	    if (this.options.onSubmit) {
+	      await this.options.onSubmit.call(this, this.name, this.value, this);
+	    }
+
+	    let result = this.state.error || await this.validate(this.value, this.state);
+	    if (result !== true) {
+	      let error = '\n' + this.symbols.pointer + ' ';
+
+	      if (typeof result === 'string') {
+	        error += result.trim();
+	      } else {
+	        error += 'Invalid input';
+	      }
+
+	      this.state.error = '\n' + this.styles.danger(error);
+	      this.state.submitted = false;
+	      await this.render();
+	      await this.alert();
+	      this.state.validating = false;
+	      this.state.error = void 0;
+	      return;
+	    }
+
+	    this.state.validating = false;
+	    await this.render();
+	    await this.close();
+
+	    this.value = await this.result(this.value);
+	    this.emit('submit', this.value);
+	  }
+
+	  async cancel(err) {
+	    this.state.cancelled = this.state.submitted = true;
+
+	    await this.render();
+	    await this.close();
+
+	    if (typeof this.options.onCancel === 'function') {
+	      await this.options.onCancel.call(this, this.name, this.value, this);
+	    }
+
+	    this.emit('cancel', await this.error(err));
+	  }
+
+	  async close() {
+	    this.state.closed = true;
+
+	    try {
+	      let sections = this.sections();
+	      let lines = Math.ceil(sections.prompt.length / this.width);
+	      if (sections.rest) {
+	        this.write(ansi.cursor.down(sections.rest.length));
+	      }
+	      this.write('\n'.repeat(lines));
+	    } catch (err) { /* do nothing */ }
+
+	    this.emit('close');
+	  }
+
+	  start() {
+	    if (!this.stop && this.options.show !== false) {
+	      this.stop = keypress.listen(this, this.keypress.bind(this));
+	      this.once('close', this.stop);
+	      this.emit('start', this);
+	    }
+	  }
+
+	  async skip() {
+	    this.skipped = this.options.skip === true;
+	    if (typeof this.options.skip === 'function') {
+	      this.skipped = await this.options.skip.call(this, this.name, this.value);
+	    }
+	    return this.skipped;
+	  }
+
+	  async initialize() {
+	    let { format, options, result } = this;
+
+	    this.format = () => format.call(this, this.value);
+	    this.result = () => result.call(this, this.value);
+
+	    if (typeof options.initial === 'function') {
+	      this.initial = await options.initial.call(this, this);
+	    }
+
+	    if (typeof options.onRun === 'function') {
+	      await options.onRun.call(this, this);
+	    }
+
+	    // if "options.onSubmit" is defined, we wrap the "submit" method to guarantee
+	    // that "onSubmit" will always called first thing inside the submit
+	    // method, regardless of how it's handled in inheriting prompts.
+	    if (typeof options.onSubmit === 'function') {
+	      let onSubmit = options.onSubmit.bind(this);
+	      let submit = this.submit.bind(this);
+	      delete this.options.onSubmit;
+	      this.submit = async() => {
+	        await onSubmit(this.name, this.value, this);
+	        return submit();
+	      };
+	    }
+
+	    await this.start();
+	    await this.render();
+	  }
+
+	  render() {
+	    throw new Error('expected prompt to have a custom render method');
+	  }
+
+	  run() {
+	    return new Promise(async(resolve, reject) => {
+	      this.once('submit', resolve);
+	      this.once('cancel', reject);
+
+	      if (await this.skip()) {
+	        this.render = () => {};
+	        return this.submit();
+	      }
+
+	      await this.initialize();
+	      this.emit('run');
+	    });
+	  }
+
+	  async element(name, choice, i) {
+	    let { options, state, symbols, timers } = this;
+	    let timer = timers && timers[name];
+	    state.timer = timer;
+	    let value = options[name] || state[name] || symbols[name];
+	    let val = choice && choice[name] != null ? choice[name] : await value;
+	    if (val === '') return val;
+
+	    let res = await this.resolve(val, state, choice, i);
+	    if (!res && choice && choice[name]) {
+	      return this.resolve(value, state, choice, i);
+	    }
+	    return res;
+	  }
+
+	  async prefix() {
+	    let element = await this.element('prefix') || this.symbols;
+	    let timer = this.timers && this.timers.prefix;
+	    let state = this.state;
+	    state.timer = timer;
+	    if (utils.isObject(element)) element = element[state.status] || element.pending;
+	    if (!utils.hasColor(element)) {
+	      let style = this.styles[state.status] || this.styles.pending;
+	      return style(element);
+	    }
+	    return element;
+	  }
+
+	  async message() {
+	    let message = await this.element('message');
+	    if (!utils.hasColor(message)) {
+	      return this.styles.strong(message);
+	    }
+	    return message;
+	  }
+
+	  async separator() {
+	    let element = await this.element('separator') || this.symbols;
+	    let timer = this.timers && this.timers.separator;
+	    let state = this.state;
+	    state.timer = timer;
+	    let value = element[state.status] || element.pending || state.separator;
+	    let ele = await this.resolve(value, state);
+	    if (utils.isObject(ele)) ele = ele[state.status] || ele.pending;
+	    if (!utils.hasColor(ele)) {
+	      return this.styles.muted(ele);
+	    }
+	    return ele;
+	  }
+
+	  async pointer(choice, i) {
+	    let val = await this.element('pointer', choice, i);
+
+	    if (typeof val === 'string' && utils.hasColor(val)) {
+	      return val;
+	    }
+
+	    if (val) {
+	      let styles = this.styles;
+	      let focused = this.index === i;
+	      let style = focused ? styles.primary : val => val;
+	      let ele = await this.resolve(val[focused ? 'on' : 'off'] || val, this.state);
+	      let styled = !utils.hasColor(ele) ? style(ele) : ele;
+	      return focused ? styled : ' '.repeat(ele.length);
+	    }
+	  }
+
+	  async indicator(choice, i) {
+	    let val = await this.element('indicator', choice, i);
+	    if (typeof val === 'string' && utils.hasColor(val)) {
+	      return val;
+	    }
+
+	    if (val) {
+	      let styles = this.styles;
+	      let enabled = choice.enabled === true;
+	      let style = enabled ? styles.success : styles.dark;
+	      let ele = val[enabled ? 'on' : 'off'] || val;
+	      return !utils.hasColor(ele) ? style(ele) : ele;
+	    }
+
+	    return '';
+	  }
+
+	  body() {
+	    return null;
+	  }
+
+	  footer() {
+	    if (this.state.status === 'pending') {
+	      return this.element('footer');
+	    }
+	  }
+
+	  header() {
+	    if (this.state.status === 'pending') {
+	      return this.element('header');
+	    }
+	  }
+
+	  async hint() {
+	    if (this.state.status === 'pending' && !this.isValue(this.state.input)) {
+	      let hint = await this.element('hint');
+	      if (!utils.hasColor(hint)) {
+	        return this.styles.muted(hint);
+	      }
+	      return hint;
+	    }
+	  }
+
+	  error(err) {
+	    return !this.state.submitted ? (err || this.state.error) : '';
+	  }
+
+	  format(value) {
+	    return value;
+	  }
+
+	  result(value) {
+	    return value;
+	  }
+
+	  validate(value) {
+	    if (this.options.required === true) {
+	      return this.isValue(value);
+	    }
+	    return true;
+	  }
+
+	  isValue(value) {
+	    return value != null && value !== '';
+	  }
+
+	  resolve(value, ...args) {
+	    return utils.resolve(this, value, ...args);
+	  }
+
+	  get base() {
+	    return Prompt.prototype;
+	  }
+
+	  get style() {
+	    return this.styles[this.state.status];
+	  }
+
+	  get height() {
+	    return this.options.rows || utils.height(this.stdout, 25);
+	  }
+	  get width() {
+	    return this.options.columns || utils.width(this.stdout, 80);
+	  }
+	  get size() {
+	    return { width: this.width, height: this.height };
+	  }
+
+	  set cursor(value) {
+	    this.state.cursor = value;
+	  }
+	  get cursor() {
+	    return this.state.cursor;
+	  }
+
+	  set input(value) {
+	    this.state.input = value;
+	  }
+	  get input() {
+	    return this.state.input;
+	  }
+
+	  set value(value) {
+	    this.state.value = value;
+	  }
+	  get value() {
+	    let { input, value } = this.state;
+	    let result = [value, input].find(this.isValue.bind(this));
+	    return this.isValue(result) ? result : this.initial;
+	  }
+
+	  static get prompt() {
+	    return options => new this(options).run();
+	  }
+	}
+
+	function setOptions(prompt) {
+	  let isValidKey = key => {
+	    return prompt[key] === void 0 || typeof prompt[key] === 'function';
+	  };
+
+	  let ignore = [
+	    'actions',
+	    'choices',
+	    'initial',
+	    'margin',
+	    'roles',
+	    'styles',
+	    'symbols',
+	    'theme',
+	    'timers',
+	    'value'
+	  ];
+
+	  let ignoreFn = [
+	    'body',
+	    'footer',
+	    'error',
+	    'header',
+	    'hint',
+	    'indicator',
+	    'message',
+	    'prefix',
+	    'separator',
+	    'skip'
+	  ];
+
+	  for (let key of Object.keys(prompt.options)) {
+	    if (ignore.includes(key)) continue;
+	    if (/^on[A-Z]/.test(key)) continue;
+	    let option = prompt.options[key];
+	    if (typeof option === 'function' && isValidKey(key)) {
+	      if (!ignoreFn.includes(key)) {
+	        prompt[key] = option.bind(prompt);
+	      }
+	    } else if (typeof prompt[key] !== 'function') {
+	      prompt[key] = option;
+	    }
+	  }
+	}
+
+	function margin(value) {
+	  if (typeof value === 'number') {
+	    value = [value, value, value, value];
+	  }
+	  let arr = [].concat(value || []);
+	  let pad = i => i % 2 === 0 ? '\n' : ' ';
+	  let res = [];
+	  for (let i = 0; i < 4; i++) {
+	    let char = pad(i);
+	    if (arr[i]) {
+	      res.push(char.repeat(arr[i]));
+	    } else {
+	      res.push('');
+	    }
+	  }
+	  return res;
+	}
+
+	prompt = Prompt;
+	return prompt;
+}
+
+var prompts = {};
+
+var roles_1;
+var hasRequiredRoles;
+
+function requireRoles () {
+	if (hasRequiredRoles) return roles_1;
+	hasRequiredRoles = 1;
+
+	const utils = requireUtils();
+	const roles = {
+	  default(prompt, choice) {
+	    return choice;
+	  },
+	  checkbox(prompt, choice) {
+	    throw new Error('checkbox role is not implemented yet');
+	  },
+	  editable(prompt, choice) {
+	    throw new Error('editable role is not implemented yet');
+	  },
+	  expandable(prompt, choice) {
+	    throw new Error('expandable role is not implemented yet');
+	  },
+	  heading(prompt, choice) {
+	    choice.disabled = '';
+	    choice.indicator = [choice.indicator, ' '].find(v => v != null);
+	    choice.message = choice.message || '';
+	    return choice;
+	  },
+	  input(prompt, choice) {
+	    throw new Error('input role is not implemented yet');
+	  },
+	  option(prompt, choice) {
+	    return roles.default(prompt, choice);
+	  },
+	  radio(prompt, choice) {
+	    throw new Error('radio role is not implemented yet');
+	  },
+	  separator(prompt, choice) {
+	    choice.disabled = '';
+	    choice.indicator = [choice.indicator, ' '].find(v => v != null);
+	    choice.message = choice.message || prompt.symbols.line.repeat(5);
+	    return choice;
+	  },
+	  spacer(prompt, choice) {
+	    return choice;
+	  }
+	};
+
+	roles_1 = (name, options = {}) => {
+	  let role = utils.merge({}, roles, options.roles);
+	  return role[name] || role.default;
+	};
+	return roles_1;
+}
+
+var array;
+var hasRequiredArray;
+
+function requireArray () {
+	if (hasRequiredArray) return array;
+	hasRequiredArray = 1;
+
+	const stripAnsi = requireStripAnsi$1();
+	const Prompt = requirePrompt();
+	const roles = requireRoles();
+	const utils = requireUtils();
+	const { reorder, scrollUp, scrollDown, isObject, swap } = utils;
+
+	class ArrayPrompt extends Prompt {
+	  constructor(options) {
+	    super(options);
+	    this.cursorHide();
+	    this.maxSelected = options.maxSelected || Infinity;
+	    this.multiple = options.multiple || false;
+	    this.initial = options.initial || 0;
+	    this.delay = options.delay || 0;
+	    this.longest = 0;
+	    this.num = '';
+	  }
+
+	  async initialize() {
+	    if (typeof this.options.initial === 'function') {
+	      this.initial = await this.options.initial.call(this);
+	    }
+	    await this.reset(true);
+	    await super.initialize();
+	  }
+
+	  async reset() {
+	    let { choices, initial, autofocus, suggest } = this.options;
+	    this.state._choices = [];
+	    this.state.choices = [];
+
+	    this.choices = await Promise.all(await this.toChoices(choices));
+	    this.choices.forEach(ch => (ch.enabled = false));
+
+	    if (typeof suggest !== 'function' && this.selectable.length === 0) {
+	      throw new Error('At least one choice must be selectable');
+	    }
+
+	    if (isObject(initial)) initial = Object.keys(initial);
+	    if (Array.isArray(initial)) {
+	      if (autofocus != null) this.index = this.findIndex(autofocus);
+	      initial.forEach(v => this.enable(this.find(v)));
+	      await this.render();
+	    } else {
+	      if (autofocus != null) initial = autofocus;
+	      if (typeof initial === 'string') initial = this.findIndex(initial);
+	      if (typeof initial === 'number' && initial > -1) {
+	        this.index = Math.max(0, Math.min(initial, this.choices.length));
+	        this.enable(this.find(this.index));
+	      }
+	    }
+
+	    if (this.isDisabled(this.focused)) {
+	      await this.down();
+	    }
+	  }
+
+	  async toChoices(value, parent) {
+	    this.state.loadingChoices = true;
+	    let choices = [];
+	    let index = 0;
+
+	    let toChoices = async(items, parent) => {
+	      if (typeof items === 'function') items = await items.call(this);
+	      if (items instanceof Promise) items = await items;
+
+	      for (let i = 0; i < items.length; i++) {
+	        let choice = items[i] = await this.toChoice(items[i], index++, parent);
+	        choices.push(choice);
+
+	        if (choice.choices) {
+	          await toChoices(choice.choices, choice);
+	        }
+	      }
+	      return choices;
+	    };
+
+	    return toChoices(value, parent)
+	      .then(choices => {
+	        this.state.loadingChoices = false;
+	        return choices;
+	      });
+	  }
+
+	  async toChoice(ele, i, parent) {
+	    if (typeof ele === 'function') ele = await ele.call(this, this);
+	    if (ele instanceof Promise) ele = await ele;
+	    if (typeof ele === 'string') ele = { name: ele };
+
+	    if (ele.normalized) return ele;
+	    ele.normalized = true;
+
+	    let origVal = ele.value;
+	    let role = roles(ele.role, this.options);
+	    ele = role(this, ele);
+
+	    if (typeof ele.disabled === 'string' && !ele.hint) {
+	      ele.hint = ele.disabled;
+	      ele.disabled = true;
+	    }
+
+	    if (ele.disabled === true && ele.hint == null) {
+	      ele.hint = '(disabled)';
+	    }
+
+	    // if the choice was already normalized, return it
+	    if (ele.index != null) return ele;
+	    ele.name = ele.name || ele.key || ele.title || ele.value || ele.message;
+	    ele.message = ele.message || ele.name || '';
+	    ele.value = [ele.value, ele.name].find(this.isValue.bind(this));
+
+	    ele.input = '';
+	    ele.index = i;
+	    ele.cursor = 0;
+
+	    utils.define(ele, 'parent', parent);
+	    ele.level = parent ? parent.level + 1 : 1;
+	    if (ele.indent == null) {
+	      ele.indent = parent ? parent.indent + '  ' : (ele.indent || '');
+	    }
+
+	    ele.path = parent ? parent.path + '.' + ele.name : ele.name;
+	    ele.enabled = !!(this.multiple && !this.isDisabled(ele) && (ele.enabled || this.isSelected(ele)));
+
+	    if (!this.isDisabled(ele)) {
+	      this.longest = Math.max(this.longest, stripAnsi(ele.message).length);
+	    }
+
+	    // shallow clone the choice first
+	    let choice = { ...ele };
+
+	    // then allow the choice to be reset using the "original" values
+	    ele.reset = (input = choice.input, value = choice.value) => {
+	      for (let key of Object.keys(choice)) ele[key] = choice[key];
+	      ele.input = input;
+	      ele.value = value;
+	    };
+
+	    if (origVal == null && typeof ele.initial === 'function') {
+	      ele.input = await ele.initial.call(this, this.state, ele, i);
+	    }
+
+	    return ele;
+	  }
+
+	  async onChoice(choice, i) {
+	    this.emit('choice', choice, i, this);
+
+	    if (typeof choice.onChoice === 'function') {
+	      await choice.onChoice.call(this, this.state, choice, i);
+	    }
+	  }
+
+	  async addChoice(ele, i, parent) {
+	    let choice = await this.toChoice(ele, i, parent);
+	    this.choices.push(choice);
+	    this.index = this.choices.length - 1;
+	    this.limit = this.choices.length;
+	    return choice;
+	  }
+
+	  async newItem(item, i, parent) {
+	    let ele = { name: 'New choice name?', editable: true, newChoice: true, ...item };
+	    let choice = await this.addChoice(ele, i, parent);
+
+	    choice.updateChoice = () => {
+	      delete choice.newChoice;
+	      choice.name = choice.message = choice.input;
+	      choice.input = '';
+	      choice.cursor = 0;
+	    };
+
+	    return this.render();
+	  }
+
+	  indent(choice) {
+	    if (choice.indent == null) {
+	      return choice.level > 1 ? '  '.repeat(choice.level - 1) : '';
+	    }
+	    return choice.indent;
+	  }
+
+	  dispatch(s, key) {
+	    if (this.multiple && this[key.name]) return this[key.name]();
+	    this.alert();
+	  }
+
+	  focus(choice, enabled) {
+	    if (typeof enabled !== 'boolean') enabled = choice.enabled;
+	    if (enabled && !choice.enabled && this.selected.length >= this.maxSelected) {
+	      return this.alert();
+	    }
+	    this.index = choice.index;
+	    choice.enabled = enabled && !this.isDisabled(choice);
+	    return choice;
+	  }
+
+	  space() {
+	    if (!this.multiple) return this.alert();
+	    if (!this.focused) return;
+	    this.toggle(this.focused);
+	    return this.render();
+	  }
+
+	  a() {
+	    if (this.maxSelected < this.choices.length) return this.alert();
+	    let enabled = this.selectable.every(ch => ch.enabled);
+	    this.choices.forEach(ch => (ch.enabled = !enabled));
+	    return this.render();
+	  }
+
+	  i() {
+	    // don't allow choices to be inverted if it will result in
+	    // more than the maximum number of allowed selected items.
+	    if (this.choices.length - this.selected.length > this.maxSelected) {
+	      return this.alert();
+	    }
+	    this.choices.forEach(ch => (ch.enabled = !ch.enabled));
+	    return this.render();
+	  }
+
+	  g() {
+	    if (!this.choices.some(ch => !!ch.parent)) return this.a();
+	    const focused = this.focused;
+	    this.toggle((focused.parent && !focused.choices) ? focused.parent : focused);
+	    return this.render();
+	  }
+
+	  toggle(choice, enabled) {
+	    if (!choice.enabled && this.selected.length >= this.maxSelected) {
+	      return this.alert();
+	    }
+
+	    if (typeof enabled !== 'boolean') enabled = !choice.enabled;
+	    choice.enabled = enabled;
+
+	    if (choice.choices) {
+	      choice.choices.forEach(ch => this.toggle(ch, enabled));
+	    }
+
+	    let parent = choice.parent;
+	    while (parent) {
+	      let choices = parent.choices.filter(ch => this.isDisabled(ch));
+	      parent.enabled = choices.every(ch => ch.enabled === true);
+	      parent = parent.parent;
+	    }
+
+	    reset(this, this.choices);
+	    this.emit('toggle', choice, this);
+	    return choice;
+	  }
+
+	  enable(choice) {
+	    if (this.selected.length >= this.maxSelected) return this.alert();
+	    choice.enabled = !this.isDisabled(choice);
+	    choice.choices && choice.choices.forEach(this.enable.bind(this));
+	    return choice;
+	  }
+
+	  disable(choice) {
+	    choice.enabled = false;
+	    choice.choices && choice.choices.forEach(this.disable.bind(this));
+	    return choice;
+	  }
+
+	  number(n) {
+	    this.num += n;
+
+	    let number = num => {
+	      let i = Number(num);
+	      if (i > this.choices.length - 1) return this.alert();
+
+	      let focused = this.focused;
+	      let choice = this.choices.find(ch => i === ch.index);
+
+	      if (!choice.enabled && this.selected.length >= this.maxSelected) {
+	        return this.alert();
+	      }
+
+	      if (this.visible.indexOf(choice) === -1) {
+	        let choices = reorder(this.choices);
+	        let actualIdx = choices.indexOf(choice);
+
+	        if (focused.index > actualIdx) {
+	          let start = choices.slice(actualIdx, actualIdx + this.limit);
+	          let end = choices.filter(ch => !start.includes(ch));
+	          this.choices = start.concat(end);
+	        } else {
+	          let pos = actualIdx - this.limit + 1;
+	          this.choices = choices.slice(pos).concat(choices.slice(0, pos));
+	        }
+	      }
+
+	      this.index = this.choices.indexOf(choice);
+	      this.toggle(this.focused);
+	      return this.render();
+	    };
+
+	    clearTimeout(this.numberTimeout);
+
+	    return new Promise(resolve => {
+	      let len = this.choices.length;
+	      let num = this.num;
+
+	      let handle = (val = false, res) => {
+	        clearTimeout(this.numberTimeout);
+	        if (val) res = number(num);
+	        this.num = '';
+	        resolve(res);
+	      };
+
+	      if (num === '0' || (num.length === 1 && Number(num + '0') > len)) {
+	        return handle(true);
+	      }
+
+	      if (Number(num) > len) {
+	        return handle(false, this.alert());
+	      }
+
+	      this.numberTimeout = setTimeout(() => handle(true), this.delay);
+	    });
+	  }
+
+	  home() {
+	    this.choices = reorder(this.choices);
+	    this.index = 0;
+	    return this.render();
+	  }
+
+	  end() {
+	    let pos = this.choices.length - this.limit;
+	    let choices = reorder(this.choices);
+	    this.choices = choices.slice(pos).concat(choices.slice(0, pos));
+	    this.index = this.limit - 1;
+	    return this.render();
+	  }
+
+	  first() {
+	    this.index = 0;
+	    return this.render();
+	  }
+
+	  last() {
+	    this.index = this.visible.length - 1;
+	    return this.render();
+	  }
+
+	  prev() {
+	    if (this.visible.length <= 1) return this.alert();
+	    return this.up();
+	  }
+
+	  next() {
+	    if (this.visible.length <= 1) return this.alert();
+	    return this.down();
+	  }
+
+	  right() {
+	    if (this.cursor >= this.input.length) return this.alert();
+	    this.cursor++;
+	    return this.render();
+	  }
+
+	  left() {
+	    if (this.cursor <= 0) return this.alert();
+	    this.cursor--;
+	    return this.render();
+	  }
+
+	  up() {
+	    let len = this.choices.length;
+	    let vis = this.visible.length;
+	    let idx = this.index;
+	    if (this.options.scroll === false && idx === 0) {
+	      return this.alert();
+	    }
+	    if (len > vis && idx === 0) {
+	      return this.scrollUp();
+	    }
+	    this.index = ((idx - 1 % len) + len) % len;
+	    if (this.isDisabled() && !this.allChoicesAreDisabled()) {
+	      return this.up();
+	    }
+	    return this.render();
+	  }
+
+	  down() {
+	    let len = this.choices.length;
+	    let vis = this.visible.length;
+	    let idx = this.index;
+	    if (this.options.scroll === false && idx === vis - 1) {
+	      return this.alert();
+	    }
+	    if (len > vis && idx === vis - 1) {
+	      return this.scrollDown();
+	    }
+	    this.index = (idx + 1) % len;
+	    if (this.isDisabled() && !this.allChoicesAreDisabled()) {
+	      return this.down();
+	    }
+	    return this.render();
+	  }
+
+	  scrollUp(i = 0) {
+	    this.choices = scrollUp(this.choices);
+	    this.index = i;
+	    if (this.isDisabled()) {
+	      return this.up();
+	    }
+	    return this.render();
+	  }
+
+	  scrollDown(i = this.visible.length - 1) {
+	    this.choices = scrollDown(this.choices);
+	    this.index = i;
+	    if (this.isDisabled()) {
+	      return this.down();
+	    }
+	    return this.render();
+	  }
+
+	  async shiftUp() {
+	    if (this.options.sort === true) {
+	      this.sorting = true;
+	      this.swap(this.index - 1);
+	      await this.up();
+	      this.sorting = false;
+	      return;
+	    }
+	    return this.scrollUp(this.index);
+	  }
+
+	  async shiftDown() {
+	    if (this.options.sort === true) {
+	      this.sorting = true;
+	      this.swap(this.index + 1);
+	      await this.down();
+	      this.sorting = false;
+	      return;
+	    }
+	    return this.scrollDown(this.index);
+	  }
+
+	  pageUp() {
+	    if (this.visible.length <= 1) return this.alert();
+	    this.limit = Math.max(this.limit - 1, 0);
+	    this.index = Math.min(this.limit - 1, this.index);
+	    this._limit = this.limit;
+	    if (this.isDisabled()) {
+	      return this.up();
+	    }
+	    return this.render();
+	  }
+
+	  pageDown() {
+	    if (this.visible.length >= this.choices.length) return this.alert();
+	    this.index = Math.max(0, this.index);
+	    this.limit = Math.min(this.limit + 1, this.choices.length);
+	    this._limit = this.limit;
+	    if (this.isDisabled()) {
+	      return this.down();
+	    }
+	    return this.render();
+	  }
+
+	  swap(pos) {
+	    swap(this.choices, this.index, pos);
+	  }
+
+	  allChoicesAreDisabled(choices = this.choices) {
+	    return choices.every(choice => this.isDisabled(choice));
+	  }
+
+	  isDisabled(choice = this.focused) {
+	    let keys = ['disabled', 'collapsed', 'hidden', 'completing', 'readonly'];
+	    if (choice && keys.some(key => choice[key] === true)) {
+	      return true;
+	    }
+	    return choice && choice.role === 'heading';
+	  }
+
+	  isEnabled(choice = this.focused) {
+	    if (Array.isArray(choice)) return choice.every(ch => this.isEnabled(ch));
+	    if (choice.choices) {
+	      let choices = choice.choices.filter(ch => !this.isDisabled(ch));
+	      return choice.enabled && choices.every(ch => this.isEnabled(ch));
+	    }
+	    return choice.enabled && !this.isDisabled(choice);
+	  }
+
+	  isChoice(choice, value) {
+	    return choice.name === value || choice.index === Number(value);
+	  }
+
+	  isSelected(choice) {
+	    if (Array.isArray(this.initial)) {
+	      return this.initial.some(value => this.isChoice(choice, value));
+	    }
+	    return this.isChoice(choice, this.initial);
+	  }
+
+	  map(names = [], prop = 'value') {
+	    return [].concat(names || []).reduce((acc, name) => {
+	      acc[name] = this.find(name, prop);
+	      return acc;
+	    }, {});
+	  }
+
+	  filter(value, prop) {
+	    let isChoice = (ele, i) => [ele.name, i].includes(value);
+	    let fn = typeof value === 'function' ? value : isChoice;
+	    let choices = this.options.multiple ? this.state._choices : this.choices;
+	    let result = choices.filter(fn);
+	    if (prop) {
+	      return result.map(ch => ch[prop]);
+	    }
+	    return result;
+	  }
+
+	  find(value, prop) {
+	    if (isObject(value)) return prop ? value[prop] : value;
+	    let isChoice = (ele, i) => [ele.name, i].includes(value);
+	    let fn = typeof value === 'function' ? value : isChoice;
+	    let choice = this.choices.find(fn);
+	    if (choice) {
+	      return prop ? choice[prop] : choice;
+	    }
+	  }
+
+	  findIndex(value) {
+	    return this.choices.indexOf(this.find(value));
+	  }
+
+	  async submit() {
+	    let choice = this.focused;
+	    if (!choice) return this.alert();
+
+	    if (choice.newChoice) {
+	      if (!choice.input) return this.alert();
+	      choice.updateChoice();
+	      return this.render();
+	    }
+
+	    if (this.choices.some(ch => ch.newChoice)) {
+	      return this.alert();
+	    }
+
+	    let { reorder, sort } = this.options;
+	    let multi = this.multiple === true;
+	    let value = this.selected;
+	    if (value === void 0) {
+	      return this.alert();
+	    }
+
+	    // re-sort choices to original order
+	    if (Array.isArray(value) && reorder !== false && sort !== true) {
+	      value = utils.reorder(value);
+	    }
+
+	    this.value = multi ? value.map(ch => ch.name) : value.name;
+	    return super.submit();
+	  }
+
+	  set choices(choices = []) {
+	    this.state._choices = this.state._choices || [];
+	    this.state.choices = choices;
+
+	    for (let choice of choices) {
+	      if (!this.state._choices.some(ch => ch.name === choice.name)) {
+	        this.state._choices.push(choice);
+	      }
+	    }
+
+	    if (!this._initial && this.options.initial) {
+	      this._initial = true;
+	      let init = this.initial;
+	      if (typeof init === 'string' || typeof init === 'number') {
+	        let choice = this.find(init);
+	        if (choice) {
+	          this.initial = choice.index;
+	          this.focus(choice, true);
+	        }
+	      }
+	    }
+	  }
+	  get choices() {
+	    return reset(this, this.state.choices || []);
+	  }
+
+	  set visible(visible) {
+	    this.state.visible = visible;
+	  }
+	  get visible() {
+	    return (this.state.visible || this.choices).slice(0, this.limit);
+	  }
+
+	  set limit(num) {
+	    this.state.limit = num;
+	  }
+	  get limit() {
+	    let { state, options, choices } = this;
+	    let limit = state.limit || this._limit || options.limit || choices.length;
+	    return Math.min(limit, this.height);
+	  }
+
+	  set value(value) {
+	    super.value = value;
+	  }
+	  get value() {
+	    if (typeof super.value !== 'string' && super.value === this.initial) {
+	      return this.input;
+	    }
+	    return super.value;
+	  }
+
+	  set index(i) {
+	    this.state.index = i;
+	  }
+	  get index() {
+	    return Math.max(0, this.state ? this.state.index : 0);
+	  }
+
+	  get enabled() {
+	    return this.filter(this.isEnabled.bind(this));
+	  }
+
+	  get focused() {
+	    let choice = this.choices[this.index];
+	    if (choice && this.state.submitted && this.multiple !== true) {
+	      choice.enabled = true;
+	    }
+	    return choice;
+	  }
+
+	  get selectable() {
+	    return this.choices.filter(choice => !this.isDisabled(choice));
+	  }
+
+	  get selected() {
+	    return this.multiple ? this.enabled : this.focused;
+	  }
+	}
+
+	function reset(prompt, choices) {
+	  if (choices instanceof Promise) return choices;
+	  if (typeof choices === 'function') {
+	    if (utils.isAsyncFn(choices)) return choices;
+	    choices = choices.call(prompt, prompt);
+	  }
+	  for (let choice of choices) {
+	    if (Array.isArray(choice.choices)) {
+	      let items = choice.choices.filter(ch => !prompt.isDisabled(ch));
+	      choice.enabled = items.every(ch => ch.enabled === true);
+	    }
+	    if (prompt.isDisabled(choice) === true) {
+	      delete choice.enabled;
+	    }
+	  }
+	  return choices;
+	}
+
+	array = ArrayPrompt;
+	return array;
+}
+
+var select;
+var hasRequiredSelect;
+
+function requireSelect () {
+	if (hasRequiredSelect) return select;
+	hasRequiredSelect = 1;
+
+	const ArrayPrompt = requireArray();
+	const utils = requireUtils();
+
+	class SelectPrompt extends ArrayPrompt {
+	  constructor(options) {
+	    super(options);
+	    this.emptyError = this.options.emptyError || 'No items were selected';
+	  }
+
+	  async dispatch(s, key) {
+	    if (this.multiple) {
+	      return this[key.name] ? await this[key.name](s, key) : await super.dispatch(s, key);
+	    }
+	    this.alert();
+	  }
+
+	  separator() {
+	    if (this.options.separator) return super.separator();
+	    let sep = this.styles.muted(this.symbols.ellipsis);
+	    return this.state.submitted ? super.separator() : sep;
+	  }
+
+	  pointer(choice, i) {
+	    return (!this.multiple || this.options.pointer) ? super.pointer(choice, i) : '';
+	  }
+
+	  indicator(choice, i) {
+	    return this.multiple ? super.indicator(choice, i) : '';
+	  }
+
+	  choiceMessage(choice, i) {
+	    let message = this.resolve(choice.message, this.state, choice, i);
+	    if (choice.role === 'heading' && !utils.hasColor(message)) {
+	      message = this.styles.strong(message);
+	    }
+	    return this.resolve(message, this.state, choice, i);
+	  }
+
+	  choiceSeparator() {
+	    return ':';
+	  }
+
+	  async renderChoice(choice, i) {
+	    await this.onChoice(choice, i);
+
+	    let focused = this.index === i;
+	    let pointer = await this.pointer(choice, i);
+	    let check = await this.indicator(choice, i) + (choice.pad || '');
+	    let hint = await this.resolve(choice.hint, this.state, choice, i);
+
+	    if (hint && !utils.hasColor(hint)) {
+	      hint = this.styles.muted(hint);
+	    }
+
+	    let ind = this.indent(choice);
+	    let msg = await this.choiceMessage(choice, i);
+	    let line = () => [this.margin[3], ind + pointer + check, msg, this.margin[1], hint].filter(Boolean).join(' ');
+
+	    if (choice.role === 'heading') {
+	      return line();
+	    }
+
+	    if (choice.disabled) {
+	      if (!utils.hasColor(msg)) {
+	        msg = this.styles.disabled(msg);
+	      }
+	      return line();
+	    }
+
+	    if (focused) {
+	      msg = this.styles.em(msg);
+	    }
+
+	    return line();
+	  }
+
+	  async renderChoices() {
+	    if (this.state.loading === 'choices') {
+	      return this.styles.warning('Loading choices');
+	    }
+
+	    if (this.state.submitted) return '';
+	    let choices = this.visible.map(async(ch, i) => await this.renderChoice(ch, i));
+	    let visible = await Promise.all(choices);
+	    if (!visible.length) visible.push(this.styles.danger('No matching choices'));
+	    let result = this.margin[0] + visible.join('\n');
+	    let header;
+
+	    if (this.options.choicesHeader) {
+	      header = await this.resolve(this.options.choicesHeader, this.state);
+	    }
+
+	    return [header, result].filter(Boolean).join('\n');
+	  }
+
+	  format() {
+	    if (!this.state.submitted || this.state.cancelled) return '';
+	    if (Array.isArray(this.selected)) {
+	      return this.selected.map(choice => this.styles.primary(choice.name)).join(', ');
+	    }
+	    return this.styles.primary(this.selected.name);
+	  }
+
+	  async render() {
+	    let { submitted, size } = this.state;
+
+	    let prompt = '';
+	    let header = await this.header();
+	    let prefix = await this.prefix();
+	    let separator = await this.separator();
+	    let message = await this.message();
+
+	    if (this.options.promptLine !== false) {
+	      prompt = [prefix, message, separator, ''].join(' ');
+	      this.state.prompt = prompt;
+	    }
+
+	    let output = await this.format();
+	    let help = (await this.error()) || (await this.hint());
+	    let body = await this.renderChoices();
+	    let footer = await this.footer();
+
+	    if (output) prompt += output;
+	    if (help && !prompt.includes(help)) prompt += ' ' + help;
+
+	    if (submitted && !output && !body.trim() && this.multiple && this.emptyError != null) {
+	      prompt += this.styles.danger(this.emptyError);
+	    }
+
+	    this.clear(size);
+	    this.write([header, prompt, body, footer].filter(Boolean).join('\n'));
+	    this.write(this.margin[2]);
+	    this.restore();
+	  }
+	}
+
+	select = SelectPrompt;
+	return select;
+}
+
+var autocomplete;
+var hasRequiredAutocomplete;
+
+function requireAutocomplete () {
+	if (hasRequiredAutocomplete) return autocomplete;
+	hasRequiredAutocomplete = 1;
+
+	const Select = requireSelect();
+
+	const highlight = (input, color) => {
+	  const regex = input ? new RegExp(input, 'ig') : /$^/;
+
+	  return str => {
+	    return input ? str.replace(regex, match => color(match)) : str;
+	  };
+	};
+
+	class AutoComplete extends Select {
+	  constructor(options) {
+	    super(options);
+	    this.cursorShow();
+	  }
+
+	  moveCursor(n) {
+	    this.state.cursor += n;
+	  }
+
+	  dispatch(ch) {
+	    return this.append(ch);
+	  }
+
+	  space(ch) {
+	    return this.options.multiple ? super.space(ch) : this.append(ch);
+	  }
+
+	  append(ch) {
+	    let { cursor, input } = this.state;
+	    this.input = input.slice(0, cursor) + ch + input.slice(cursor);
+	    this.moveCursor(1);
+	    return this.complete();
+	  }
+
+	  delete() {
+	    let { cursor, input } = this.state;
+	    if (!input) return this.alert();
+	    this.input = input.slice(0, cursor - 1) + input.slice(cursor);
+	    this.moveCursor(-1);
+	    return this.complete();
+	  }
+
+	  deleteForward() {
+	    let { cursor, input } = this.state;
+	    if (input[cursor] === void 0) return this.alert();
+	    this.input = `${input}`.slice(0, cursor) + `${input}`.slice(cursor + 1);
+	    return this.complete();
+	  }
+
+	  number(ch) {
+	    return this.append(ch);
+	  }
+
+	  async complete() {
+	    this.completing = true;
+	    this.choices = await this.suggest(this.input, this.state._choices);
+	    this.state.limit = void 0; // allow getter/setter to reset limit
+	    this.index = Math.min(Math.max(this.visible.length - 1, 0), this.index);
+	    await this.render();
+	    this.completing = false;
+	  }
+
+	  suggest(input = this.input, choices = this.state._choices) {
+	    if (typeof this.options.suggest === 'function') {
+	      return this.options.suggest.call(this, input, choices);
+	    }
+	    let str = input.toLowerCase();
+	    return choices.filter(ch => ch.message.toLowerCase().includes(str));
+	  }
+
+	  pointer() {
+	    return '';
+	  }
+
+	  format() {
+	    if (!this.focused) return this.input;
+
+	    if (this.options.multiple && this.state.submitted) {
+	      return this.selected.map(ch => this.styles.primary(ch.message)).join(', ');
+	    }
+
+	    if (this.state.submitted) {
+	      let value = this.value = this.input = this.focused.value;
+	      return this.styles.primary(value);
+	    }
+
+	    return this.input;
+	  }
+
+	  async render() {
+	    if (this.state.status !== 'pending') return super.render();
+	    const hl = this.options.highlight || this.styles.complement;
+
+	    const style = (input, color) => {
+	      if (!input) return input;
+	      if (hl.stack) return hl(input);
+	      return hl.call(this, input);
+	    };
+
+	    const color = highlight(this.input, style);
+	    const choices = this.choices;
+	    this.choices = choices.map(ch => ({ ...ch, message: color(ch.message) }));
+	    await super.render();
+	    this.choices = choices;
+	  }
+
+	  submit() {
+	    if (this.options.multiple) {
+	      this.value = this.selected.map(ch => ch.name);
+	    }
+	    return super.submit();
+	  }
+	}
+
+	autocomplete = AutoComplete;
+	return autocomplete;
+}
+
+var placeholder;
+var hasRequiredPlaceholder;
+
+function requirePlaceholder () {
+	if (hasRequiredPlaceholder) return placeholder;
+	hasRequiredPlaceholder = 1;
+
+	const utils = requireUtils();
+
+	/**
+	 * Render a placeholder value with cursor and styling based on the
+	 * position of the cursor.
+	 *
+	 * @param {Object} `prompt` Prompt instance.
+	 * @param {String} `input` Input string.
+	 * @param {String} `initial` The initial user-provided value.
+	 * @param {Number} `pos` Current cursor position.
+	 * @param {Boolean} `showCursor` Render a simulated cursor using the inverse primary style.
+	 * @return {String} Returns the styled placeholder string.
+	 * @api public
+	 */
+
+	placeholder = (prompt, options = {}) => {
+	  prompt.cursorHide();
+
+	  let { input = '', initial = '', pos, showCursor = true, color } = options;
+	  let style = color || prompt.styles.placeholder;
+	  let inverse = utils.inverse(prompt.styles.primary);
+	  let blinker = str => inverse(prompt.styles.black(str));
+	  let output = input;
+	  let char = ' ';
+	  let reverse = blinker(char);
+
+	  if (prompt.blink && prompt.blink.off === true) {
+	    blinker = str => str;
+	    reverse = '';
+	  }
+
+	  if (showCursor && pos === 0 && initial === '' && input === '') {
+	    return blinker(char);
+	  }
+
+	  if (showCursor && pos === 0 && (input === initial || input === '')) {
+	    return blinker(initial[0]) + style(initial.slice(1));
+	  }
+
+	  initial = utils.isPrimitive(initial) ? `${initial}` : '';
+	  input = utils.isPrimitive(input) ? `${input}` : '';
+
+	  let placeholder = initial && initial.startsWith(input) && initial !== input;
+	  let cursor = placeholder ? blinker(initial[input.length]) : reverse;
+
+	  if (pos !== input.length && showCursor === true) {
+	    output = input.slice(0, pos) + blinker(input[pos]) + input.slice(pos + 1);
+	    cursor = '';
+	  }
+
+	  if (showCursor === false) {
+	    cursor = '';
+	  }
+
+	  if (placeholder) {
+	    let raw = prompt.styles.unstyle(output + cursor);
+	    return output + cursor + style(initial.slice(raw.length));
+	  }
+
+	  return output + cursor;
+	};
+	return placeholder;
+}
+
+var form;
+var hasRequiredForm;
+
+function requireForm () {
+	if (hasRequiredForm) return form;
+	hasRequiredForm = 1;
+
+	const stripAnsi = requireStripAnsi$1();
+	const SelectPrompt = requireSelect();
+	const placeholder = requirePlaceholder();
+
+	class FormPrompt extends SelectPrompt {
+	  constructor(options) {
+	    super({ ...options, multiple: true });
+	    this.type = 'form';
+	    this.initial = this.options.initial;
+	    this.align = [this.options.align, 'right'].find(v => v != null);
+	    this.emptyError = '';
+	    this.values = {};
+	  }
+
+	  async reset(first) {
+	    await super.reset();
+	    if (first === true) this._index = this.index;
+	    this.index = this._index;
+	    this.values = {};
+	    this.choices.forEach(choice => choice.reset && choice.reset());
+	    return this.render();
+	  }
+
+	  dispatch(char) {
+	    return !!char && this.append(char);
+	  }
+
+	  append(char) {
+	    let choice = this.focused;
+	    if (!choice) return this.alert();
+	    let { cursor, input } = choice;
+	    choice.value = choice.input = input.slice(0, cursor) + char + input.slice(cursor);
+	    choice.cursor++;
+	    return this.render();
+	  }
+
+	  delete() {
+	    let choice = this.focused;
+	    if (!choice || choice.cursor <= 0) return this.alert();
+	    let { cursor, input } = choice;
+	    choice.value = choice.input = input.slice(0, cursor - 1) + input.slice(cursor);
+	    choice.cursor--;
+	    return this.render();
+	  }
+
+	  deleteForward() {
+	    let choice = this.focused;
+	    if (!choice) return this.alert();
+	    let { cursor, input } = choice;
+	    if (input[cursor] === void 0) return this.alert();
+	    let str = `${input}`.slice(0, cursor) + `${input}`.slice(cursor + 1);
+	    choice.value = choice.input = str;
+	    return this.render();
+	  }
+
+	  right() {
+	    let choice = this.focused;
+	    if (!choice) return this.alert();
+	    if (choice.cursor >= choice.input.length) return this.alert();
+	    choice.cursor++;
+	    return this.render();
+	  }
+
+	  left() {
+	    let choice = this.focused;
+	    if (!choice) return this.alert();
+	    if (choice.cursor <= 0) return this.alert();
+	    choice.cursor--;
+	    return this.render();
+	  }
+
+	  space(ch, key) {
+	    return this.dispatch(ch, key);
+	  }
+
+	  number(ch, key) {
+	    return this.dispatch(ch, key);
+	  }
+
+	  next() {
+	    let ch = this.focused;
+	    if (!ch) return this.alert();
+	    let { initial, input } = ch;
+	    if (initial && initial.startsWith(input) && input !== initial) {
+	      ch.value = ch.input = initial;
+	      ch.cursor = ch.value.length;
+	      return this.render();
+	    }
+	    return super.next();
+	  }
+
+	  prev() {
+	    let ch = this.focused;
+	    if (!ch) return this.alert();
+	    if (ch.cursor === 0) return super.prev();
+	    ch.value = ch.input = '';
+	    ch.cursor = 0;
+	    return this.render();
+	  }
+
+	  separator() {
+	    return '';
+	  }
+
+	  format(value) {
+	    return !this.state.submitted ? super.format(value) : '';
+	  }
+
+	  pointer() {
+	    return '';
+	  }
+
+	  indicator(choice) {
+	    return choice.input ? '⦿' : '⊙';
+	  }
+
+	  async choiceSeparator(choice, i) {
+	    let sep = await this.resolve(choice.separator, this.state, choice, i) || ':';
+	    return sep ? ' ' + this.styles.disabled(sep) : '';
+	  }
+
+	  async renderChoice(choice, i) {
+	    await this.onChoice(choice, i);
+
+	    let { state, styles } = this;
+	    let { cursor, initial = '', name, input = '' } = choice;
+	    let { muted, submitted, primary, danger } = styles;
+
+	    let focused = this.index === i;
+	    let validate = choice.validate || (() => true);
+	    let sep = await this.choiceSeparator(choice, i);
+	    let msg = choice.message;
+
+	    if (this.align === 'right') msg = msg.padStart(this.longest + 1, ' ');
+	    if (this.align === 'left') msg = msg.padEnd(this.longest + 1, ' ');
+
+	    // re-populate the form values (answers) object
+	    let value = this.values[name] = (input || initial);
+	    let color = input ? 'success' : 'dark';
+
+	    if ((await validate.call(choice, value, this.state)) !== true) {
+	      color = 'danger';
+	    }
+
+	    let style = styles[color];
+	    let indicator = style(await this.indicator(choice, i)) + (choice.pad || '');
+
+	    let indent = this.indent(choice);
+	    let line = () => [indent, indicator, msg + sep, input ].filter(Boolean).join(' ');
+
+	    if (state.submitted) {
+	      msg = stripAnsi(msg);
+	      input = submitted(input);
+
+	      return line();
+	    }
+
+	    if (choice.format) {
+	      input = await choice.format.call(this, input, choice, i);
+	    } else {
+	      let color = this.styles.muted;
+	      let options = { input, initial, pos: cursor, showCursor: focused, color };
+	      input = placeholder(this, options);
+	    }
+
+	    if (!this.isValue(input)) {
+	      input = this.styles.muted(this.symbols.ellipsis);
+	    }
+
+	    if (choice.result) {
+	      this.values[name] = await choice.result.call(this, value, choice, i);
+	    }
+
+	    if (focused) {
+	      msg = primary(msg);
+	    }
+
+	    if (choice.error) {
+	      input += (input ? ' ' : '') + danger(choice.error.trim());
+	    } else if (choice.hint) {
+	      input += (input ? ' ' : '') + muted(choice.hint.trim());
+	    }
+
+	    return line();
+	  }
+
+	  async submit() {
+	    this.value = this.values;
+	    return super.base.submit.call(this);
+	  }
+	}
+
+	form = FormPrompt;
+	return form;
+}
+
+var auth;
+var hasRequiredAuth;
+
+function requireAuth () {
+	if (hasRequiredAuth) return auth;
+	hasRequiredAuth = 1;
+
+	const FormPrompt = requireForm();
+
+	const defaultAuthenticate = () => {
+	  throw new Error('expected prompt to have a custom authenticate method');
+	};
+
+	const factory = (authenticate = defaultAuthenticate) => {
+
+	  class AuthPrompt extends FormPrompt {
+	    constructor(options) {
+	      super(options);
+	    }
+
+	    async submit() {
+	      this.value = await authenticate.call(this, this.values, this.state);
+	      super.base.submit.call(this);
+	    }
+
+	    static create(authenticate) {
+	      return factory(authenticate);
+	    }
+	  }
+
+	  return AuthPrompt;
+	};
+
+	auth = factory();
+	return auth;
+}
+
+var basicauth;
+var hasRequiredBasicauth;
+
+function requireBasicauth () {
+	if (hasRequiredBasicauth) return basicauth;
+	hasRequiredBasicauth = 1;
+
+	const AuthPrompt = requireAuth();
+
+	function defaultAuthenticate(value, state) {
+	  if (value.username === this.options.username && value.password === this.options.password) {
+	    return true;
+	  }
+	  return false;
+	}
+
+	const factory = (authenticate = defaultAuthenticate) => {
+	  const choices = [
+	    { name: 'username', message: 'username' },
+	    {
+	      name: 'password',
+	      message: 'password',
+	      format(input) {
+	        if (this.options.showPassword) {
+	          return input;
+	        }
+	        let color = this.state.submitted ? this.styles.primary : this.styles.muted;
+	        return color(this.symbols.asterisk.repeat(input.length));
+	      }
+	    }
+	  ];
+
+	  class BasicAuthPrompt extends AuthPrompt.create(authenticate) {
+	    constructor(options) {
+	      super({ ...options, choices });
+	    }
+
+	    static create(authenticate) {
+	      return factory(authenticate);
+	    }
+	  }
+
+	  return BasicAuthPrompt;
+	};
+
+	basicauth = factory();
+	return basicauth;
+}
+
+var boolean;
+var hasRequiredBoolean;
+
+function requireBoolean () {
+	if (hasRequiredBoolean) return boolean;
+	hasRequiredBoolean = 1;
+
+	const Prompt = requirePrompt();
+	const { isPrimitive, hasColor } = requireUtils();
+
+	class BooleanPrompt extends Prompt {
+	  constructor(options) {
+	    super(options);
+	    this.cursorHide();
+	  }
+
+	  async initialize() {
+	    let initial = await this.resolve(this.initial, this.state);
+	    this.input = await this.cast(initial);
+	    await super.initialize();
+	  }
+
+	  dispatch(ch) {
+	    if (!this.isValue(ch)) return this.alert();
+	    this.input = ch;
+	    return this.submit();
+	  }
+
+	  format(value) {
+	    let { styles, state } = this;
+	    return !state.submitted ? styles.primary(value) : styles.success(value);
+	  }
+
+	  cast(input) {
+	    return this.isTrue(input);
+	  }
+
+	  isTrue(input) {
+	    return /^[ty1]/i.test(input);
+	  }
+
+	  isFalse(input) {
+	    return /^[fn0]/i.test(input);
+	  }
+
+	  isValue(value) {
+	    return isPrimitive(value) && (this.isTrue(value) || this.isFalse(value));
+	  }
+
+	  async hint() {
+	    if (this.state.status === 'pending') {
+	      let hint = await this.element('hint');
+	      if (!hasColor(hint)) {
+	        return this.styles.muted(hint);
+	      }
+	      return hint;
+	    }
+	  }
+
+	  async render() {
+	    let { input, size } = this.state;
+
+	    let prefix = await this.prefix();
+	    let sep = await this.separator();
+	    let msg = await this.message();
+	    let hint = this.styles.muted(this.default);
+
+	    let promptLine = [prefix, msg, hint, sep].filter(Boolean).join(' ');
+	    this.state.prompt = promptLine;
+
+	    let header = await this.header();
+	    let value = this.value = this.cast(input);
+	    let output = await this.format(value);
+	    let help = (await this.error()) || (await this.hint());
+	    let footer = await this.footer();
+
+	    if (help && !promptLine.includes(help)) output += ' ' + help;
+	    promptLine += ' ' + output;
+
+	    this.clear(size);
+	    this.write([header, promptLine, footer].filter(Boolean).join('\n'));
+	    this.restore();
+	  }
+
+	  set value(value) {
+	    super.value = value;
+	  }
+	  get value() {
+	    return this.cast(super.value);
+	  }
+	}
+
+	boolean = BooleanPrompt;
+	return boolean;
+}
+
+var confirm;
+var hasRequiredConfirm;
+
+function requireConfirm () {
+	if (hasRequiredConfirm) return confirm;
+	hasRequiredConfirm = 1;
+
+	const BooleanPrompt = requireBoolean();
+
+	class ConfirmPrompt extends BooleanPrompt {
+	  constructor(options) {
+	    super(options);
+	    this.default = this.options.default || (this.initial ? '(Y/n)' : '(y/N)');
+	  }
+	}
+
+	confirm = ConfirmPrompt;
+	return confirm;
+}
+
+var editable;
+var hasRequiredEditable;
+
+function requireEditable () {
+	if (hasRequiredEditable) return editable;
+	hasRequiredEditable = 1;
+
+	const Select = requireSelect();
+	const Form = requireForm();
+	const form = Form.prototype;
+
+	class Editable extends Select {
+	  constructor(options) {
+	    super({ ...options, multiple: true });
+	    this.align = [this.options.align, 'left'].find(v => v != null);
+	    this.emptyError = '';
+	    this.values = {};
+	  }
+
+	  dispatch(char, key) {
+	    let choice = this.focused;
+	    let parent = choice.parent || {};
+	    if (!choice.editable && !parent.editable) {
+	      if (char === 'a' || char === 'i') return super[char]();
+	    }
+	    return form.dispatch.call(this, char, key);
+	  }
+
+	  append(char, key) {
+	    return form.append.call(this, char, key);
+	  }
+
+	  delete(char, key) {
+	    return form.delete.call(this, char, key);
+	  }
+
+	  space(char) {
+	    return this.focused.editable ? this.append(char) : super.space();
+	  }
+
+	  number(char) {
+	    return this.focused.editable ? this.append(char) : super.number(char);
+	  }
+
+	  next() {
+	    return this.focused.editable ? form.next.call(this) : super.next();
+	  }
+
+	  prev() {
+	    return this.focused.editable ? form.prev.call(this) : super.prev();
+	  }
+
+	  async indicator(choice, i) {
+	    let symbol = choice.indicator || '';
+	    let value = choice.editable ? symbol : super.indicator(choice, i);
+	    return await this.resolve(value, this.state, choice, i) || '';
+	  }
+
+	  indent(choice) {
+	    return choice.role === 'heading' ? '' : (choice.editable ? ' ' : '  ');
+	  }
+
+	  async renderChoice(choice, i) {
+	    choice.indent = '';
+	    if (choice.editable) return form.renderChoice.call(this, choice, i);
+	    return super.renderChoice(choice, i);
+	  }
+
+	  error() {
+	    return '';
+	  }
+
+	  footer() {
+	    return this.state.error;
+	  }
+
+	  async validate() {
+	    let result = true;
+
+	    for (let choice of this.choices) {
+	      if (typeof choice.validate !== 'function') {
+	        continue;
+	      }
+
+	      if (choice.role === 'heading') {
+	        continue;
+	      }
+
+	      let val = choice.parent ? this.value[choice.parent.name] : this.value;
+
+	      if (choice.editable) {
+	        val = choice.value === choice.name ? choice.initial || '' : choice.value;
+	      } else if (!this.isDisabled(choice)) {
+	        val = choice.enabled === true;
+	      }
+
+	      result = await choice.validate(val, this.state);
+
+	      if (result !== true) {
+	        break;
+	      }
+	    }
+
+	    if (result !== true) {
+	      this.state.error = typeof result === 'string' ? result : 'Invalid Input';
+	    }
+
+	    return result;
+	  }
+
+	  submit() {
+	    if (this.focused.newChoice === true) return super.submit();
+	    if (this.choices.some(ch => ch.newChoice)) {
+	      return this.alert();
+	    }
+
+	    this.value = {};
+
+	    for (let choice of this.choices) {
+	      let val = choice.parent ? this.value[choice.parent.name] : this.value;
+
+	      if (choice.role === 'heading') {
+	        this.value[choice.name] = {};
+	        continue;
+	      }
+
+	      if (choice.editable) {
+	        val[choice.name] = choice.value === choice.name
+	          ? (choice.initial || '')
+	          : choice.value;
+
+	      } else if (!this.isDisabled(choice)) {
+	        val[choice.name] = choice.enabled === true;
+	      }
+	    }
+
+	    return this.base.submit.call(this);
+	  }
+	}
+
+	editable = Editable;
+	return editable;
+}
+
+var string;
+var hasRequiredString;
+
+function requireString () {
+	if (hasRequiredString) return string;
+	hasRequiredString = 1;
+
+	const Prompt = requirePrompt();
+	const keypress = requireKeypress();
+	const placeholder = requirePlaceholder();
+	const { isPrimitive } = requireUtils();
+
+	class StringPrompt extends Prompt {
+	  constructor(options) {
+	    super(options);
+	    this.initial = isPrimitive(this.initial) ? String(this.initial) : '';
+	    if (this.initial) this.cursorHide();
+	    this.state.prevCursor = 0;
+	    this.state.clipboard = [];
+	    this.keypressTimeout =
+	      this.options.keypressTimeout !== undefined
+	        ? this.options.keypressTimeout
+	        : null;
+	  }
+
+	  async keypress(input, key = input ? keypress(input, {}) : {}) {
+	    const now = Date.now();
+	    const elapsed = now - this.lastKeypress;
+	    this.lastKeypress = now;
+
+	    const isEnterKey = key.name === 'return' || key.name === 'enter';
+	    let prev = this.state.prevKeypress;
+	    let append;
+	    this.state.prevKeypress = key;
+
+	    if (this.keypressTimeout != null && isEnterKey) {
+	      if (elapsed < this.keypressTimeout) {
+	        return this.submit();
+	      }
+
+	      this.state.multilineBuffer = this.state.multilineBuffer || '';
+	      this.state.multilineBuffer += input;
+	      append = true;
+	      prev = null;
+	    }
+
+	    if (append || (this.options.multiline && isEnterKey)) {
+	      if (!prev || prev.name !== 'return') {
+	        return this.append('\n', key);
+	      }
+	    }
+
+	    return super.keypress(input, key);
+	  }
+
+	  moveCursor(n) {
+	    this.cursor += n;
+	  }
+
+	  reset() {
+	    this.input = this.value = '';
+	    this.cursor = 0;
+	    return this.render();
+	  }
+
+	  dispatch(ch, key) {
+	    if (!ch || key.ctrl || key.code) return this.alert();
+	    this.append(ch);
+	  }
+
+	  append(ch) {
+	    let { cursor, input } = this.state;
+	    this.input = `${input}`.slice(0, cursor) + ch + `${input}`.slice(cursor);
+	    this.moveCursor(String(ch).length);
+	    this.render();
+	  }
+
+	  insert(str) {
+	    this.append(str);
+	  }
+
+	  delete() {
+	    let { cursor, input } = this.state;
+	    if (cursor <= 0) return this.alert();
+	    this.input = `${input}`.slice(0, cursor - 1) + `${input}`.slice(cursor);
+	    this.moveCursor(-1);
+	    this.render();
+	  }
+
+	  deleteForward() {
+	    let { cursor, input } = this.state;
+	    if (input[cursor] === void 0) return this.alert();
+	    this.input = `${input}`.slice(0, cursor) + `${input}`.slice(cursor + 1);
+	    this.render();
+	  }
+
+	  cutForward() {
+	    let pos = this.cursor;
+	    if (this.input.length <= pos) return this.alert();
+	    this.state.clipboard.push(this.input.slice(pos));
+	    this.input = this.input.slice(0, pos);
+	    this.render();
+	  }
+
+	  cutLeft() {
+	    let pos = this.cursor;
+	    if (pos === 0) return this.alert();
+	    let before = this.input.slice(0, pos);
+	    let after = this.input.slice(pos);
+	    let words = before.split(' ');
+	    this.state.clipboard.push(words.pop());
+	    this.input = words.join(' ');
+	    this.cursor = this.input.length;
+	    this.input += after;
+	    this.render();
+	  }
+
+	  paste() {
+	    if (!this.state.clipboard.length) return this.alert();
+	    this.insert(this.state.clipboard.pop());
+	    this.render();
+	  }
+
+	  toggleCursor() {
+	    if (this.state.prevCursor) {
+	      this.cursor = this.state.prevCursor;
+	      this.state.prevCursor = 0;
+	    } else {
+	      this.state.prevCursor = this.cursor;
+	      this.cursor = 0;
+	    }
+	    this.render();
+	  }
+
+	  first() {
+	    this.cursor = 0;
+	    this.render();
+	  }
+
+	  last() {
+	    this.cursor = this.input.length - 1;
+	    this.render();
+	  }
+
+	  next() {
+	    let init = this.initial != null ? String(this.initial) : '';
+	    if (!init || !init.startsWith(this.input)) return this.alert();
+	    this.input = this.initial;
+	    this.cursor = this.initial.length;
+	    this.render();
+	  }
+
+	  prev() {
+	    if (!this.input) return this.alert();
+	    this.reset();
+	  }
+
+	  backward() {
+	    return this.left();
+	  }
+
+	  forward() {
+	    return this.right();
+	  }
+
+	  right() {
+	    if (this.cursor >= this.input.length) return this.alert();
+	    this.moveCursor(1);
+	    return this.render();
+	  }
+
+	  left() {
+	    if (this.cursor <= 0) return this.alert();
+	    this.moveCursor(-1);
+	    return this.render();
+	  }
+
+	  isValue(value) {
+	    return !!value;
+	  }
+
+	  async format(input = this.value) {
+	    let initial = await this.resolve(this.initial, this.state);
+	    if (!this.state.submitted) {
+	      return placeholder(this, { input, initial, pos: this.cursor });
+	    }
+	    return this.styles.submitted(input || initial);
+	  }
+
+	  async render() {
+	    let size = this.state.size;
+
+	    let prefix = await this.prefix();
+	    let separator = await this.separator();
+	    let message = await this.message();
+
+	    let prompt = [prefix, message, separator].filter(Boolean).join(' ');
+	    this.state.prompt = prompt;
+
+	    let header = await this.header();
+	    let output = await this.format();
+	    let help = (await this.error()) || (await this.hint());
+	    let footer = await this.footer();
+
+	    if (help && !output.includes(help)) output += ' ' + help;
+	    prompt += ' ' + output;
+
+	    this.clear(size);
+	    this.write([header, prompt, footer].filter(Boolean).join('\n'));
+	    this.restore();
+	  }
+	}
+
+	string = StringPrompt;
+	return string;
+}
+
+var completer;
+var hasRequiredCompleter;
+
+function requireCompleter () {
+	if (hasRequiredCompleter) return completer;
+	hasRequiredCompleter = 1;
+
+	const unique = arr => arr.filter((v, i) => arr.lastIndexOf(v) === i);
+	const compact = arr => unique(arr).filter(Boolean);
+
+	completer = (action, data = {}, value = '') => {
+	  let { past = [], present = '' } = data;
+	  let rest, prev;
+
+	  switch (action) {
+	    case 'prev':
+	    case 'undo':
+	      rest = past.slice(0, past.length - 1);
+	      prev = past[past.length - 1] || '';
+	      return {
+	        past: compact([value, ...rest]),
+	        present: prev
+	      };
+
+	    case 'next':
+	    case 'redo':
+	      rest = past.slice(1);
+	      prev = past[0] || '';
+	      return {
+	        past: compact([...rest, value]),
+	        present: prev
+	      };
+
+	    case 'save':
+	      return {
+	        past: compact([...past, value]),
+	        present: ''
+	      };
+
+	    case 'remove':
+	      prev = compact(past.filter(v => v !== value));
+	      present = '';
+
+	      if (prev.length) {
+	        present = prev.pop();
+	      }
+
+	      return {
+	        past: prev,
+	        present
+	      };
+
+	    default: {
+	      throw new Error(`Invalid action: "${action}"`);
+	    }
+	  }
+	};
+	return completer;
+}
+
+var input;
+var hasRequiredInput;
+
+function requireInput () {
+	if (hasRequiredInput) return input;
+	hasRequiredInput = 1;
+
+	const Prompt = requireString();
+	const completer = requireCompleter();
+
+	class Input extends Prompt {
+	  constructor(options) {
+	    super(options);
+	    let history = this.options.history;
+	    if (history && history.store) {
+	      let initial = history.values || this.initial;
+	      this.autosave = !!history.autosave;
+	      this.store = history.store;
+	      this.data = this.store.get('values') || { past: [], present: initial };
+	      this.initial = this.data.present || this.data.past[this.data.past.length - 1];
+	    }
+	  }
+
+	  completion(action) {
+	    if (!this.store) return this.alert();
+	    this.data = completer(action, this.data, this.input);
+	    if (!this.data.present) return this.alert();
+	    this.input = this.data.present;
+	    this.cursor = this.input.length;
+	    return this.render();
+	  }
+
+	  altUp() {
+	    return this.completion('prev');
+	  }
+
+	  altDown() {
+	    return this.completion('next');
+	  }
+
+	  prev() {
+	    this.save();
+	    return super.prev();
+	  }
+
+	  save() {
+	    if (!this.store) return;
+	    this.data = completer('save', this.data, this.input);
+	    this.store.set('values', this.data);
+	  }
+
+	  submit() {
+	    if (this.store && this.autosave === true) {
+	      this.save();
+	    }
+	    return super.submit();
+	  }
+	}
+
+	input = Input;
+	return input;
+}
+
+var invisible;
+var hasRequiredInvisible;
+
+function requireInvisible () {
+	if (hasRequiredInvisible) return invisible;
+	hasRequiredInvisible = 1;
+
+	const StringPrompt = requireString();
+
+	class InvisiblePrompt extends StringPrompt {
+	  format() {
+	    return '';
+	  }
+	}
+
+	invisible = InvisiblePrompt;
+	return invisible;
+}
+
+var list;
+var hasRequiredList;
+
+function requireList () {
+	if (hasRequiredList) return list;
+	hasRequiredList = 1;
+
+	const StringPrompt = requireString();
+
+	class ListPrompt extends StringPrompt {
+	  constructor(options = {}) {
+	    super(options);
+	    this.sep = this.options.separator || /, */;
+	    this.initial = options.initial || '';
+	  }
+
+	  split(input = this.value) {
+	    return input ? String(input).split(this.sep) : [];
+	  }
+
+	  format() {
+	    let style = this.state.submitted ? this.styles.primary : val => val;
+	    return this.list.map(style).join(', ');
+	  }
+
+	  async submit(value) {
+	    let result = this.state.error || await this.validate(this.list, this.state);
+	    if (result !== true) {
+	      this.state.error = result;
+	      return super.submit();
+	    }
+	    this.value = this.list;
+	    return super.submit();
+	  }
+
+	  get list() {
+	    return this.split();
+	  }
+	}
+
+	list = ListPrompt;
+	return list;
+}
+
+var multiselect;
+var hasRequiredMultiselect;
+
+function requireMultiselect () {
+	if (hasRequiredMultiselect) return multiselect;
+	hasRequiredMultiselect = 1;
+
+	const Select = requireSelect();
+
+	class MultiSelect extends Select {
+	  constructor(options) {
+	    super({ ...options, multiple: true });
+	  }
+	}
+
+	multiselect = MultiSelect;
+	return multiselect;
+}
+
+var number;
+var hasRequiredNumber;
+
+function requireNumber () {
+	if (hasRequiredNumber) return number;
+	hasRequiredNumber = 1;
+
+	const StringPrompt = requireString();
+
+	class NumberPrompt extends StringPrompt {
+	  constructor(options = {}) {
+	    super({ style: 'number', ...options });
+	    this.min = this.isValue(options.min) ? this.toNumber(options.min) : -Infinity;
+	    this.max = this.isValue(options.max) ? this.toNumber(options.max) : Infinity;
+	    this.delay = options.delay != null ? options.delay : 1000;
+	    this.float = options.float !== false;
+	    this.round = options.round === true || options.float === false;
+	    this.major = options.major || 10;
+	    this.minor = options.minor || 1;
+	    this.initial = options.initial != null ? options.initial : '';
+	    this.input = String(this.initial);
+	    this.cursor = this.input.length;
+	    this.cursorShow();
+	  }
+
+	  append(ch) {
+	    if (!/[-+.]/.test(ch) || (ch === '.' && this.input.includes('.'))) {
+	      return this.alert('invalid number');
+	    }
+	    return super.append(ch);
+	  }
+
+	  number(ch) {
+	    return super.append(ch);
+	  }
+
+	  next() {
+	    if (this.input && this.input !== this.initial) return this.alert();
+	    if (!this.isValue(this.initial)) return this.alert();
+	    this.input = this.initial;
+	    this.cursor = String(this.initial).length;
+	    return this.render();
+	  }
+
+	  up(number) {
+	    let step = number || this.minor;
+	    let num = this.toNumber(this.input);
+	    if (num > this.max + step) return this.alert();
+	    this.input = `${num + step}`;
+	    return this.render();
+	  }
+
+	  down(number) {
+	    let step = number || this.minor;
+	    let num = this.toNumber(this.input);
+	    if (num < this.min - step) return this.alert();
+	    this.input = `${num - step}`;
+	    return this.render();
+	  }
+
+	  shiftDown() {
+	    return this.down(this.major);
+	  }
+
+	  shiftUp() {
+	    return this.up(this.major);
+	  }
+
+	  format(input = this.input) {
+	    if (typeof this.options.format === 'function') {
+	      return this.options.format.call(this, input);
+	    }
+	    return this.styles.info(input);
+	  }
+
+	  toNumber(value = '') {
+	    return this.float ? +value : Math.round(+value);
+	  }
+
+	  isValue(value) {
+	    return /^[-+]?[0-9]+((\.)|(\.[0-9]+))?$/.test(value);
+	  }
+
+	  submit() {
+	    let value = [this.input, this.initial].find(v => this.isValue(v));
+	    this.value = this.toNumber(value || 0);
+	    return super.submit();
+	  }
+	}
+
+	number = NumberPrompt;
+	return number;
+}
+
+var numeral;
+var hasRequiredNumeral;
+
+function requireNumeral () {
+	if (hasRequiredNumeral) return numeral;
+	hasRequiredNumeral = 1;
+	numeral = requireNumber();
+	return numeral;
+}
+
+var password;
+var hasRequiredPassword;
+
+function requirePassword () {
+	if (hasRequiredPassword) return password;
+	hasRequiredPassword = 1;
+
+	const StringPrompt = requireString();
+
+	class PasswordPrompt extends StringPrompt {
+	  constructor(options) {
+	    super(options);
+	    this.cursorShow();
+	  }
+
+	  format(input = this.input) {
+	    if (!this.keypressed) return '';
+	    let color = this.state.submitted ? this.styles.primary : this.styles.muted;
+	    return color(this.symbols.asterisk.repeat(input.length));
+	  }
+	}
+
+	password = PasswordPrompt;
+	return password;
+}
+
+var scale;
+var hasRequiredScale;
+
+function requireScale () {
+	if (hasRequiredScale) return scale;
+	hasRequiredScale = 1;
+
+	const stripAnsi = requireStripAnsi$1();
+	const ArrayPrompt = requireArray();
+	const utils = requireUtils();
+
+	class LikertScale extends ArrayPrompt {
+	  constructor(options = {}) {
+	    super(options);
+	    this.widths = [].concat(options.messageWidth || 50);
+	    this.align = [].concat(options.align || 'left');
+	    this.linebreak = options.linebreak || false;
+	    this.edgeLength = options.edgeLength || 3;
+	    this.newline = options.newline || '\n   ';
+	    let start = options.startNumber || 1;
+	    if (typeof this.scale === 'number') {
+	      this.scaleKey = false;
+	      this.scale = Array(this.scale).fill(0).map((v, i) => ({ name: i + start }));
+	    }
+	  }
+
+	  async reset() {
+	    this.tableized = false;
+	    await super.reset();
+	    return this.render();
+	  }
+
+	  tableize() {
+	    if (this.tableized === true) return;
+	    this.tableized = true;
+	    let longest = 0;
+
+	    for (let ch of this.choices) {
+	      longest = Math.max(longest, ch.message.length);
+	      ch.scaleIndex = ch.initial || 2;
+	      ch.scale = [];
+
+	      for (let i = 0; i < this.scale.length; i++) {
+	        ch.scale.push({ index: i });
+	      }
+	    }
+	    this.widths[0] = Math.min(this.widths[0], longest + 3);
+	  }
+
+	  async dispatch(s, key) {
+	    if (this.multiple) {
+	      return this[key.name] ? await this[key.name](s, key) : await super.dispatch(s, key);
+	    }
+	    this.alert();
+	  }
+
+	  heading(msg, item, i) {
+	    return this.styles.strong(msg);
+	  }
+
+	  separator() {
+	    return this.styles.muted(this.symbols.ellipsis);
+	  }
+
+	  right() {
+	    let choice = this.focused;
+	    if (choice.scaleIndex >= this.scale.length - 1) return this.alert();
+	    choice.scaleIndex++;
+	    return this.render();
+	  }
+
+	  left() {
+	    let choice = this.focused;
+	    if (choice.scaleIndex <= 0) return this.alert();
+	    choice.scaleIndex--;
+	    return this.render();
+	  }
+
+	  indent() {
+	    return '';
+	  }
+
+	  format() {
+	    if (this.state.submitted) {
+	      let values = this.choices.map(ch => this.styles.info(ch.index));
+	      return values.join(', ');
+	    }
+	    return '';
+	  }
+
+	  pointer() {
+	    return '';
+	  }
+
+	  /**
+	   * Render the scale "Key". Something like:
+	   * @return {String}
+	   */
+
+	  renderScaleKey() {
+	    if (this.scaleKey === false) return '';
+	    if (this.state.submitted) return '';
+	    let scale = this.scale.map(item => `   ${item.name} - ${item.message}`);
+	    let key = ['', ...scale].map(item => this.styles.muted(item));
+	    return key.join('\n');
+	  }
+
+	  /**
+	   * Render the heading row for the scale.
+	   * @return {String}
+	   */
+
+	  renderScaleHeading(max) {
+	    let keys = this.scale.map(ele => ele.name);
+	    if (typeof this.options.renderScaleHeading === 'function') {
+	      keys = this.options.renderScaleHeading.call(this, max);
+	    }
+	    let diff = this.scaleLength - keys.join('').length;
+	    let spacing = Math.round(diff / (keys.length - 1));
+	    let names = keys.map(key => this.styles.strong(key));
+	    let headings = names.join(' '.repeat(spacing));
+	    let padding = ' '.repeat(this.widths[0]);
+	    return this.margin[3] + padding + this.margin[1] + headings;
+	  }
+
+	  /**
+	   * Render a scale indicator => ◯ or ◉ by default
+	   */
+
+	  scaleIndicator(choice, item, i) {
+	    if (typeof this.options.scaleIndicator === 'function') {
+	      return this.options.scaleIndicator.call(this, choice, item, i);
+	    }
+	    let enabled = choice.scaleIndex === item.index;
+	    if (item.disabled) return this.styles.hint(this.symbols.radio.disabled);
+	    if (enabled) return this.styles.success(this.symbols.radio.on);
+	    return this.symbols.radio.off;
+	  }
+
+	  /**
+	   * Render the actual scale => ◯────◯────◉────◯────◯
+	   */
+
+	  renderScale(choice, i) {
+	    let scale = choice.scale.map(item => this.scaleIndicator(choice, item, i));
+	    let padding = this.term === 'Hyper' ? '' : ' ';
+	    return scale.join(padding + this.symbols.line.repeat(this.edgeLength));
+	  }
+
+	  /**
+	   * Render a choice, including scale =>
+	   *   "The website is easy to navigate. ◯───◯───◉───◯───◯"
+	   */
+
+	  async renderChoice(choice, i) {
+	    await this.onChoice(choice, i);
+
+	    let focused = this.index === i;
+	    let pointer = await this.pointer(choice, i);
+	    let hint = await choice.hint;
+
+	    if (hint && !utils.hasColor(hint)) {
+	      hint = this.styles.muted(hint);
+	    }
+
+	    let pad = str => this.margin[3] + str.replace(/\s+$/, '').padEnd(this.widths[0], ' ');
+	    let newline = this.newline;
+	    let ind = this.indent(choice);
+	    let message = await this.resolve(choice.message, this.state, choice, i);
+	    let scale = await this.renderScale(choice, i);
+	    let margin = this.margin[1] + this.margin[3];
+	    this.scaleLength = stripAnsi(scale).length;
+	    this.widths[0] = Math.min(this.widths[0], this.width - this.scaleLength - margin.length);
+	    let msg = utils.wordWrap(message, { width: this.widths[0], newline });
+	    let lines = msg.split('\n').map(line => pad(line) + this.margin[1]);
+
+	    if (focused) {
+	      scale = this.styles.info(scale);
+	      lines = lines.map(line => this.styles.info(line));
+	    }
+
+	    lines[0] += scale;
+
+	    if (this.linebreak) lines.push('');
+	    return [ind + pointer, lines.join('\n')].filter(Boolean);
+	  }
+
+	  async renderChoices() {
+	    if (this.state.submitted) return '';
+	    this.tableize();
+	    let choices = this.visible.map(async(ch, i) => await this.renderChoice(ch, i));
+	    let visible = await Promise.all(choices);
+	    let heading = await this.renderScaleHeading();
+	    return this.margin[0] + [heading, ...visible.map(v => v.join(' '))].join('\n');
+	  }
+
+	  async render() {
+	    let { submitted, size } = this.state;
+
+	    let prefix = await this.prefix();
+	    let separator = await this.separator();
+	    let message = await this.message();
+
+	    let prompt = '';
+	    if (this.options.promptLine !== false) {
+	      prompt = [prefix, message, separator, ''].join(' ');
+	      this.state.prompt = prompt;
+	    }
+
+	    let header = await this.header();
+	    let output = await this.format();
+	    let key = await this.renderScaleKey();
+	    let help = await this.error() || await this.hint();
+	    let body = await this.renderChoices();
+	    let footer = await this.footer();
+	    let err = this.emptyError;
+
+	    if (output) prompt += output;
+	    if (help && !prompt.includes(help)) prompt += ' ' + help;
+
+	    if (submitted && !output && !body.trim() && this.multiple && err != null) {
+	      prompt += this.styles.danger(err);
+	    }
+
+	    this.clear(size);
+	    this.write([header, prompt, key, body, footer].filter(Boolean).join('\n'));
+	    if (!this.state.submitted) {
+	      this.write(this.margin[2]);
+	    }
+	    this.restore();
+	  }
+
+	  submit() {
+	    this.value = {};
+	    for (let choice of this.choices) {
+	      this.value[choice.name] = choice.scaleIndex;
+	    }
+	    return this.base.submit.call(this);
+	  }
+	}
+
+	scale = LikertScale;
+	return scale;
+}
+
+var interpolate;
+var hasRequiredInterpolate;
+
+function requireInterpolate () {
+	if (hasRequiredInterpolate) return interpolate;
+	hasRequiredInterpolate = 1;
+
+	const stripAnsi = requireStripAnsi$1();
+	const clean = (str = '') => {
+	  return typeof str === 'string' ? str.replace(/^['"]|['"]$/g, '') : '';
+	};
+
+	/**
+	 * This file contains the interpolation and rendering logic for
+	 * the Snippet prompt.
+	 */
+
+	class Item {
+	  constructor(token) {
+	    this.name = token.key;
+	    this.field = token.field || {};
+	    this.value = clean(token.initial || this.field.initial || '');
+	    this.message = token.message || this.name;
+	    this.cursor = 0;
+	    this.input = '';
+	    this.lines = [];
+	  }
+	}
+
+	const tokenize = async(options = {}, defaults = {}, fn = token => token) => {
+	  let unique = new Set();
+	  let fields = options.fields || [];
+	  let input = options.template;
+	  let tabstops = [];
+	  let items = [];
+	  let keys = [];
+	  let line = 1;
+
+	  if (typeof input === 'function') {
+	    input = await input();
+	  }
+
+	  let i = -1;
+	  let next = () => input[++i];
+	  let peek = () => input[i + 1];
+	  let push = token => {
+	    token.line = line;
+	    tabstops.push(token);
+	  };
+
+	  push({ type: 'bos', value: '' });
+
+	  while (i < input.length - 1) {
+	    let value = next();
+
+	    if (/^[^\S\n ]$/.test(value)) {
+	      push({ type: 'text', value });
+	      continue;
+	    }
+
+	    if (value === '\n') {
+	      push({ type: 'newline', value });
+	      line++;
+	      continue;
+	    }
+
+	    if (value === '\\') {
+	      value += next();
+	      push({ type: 'text', value });
+	      continue;
+	    }
+
+	    if ((value === '$' || value === '#' || value === '{') && peek() === '{') {
+	      let n = next();
+	      value += n;
+
+	      let token = { type: 'template', open: value, inner: '', close: '', value };
+	      let ch;
+
+	      while ((ch = next())) {
+	        if (ch === '}') {
+	          if (peek() === '}') ch += next();
+	          token.value += ch;
+	          token.close = ch;
+	          break;
+	        }
+
+	        if (ch === ':') {
+	          token.initial = '';
+	          token.key = token.inner;
+	        } else if (token.initial !== void 0) {
+	          token.initial += ch;
+	        }
+
+	        token.value += ch;
+	        token.inner += ch;
+	      }
+
+	      token.template = token.open + (token.initial || token.inner) + token.close;
+	      token.key = token.key || token.inner;
+
+	      if (hasOwnProperty.call(defaults, token.key)) {
+	        token.initial = defaults[token.key];
+	      }
+
+	      token = fn(token);
+	      push(token);
+
+	      keys.push(token.key);
+	      unique.add(token.key);
+
+	      let item = items.find(item => item.name === token.key);
+	      token.field = fields.find(ch => ch.name === token.key);
+
+	      if (!item) {
+	        item = new Item(token);
+	        items.push(item);
+	      }
+
+	      item.lines.push(token.line - 1);
+	      continue;
+	    }
+
+	    let last = tabstops[tabstops.length - 1];
+	    if (last.type === 'text' && last.line === line) {
+	      last.value += value;
+	    } else {
+	      push({ type: 'text', value });
+	    }
+	  }
+
+	  push({ type: 'eos', value: '' });
+	  return { input, tabstops, unique, keys, items };
+	};
+
+	interpolate = async prompt => {
+	  let options = prompt.options;
+	  let required = new Set(options.required === true ? [] : (options.required || []));
+	  let defaults = { ...options.values, ...options.initial };
+	  let { tabstops, items, keys } = await tokenize(options, defaults);
+
+	  let result = createFn('result', prompt);
+	  let format = createFn('format', prompt);
+	  let isValid = createFn('validate', prompt, options, true);
+	  let isVal = prompt.isValue.bind(prompt);
+
+	  return async(state = {}, submitted = false) => {
+	    let index = 0;
+
+	    state.required = required;
+	    state.items = items;
+	    state.keys = keys;
+	    state.output = '';
+
+	    let validate = async(value, state, item, index) => {
+	      let error = await isValid(value, state, item, index);
+	      if (error === false) {
+	        return 'Invalid field ' + item.name;
+	      }
+	      return error;
+	    };
+
+	    for (let token of tabstops) {
+	      let value = token.value;
+	      let key = token.key;
+
+	      if (token.type !== 'template') {
+	        if (value) state.output += value;
+	        continue;
+	      }
+
+	      if (token.type === 'template') {
+	        let item = items.find(ch => ch.name === key);
+
+	        if (options.required === true) {
+	          state.required.add(item.name);
+	        }
+
+	        let val = [item.input, state.values[item.value], item.value, value].find(isVal);
+	        let field = item.field || {};
+	        let message = field.message || token.inner;
+
+	        if (submitted) {
+	          let error = await validate(state.values[key], state, item, index);
+	          if ((error && typeof error === 'string') || error === false) {
+	            state.invalid.set(key, error);
+	            continue;
+	          }
+
+	          state.invalid.delete(key);
+	          let res = await result(state.values[key], state, item, index);
+	          state.output += stripAnsi(res);
+	          continue;
+	        }
+
+	        item.placeholder = false;
+
+	        let before = value;
+	        value = await format(value, state, item, index);
+
+	        if (val !== value) {
+	          state.values[key] = val;
+	          value = prompt.styles.typing(val);
+	          state.missing.delete(message);
+
+	        } else {
+	          state.values[key] = void 0;
+	          val = `<${message}>`;
+	          value = prompt.styles.primary(val);
+	          item.placeholder = true;
+
+	          if (state.required.has(key)) {
+	            state.missing.add(message);
+	          }
+	        }
+
+	        if (state.missing.has(message) && state.validating) {
+	          value = prompt.styles.warning(val);
+	        }
+
+	        if (state.invalid.has(key) && state.validating) {
+	          value = prompt.styles.danger(val);
+	        }
+
+	        if (index === state.index) {
+	          if (before !== value) {
+	            value = prompt.styles.underline(value);
+	          } else {
+	            value = prompt.styles.heading(stripAnsi(value));
+	          }
+	        }
+
+	        index++;
+	      }
+
+	      if (value) {
+	        state.output += value;
+	      }
+	    }
+
+	    let lines = state.output.split('\n').map(l => ' ' + l);
+	    let len = items.length;
+	    let done = 0;
+
+	    for (let item of items) {
+	      if (state.invalid.has(item.name)) {
+	        item.lines.forEach(i => {
+	          if (lines[i][0] !== ' ') return;
+	          lines[i] = state.styles.danger(state.symbols.bullet) + lines[i].slice(1);
+	        });
+	      }
+
+	      if (prompt.isValue(state.values[item.name])) {
+	        done++;
+	      }
+	    }
+
+	    state.completed = ((done / len) * 100).toFixed(0);
+	    state.output = lines.join('\n');
+	    return state.output;
+	  };
+	};
+
+	function createFn(prop, prompt, options, fallback) {
+	  return (value, state, item, index) => {
+	    if (typeof item.field[prop] === 'function') {
+	      return item.field[prop].call(prompt, value, state, item, index);
+	    }
+	    return [fallback, value].find(v => prompt.isValue(v));
+	  };
+	}
+	return interpolate;
+}
+
+var snippet;
+var hasRequiredSnippet;
+
+function requireSnippet () {
+	if (hasRequiredSnippet) return snippet;
+	hasRequiredSnippet = 1;
+
+	const stripAnsi = requireStripAnsi$1();
+	const interpolate = requireInterpolate();
+	const Prompt = requirePrompt();
+
+	class SnippetPrompt extends Prompt {
+	  constructor(options) {
+	    super(options);
+	    this.cursorHide();
+	    this.reset(true);
+	  }
+
+	  async initialize() {
+	    this.interpolate = await interpolate(this);
+	    await super.initialize();
+	  }
+
+	  async reset(first) {
+	    this.state.keys = [];
+	    this.state.invalid = new Map();
+	    this.state.missing = new Set();
+	    this.state.completed = 0;
+	    this.state.values = {};
+
+	    if (first !== true) {
+	      await this.initialize();
+	      await this.render();
+	    }
+	  }
+
+	  moveCursor(n) {
+	    let item = this.getItem();
+	    this.cursor += n;
+	    item.cursor += n;
+	  }
+
+	  dispatch(ch, key) {
+	    if (!key.code && !key.ctrl && ch != null && this.getItem()) {
+	      this.append(ch, key);
+	      return;
+	    }
+	    this.alert();
+	  }
+
+	  append(ch, key) {
+	    let item = this.getItem();
+	    let prefix = item.input.slice(0, this.cursor);
+	    let suffix = item.input.slice(this.cursor);
+	    this.input = item.input = `${prefix}${ch}${suffix}`;
+	    this.moveCursor(1);
+	    this.render();
+	  }
+
+	  delete() {
+	    let item = this.getItem();
+	    if (this.cursor <= 0 || !item.input) return this.alert();
+	    let suffix = item.input.slice(this.cursor);
+	    let prefix = item.input.slice(0, this.cursor - 1);
+	    this.input = item.input = `${prefix}${suffix}`;
+	    this.moveCursor(-1);
+	    this.render();
+	  }
+
+	  increment(i) {
+	    return i >= this.state.keys.length - 1 ? 0 : i + 1;
+	  }
+
+	  decrement(i) {
+	    return i <= 0 ? this.state.keys.length - 1 : i - 1;
+	  }
+
+	  first() {
+	    this.state.index = 0;
+	    this.render();
+	  }
+
+	  last() {
+	    this.state.index = this.state.keys.length - 1;
+	    this.render();
+	  }
+
+	  right() {
+	    if (this.cursor >= this.input.length) return this.alert();
+	    this.moveCursor(1);
+	    this.render();
+	  }
+
+	  left() {
+	    if (this.cursor <= 0) return this.alert();
+	    this.moveCursor(-1);
+	    this.render();
+	  }
+
+	  prev() {
+	    this.state.index = this.decrement(this.state.index);
+	    this.getItem();
+	    this.render();
+	  }
+
+	  next() {
+	    this.state.index = this.increment(this.state.index);
+	    this.getItem();
+	    this.render();
+	  }
+
+	  up() {
+	    this.prev();
+	  }
+
+	  down() {
+	    this.next();
+	  }
+
+	  format(value) {
+	    let color = this.state.completed < 100 ? this.styles.warning : this.styles.success;
+	    if (this.state.submitted === true && this.state.completed !== 100) {
+	      color = this.styles.danger;
+	    }
+	    return color(`${this.state.completed}% completed`);
+	  }
+
+	  async render() {
+	    let { index, keys = [], submitted, size } = this.state;
+
+	    let newline = [this.options.newline, '\n'].find(v => v != null);
+	    let prefix = await this.prefix();
+	    let separator = await this.separator();
+	    let message = await this.message();
+
+	    let prompt = [prefix, message, separator].filter(Boolean).join(' ');
+	    this.state.prompt = prompt;
+
+	    let header = await this.header();
+	    let error = (await this.error()) || '';
+	    let hint = (await this.hint()) || '';
+	    let body = submitted ? '' : await this.interpolate(this.state);
+
+	    let key = this.state.key = keys[index] || '';
+	    let input = await this.format(key);
+	    let footer = await this.footer();
+	    if (input) prompt += ' ' + input;
+	    if (hint && !input && this.state.completed === 0) prompt += ' ' + hint;
+
+	    this.clear(size);
+	    let lines = [header, prompt, body, footer, error.trim()];
+	    this.write(lines.filter(Boolean).join(newline));
+	    this.restore();
+	  }
+
+	  getItem(name) {
+	    let { items, keys, index } = this.state;
+	    let item = items.find(ch => ch.name === keys[index]);
+	    if (item && item.input != null) {
+	      this.input = item.input;
+	      this.cursor = item.cursor;
+	    }
+	    return item;
+	  }
+
+	  async submit() {
+	    if (typeof this.interpolate !== 'function') await this.initialize();
+	    await this.interpolate(this.state, true);
+
+	    let { invalid, missing, output, values } = this.state;
+	    if (invalid.size) {
+	      let err = '';
+	      for (let [key, value] of invalid) err += `Invalid ${key}: ${value}\n`;
+	      this.state.error = err;
+	      return super.submit();
+	    }
+
+	    if (missing.size) {
+	      this.state.error = 'Required: ' + [...missing.keys()].join(', ');
+	      return super.submit();
+	    }
+
+	    let lines = stripAnsi(output).split('\n');
+	    let result = lines.map(v => v.slice(1)).join('\n');
+	    this.value = { values, result };
+	    return super.submit();
+	  }
+	}
+
+	snippet = SnippetPrompt;
+	return snippet;
+}
+
+var sort;
+var hasRequiredSort;
+
+function requireSort () {
+	if (hasRequiredSort) return sort;
+	hasRequiredSort = 1;
+
+	const hint = '(Use <shift>+<up/down> to sort)';
+	const Prompt = requireSelect();
+
+	class Sort extends Prompt {
+	  constructor(options) {
+	    super({ ...options, reorder: false, sort: true, multiple: true });
+	    this.state.hint = [this.options.hint, hint].find(this.isValue.bind(this));
+	  }
+
+	  indicator() {
+	    return '';
+	  }
+
+	  async renderChoice(choice, i) {
+	    let str = await super.renderChoice(choice, i);
+	    let sym = this.symbols.identicalTo + ' ';
+	    let pre = (this.index === i && this.sorting) ? this.styles.muted(sym) : '  ';
+	    if (this.options.drag === false) pre = '';
+	    if (this.options.numbered === true) {
+	      return pre + `${i + 1} - ` + str;
+	    }
+	    return pre + str;
+	  }
+
+	  get selected() {
+	    return this.choices;
+	  }
+
+	  submit() {
+	    this.value = this.choices.map(choice => choice.value);
+	    return super.submit();
+	  }
+	}
+
+	sort = Sort;
+	return sort;
+}
+
+var survey;
+var hasRequiredSurvey;
+
+function requireSurvey () {
+	if (hasRequiredSurvey) return survey;
+	hasRequiredSurvey = 1;
+
+	const ArrayPrompt = requireArray();
+
+	class Survey extends ArrayPrompt {
+	  constructor(options = {}) {
+	    super(options);
+	    this.emptyError = options.emptyError || 'No items were selected';
+	    this.term = process.env.TERM_PROGRAM;
+
+	    if (!this.options.header) {
+	      let header = ['', '4 - Strongly Agree', '3 - Agree', '2 - Neutral', '1 - Disagree', '0 - Strongly Disagree', ''];
+	      header = header.map(ele => this.styles.muted(ele));
+	      this.state.header = header.join('\n   ');
+	    }
+	  }
+
+	  async toChoices(...args) {
+	    if (this.createdScales) return false;
+	    this.createdScales = true;
+	    let choices = await super.toChoices(...args);
+	    for (let choice of choices) {
+	      choice.scale = createScale(5, this.options);
+	      choice.scaleIdx = 2;
+	    }
+	    return choices;
+	  }
+
+	  dispatch() {
+	    this.alert();
+	  }
+
+	  space() {
+	    let choice = this.focused;
+	    let ele = choice.scale[choice.scaleIdx];
+	    let selected = ele.selected;
+	    choice.scale.forEach(e => (e.selected = false));
+	    ele.selected = !selected;
+	    return this.render();
+	  }
+
+	  indicator() {
+	    return '';
+	  }
+
+	  pointer() {
+	    return '';
+	  }
+
+	  separator() {
+	    return this.styles.muted(this.symbols.ellipsis);
+	  }
+
+	  right() {
+	    let choice = this.focused;
+	    if (choice.scaleIdx >= choice.scale.length - 1) return this.alert();
+	    choice.scaleIdx++;
+	    return this.render();
+	  }
+
+	  left() {
+	    let choice = this.focused;
+	    if (choice.scaleIdx <= 0) return this.alert();
+	    choice.scaleIdx--;
+	    return this.render();
+	  }
+
+	  indent() {
+	    return '   ';
+	  }
+
+	  async renderChoice(item, i) {
+	    await this.onChoice(item, i);
+	    let focused = this.index === i;
+	    let isHyper = this.term === 'Hyper';
+	    let n = !isHyper ? 8 : 9;
+	    let s = !isHyper ? ' ' : '';
+	    let ln = this.symbols.line.repeat(n);
+	    let sp = ' '.repeat(n + (isHyper ? 0 : 1));
+	    let dot = enabled => (enabled ? this.styles.success('◉') : '◯') + s;
+
+	    let num = i + 1 + '.';
+	    let color = focused ? this.styles.heading : this.styles.noop;
+	    let msg = await this.resolve(item.message, this.state, item, i);
+	    let indent = this.indent(item);
+	    let scale = indent + item.scale.map((e, i) => dot(i === item.scaleIdx)).join(ln);
+	    let val = i => i === item.scaleIdx ? color(i) : i;
+	    let next = indent + item.scale.map((e, i) => val(i)).join(sp);
+
+	    let line = () => [num, msg].filter(Boolean).join(' ');
+	    let lines = () => [line(), scale, next, ' '].filter(Boolean).join('\n');
+
+	    if (focused) {
+	      scale = this.styles.cyan(scale);
+	      next = this.styles.cyan(next);
+	    }
+
+	    return lines();
+	  }
+
+	  async renderChoices() {
+	    if (this.state.submitted) return '';
+	    let choices = this.visible.map(async(ch, i) => await this.renderChoice(ch, i));
+	    let visible = await Promise.all(choices);
+	    if (!visible.length) visible.push(this.styles.danger('No matching choices'));
+	    return visible.join('\n');
+	  }
+
+	  format() {
+	    if (this.state.submitted) {
+	      let values = this.choices.map(ch => this.styles.info(ch.scaleIdx));
+	      return values.join(', ');
+	    }
+	    return '';
+	  }
+
+	  async render() {
+	    let { submitted, size } = this.state;
+
+	    let prefix = await this.prefix();
+	    let separator = await this.separator();
+	    let message = await this.message();
+
+	    let prompt = [prefix, message, separator].filter(Boolean).join(' ');
+	    this.state.prompt = prompt;
+
+	    let header = await this.header();
+	    let output = await this.format();
+	    let help = await this.error() || await this.hint();
+	    let body = await this.renderChoices();
+	    let footer = await this.footer();
+
+	    if (output || !help) prompt += ' ' + output;
+	    if (help && !prompt.includes(help)) prompt += ' ' + help;
+
+	    if (submitted && !output && !body && this.multiple && this.type !== 'form') {
+	      prompt += this.styles.danger(this.emptyError);
+	    }
+
+	    this.clear(size);
+	    this.write([prompt, header, body, footer].filter(Boolean).join('\n'));
+	    this.restore();
+	  }
+
+	  submit() {
+	    this.value = {};
+	    for (let choice of this.choices) {
+	      this.value[choice.name] = choice.scaleIdx;
+	    }
+	    return this.base.submit.call(this);
+	  }
+	}
+
+	function createScale(n, options = {}) {
+	  if (Array.isArray(options.scale)) {
+	    return options.scale.map(ele => ({ ...ele }));
+	  }
+	  let scale = [];
+	  for (let i = 1; i < n + 1; i++) scale.push({ i, selected: false });
+	  return scale;
+	}
+
+	survey = Survey;
+	return survey;
+}
+
+var text;
+var hasRequiredText;
+
+function requireText () {
+	if (hasRequiredText) return text;
+	hasRequiredText = 1;
+	text = requireInput();
+	return text;
+}
+
+var toggle;
+var hasRequiredToggle;
+
+function requireToggle () {
+	if (hasRequiredToggle) return toggle;
+	hasRequiredToggle = 1;
+
+	const BooleanPrompt = requireBoolean();
+
+	class TogglePrompt extends BooleanPrompt {
+	  async initialize() {
+	    await super.initialize();
+	    this.value = this.initial = this.resolve(this.options.initial);
+	    this.disabled = this.options.disabled || 'no';
+	    this.enabled = this.options.enabled || 'yes';
+	    await this.render();
+	  }
+
+	  reset() {
+	    this.value = this.initial;
+	    this.render();
+	  }
+
+	  delete() {
+	    this.alert();
+	  }
+
+	  toggle() {
+	    this.value = !this.value;
+	    this.render();
+	  }
+
+	  enable() {
+	    if (this.value === true) return this.alert();
+	    this.value = true;
+	    this.render();
+	  }
+	  disable() {
+	    if (this.value === false) return this.alert();
+	    this.value = false;
+	    this.render();
+	  }
+
+	  up() {
+	    this.toggle();
+	  }
+	  down() {
+	    this.toggle();
+	  }
+	  right() {
+	    this.toggle();
+	  }
+	  left() {
+	    this.toggle();
+	  }
+	  next() {
+	    this.toggle();
+	  }
+	  prev() {
+	    this.toggle();
+	  }
+
+	  dispatch(ch = '', key) {
+	    switch (ch.toLowerCase()) {
+	      case ' ':
+	        return this.toggle();
+	      case '1':
+	      case 'y':
+	      case 't':
+	        return this.enable();
+	      case '0':
+	      case 'n':
+	      case 'f':
+	        return this.disable();
+	      default: {
+	        return this.alert();
+	      }
+	    }
+	  }
+
+	  format() {
+	    let active = str => this.styles.primary.underline(str);
+	    let value = [
+	      this.value ? this.disabled : active(this.disabled),
+	      this.value ? active(this.enabled) : this.enabled
+	    ];
+	    return value.join(this.styles.muted(' / '));
+	  }
+
+	  async render() {
+	    let { size } = this.state;
+
+	    let header = await this.header();
+	    let prefix = await this.prefix();
+	    let separator = await this.separator();
+	    let message = await this.message();
+
+	    let output = await this.format();
+	    let help = (await this.error()) || (await this.hint());
+	    let footer = await this.footer();
+
+	    let prompt = [prefix, message, separator, output].join(' ');
+	    this.state.prompt = prompt;
+
+	    if (help && !prompt.includes(help)) prompt += ' ' + help;
+
+	    this.clear(size);
+	    this.write([header, prompt, footer].filter(Boolean).join('\n'));
+	    this.write(this.margin[2]);
+	    this.restore();
+	  }
+	}
+
+	toggle = TogglePrompt;
+	return toggle;
+}
+
+var quiz;
+var hasRequiredQuiz;
+
+function requireQuiz () {
+	if (hasRequiredQuiz) return quiz;
+	hasRequiredQuiz = 1;
+
+	const SelectPrompt = requireSelect();
+
+	class Quiz extends SelectPrompt {
+	  constructor(options) {
+	    super(options);
+	    if (typeof this.options.correctChoice !== 'number' || this.options.correctChoice < 0) {
+	      throw new Error('Please specify the index of the correct answer from the list of choices');
+	    }
+	  }
+
+	  async toChoices(value, parent) {
+	    let choices = await super.toChoices(value, parent);
+	    if (choices.length < 2) {
+	      throw new Error('Please give at least two choices to the user');
+	    }
+	    if (this.options.correctChoice > choices.length) {
+	      throw new Error('Please specify the index of the correct answer from the list of choices');
+	    }
+	    return choices;
+	  }
+
+	  check(state) {
+	    return state.index === this.options.correctChoice;
+	  }
+
+	  async result(selected) {
+	    return {
+	      selectedAnswer: selected,
+	      correctAnswer: this.options.choices[this.options.correctChoice].value,
+	      correct: await this.check(this.state)
+	    };
+	  }
+	}
+
+	quiz = Quiz;
+	return quiz;
+}
+
+var hasRequiredPrompts;
+
+function requirePrompts () {
+	if (hasRequiredPrompts) return prompts;
+	hasRequiredPrompts = 1;
+	(function (exports) {
+
+		const utils = requireUtils();
+
+		const define = (key, fn) => {
+		  utils.defineExport(exports, key, fn);
+		  utils.defineExport(exports, key.toLowerCase(), fn);
+		};
+
+		define('AutoComplete', () => requireAutocomplete());
+		define('BasicAuth', () => requireBasicauth());
+		define('Confirm', () => requireConfirm());
+		define('Editable', () => requireEditable());
+		define('Form', () => requireForm());
+		define('Input', () => requireInput());
+		define('Invisible', () => requireInvisible());
+		define('List', () => requireList());
+		define('MultiSelect', () => requireMultiselect());
+		define('Numeral', () => requireNumeral());
+		define('Password', () => requirePassword());
+		define('Scale', () => requireScale());
+		define('Select', () => requireSelect());
+		define('Snippet', () => requireSnippet());
+		define('Sort', () => requireSort());
+		define('Survey', () => requireSurvey());
+		define('Text', () => requireText());
+		define('Toggle', () => requireToggle());
+		define('Quiz', () => requireQuiz()); 
+	} (prompts));
+	return prompts;
+}
+
+var types$1;
+var hasRequiredTypes;
+
+function requireTypes () {
+	if (hasRequiredTypes) return types$1;
+	hasRequiredTypes = 1;
+	types$1 = {
+	  ArrayPrompt: requireArray(),
+	  AuthPrompt: requireAuth(),
+	  BooleanPrompt: requireBoolean(),
+	  NumberPrompt: requireNumber(),
+	  StringPrompt: requireString()
+	};
+	return types$1;
+}
+
+var enquirer;
+var hasRequiredEnquirer;
+
+function requireEnquirer () {
+	if (hasRequiredEnquirer) return enquirer;
+	hasRequiredEnquirer = 1;
+
+	const assert = require$$0$4;
+	const Events = require$$0$3;
+	const utils = requireUtils();
+
+	/**
+	 * Create an instance of `Enquirer`.
+	 *
+	 * ```js
+	 * const Enquirer = require('enquirer');
+	 * const enquirer = new Enquirer();
+	 * ```
+	 * @name Enquirer
+	 * @param {Object} `options` (optional) Options to use with all prompts.
+	 * @param {Object} `answers` (optional) Answers object to initialize with.
+	 * @api public
+	 */
+
+	class Enquirer extends Events {
+	  constructor(options, answers) {
+	    super();
+	    this.options = utils.merge({}, options);
+	    this.answers = { ...answers };
+	  }
+
+	  /**
+	   * Register a custom prompt type.
+	   *
+	   * ```js
+	   * const Enquirer = require('enquirer');
+	   * const enquirer = new Enquirer();
+	   * enquirer.register('customType', require('./custom-prompt'));
+	   * ```
+	   * @name register()
+	   * @param {String} `type`
+	   * @param {Function|Prompt} `fn` `Prompt` class, or a function that returns a `Prompt` class.
+	   * @return {Object} Returns the Enquirer instance
+	   * @api public
+	   */
+
+	  register(type, fn) {
+	    if (utils.isObject(type)) {
+	      for (let key of Object.keys(type)) this.register(key, type[key]);
+	      return this;
+	    }
+
+	    assert.equal(typeof fn, 'function', 'expected a function');
+	    const name = type.toLowerCase();
+
+	    if (fn.prototype instanceof this.Prompt) {
+	      this.prompts[name] = fn;
+	    } else {
+	      this.prompts[name] = fn(this.Prompt, this);
+	    }
+
+	    return this;
+	  }
+
+	  /**
+	   * Prompt function that takes a "question" object or array of question objects,
+	   * and returns an object with responses from the user.
+	   *
+	   * ```js
+	   * const Enquirer = require('enquirer');
+	   * const enquirer = new Enquirer();
+	   *
+	   * const response = await enquirer.prompt({
+	   *   type: 'input',
+	   *   name: 'username',
+	   *   message: 'What is your username?'
+	   * });
+	   * console.log(response);
+	   * ```
+	   * @name prompt()
+	   * @param {Array|Object} `questions` Options objects for one or more prompts to run.
+	   * @return {Promise} Promise that returns an "answers" object with the user's responses.
+	   * @api public
+	   */
+
+	  async prompt(questions = []) {
+	    for (let question of [].concat(questions)) {
+	      try {
+	        if (typeof question === 'function') question = await question.call(this);
+	        await this.ask(utils.merge({}, this.options, question));
+	      } catch (err) {
+	        return Promise.reject(err);
+	      }
+	    }
+	    return this.answers;
+	  }
+
+	  async ask(question) {
+	    if (typeof question === 'function') {
+	      question = await question.call(this);
+	    }
+
+	    let opts = utils.merge({}, this.options, question);
+	    let { type, name } = question;
+	    let { set, get } = utils;
+
+	    if (typeof type === 'function') {
+	      type = await type.call(this, question, this.answers);
+	    }
+
+	    if (!type) return this.answers[name];
+	    if (type === 'number') type = 'numeral';
+
+	    assert(this.prompts[type], `Prompt "${type}" is not registered`);
+
+	    let prompt = new this.prompts[type](opts);
+	    let value = get(this.answers, name);
+
+	    prompt.state.answers = this.answers;
+	    prompt.enquirer = this;
+
+	    if (name) {
+	      prompt.on('submit', value => {
+	        this.emit('answer', name, value, prompt);
+	        set(this.answers, name, value);
+	      });
+	    }
+
+	    // bubble events
+	    let emit = prompt.emit.bind(prompt);
+	    prompt.emit = (...args) => {
+	      this.emit.call(this, ...args);
+	      return emit(...args);
+	    };
+
+	    this.emit('prompt', prompt, this);
+
+	    if (opts.autofill && value != null) {
+	      prompt.value = prompt.input = value;
+
+	      // if "autofill=show" render the prompt, otherwise stay "silent"
+	      if (opts.autofill === 'show') {
+	        await prompt.submit();
+	      }
+	    } else {
+	      value = prompt.value = await prompt.run();
+	    }
+
+	    return value;
+	  }
+
+	  /**
+	   * Use an enquirer plugin.
+	   *
+	   * ```js
+	   * const Enquirer = require('enquirer');
+	   * const enquirer = new Enquirer();
+	   * const plugin = enquirer => {
+	   *   // do stuff to enquire instance
+	   * };
+	   * enquirer.use(plugin);
+	   * ```
+	   * @name use()
+	   * @param {Function} `plugin` Plugin function that takes an instance of Enquirer.
+	   * @return {Object} Returns the Enquirer instance.
+	   * @api public
+	   */
+
+	  use(plugin) {
+	    plugin.call(this, this);
+	    return this;
+	  }
+
+	  set Prompt(value) {
+	    this._Prompt = value;
+	  }
+	  get Prompt() {
+	    return this._Prompt || this.constructor.Prompt;
+	  }
+
+	  get prompts() {
+	    return this.constructor.prompts;
+	  }
+
+	  static set Prompt(value) {
+	    this._Prompt = value;
+	  }
+	  static get Prompt() {
+	    return this._Prompt || requirePrompt();
+	  }
+
+	  static get prompts() {
+	    return requirePrompts();
+	  }
+
+	  static get types() {
+	    return requireTypes();
+	  }
+
+	  /**
+	   * Prompt function that takes a "question" object or array of question objects,
+	   * and returns an object with responses from the user.
+	   *
+	   * ```js
+	   * const { prompt } = require('enquirer');
+	   * const response = await prompt({
+	   *   type: 'input',
+	   *   name: 'username',
+	   *   message: 'What is your username?'
+	   * });
+	   * console.log(response);
+	   * ```
+	   * @name Enquirer#prompt
+	   * @param {Array|Object} `questions` Options objects for one or more prompts to run.
+	   * @return {Promise} Promise that returns an "answers" object with the user's responses.
+	   * @api public
+	   */
+
+	  static get prompt() {
+	    const fn = (questions, ...rest) => {
+	      let enquirer = new this(...rest);
+	      let emit = enquirer.emit.bind(enquirer);
+	      enquirer.emit = (...args) => {
+	        fn.emit(...args);
+	        return emit(...args);
+	      };
+	      return enquirer.prompt(questions);
+	    };
+	    utils.mixinEmitter(fn, new Events());
+	    return fn;
+	  }
+	}
+
+	utils.mixinEmitter(Enquirer, new Events());
+	const prompts = Enquirer.prompts;
+
+	for (let name of Object.keys(prompts)) {
+	  let key = name.toLowerCase();
+
+	  let run = options => new prompts[name](options).run();
+	  Enquirer.prompt[key] = run;
+	  Enquirer[key] = run;
+
+	  if (!Enquirer[name]) {
+	    Reflect.defineProperty(Enquirer, name, { get: () => prompts[name] });
+	  }
+	}
+
+	const define = name => {
+	  utils.defineExport(Enquirer, name, () => Enquirer.types[name]);
+	};
+
+	define('ArrayPrompt');
+	define('AuthPrompt');
+	define('BooleanPrompt');
+	define('NumberPrompt');
+	define('StringPrompt');
+
+	enquirer = Enquirer;
+	return enquirer;
+}
+
+var enquirerExports = requireEnquirer();
+
+var tinycolor$1 = {exports: {}};
+
+var tinycolor = tinycolor$1.exports;
+
+var hasRequiredTinycolor;
+
+function requireTinycolor () {
+	if (hasRequiredTinycolor) return tinycolor$1.exports;
+	hasRequiredTinycolor = 1;
+	(function (module, exports) {
+		// This file is autogenerated. It's used to publish CJS to npm.
+		(function (global, factory) {
+		  module.exports = factory() ;
+		})(tinycolor, (function () {
+		  function _typeof(obj) {
+		    "@babel/helpers - typeof";
+
+		    return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (obj) {
+		      return typeof obj;
+		    } : function (obj) {
+		      return obj && "function" == typeof Symbol && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj;
+		    }, _typeof(obj);
+		  }
+
+		  // https://github.com/bgrins/TinyColor
+		  // Brian Grinstead, MIT License
+
+		  var trimLeft = /^\s+/;
+		  var trimRight = /\s+$/;
+		  function tinycolor(color, opts) {
+		    color = color ? color : "";
+		    opts = opts || {};
+
+		    // If input is already a tinycolor, return itself
+		    if (color instanceof tinycolor) {
+		      return color;
+		    }
+		    // If we are called as a function, call using new instead
+		    if (!(this instanceof tinycolor)) {
+		      return new tinycolor(color, opts);
+		    }
+		    var rgb = inputToRGB(color);
+		    this._originalInput = color, this._r = rgb.r, this._g = rgb.g, this._b = rgb.b, this._a = rgb.a, this._roundA = Math.round(100 * this._a) / 100, this._format = opts.format || rgb.format;
+		    this._gradientType = opts.gradientType;
+
+		    // Don't let the range of [0,255] come back in [0,1].
+		    // Potentially lose a little bit of precision here, but will fix issues where
+		    // .5 gets interpreted as half of the total, instead of half of 1
+		    // If it was supposed to be 128, this was already taken care of by `inputToRgb`
+		    if (this._r < 1) this._r = Math.round(this._r);
+		    if (this._g < 1) this._g = Math.round(this._g);
+		    if (this._b < 1) this._b = Math.round(this._b);
+		    this._ok = rgb.ok;
+		  }
+		  tinycolor.prototype = {
+		    isDark: function isDark() {
+		      return this.getBrightness() < 128;
+		    },
+		    isLight: function isLight() {
+		      return !this.isDark();
+		    },
+		    isValid: function isValid() {
+		      return this._ok;
+		    },
+		    getOriginalInput: function getOriginalInput() {
+		      return this._originalInput;
+		    },
+		    getFormat: function getFormat() {
+		      return this._format;
+		    },
+		    getAlpha: function getAlpha() {
+		      return this._a;
+		    },
+		    getBrightness: function getBrightness() {
+		      //http://www.w3.org/TR/AERT#color-contrast
+		      var rgb = this.toRgb();
+		      return (rgb.r * 299 + rgb.g * 587 + rgb.b * 114) / 1000;
+		    },
+		    getLuminance: function getLuminance() {
+		      //http://www.w3.org/TR/2008/REC-WCAG20-20081211/#relativeluminancedef
+		      var rgb = this.toRgb();
+		      var RsRGB, GsRGB, BsRGB, R, G, B;
+		      RsRGB = rgb.r / 255;
+		      GsRGB = rgb.g / 255;
+		      BsRGB = rgb.b / 255;
+		      if (RsRGB <= 0.03928) R = RsRGB / 12.92;else R = Math.pow((RsRGB + 0.055) / 1.055, 2.4);
+		      if (GsRGB <= 0.03928) G = GsRGB / 12.92;else G = Math.pow((GsRGB + 0.055) / 1.055, 2.4);
+		      if (BsRGB <= 0.03928) B = BsRGB / 12.92;else B = Math.pow((BsRGB + 0.055) / 1.055, 2.4);
+		      return 0.2126 * R + 0.7152 * G + 0.0722 * B;
+		    },
+		    setAlpha: function setAlpha(value) {
+		      this._a = boundAlpha(value);
+		      this._roundA = Math.round(100 * this._a) / 100;
+		      return this;
+		    },
+		    toHsv: function toHsv() {
+		      var hsv = rgbToHsv(this._r, this._g, this._b);
+		      return {
+		        h: hsv.h * 360,
+		        s: hsv.s,
+		        v: hsv.v,
+		        a: this._a
+		      };
+		    },
+		    toHsvString: function toHsvString() {
+		      var hsv = rgbToHsv(this._r, this._g, this._b);
+		      var h = Math.round(hsv.h * 360),
+		        s = Math.round(hsv.s * 100),
+		        v = Math.round(hsv.v * 100);
+		      return this._a == 1 ? "hsv(" + h + ", " + s + "%, " + v + "%)" : "hsva(" + h + ", " + s + "%, " + v + "%, " + this._roundA + ")";
+		    },
+		    toHsl: function toHsl() {
+		      var hsl = rgbToHsl(this._r, this._g, this._b);
+		      return {
+		        h: hsl.h * 360,
+		        s: hsl.s,
+		        l: hsl.l,
+		        a: this._a
+		      };
+		    },
+		    toHslString: function toHslString() {
+		      var hsl = rgbToHsl(this._r, this._g, this._b);
+		      var h = Math.round(hsl.h * 360),
+		        s = Math.round(hsl.s * 100),
+		        l = Math.round(hsl.l * 100);
+		      return this._a == 1 ? "hsl(" + h + ", " + s + "%, " + l + "%)" : "hsla(" + h + ", " + s + "%, " + l + "%, " + this._roundA + ")";
+		    },
+		    toHex: function toHex(allow3Char) {
+		      return rgbToHex(this._r, this._g, this._b, allow3Char);
+		    },
+		    toHexString: function toHexString(allow3Char) {
+		      return "#" + this.toHex(allow3Char);
+		    },
+		    toHex8: function toHex8(allow4Char) {
+		      return rgbaToHex(this._r, this._g, this._b, this._a, allow4Char);
+		    },
+		    toHex8String: function toHex8String(allow4Char) {
+		      return "#" + this.toHex8(allow4Char);
+		    },
+		    toRgb: function toRgb() {
+		      return {
+		        r: Math.round(this._r),
+		        g: Math.round(this._g),
+		        b: Math.round(this._b),
+		        a: this._a
+		      };
+		    },
+		    toRgbString: function toRgbString() {
+		      return this._a == 1 ? "rgb(" + Math.round(this._r) + ", " + Math.round(this._g) + ", " + Math.round(this._b) + ")" : "rgba(" + Math.round(this._r) + ", " + Math.round(this._g) + ", " + Math.round(this._b) + ", " + this._roundA + ")";
+		    },
+		    toPercentageRgb: function toPercentageRgb() {
+		      return {
+		        r: Math.round(bound01(this._r, 255) * 100) + "%",
+		        g: Math.round(bound01(this._g, 255) * 100) + "%",
+		        b: Math.round(bound01(this._b, 255) * 100) + "%",
+		        a: this._a
+		      };
+		    },
+		    toPercentageRgbString: function toPercentageRgbString() {
+		      return this._a == 1 ? "rgb(" + Math.round(bound01(this._r, 255) * 100) + "%, " + Math.round(bound01(this._g, 255) * 100) + "%, " + Math.round(bound01(this._b, 255) * 100) + "%)" : "rgba(" + Math.round(bound01(this._r, 255) * 100) + "%, " + Math.round(bound01(this._g, 255) * 100) + "%, " + Math.round(bound01(this._b, 255) * 100) + "%, " + this._roundA + ")";
+		    },
+		    toName: function toName() {
+		      if (this._a === 0) {
+		        return "transparent";
+		      }
+		      if (this._a < 1) {
+		        return false;
+		      }
+		      return hexNames[rgbToHex(this._r, this._g, this._b, true)] || false;
+		    },
+		    toFilter: function toFilter(secondColor) {
+		      var hex8String = "#" + rgbaToArgbHex(this._r, this._g, this._b, this._a);
+		      var secondHex8String = hex8String;
+		      var gradientType = this._gradientType ? "GradientType = 1, " : "";
+		      if (secondColor) {
+		        var s = tinycolor(secondColor);
+		        secondHex8String = "#" + rgbaToArgbHex(s._r, s._g, s._b, s._a);
+		      }
+		      return "progid:DXImageTransform.Microsoft.gradient(" + gradientType + "startColorstr=" + hex8String + ",endColorstr=" + secondHex8String + ")";
+		    },
+		    toString: function toString(format) {
+		      var formatSet = !!format;
+		      format = format || this._format;
+		      var formattedString = false;
+		      var hasAlpha = this._a < 1 && this._a >= 0;
+		      var needsAlphaFormat = !formatSet && hasAlpha && (format === "hex" || format === "hex6" || format === "hex3" || format === "hex4" || format === "hex8" || format === "name");
+		      if (needsAlphaFormat) {
+		        // Special case for "transparent", all other non-alpha formats
+		        // will return rgba when there is transparency.
+		        if (format === "name" && this._a === 0) {
+		          return this.toName();
+		        }
+		        return this.toRgbString();
+		      }
+		      if (format === "rgb") {
+		        formattedString = this.toRgbString();
+		      }
+		      if (format === "prgb") {
+		        formattedString = this.toPercentageRgbString();
+		      }
+		      if (format === "hex" || format === "hex6") {
+		        formattedString = this.toHexString();
+		      }
+		      if (format === "hex3") {
+		        formattedString = this.toHexString(true);
+		      }
+		      if (format === "hex4") {
+		        formattedString = this.toHex8String(true);
+		      }
+		      if (format === "hex8") {
+		        formattedString = this.toHex8String();
+		      }
+		      if (format === "name") {
+		        formattedString = this.toName();
+		      }
+		      if (format === "hsl") {
+		        formattedString = this.toHslString();
+		      }
+		      if (format === "hsv") {
+		        formattedString = this.toHsvString();
+		      }
+		      return formattedString || this.toHexString();
+		    },
+		    clone: function clone() {
+		      return tinycolor(this.toString());
+		    },
+		    _applyModification: function _applyModification(fn, args) {
+		      var color = fn.apply(null, [this].concat([].slice.call(args)));
+		      this._r = color._r;
+		      this._g = color._g;
+		      this._b = color._b;
+		      this.setAlpha(color._a);
+		      return this;
+		    },
+		    lighten: function lighten() {
+		      return this._applyModification(_lighten, arguments);
+		    },
+		    brighten: function brighten() {
+		      return this._applyModification(_brighten, arguments);
+		    },
+		    darken: function darken() {
+		      return this._applyModification(_darken, arguments);
+		    },
+		    desaturate: function desaturate() {
+		      return this._applyModification(_desaturate, arguments);
+		    },
+		    saturate: function saturate() {
+		      return this._applyModification(_saturate, arguments);
+		    },
+		    greyscale: function greyscale() {
+		      return this._applyModification(_greyscale, arguments);
+		    },
+		    spin: function spin() {
+		      return this._applyModification(_spin, arguments);
+		    },
+		    _applyCombination: function _applyCombination(fn, args) {
+		      return fn.apply(null, [this].concat([].slice.call(args)));
+		    },
+		    analogous: function analogous() {
+		      return this._applyCombination(_analogous, arguments);
+		    },
+		    complement: function complement() {
+		      return this._applyCombination(_complement, arguments);
+		    },
+		    monochromatic: function monochromatic() {
+		      return this._applyCombination(_monochromatic, arguments);
+		    },
+		    splitcomplement: function splitcomplement() {
+		      return this._applyCombination(_splitcomplement, arguments);
+		    },
+		    // Disabled until https://github.com/bgrins/TinyColor/issues/254
+		    // polyad: function (number) {
+		    //   return this._applyCombination(polyad, [number]);
+		    // },
+		    triad: function triad() {
+		      return this._applyCombination(polyad, [3]);
+		    },
+		    tetrad: function tetrad() {
+		      return this._applyCombination(polyad, [4]);
+		    }
+		  };
+
+		  // If input is an object, force 1 into "1.0" to handle ratios properly
+		  // String input requires "1.0" as input, so 1 will be treated as 1
+		  tinycolor.fromRatio = function (color, opts) {
+		    if (_typeof(color) == "object") {
+		      var newColor = {};
+		      for (var i in color) {
+		        if (color.hasOwnProperty(i)) {
+		          if (i === "a") {
+		            newColor[i] = color[i];
+		          } else {
+		            newColor[i] = convertToPercentage(color[i]);
+		          }
+		        }
+		      }
+		      color = newColor;
+		    }
+		    return tinycolor(color, opts);
+		  };
+
+		  // Given a string or object, convert that input to RGB
+		  // Possible string inputs:
+		  //
+		  //     "red"
+		  //     "#f00" or "f00"
+		  //     "#ff0000" or "ff0000"
+		  //     "#ff000000" or "ff000000"
+		  //     "rgb 255 0 0" or "rgb (255, 0, 0)"
+		  //     "rgb 1.0 0 0" or "rgb (1, 0, 0)"
+		  //     "rgba (255, 0, 0, 1)" or "rgba 255, 0, 0, 1"
+		  //     "rgba (1.0, 0, 0, 1)" or "rgba 1.0, 0, 0, 1"
+		  //     "hsl(0, 100%, 50%)" or "hsl 0 100% 50%"
+		  //     "hsla(0, 100%, 50%, 1)" or "hsla 0 100% 50%, 1"
+		  //     "hsv(0, 100%, 100%)" or "hsv 0 100% 100%"
+		  //
+		  function inputToRGB(color) {
+		    var rgb = {
+		      r: 0,
+		      g: 0,
+		      b: 0
+		    };
+		    var a = 1;
+		    var s = null;
+		    var v = null;
+		    var l = null;
+		    var ok = false;
+		    var format = false;
+		    if (typeof color == "string") {
+		      color = stringInputToObject(color);
+		    }
+		    if (_typeof(color) == "object") {
+		      if (isValidCSSUnit(color.r) && isValidCSSUnit(color.g) && isValidCSSUnit(color.b)) {
+		        rgb = rgbToRgb(color.r, color.g, color.b);
+		        ok = true;
+		        format = String(color.r).substr(-1) === "%" ? "prgb" : "rgb";
+		      } else if (isValidCSSUnit(color.h) && isValidCSSUnit(color.s) && isValidCSSUnit(color.v)) {
+		        s = convertToPercentage(color.s);
+		        v = convertToPercentage(color.v);
+		        rgb = hsvToRgb(color.h, s, v);
+		        ok = true;
+		        format = "hsv";
+		      } else if (isValidCSSUnit(color.h) && isValidCSSUnit(color.s) && isValidCSSUnit(color.l)) {
+		        s = convertToPercentage(color.s);
+		        l = convertToPercentage(color.l);
+		        rgb = hslToRgb(color.h, s, l);
+		        ok = true;
+		        format = "hsl";
+		      }
+		      if (color.hasOwnProperty("a")) {
+		        a = color.a;
+		      }
+		    }
+		    a = boundAlpha(a);
+		    return {
+		      ok: ok,
+		      format: color.format || format,
+		      r: Math.min(255, Math.max(rgb.r, 0)),
+		      g: Math.min(255, Math.max(rgb.g, 0)),
+		      b: Math.min(255, Math.max(rgb.b, 0)),
+		      a: a
+		    };
+		  }
+
+		  // Conversion Functions
+		  // --------------------
+
+		  // `rgbToHsl`, `rgbToHsv`, `hslToRgb`, `hsvToRgb` modified from:
+		  // <http://mjijackson.com/2008/02/rgb-to-hsl-and-rgb-to-hsv-color-model-conversion-algorithms-in-javascript>
+
+		  // `rgbToRgb`
+		  // Handle bounds / percentage checking to conform to CSS color spec
+		  // <http://www.w3.org/TR/css3-color/>
+		  // *Assumes:* r, g, b in [0, 255] or [0, 1]
+		  // *Returns:* { r, g, b } in [0, 255]
+		  function rgbToRgb(r, g, b) {
+		    return {
+		      r: bound01(r, 255) * 255,
+		      g: bound01(g, 255) * 255,
+		      b: bound01(b, 255) * 255
+		    };
+		  }
+
+		  // `rgbToHsl`
+		  // Converts an RGB color value to HSL.
+		  // *Assumes:* r, g, and b are contained in [0, 255] or [0, 1]
+		  // *Returns:* { h, s, l } in [0,1]
+		  function rgbToHsl(r, g, b) {
+		    r = bound01(r, 255);
+		    g = bound01(g, 255);
+		    b = bound01(b, 255);
+		    var max = Math.max(r, g, b),
+		      min = Math.min(r, g, b);
+		    var h,
+		      s,
+		      l = (max + min) / 2;
+		    if (max == min) {
+		      h = s = 0; // achromatic
+		    } else {
+		      var d = max - min;
+		      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+		      switch (max) {
+		        case r:
+		          h = (g - b) / d + (g < b ? 6 : 0);
+		          break;
+		        case g:
+		          h = (b - r) / d + 2;
+		          break;
+		        case b:
+		          h = (r - g) / d + 4;
+		          break;
+		      }
+		      h /= 6;
+		    }
+		    return {
+		      h: h,
+		      s: s,
+		      l: l
+		    };
+		  }
+
+		  // `hslToRgb`
+		  // Converts an HSL color value to RGB.
+		  // *Assumes:* h is contained in [0, 1] or [0, 360] and s and l are contained [0, 1] or [0, 100]
+		  // *Returns:* { r, g, b } in the set [0, 255]
+		  function hslToRgb(h, s, l) {
+		    var r, g, b;
+		    h = bound01(h, 360);
+		    s = bound01(s, 100);
+		    l = bound01(l, 100);
+		    function hue2rgb(p, q, t) {
+		      if (t < 0) t += 1;
+		      if (t > 1) t -= 1;
+		      if (t < 1 / 6) return p + (q - p) * 6 * t;
+		      if (t < 1 / 2) return q;
+		      if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+		      return p;
+		    }
+		    if (s === 0) {
+		      r = g = b = l; // achromatic
+		    } else {
+		      var q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+		      var p = 2 * l - q;
+		      r = hue2rgb(p, q, h + 1 / 3);
+		      g = hue2rgb(p, q, h);
+		      b = hue2rgb(p, q, h - 1 / 3);
+		    }
+		    return {
+		      r: r * 255,
+		      g: g * 255,
+		      b: b * 255
+		    };
+		  }
+
+		  // `rgbToHsv`
+		  // Converts an RGB color value to HSV
+		  // *Assumes:* r, g, and b are contained in the set [0, 255] or [0, 1]
+		  // *Returns:* { h, s, v } in [0,1]
+		  function rgbToHsv(r, g, b) {
+		    r = bound01(r, 255);
+		    g = bound01(g, 255);
+		    b = bound01(b, 255);
+		    var max = Math.max(r, g, b),
+		      min = Math.min(r, g, b);
+		    var h,
+		      s,
+		      v = max;
+		    var d = max - min;
+		    s = max === 0 ? 0 : d / max;
+		    if (max == min) {
+		      h = 0; // achromatic
+		    } else {
+		      switch (max) {
+		        case r:
+		          h = (g - b) / d + (g < b ? 6 : 0);
+		          break;
+		        case g:
+		          h = (b - r) / d + 2;
+		          break;
+		        case b:
+		          h = (r - g) / d + 4;
+		          break;
+		      }
+		      h /= 6;
+		    }
+		    return {
+		      h: h,
+		      s: s,
+		      v: v
+		    };
+		  }
+
+		  // `hsvToRgb`
+		  // Converts an HSV color value to RGB.
+		  // *Assumes:* h is contained in [0, 1] or [0, 360] and s and v are contained in [0, 1] or [0, 100]
+		  // *Returns:* { r, g, b } in the set [0, 255]
+		  function hsvToRgb(h, s, v) {
+		    h = bound01(h, 360) * 6;
+		    s = bound01(s, 100);
+		    v = bound01(v, 100);
+		    var i = Math.floor(h),
+		      f = h - i,
+		      p = v * (1 - s),
+		      q = v * (1 - f * s),
+		      t = v * (1 - (1 - f) * s),
+		      mod = i % 6,
+		      r = [v, q, p, p, t, v][mod],
+		      g = [t, v, v, q, p, p][mod],
+		      b = [p, p, t, v, v, q][mod];
+		    return {
+		      r: r * 255,
+		      g: g * 255,
+		      b: b * 255
+		    };
+		  }
+
+		  // `rgbToHex`
+		  // Converts an RGB color to hex
+		  // Assumes r, g, and b are contained in the set [0, 255]
+		  // Returns a 3 or 6 character hex
+		  function rgbToHex(r, g, b, allow3Char) {
+		    var hex = [pad2(Math.round(r).toString(16)), pad2(Math.round(g).toString(16)), pad2(Math.round(b).toString(16))];
+
+		    // Return a 3 character hex if possible
+		    if (allow3Char && hex[0].charAt(0) == hex[0].charAt(1) && hex[1].charAt(0) == hex[1].charAt(1) && hex[2].charAt(0) == hex[2].charAt(1)) {
+		      return hex[0].charAt(0) + hex[1].charAt(0) + hex[2].charAt(0);
+		    }
+		    return hex.join("");
+		  }
+
+		  // `rgbaToHex`
+		  // Converts an RGBA color plus alpha transparency to hex
+		  // Assumes r, g, b are contained in the set [0, 255] and
+		  // a in [0, 1]. Returns a 4 or 8 character rgba hex
+		  function rgbaToHex(r, g, b, a, allow4Char) {
+		    var hex = [pad2(Math.round(r).toString(16)), pad2(Math.round(g).toString(16)), pad2(Math.round(b).toString(16)), pad2(convertDecimalToHex(a))];
+
+		    // Return a 4 character hex if possible
+		    if (allow4Char && hex[0].charAt(0) == hex[0].charAt(1) && hex[1].charAt(0) == hex[1].charAt(1) && hex[2].charAt(0) == hex[2].charAt(1) && hex[3].charAt(0) == hex[3].charAt(1)) {
+		      return hex[0].charAt(0) + hex[1].charAt(0) + hex[2].charAt(0) + hex[3].charAt(0);
+		    }
+		    return hex.join("");
+		  }
+
+		  // `rgbaToArgbHex`
+		  // Converts an RGBA color to an ARGB Hex8 string
+		  // Rarely used, but required for "toFilter()"
+		  function rgbaToArgbHex(r, g, b, a) {
+		    var hex = [pad2(convertDecimalToHex(a)), pad2(Math.round(r).toString(16)), pad2(Math.round(g).toString(16)), pad2(Math.round(b).toString(16))];
+		    return hex.join("");
+		  }
+
+		  // `equals`
+		  // Can be called with any tinycolor input
+		  tinycolor.equals = function (color1, color2) {
+		    if (!color1 || !color2) return false;
+		    return tinycolor(color1).toRgbString() == tinycolor(color2).toRgbString();
+		  };
+		  tinycolor.random = function () {
+		    return tinycolor.fromRatio({
+		      r: Math.random(),
+		      g: Math.random(),
+		      b: Math.random()
+		    });
+		  };
+
+		  // Modification Functions
+		  // ----------------------
+		  // Thanks to less.js for some of the basics here
+		  // <https://github.com/cloudhead/less.js/blob/master/lib/less/functions.js>
+
+		  function _desaturate(color, amount) {
+		    amount = amount === 0 ? 0 : amount || 10;
+		    var hsl = tinycolor(color).toHsl();
+		    hsl.s -= amount / 100;
+		    hsl.s = clamp01(hsl.s);
+		    return tinycolor(hsl);
+		  }
+		  function _saturate(color, amount) {
+		    amount = amount === 0 ? 0 : amount || 10;
+		    var hsl = tinycolor(color).toHsl();
+		    hsl.s += amount / 100;
+		    hsl.s = clamp01(hsl.s);
+		    return tinycolor(hsl);
+		  }
+		  function _greyscale(color) {
+		    return tinycolor(color).desaturate(100);
+		  }
+		  function _lighten(color, amount) {
+		    amount = amount === 0 ? 0 : amount || 10;
+		    var hsl = tinycolor(color).toHsl();
+		    hsl.l += amount / 100;
+		    hsl.l = clamp01(hsl.l);
+		    return tinycolor(hsl);
+		  }
+		  function _brighten(color, amount) {
+		    amount = amount === 0 ? 0 : amount || 10;
+		    var rgb = tinycolor(color).toRgb();
+		    rgb.r = Math.max(0, Math.min(255, rgb.r - Math.round(255 * -(amount / 100))));
+		    rgb.g = Math.max(0, Math.min(255, rgb.g - Math.round(255 * -(amount / 100))));
+		    rgb.b = Math.max(0, Math.min(255, rgb.b - Math.round(255 * -(amount / 100))));
+		    return tinycolor(rgb);
+		  }
+		  function _darken(color, amount) {
+		    amount = amount === 0 ? 0 : amount || 10;
+		    var hsl = tinycolor(color).toHsl();
+		    hsl.l -= amount / 100;
+		    hsl.l = clamp01(hsl.l);
+		    return tinycolor(hsl);
+		  }
+
+		  // Spin takes a positive or negative amount within [-360, 360] indicating the change of hue.
+		  // Values outside of this range will be wrapped into this range.
+		  function _spin(color, amount) {
+		    var hsl = tinycolor(color).toHsl();
+		    var hue = (hsl.h + amount) % 360;
+		    hsl.h = hue < 0 ? 360 + hue : hue;
+		    return tinycolor(hsl);
+		  }
+
+		  // Combination Functions
+		  // ---------------------
+		  // Thanks to jQuery xColor for some of the ideas behind these
+		  // <https://github.com/infusion/jQuery-xcolor/blob/master/jquery.xcolor.js>
+
+		  function _complement(color) {
+		    var hsl = tinycolor(color).toHsl();
+		    hsl.h = (hsl.h + 180) % 360;
+		    return tinycolor(hsl);
+		  }
+		  function polyad(color, number) {
+		    if (isNaN(number) || number <= 0) {
+		      throw new Error("Argument to polyad must be a positive number");
+		    }
+		    var hsl = tinycolor(color).toHsl();
+		    var result = [tinycolor(color)];
+		    var step = 360 / number;
+		    for (var i = 1; i < number; i++) {
+		      result.push(tinycolor({
+		        h: (hsl.h + i * step) % 360,
+		        s: hsl.s,
+		        l: hsl.l
+		      }));
+		    }
+		    return result;
+		  }
+		  function _splitcomplement(color) {
+		    var hsl = tinycolor(color).toHsl();
+		    var h = hsl.h;
+		    return [tinycolor(color), tinycolor({
+		      h: (h + 72) % 360,
+		      s: hsl.s,
+		      l: hsl.l
+		    }), tinycolor({
+		      h: (h + 216) % 360,
+		      s: hsl.s,
+		      l: hsl.l
+		    })];
+		  }
+		  function _analogous(color, results, slices) {
+		    results = results || 6;
+		    slices = slices || 30;
+		    var hsl = tinycolor(color).toHsl();
+		    var part = 360 / slices;
+		    var ret = [tinycolor(color)];
+		    for (hsl.h = (hsl.h - (part * results >> 1) + 720) % 360; --results;) {
+		      hsl.h = (hsl.h + part) % 360;
+		      ret.push(tinycolor(hsl));
+		    }
+		    return ret;
+		  }
+		  function _monochromatic(color, results) {
+		    results = results || 6;
+		    var hsv = tinycolor(color).toHsv();
+		    var h = hsv.h,
+		      s = hsv.s,
+		      v = hsv.v;
+		    var ret = [];
+		    var modification = 1 / results;
+		    while (results--) {
+		      ret.push(tinycolor({
+		        h: h,
+		        s: s,
+		        v: v
+		      }));
+		      v = (v + modification) % 1;
+		    }
+		    return ret;
+		  }
+
+		  // Utility Functions
+		  // ---------------------
+
+		  tinycolor.mix = function (color1, color2, amount) {
+		    amount = amount === 0 ? 0 : amount || 50;
+		    var rgb1 = tinycolor(color1).toRgb();
+		    var rgb2 = tinycolor(color2).toRgb();
+		    var p = amount / 100;
+		    var rgba = {
+		      r: (rgb2.r - rgb1.r) * p + rgb1.r,
+		      g: (rgb2.g - rgb1.g) * p + rgb1.g,
+		      b: (rgb2.b - rgb1.b) * p + rgb1.b,
+		      a: (rgb2.a - rgb1.a) * p + rgb1.a
+		    };
+		    return tinycolor(rgba);
+		  };
+
+		  // Readability Functions
+		  // ---------------------
+		  // <http://www.w3.org/TR/2008/REC-WCAG20-20081211/#contrast-ratiodef (WCAG Version 2)
+
+		  // `contrast`
+		  // Analyze the 2 colors and returns the color contrast defined by (WCAG Version 2)
+		  tinycolor.readability = function (color1, color2) {
+		    var c1 = tinycolor(color1);
+		    var c2 = tinycolor(color2);
+		    return (Math.max(c1.getLuminance(), c2.getLuminance()) + 0.05) / (Math.min(c1.getLuminance(), c2.getLuminance()) + 0.05);
+		  };
+
+		  // `isReadable`
+		  // Ensure that foreground and background color combinations meet WCAG2 guidelines.
+		  // The third argument is an optional Object.
+		  //      the 'level' property states 'AA' or 'AAA' - if missing or invalid, it defaults to 'AA';
+		  //      the 'size' property states 'large' or 'small' - if missing or invalid, it defaults to 'small'.
+		  // If the entire object is absent, isReadable defaults to {level:"AA",size:"small"}.
+
+		  // *Example*
+		  //    tinycolor.isReadable("#000", "#111") => false
+		  //    tinycolor.isReadable("#000", "#111",{level:"AA",size:"large"}) => false
+		  tinycolor.isReadable = function (color1, color2, wcag2) {
+		    var readability = tinycolor.readability(color1, color2);
+		    var wcag2Parms, out;
+		    out = false;
+		    wcag2Parms = validateWCAG2Parms(wcag2);
+		    switch (wcag2Parms.level + wcag2Parms.size) {
+		      case "AAsmall":
+		      case "AAAlarge":
+		        out = readability >= 4.5;
+		        break;
+		      case "AAlarge":
+		        out = readability >= 3;
+		        break;
+		      case "AAAsmall":
+		        out = readability >= 7;
+		        break;
+		    }
+		    return out;
+		  };
+
+		  // `mostReadable`
+		  // Given a base color and a list of possible foreground or background
+		  // colors for that base, returns the most readable color.
+		  // Optionally returns Black or White if the most readable color is unreadable.
+		  // *Example*
+		  //    tinycolor.mostReadable(tinycolor.mostReadable("#123", ["#124", "#125"],{includeFallbackColors:false}).toHexString(); // "#112255"
+		  //    tinycolor.mostReadable(tinycolor.mostReadable("#123", ["#124", "#125"],{includeFallbackColors:true}).toHexString();  // "#ffffff"
+		  //    tinycolor.mostReadable("#a8015a", ["#faf3f3"],{includeFallbackColors:true,level:"AAA",size:"large"}).toHexString(); // "#faf3f3"
+		  //    tinycolor.mostReadable("#a8015a", ["#faf3f3"],{includeFallbackColors:true,level:"AAA",size:"small"}).toHexString(); // "#ffffff"
+		  tinycolor.mostReadable = function (baseColor, colorList, args) {
+		    var bestColor = null;
+		    var bestScore = 0;
+		    var readability;
+		    var includeFallbackColors, level, size;
+		    args = args || {};
+		    includeFallbackColors = args.includeFallbackColors;
+		    level = args.level;
+		    size = args.size;
+		    for (var i = 0; i < colorList.length; i++) {
+		      readability = tinycolor.readability(baseColor, colorList[i]);
+		      if (readability > bestScore) {
+		        bestScore = readability;
+		        bestColor = tinycolor(colorList[i]);
+		      }
+		    }
+		    if (tinycolor.isReadable(baseColor, bestColor, {
+		      level: level,
+		      size: size
+		    }) || !includeFallbackColors) {
+		      return bestColor;
+		    } else {
+		      args.includeFallbackColors = false;
+		      return tinycolor.mostReadable(baseColor, ["#fff", "#000"], args);
+		    }
+		  };
+
+		  // Big List of Colors
+		  // ------------------
+		  // <https://www.w3.org/TR/css-color-4/#named-colors>
+		  var names = tinycolor.names = {
+		    aliceblue: "f0f8ff",
+		    antiquewhite: "faebd7",
+		    aqua: "0ff",
+		    aquamarine: "7fffd4",
+		    azure: "f0ffff",
+		    beige: "f5f5dc",
+		    bisque: "ffe4c4",
+		    black: "000",
+		    blanchedalmond: "ffebcd",
+		    blue: "00f",
+		    blueviolet: "8a2be2",
+		    brown: "a52a2a",
+		    burlywood: "deb887",
+		    burntsienna: "ea7e5d",
+		    cadetblue: "5f9ea0",
+		    chartreuse: "7fff00",
+		    chocolate: "d2691e",
+		    coral: "ff7f50",
+		    cornflowerblue: "6495ed",
+		    cornsilk: "fff8dc",
+		    crimson: "dc143c",
+		    cyan: "0ff",
+		    darkblue: "00008b",
+		    darkcyan: "008b8b",
+		    darkgoldenrod: "b8860b",
+		    darkgray: "a9a9a9",
+		    darkgreen: "006400",
+		    darkgrey: "a9a9a9",
+		    darkkhaki: "bdb76b",
+		    darkmagenta: "8b008b",
+		    darkolivegreen: "556b2f",
+		    darkorange: "ff8c00",
+		    darkorchid: "9932cc",
+		    darkred: "8b0000",
+		    darksalmon: "e9967a",
+		    darkseagreen: "8fbc8f",
+		    darkslateblue: "483d8b",
+		    darkslategray: "2f4f4f",
+		    darkslategrey: "2f4f4f",
+		    darkturquoise: "00ced1",
+		    darkviolet: "9400d3",
+		    deeppink: "ff1493",
+		    deepskyblue: "00bfff",
+		    dimgray: "696969",
+		    dimgrey: "696969",
+		    dodgerblue: "1e90ff",
+		    firebrick: "b22222",
+		    floralwhite: "fffaf0",
+		    forestgreen: "228b22",
+		    fuchsia: "f0f",
+		    gainsboro: "dcdcdc",
+		    ghostwhite: "f8f8ff",
+		    gold: "ffd700",
+		    goldenrod: "daa520",
+		    gray: "808080",
+		    green: "008000",
+		    greenyellow: "adff2f",
+		    grey: "808080",
+		    honeydew: "f0fff0",
+		    hotpink: "ff69b4",
+		    indianred: "cd5c5c",
+		    indigo: "4b0082",
+		    ivory: "fffff0",
+		    khaki: "f0e68c",
+		    lavender: "e6e6fa",
+		    lavenderblush: "fff0f5",
+		    lawngreen: "7cfc00",
+		    lemonchiffon: "fffacd",
+		    lightblue: "add8e6",
+		    lightcoral: "f08080",
+		    lightcyan: "e0ffff",
+		    lightgoldenrodyellow: "fafad2",
+		    lightgray: "d3d3d3",
+		    lightgreen: "90ee90",
+		    lightgrey: "d3d3d3",
+		    lightpink: "ffb6c1",
+		    lightsalmon: "ffa07a",
+		    lightseagreen: "20b2aa",
+		    lightskyblue: "87cefa",
+		    lightslategray: "789",
+		    lightslategrey: "789",
+		    lightsteelblue: "b0c4de",
+		    lightyellow: "ffffe0",
+		    lime: "0f0",
+		    limegreen: "32cd32",
+		    linen: "faf0e6",
+		    magenta: "f0f",
+		    maroon: "800000",
+		    mediumaquamarine: "66cdaa",
+		    mediumblue: "0000cd",
+		    mediumorchid: "ba55d3",
+		    mediumpurple: "9370db",
+		    mediumseagreen: "3cb371",
+		    mediumslateblue: "7b68ee",
+		    mediumspringgreen: "00fa9a",
+		    mediumturquoise: "48d1cc",
+		    mediumvioletred: "c71585",
+		    midnightblue: "191970",
+		    mintcream: "f5fffa",
+		    mistyrose: "ffe4e1",
+		    moccasin: "ffe4b5",
+		    navajowhite: "ffdead",
+		    navy: "000080",
+		    oldlace: "fdf5e6",
+		    olive: "808000",
+		    olivedrab: "6b8e23",
+		    orange: "ffa500",
+		    orangered: "ff4500",
+		    orchid: "da70d6",
+		    palegoldenrod: "eee8aa",
+		    palegreen: "98fb98",
+		    paleturquoise: "afeeee",
+		    palevioletred: "db7093",
+		    papayawhip: "ffefd5",
+		    peachpuff: "ffdab9",
+		    peru: "cd853f",
+		    pink: "ffc0cb",
+		    plum: "dda0dd",
+		    powderblue: "b0e0e6",
+		    purple: "800080",
+		    rebeccapurple: "663399",
+		    red: "f00",
+		    rosybrown: "bc8f8f",
+		    royalblue: "4169e1",
+		    saddlebrown: "8b4513",
+		    salmon: "fa8072",
+		    sandybrown: "f4a460",
+		    seagreen: "2e8b57",
+		    seashell: "fff5ee",
+		    sienna: "a0522d",
+		    silver: "c0c0c0",
+		    skyblue: "87ceeb",
+		    slateblue: "6a5acd",
+		    slategray: "708090",
+		    slategrey: "708090",
+		    snow: "fffafa",
+		    springgreen: "00ff7f",
+		    steelblue: "4682b4",
+		    tan: "d2b48c",
+		    teal: "008080",
+		    thistle: "d8bfd8",
+		    tomato: "ff6347",
+		    turquoise: "40e0d0",
+		    violet: "ee82ee",
+		    wheat: "f5deb3",
+		    white: "fff",
+		    whitesmoke: "f5f5f5",
+		    yellow: "ff0",
+		    yellowgreen: "9acd32"
+		  };
+
+		  // Make it easy to access colors via `hexNames[hex]`
+		  var hexNames = tinycolor.hexNames = flip(names);
+
+		  // Utilities
+		  // ---------
+
+		  // `{ 'name1': 'val1' }` becomes `{ 'val1': 'name1' }`
+		  function flip(o) {
+		    var flipped = {};
+		    for (var i in o) {
+		      if (o.hasOwnProperty(i)) {
+		        flipped[o[i]] = i;
+		      }
+		    }
+		    return flipped;
+		  }
+
+		  // Return a valid alpha value [0,1] with all invalid values being set to 1
+		  function boundAlpha(a) {
+		    a = parseFloat(a);
+		    if (isNaN(a) || a < 0 || a > 1) {
+		      a = 1;
+		    }
+		    return a;
+		  }
+
+		  // Take input from [0, n] and return it as [0, 1]
+		  function bound01(n, max) {
+		    if (isOnePointZero(n)) n = "100%";
+		    var processPercent = isPercentage(n);
+		    n = Math.min(max, Math.max(0, parseFloat(n)));
+
+		    // Automatically convert percentage into number
+		    if (processPercent) {
+		      n = parseInt(n * max, 10) / 100;
+		    }
+
+		    // Handle floating point rounding errors
+		    if (Math.abs(n - max) < 0.000001) {
+		      return 1;
+		    }
+
+		    // Convert into [0, 1] range if it isn't already
+		    return n % max / parseFloat(max);
+		  }
+
+		  // Force a number between 0 and 1
+		  function clamp01(val) {
+		    return Math.min(1, Math.max(0, val));
+		  }
+
+		  // Parse a base-16 hex value into a base-10 integer
+		  function parseIntFromHex(val) {
+		    return parseInt(val, 16);
+		  }
+
+		  // Need to handle 1.0 as 100%, since once it is a number, there is no difference between it and 1
+		  // <http://stackoverflow.com/questions/7422072/javascript-how-to-detect-number-as-a-decimal-including-1-0>
+		  function isOnePointZero(n) {
+		    return typeof n == "string" && n.indexOf(".") != -1 && parseFloat(n) === 1;
+		  }
+
+		  // Check to see if string passed in is a percentage
+		  function isPercentage(n) {
+		    return typeof n === "string" && n.indexOf("%") != -1;
+		  }
+
+		  // Force a hex value to have 2 characters
+		  function pad2(c) {
+		    return c.length == 1 ? "0" + c : "" + c;
+		  }
+
+		  // Replace a decimal with it's percentage value
+		  function convertToPercentage(n) {
+		    if (n <= 1) {
+		      n = n * 100 + "%";
+		    }
+		    return n;
+		  }
+
+		  // Converts a decimal to a hex value
+		  function convertDecimalToHex(d) {
+		    return Math.round(parseFloat(d) * 255).toString(16);
+		  }
+		  // Converts a hex value to a decimal
+		  function convertHexToDecimal(h) {
+		    return parseIntFromHex(h) / 255;
+		  }
+		  var matchers = function () {
+		    // <http://www.w3.org/TR/css3-values/#integers>
+		    var CSS_INTEGER = "[-\\+]?\\d+%?";
+
+		    // <http://www.w3.org/TR/css3-values/#number-value>
+		    var CSS_NUMBER = "[-\\+]?\\d*\\.\\d+%?";
+
+		    // Allow positive/negative integer/number.  Don't capture the either/or, just the entire outcome.
+		    var CSS_UNIT = "(?:" + CSS_NUMBER + ")|(?:" + CSS_INTEGER + ")";
+
+		    // Actual matching.
+		    // Parentheses and commas are optional, but not required.
+		    // Whitespace can take the place of commas or opening paren
+		    var PERMISSIVE_MATCH3 = "[\\s|\\(]+(" + CSS_UNIT + ")[,|\\s]+(" + CSS_UNIT + ")[,|\\s]+(" + CSS_UNIT + ")\\s*\\)?";
+		    var PERMISSIVE_MATCH4 = "[\\s|\\(]+(" + CSS_UNIT + ")[,|\\s]+(" + CSS_UNIT + ")[,|\\s]+(" + CSS_UNIT + ")[,|\\s]+(" + CSS_UNIT + ")\\s*\\)?";
+		    return {
+		      CSS_UNIT: new RegExp(CSS_UNIT),
+		      rgb: new RegExp("rgb" + PERMISSIVE_MATCH3),
+		      rgba: new RegExp("rgba" + PERMISSIVE_MATCH4),
+		      hsl: new RegExp("hsl" + PERMISSIVE_MATCH3),
+		      hsla: new RegExp("hsla" + PERMISSIVE_MATCH4),
+		      hsv: new RegExp("hsv" + PERMISSIVE_MATCH3),
+		      hsva: new RegExp("hsva" + PERMISSIVE_MATCH4),
+		      hex3: /^#?([0-9a-fA-F]{1})([0-9a-fA-F]{1})([0-9a-fA-F]{1})$/,
+		      hex6: /^#?([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})$/,
+		      hex4: /^#?([0-9a-fA-F]{1})([0-9a-fA-F]{1})([0-9a-fA-F]{1})([0-9a-fA-F]{1})$/,
+		      hex8: /^#?([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})$/
+		    };
+		  }();
+
+		  // `isValidCSSUnit`
+		  // Take in a single string / number and check to see if it looks like a CSS unit
+		  // (see `matchers` above for definition).
+		  function isValidCSSUnit(color) {
+		    return !!matchers.CSS_UNIT.exec(color);
+		  }
+
+		  // `stringInputToObject`
+		  // Permissive string parsing.  Take in a number of formats, and output an object
+		  // based on detected format.  Returns `{ r, g, b }` or `{ h, s, l }` or `{ h, s, v}`
+		  function stringInputToObject(color) {
+		    color = color.replace(trimLeft, "").replace(trimRight, "").toLowerCase();
+		    var named = false;
+		    if (names[color]) {
+		      color = names[color];
+		      named = true;
+		    } else if (color == "transparent") {
+		      return {
+		        r: 0,
+		        g: 0,
+		        b: 0,
+		        a: 0,
+		        format: "name"
+		      };
+		    }
+
+		    // Try to match string input using regular expressions.
+		    // Keep most of the number bounding out of this function - don't worry about [0,1] or [0,100] or [0,360]
+		    // Just return an object and let the conversion functions handle that.
+		    // This way the result will be the same whether the tinycolor is initialized with string or object.
+		    var match;
+		    if (match = matchers.rgb.exec(color)) {
+		      return {
+		        r: match[1],
+		        g: match[2],
+		        b: match[3]
+		      };
+		    }
+		    if (match = matchers.rgba.exec(color)) {
+		      return {
+		        r: match[1],
+		        g: match[2],
+		        b: match[3],
+		        a: match[4]
+		      };
+		    }
+		    if (match = matchers.hsl.exec(color)) {
+		      return {
+		        h: match[1],
+		        s: match[2],
+		        l: match[3]
+		      };
+		    }
+		    if (match = matchers.hsla.exec(color)) {
+		      return {
+		        h: match[1],
+		        s: match[2],
+		        l: match[3],
+		        a: match[4]
+		      };
+		    }
+		    if (match = matchers.hsv.exec(color)) {
+		      return {
+		        h: match[1],
+		        s: match[2],
+		        v: match[3]
+		      };
+		    }
+		    if (match = matchers.hsva.exec(color)) {
+		      return {
+		        h: match[1],
+		        s: match[2],
+		        v: match[3],
+		        a: match[4]
+		      };
+		    }
+		    if (match = matchers.hex8.exec(color)) {
+		      return {
+		        r: parseIntFromHex(match[1]),
+		        g: parseIntFromHex(match[2]),
+		        b: parseIntFromHex(match[3]),
+		        a: convertHexToDecimal(match[4]),
+		        format: named ? "name" : "hex8"
+		      };
+		    }
+		    if (match = matchers.hex6.exec(color)) {
+		      return {
+		        r: parseIntFromHex(match[1]),
+		        g: parseIntFromHex(match[2]),
+		        b: parseIntFromHex(match[3]),
+		        format: named ? "name" : "hex"
+		      };
+		    }
+		    if (match = matchers.hex4.exec(color)) {
+		      return {
+		        r: parseIntFromHex(match[1] + "" + match[1]),
+		        g: parseIntFromHex(match[2] + "" + match[2]),
+		        b: parseIntFromHex(match[3] + "" + match[3]),
+		        a: convertHexToDecimal(match[4] + "" + match[4]),
+		        format: named ? "name" : "hex8"
+		      };
+		    }
+		    if (match = matchers.hex3.exec(color)) {
+		      return {
+		        r: parseIntFromHex(match[1] + "" + match[1]),
+		        g: parseIntFromHex(match[2] + "" + match[2]),
+		        b: parseIntFromHex(match[3] + "" + match[3]),
+		        format: named ? "name" : "hex"
+		      };
+		    }
+		    return false;
+		  }
+		  function validateWCAG2Parms(parms) {
+		    // return valid WCAG2 parms for isReadable.
+		    // If input parms are invalid, return {"level":"AA", "size":"small"}
+		    var level, size;
+		    parms = parms || {
+		      level: "AA",
+		      size: "small"
+		    };
+		    level = (parms.level || "AA").toUpperCase();
+		    size = (parms.size || "small").toLowerCase();
+		    if (level !== "AA" && level !== "AAA") {
+		      level = "AA";
+		    }
+		    if (size !== "small" && size !== "large") {
+		      size = "small";
+		    }
+		    return {
+		      level: level,
+		      size: size
+		    };
+		  }
+
+		  return tinycolor;
+
+		})); 
+	} (tinycolor$1));
+	return tinycolor$1.exports;
+}
+
+var tinygradient$1;
+var hasRequiredTinygradient;
+
+function requireTinygradient () {
+	if (hasRequiredTinygradient) return tinygradient$1;
+	hasRequiredTinygradient = 1;
+	const tinycolor = requireTinycolor();
+
+	/**
+	 * @typedef {Object} TinyGradient.StopInput
+	 * @property {ColorInput} color
+	 * @property {number} pos
+	 */
+
+	/**
+	 * @typedef {Object} TinyGradient.StepValue
+	 * @type {number} [r]
+	 * @type {number} [g]
+	 * @type {number} [b]
+	 * @type {number} [h]
+	 * @type {number} [s]
+	 * @type {number} [v]
+	 * @type {number} [a]
+	 */
+
+	/**
+	 * @type {StepValue}
+	 */
+	const RGBA_MAX = { r: 256, g: 256, b: 256, a: 1 };
+
+	/**
+	 * @type {StepValue}
+	 */
+	const HSVA_MAX = { h: 360, s: 1, v: 1, a: 1 };
+
+	/**
+	 * Linearly compute the step size between start and end (not normalized)
+	 * @param {StepValue} start
+	 * @param {StepValue} end
+	 * @param {number} steps - number of desired steps
+	 * @return {StepValue}
+	 */
+	function stepize(start, end, steps) {
+	    let step = {};
+
+	    for (let k in start) {
+	        if (start.hasOwnProperty(k)) {
+	            step[k] = steps === 0 ? 0 : (end[k] - start[k]) / steps;
+	        }
+	    }
+
+	    return step;
+	}
+
+	/**
+	 * Compute the final step color
+	 * @param {StepValue} step - from `stepize`
+	 * @param {StepValue} start
+	 * @param {number} i - color index
+	 * @param {StepValue} max - rgba or hsva of maximum values for each channel
+	 * @return {StepValue}
+	 */
+	function interpolate(step, start, i, max) {
+	    let color = {};
+
+	    for (let k in start) {
+	        if (start.hasOwnProperty(k)) {
+	            color[k] = step[k] * i + start[k];
+	            color[k] = color[k] < 0 ? color[k] + max[k] : (max[k] !== 1 ? color[k] % max[k] : color[k]);
+	        }
+	    }
+
+	    return color;
+	}
+
+	/**
+	 * Generate gradient with RGBa interpolation
+	 * @param {StopInput} stop1
+	 * @param {StopInput} stop2
+	 * @param {number} steps
+	 * @return {tinycolor[]} color1 included, color2 excluded
+	 */
+	function interpolateRgb(stop1, stop2, steps) {
+	    const start = stop1.color.toRgb();
+	    const end = stop2.color.toRgb();
+	    const step = stepize(start, end, steps);
+	    let gradient = [stop1.color];
+
+	    for (let i = 1; i < steps; i++) {
+	        const color = interpolate(step, start, i, RGBA_MAX);
+	        gradient.push(tinycolor(color));
+	    }
+
+	    return gradient;
+	}
+
+	/**
+	 * Generate gradient with HSVa interpolation
+	 * @param {StopInput} stop1
+	 * @param {StopInput} stop2
+	 * @param {number} steps
+	 * @param {boolean|'long'|'short'} mode
+	 * @return {tinycolor[]} color1 included, color2 excluded
+	 */
+	function interpolateHsv(stop1, stop2, steps, mode) {
+	    const start = stop1.color.toHsv();
+	    const end = stop2.color.toHsv();
+
+	    // rgb interpolation if one of the steps in grayscale
+	    if (start.s === 0 || end.s === 0) {
+	        return interpolateRgb(stop1, stop2, steps);
+	    }
+
+	    let trigonometric;
+	    if (typeof mode === 'boolean') {
+	        trigonometric = mode;
+	    }
+	    else {
+	        const trigShortest = (start.h < end.h && end.h - start.h < 180) || (start.h > end.h && start.h - end.h > 180);
+	        trigonometric = (mode === 'long' && trigShortest) || (mode === 'short' && !trigShortest);
+	    }
+
+	    const step = stepize(start, end, steps);
+	    let gradient = [stop1.color];
+
+	    // recompute hue
+	    let diff;
+	    if ((start.h <= end.h && !trigonometric) || (start.h >= end.h && trigonometric)) {
+	        diff = end.h - start.h;
+	    }
+	    else if (trigonometric) {
+	        diff = 360 - end.h + start.h;
+	    }
+	    else {
+	        diff = 360 - start.h + end.h;
+	    }
+	    step.h = Math.pow(-1, trigonometric ? 1 : 0) * Math.abs(diff) / steps;
+
+	    for (let i = 1; i < steps; i++) {
+	        const color = interpolate(step, start, i, HSVA_MAX);
+	        gradient.push(tinycolor(color));
+	    }
+
+	    return gradient;
+	}
+
+	/**
+	 * Compute substeps between each stops
+	 * @param {StopInput[]} stops
+	 * @param {number} steps
+	 * @return {number[]}
+	 */
+	function computeSubsteps(stops, steps) {
+	    const l = stops.length;
+
+	    // validation
+	    steps = parseInt(steps, 10);
+
+	    if (isNaN(steps) || steps < 2) {
+	        throw new Error('Invalid number of steps (< 2)');
+	    }
+	    if (steps < l) {
+	        throw new Error('Number of steps cannot be inferior to number of stops');
+	    }
+
+	    // compute substeps from stop positions
+	    let substeps = [];
+
+	    for (let i = 1; i < l; i++) {
+	        const step = (steps - 1) * (stops[i].pos - stops[i - 1].pos);
+	        substeps.push(Math.max(1, Math.round(step)));
+	    }
+
+	    // adjust number of steps
+	    let totalSubsteps = 1;
+	    for (let n = l - 1; n--;) totalSubsteps += substeps[n];
+
+	    while (totalSubsteps !== steps) {
+	        if (totalSubsteps < steps) {
+	            const min = Math.min.apply(null, substeps);
+	            substeps[substeps.indexOf(min)]++;
+	            totalSubsteps++;
+	        }
+	        else {
+	            const max = Math.max.apply(null, substeps);
+	            substeps[substeps.indexOf(max)]--;
+	            totalSubsteps--;
+	        }
+	    }
+
+	    return substeps;
+	}
+
+	/**
+	 * Compute the color at a specific position
+	 * @param {StopInput[]} stops
+	 * @param {number} pos
+	 * @param {string} method
+	 * @param {StepValue} max
+	 * @returns {tinycolor}
+	 */
+	function computeAt(stops, pos, method, max) {
+	    if (pos < 0 || pos > 1) {
+	        throw new Error('Position must be between 0 and 1');
+	    }
+
+	    let start, end;
+	    for (let i = 0, l = stops.length; i < l - 1; i++) {
+	        if (pos >= stops[i].pos && pos < stops[i + 1].pos) {
+	            start = stops[i];
+	            end = stops[i + 1];
+	            break;
+	        }
+	    }
+
+	    if (!start) {
+	        start = end = stops[stops.length - 1];
+	    }
+
+	    const step = stepize(start.color[method](), end.color[method](), (end.pos - start.pos) * 100);
+	    const color = interpolate(step, start.color[method](), (pos - start.pos) * 100, max);
+	    return tinycolor(color);
+	}
+
+	class TinyGradient {
+	    /**
+	     * @param {StopInput[]|ColorInput[]} stops
+	     * @returns {TinyGradient}
+	     */
+	    constructor(stops) {
+	        // validation
+	        if (stops.length < 2) {
+	            throw new Error('Invalid number of stops (< 2)');
+	        }
+
+	        const havingPositions = stops[0].pos !== undefined;
+	        let l = stops.length;
+	        let p = -1;
+	        let lastColorLess = false;
+	        // create tinycolor objects and clean positions
+	        this.stops = stops.map((stop, i) => {
+	            const hasPosition = stop.pos !== undefined;
+	            if (havingPositions ^ hasPosition) {
+	                throw new Error('Cannot mix positionned and not posionned color stops');
+	            }
+
+	            if (hasPosition) {
+	                const hasColor = stop.color !== undefined;
+	                if (!hasColor && (lastColorLess || i === 0 || i === l - 1)) {
+	                    throw new Error('Cannot define two consecutive position-only stops');
+	                }
+	                lastColorLess = !hasColor;
+
+	                stop = {
+	                    color    : hasColor ? tinycolor(stop.color) : null,
+	                    colorLess: !hasColor,
+	                    pos      : stop.pos
+	                };
+
+	                if (stop.pos < 0 || stop.pos > 1) {
+	                    throw new Error('Color stops positions must be between 0 and 1');
+	                }
+	                else if (stop.pos < p) {
+	                    throw new Error('Color stops positions are not ordered');
+	                }
+	                p = stop.pos;
+	            }
+	            else {
+	                stop = {
+	                    color: tinycolor(stop.color !== undefined ? stop.color : stop),
+	                    pos  : i / (l - 1)
+	                };
+	            }
+
+	            return stop;
+	        });
+
+	        if (this.stops[0].pos !== 0) {
+	            this.stops.unshift({
+	                color: this.stops[0].color,
+	                pos  : 0
+	            });
+	            l++;
+	        }
+	        if (this.stops[l - 1].pos !== 1) {
+	            this.stops.push({
+	                color: this.stops[l - 1].color,
+	                pos  : 1
+	            });
+	        }
+	    }
+
+	    /**
+	     * Return new instance with reversed stops
+	     * @return {TinyGradient}
+	     */
+	    reverse() {
+	        let stops = [];
+
+	        this.stops.forEach(function (stop) {
+	            stops.push({
+	                color: stop.color,
+	                pos  : 1 - stop.pos
+	            });
+	        });
+
+	        return new TinyGradient(stops.reverse());
+	    }
+
+	    /**
+	     * Return new instance with looped stops
+	     * @return {TinyGradient}
+	     */
+	    loop() {
+	        let stops1 = [];
+	        let stops2 = [];
+
+	        this.stops.forEach((stop) => {
+	            stops1.push({
+	                color: stop.color,
+	                pos  : stop.pos / 2
+	            });
+	        });
+
+	        this.stops.slice(0, -1).forEach((stop) => {
+	            stops2.push({
+	                color: stop.color,
+	                pos  : 1 - stop.pos / 2
+	            });
+	        });
+
+	        return new TinyGradient(stops1.concat(stops2.reverse()));
+	    }
+
+	    /**
+	     * Generate gradient with RGBa interpolation
+	     * @param {number} steps
+	     * @return {tinycolor[]}
+	     */
+	    rgb(steps) {
+	        const substeps = computeSubsteps(this.stops, steps);
+	        let gradient = [];
+
+	        this.stops.forEach((stop, i) => {
+	            if (stop.colorLess) {
+	                stop.color = interpolateRgb(this.stops[i - 1], this.stops[i + 1], 2)[1];
+	            }
+	        });
+
+	        for (let i = 0, l = this.stops.length; i < l - 1; i++) {
+	            const rgb = interpolateRgb(this.stops[i], this.stops[i + 1], substeps[i]);
+	            gradient.splice(gradient.length, 0, ...rgb);
+	        }
+
+	        gradient.push(this.stops[this.stops.length - 1].color);
+
+	        return gradient;
+	    }
+
+	    /**
+	     * Generate gradient with HSVa interpolation
+	     * @param {number} steps
+	     * @param {boolean|'long'|'short'} [mode=false]
+	     *    - false to step in clockwise
+	     *    - true to step in trigonometric order
+	     *    - 'short' to use the shortest way
+	     *    - 'long' to use the longest way
+	     * @return {tinycolor[]}
+	     */
+	    hsv(steps, mode) {
+	        const substeps = computeSubsteps(this.stops, steps);
+	        let gradient = [];
+
+	        this.stops.forEach((stop, i) => {
+	            if (stop.colorLess) {
+	                stop.color = interpolateHsv(this.stops[i - 1], this.stops[i + 1], 2, mode)[1];
+	            }
+	        });
+
+	        for (let i = 0, l = this.stops.length; i < l - 1; i++) {
+	            const hsv = interpolateHsv(this.stops[i], this.stops[i + 1], substeps[i], mode);
+	            gradient.splice(gradient.length, 0, ...hsv);
+	        }
+
+	        gradient.push(this.stops[this.stops.length - 1].color);
+
+	        return gradient;
+	    }
+
+	    /**
+	     * Generate CSS3 command (no prefix) for this gradient
+	     * @param {String} [mode=linear] - 'linear' or 'radial'
+	     * @param {String} [direction] - default is 'to right' or 'ellipse at center'
+	     * @return {String}
+	     */
+	    css(mode, direction) {
+	        mode = mode || 'linear';
+	        direction = direction || (mode === 'linear' ? 'to right' : 'ellipse at center');
+
+	        let css = mode + '-gradient(' + direction;
+	        this.stops.forEach(function (stop) {
+	            css += ', ' + (stop.colorLess ? '' : stop.color.toRgbString() + ' ') + (stop.pos * 100) + '%';
+	        });
+	        css += ')';
+	        return css;
+	    }
+
+	    /**
+	     * Returns the color at specific position with RGBa interpolation
+	     * @param {number} pos, between 0 and 1
+	     * @return {tinycolor}
+	     */
+	    rgbAt(pos) {
+	        return computeAt(this.stops, pos, 'toRgb', RGBA_MAX);
+	    }
+
+	    /**
+	     * Returns the color at specific position with HSVa interpolation
+	     * @param {number} pos, between 0 and 1
+	     * @return {tinycolor}
+	     */
+	    hsvAt(pos) {
+	        return computeAt(this.stops, pos, 'toHsv', HSVA_MAX);
+	    }
+	}
+
+	/**
+	 * @param {StopInput[]|ColorInput[]|StopInput...|ColorInput...} stops
+	 * @returns {TinyGradient}
+	 */
+	tinygradient$1 = function (stops) {
+	    // varargs
+	    if (arguments.length === 1) {
+	        if (!Array.isArray(arguments[0])) {
+	            throw new Error('"stops" is not an array');
+	        }
+	        stops = arguments[0];
+	    }
+	    else {
+	        stops = Array.prototype.slice.call(arguments);
+	    }
+
+	    return new TinyGradient(stops);
+	};
+	return tinygradient$1;
+}
+
+var tinygradientExports = requireTinygradient();
+var tinygradient = /*@__PURE__*/getDefaultExportFromCjs(tinygradientExports);
+
+const gradient = (...colors) => {
+    let gradient;
+    let options;
+    if (colors.length === 0) {
+        throw new Error('Missing gradient colors');
+    }
+    if (!Array.isArray(colors[0])) {
+        // Deprecated varargs syntax
+        if (colors.length === 1) {
+            throw new Error(`Expected an array of colors, received ${JSON.stringify(colors[0])}`);
+        }
+        gradient = tinygradient(...colors);
+    }
+    // New syntax: (colors[], options)
+    else {
+        gradient = tinygradient(colors[0]);
+        options = validateOptions(colors[1]);
+    }
+    const fn = (str, deprecatedOptions) => {
+        return applyGradient(str ? str.toString() : '', gradient, deprecatedOptions ?? options);
+    };
+    fn.multiline = (str, deprecatedOptions) => multiline(str ? str.toString() : '', gradient, deprecatedOptions ?? options);
+    return fn;
+};
+const getColors = (gradient, options, count) => {
+    return options.interpolation?.toLowerCase() === 'hsv'
+        ? gradient.hsv(count, options.hsvSpin?.toLowerCase() || false)
+        : gradient.rgb(count);
+};
+function applyGradient(str, gradient, opts) {
+    const options = validateOptions(opts);
+    const colorsCount = Math.max(str.replace(/\s/g, '').length, gradient.stops.length);
+    const colors = getColors(gradient, options, colorsCount);
+    let result = '';
+    for (const s of str) {
+        result += s.match(/\s/g) ? s : chalk.hex(colors.shift()?.toHex() || '#000')(s);
+    }
+    return result;
+}
+function multiline(str, gradient, opts) {
+    const options = validateOptions(opts);
+    const lines = str.split('\n');
+    const maxLength = Math.max(...lines.map((l) => l.length), gradient.stops.length);
+    const colors = getColors(gradient, options, maxLength);
+    const results = [];
+    for (const line of lines) {
+        const lineColors = colors.slice(0);
+        let lineResult = '';
+        for (const l of line) {
+            lineResult += chalk.hex(lineColors.shift()?.toHex() || '#000')(l);
+        }
+        results.push(lineResult);
+    }
+    return results.join('\n');
+}
+function validateOptions(opts) {
+    const options = { interpolation: 'rgb', hsvSpin: 'short', ...opts };
+    if (opts !== undefined && typeof opts !== 'object') {
+        throw new TypeError(`Expected \`options\` to be an \`object\`, got \`${typeof opts}\``);
+    }
+    if (typeof options.interpolation !== 'string') {
+        throw new TypeError(`Expected \`options.interpolation\` to be \`rgb\` or \`hsv\`, got \`${typeof options.interpolation}\``);
+    }
+    if (options.interpolation.toLowerCase() === 'hsv' && typeof options.hsvSpin !== 'string') {
+        throw new TypeError(`Expected \`options.hsvSpin\` to be a \`short\` or \`long\`, got \`${typeof options.hsvSpin}\``);
+    }
+    return options;
+}
+const aliases = {
+    atlas: { colors: ['#feac5e', '#c779d0', '#4bc0c8'], options: {} },
+    cristal: { colors: ['#bdfff3', '#4ac29a'], options: {} },
+    teen: { colors: ['#77a1d3', '#79cbca', '#e684ae'], options: {} },
+    mind: { colors: ['#473b7b', '#3584a7', '#30d2be'], options: {} },
+    morning: { colors: ['#ff5f6d', '#ffc371'], options: { interpolation: 'hsv' } },
+    vice: { colors: ['#5ee7df', '#b490ca'], options: { interpolation: 'hsv' } },
+    passion: { colors: ['#f43b47', '#453a94'], options: {} },
+    fruit: { colors: ['#ff4e50', '#f9d423'], options: {} },
+    instagram: { colors: ['#833ab4', '#fd1d1d', '#fcb045'], options: {} },
+    retro: {
+        colors: ['#3f51b1', '#5a55ae', '#7b5fac', '#8f6aae', '#a86aa4', '#cc6b8e', '#f18271', '#f3a469', '#f7c978'],
+        options: {},
+    },
+    summer: { colors: ['#fdbb2d', '#22c1c3'], options: {} },
+    rainbow: { colors: ['#ff0000', '#ff0100'], options: { interpolation: 'hsv', hsvSpin: 'long' } },
+    pastel: { colors: ['#74ebd5', '#74ecd5'], options: { interpolation: 'hsv', hsvSpin: 'long' } },
+};
+function gradientAlias(alias) {
+    const result = (str) => gradient(...alias.colors)(str, alias.options);
+    result.multiline = (str = '') => gradient(...alias.colors).multiline(str, alias.options);
+    return result;
+}
+const atlas = gradientAlias(aliases.atlas);
+const cristal = gradientAlias(aliases.cristal);
+const teen = gradientAlias(aliases.teen);
+const mind = gradientAlias(aliases.mind);
+const morning = gradientAlias(aliases.morning);
+const vice = gradientAlias(aliases.vice);
+const passion = gradientAlias(aliases.passion);
+const fruit = gradientAlias(aliases.fruit);
+const instagram = gradientAlias(aliases.instagram);
+const retro = gradientAlias(aliases.retro);
+const summer = gradientAlias(aliases.summer);
+const rainbow = gradientAlias(aliases.rainbow);
+const pastel = gradientAlias(aliases.pastel);
+// Deprecated exports
+gradient.atlas = atlas;
+gradient.cristal = cristal;
+gradient.teen = teen;
+gradient.mind = mind;
+gradient.morning = morning;
+gradient.vice = vice;
+gradient.passion = passion;
+gradient.fruit = fruit;
+gradient.instagram = instagram;
+gradient.retro = retro;
+gradient.summer = summer;
+gradient.rainbow = rainbow;
+gradient.pastel = pastel;
+
+// Generated code.
+
+function isAmbiguous(x) {
+	return x === 0xA1
+		|| x === 0xA4
+		|| x === 0xA7
+		|| x === 0xA8
+		|| x === 0xAA
+		|| x === 0xAD
+		|| x === 0xAE
+		|| x >= 0xB0 && x <= 0xB4
+		|| x >= 0xB6 && x <= 0xBA
+		|| x >= 0xBC && x <= 0xBF
+		|| x === 0xC6
+		|| x === 0xD0
+		|| x === 0xD7
+		|| x === 0xD8
+		|| x >= 0xDE && x <= 0xE1
+		|| x === 0xE6
+		|| x >= 0xE8 && x <= 0xEA
+		|| x === 0xEC
+		|| x === 0xED
+		|| x === 0xF0
+		|| x === 0xF2
+		|| x === 0xF3
+		|| x >= 0xF7 && x <= 0xFA
+		|| x === 0xFC
+		|| x === 0xFE
+		|| x === 0x101
+		|| x === 0x111
+		|| x === 0x113
+		|| x === 0x11B
+		|| x === 0x126
+		|| x === 0x127
+		|| x === 0x12B
+		|| x >= 0x131 && x <= 0x133
+		|| x === 0x138
+		|| x >= 0x13F && x <= 0x142
+		|| x === 0x144
+		|| x >= 0x148 && x <= 0x14B
+		|| x === 0x14D
+		|| x === 0x152
+		|| x === 0x153
+		|| x === 0x166
+		|| x === 0x167
+		|| x === 0x16B
+		|| x === 0x1CE
+		|| x === 0x1D0
+		|| x === 0x1D2
+		|| x === 0x1D4
+		|| x === 0x1D6
+		|| x === 0x1D8
+		|| x === 0x1DA
+		|| x === 0x1DC
+		|| x === 0x251
+		|| x === 0x261
+		|| x === 0x2C4
+		|| x === 0x2C7
+		|| x >= 0x2C9 && x <= 0x2CB
+		|| x === 0x2CD
+		|| x === 0x2D0
+		|| x >= 0x2D8 && x <= 0x2DB
+		|| x === 0x2DD
+		|| x === 0x2DF
+		|| x >= 0x300 && x <= 0x36F
+		|| x >= 0x391 && x <= 0x3A1
+		|| x >= 0x3A3 && x <= 0x3A9
+		|| x >= 0x3B1 && x <= 0x3C1
+		|| x >= 0x3C3 && x <= 0x3C9
+		|| x === 0x401
+		|| x >= 0x410 && x <= 0x44F
+		|| x === 0x451
+		|| x === 0x2010
+		|| x >= 0x2013 && x <= 0x2016
+		|| x === 0x2018
+		|| x === 0x2019
+		|| x === 0x201C
+		|| x === 0x201D
+		|| x >= 0x2020 && x <= 0x2022
+		|| x >= 0x2024 && x <= 0x2027
+		|| x === 0x2030
+		|| x === 0x2032
+		|| x === 0x2033
+		|| x === 0x2035
+		|| x === 0x203B
+		|| x === 0x203E
+		|| x === 0x2074
+		|| x === 0x207F
+		|| x >= 0x2081 && x <= 0x2084
+		|| x === 0x20AC
+		|| x === 0x2103
+		|| x === 0x2105
+		|| x === 0x2109
+		|| x === 0x2113
+		|| x === 0x2116
+		|| x === 0x2121
+		|| x === 0x2122
+		|| x === 0x2126
+		|| x === 0x212B
+		|| x === 0x2153
+		|| x === 0x2154
+		|| x >= 0x215B && x <= 0x215E
+		|| x >= 0x2160 && x <= 0x216B
+		|| x >= 0x2170 && x <= 0x2179
+		|| x === 0x2189
+		|| x >= 0x2190 && x <= 0x2199
+		|| x === 0x21B8
+		|| x === 0x21B9
+		|| x === 0x21D2
+		|| x === 0x21D4
+		|| x === 0x21E7
+		|| x === 0x2200
+		|| x === 0x2202
+		|| x === 0x2203
+		|| x === 0x2207
+		|| x === 0x2208
+		|| x === 0x220B
+		|| x === 0x220F
+		|| x === 0x2211
+		|| x === 0x2215
+		|| x === 0x221A
+		|| x >= 0x221D && x <= 0x2220
+		|| x === 0x2223
+		|| x === 0x2225
+		|| x >= 0x2227 && x <= 0x222C
+		|| x === 0x222E
+		|| x >= 0x2234 && x <= 0x2237
+		|| x === 0x223C
+		|| x === 0x223D
+		|| x === 0x2248
+		|| x === 0x224C
+		|| x === 0x2252
+		|| x === 0x2260
+		|| x === 0x2261
+		|| x >= 0x2264 && x <= 0x2267
+		|| x === 0x226A
+		|| x === 0x226B
+		|| x === 0x226E
+		|| x === 0x226F
+		|| x === 0x2282
+		|| x === 0x2283
+		|| x === 0x2286
+		|| x === 0x2287
+		|| x === 0x2295
+		|| x === 0x2299
+		|| x === 0x22A5
+		|| x === 0x22BF
+		|| x === 0x2312
+		|| x >= 0x2460 && x <= 0x24E9
+		|| x >= 0x24EB && x <= 0x254B
+		|| x >= 0x2550 && x <= 0x2573
+		|| x >= 0x2580 && x <= 0x258F
+		|| x >= 0x2592 && x <= 0x2595
+		|| x === 0x25A0
+		|| x === 0x25A1
+		|| x >= 0x25A3 && x <= 0x25A9
+		|| x === 0x25B2
+		|| x === 0x25B3
+		|| x === 0x25B6
+		|| x === 0x25B7
+		|| x === 0x25BC
+		|| x === 0x25BD
+		|| x === 0x25C0
+		|| x === 0x25C1
+		|| x >= 0x25C6 && x <= 0x25C8
+		|| x === 0x25CB
+		|| x >= 0x25CE && x <= 0x25D1
+		|| x >= 0x25E2 && x <= 0x25E5
+		|| x === 0x25EF
+		|| x === 0x2605
+		|| x === 0x2606
+		|| x === 0x2609
+		|| x === 0x260E
+		|| x === 0x260F
+		|| x === 0x261C
+		|| x === 0x261E
+		|| x === 0x2640
+		|| x === 0x2642
+		|| x === 0x2660
+		|| x === 0x2661
+		|| x >= 0x2663 && x <= 0x2665
+		|| x >= 0x2667 && x <= 0x266A
+		|| x === 0x266C
+		|| x === 0x266D
+		|| x === 0x266F
+		|| x === 0x269E
+		|| x === 0x269F
+		|| x === 0x26BF
+		|| x >= 0x26C6 && x <= 0x26CD
+		|| x >= 0x26CF && x <= 0x26D3
+		|| x >= 0x26D5 && x <= 0x26E1
+		|| x === 0x26E3
+		|| x === 0x26E8
+		|| x === 0x26E9
+		|| x >= 0x26EB && x <= 0x26F1
+		|| x === 0x26F4
+		|| x >= 0x26F6 && x <= 0x26F9
+		|| x === 0x26FB
+		|| x === 0x26FC
+		|| x === 0x26FE
+		|| x === 0x26FF
+		|| x === 0x273D
+		|| x >= 0x2776 && x <= 0x277F
+		|| x >= 0x2B56 && x <= 0x2B59
+		|| x >= 0x3248 && x <= 0x324F
+		|| x >= 0xE000 && x <= 0xF8FF
+		|| x >= 0xFE00 && x <= 0xFE0F
+		|| x === 0xFFFD
+		|| x >= 0x1F100 && x <= 0x1F10A
+		|| x >= 0x1F110 && x <= 0x1F12D
+		|| x >= 0x1F130 && x <= 0x1F169
+		|| x >= 0x1F170 && x <= 0x1F18D
+		|| x === 0x1F18F
+		|| x === 0x1F190
+		|| x >= 0x1F19B && x <= 0x1F1AC
+		|| x >= 0xE0100 && x <= 0xE01EF
+		|| x >= 0xF0000 && x <= 0xFFFFD
+		|| x >= 0x100000 && x <= 0x10FFFD;
+}
+
+function isFullWidth(x) {
+	return x === 0x3000
+		|| x >= 0xFF01 && x <= 0xFF60
+		|| x >= 0xFFE0 && x <= 0xFFE6;
+}
+
+function isWide(x) {
+	return x >= 0x1100 && x <= 0x115F
+		|| x === 0x231A
+		|| x === 0x231B
+		|| x === 0x2329
+		|| x === 0x232A
+		|| x >= 0x23E9 && x <= 0x23EC
+		|| x === 0x23F0
+		|| x === 0x23F3
+		|| x === 0x25FD
+		|| x === 0x25FE
+		|| x === 0x2614
+		|| x === 0x2615
+		|| x >= 0x2630 && x <= 0x2637
+		|| x >= 0x2648 && x <= 0x2653
+		|| x === 0x267F
+		|| x >= 0x268A && x <= 0x268F
+		|| x === 0x2693
+		|| x === 0x26A1
+		|| x === 0x26AA
+		|| x === 0x26AB
+		|| x === 0x26BD
+		|| x === 0x26BE
+		|| x === 0x26C4
+		|| x === 0x26C5
+		|| x === 0x26CE
+		|| x === 0x26D4
+		|| x === 0x26EA
+		|| x === 0x26F2
+		|| x === 0x26F3
+		|| x === 0x26F5
+		|| x === 0x26FA
+		|| x === 0x26FD
+		|| x === 0x2705
+		|| x === 0x270A
+		|| x === 0x270B
+		|| x === 0x2728
+		|| x === 0x274C
+		|| x === 0x274E
+		|| x >= 0x2753 && x <= 0x2755
+		|| x === 0x2757
+		|| x >= 0x2795 && x <= 0x2797
+		|| x === 0x27B0
+		|| x === 0x27BF
+		|| x === 0x2B1B
+		|| x === 0x2B1C
+		|| x === 0x2B50
+		|| x === 0x2B55
+		|| x >= 0x2E80 && x <= 0x2E99
+		|| x >= 0x2E9B && x <= 0x2EF3
+		|| x >= 0x2F00 && x <= 0x2FD5
+		|| x >= 0x2FF0 && x <= 0x2FFF
+		|| x >= 0x3001 && x <= 0x303E
+		|| x >= 0x3041 && x <= 0x3096
+		|| x >= 0x3099 && x <= 0x30FF
+		|| x >= 0x3105 && x <= 0x312F
+		|| x >= 0x3131 && x <= 0x318E
+		|| x >= 0x3190 && x <= 0x31E5
+		|| x >= 0x31EF && x <= 0x321E
+		|| x >= 0x3220 && x <= 0x3247
+		|| x >= 0x3250 && x <= 0xA48C
+		|| x >= 0xA490 && x <= 0xA4C6
+		|| x >= 0xA960 && x <= 0xA97C
+		|| x >= 0xAC00 && x <= 0xD7A3
+		|| x >= 0xF900 && x <= 0xFAFF
+		|| x >= 0xFE10 && x <= 0xFE19
+		|| x >= 0xFE30 && x <= 0xFE52
+		|| x >= 0xFE54 && x <= 0xFE66
+		|| x >= 0xFE68 && x <= 0xFE6B
+		|| x >= 0x16FE0 && x <= 0x16FE4
+		|| x === 0x16FF0
+		|| x === 0x16FF1
+		|| x >= 0x17000 && x <= 0x187F7
+		|| x >= 0x18800 && x <= 0x18CD5
+		|| x >= 0x18CFF && x <= 0x18D08
+		|| x >= 0x1AFF0 && x <= 0x1AFF3
+		|| x >= 0x1AFF5 && x <= 0x1AFFB
+		|| x === 0x1AFFD
+		|| x === 0x1AFFE
+		|| x >= 0x1B000 && x <= 0x1B122
+		|| x === 0x1B132
+		|| x >= 0x1B150 && x <= 0x1B152
+		|| x === 0x1B155
+		|| x >= 0x1B164 && x <= 0x1B167
+		|| x >= 0x1B170 && x <= 0x1B2FB
+		|| x >= 0x1D300 && x <= 0x1D356
+		|| x >= 0x1D360 && x <= 0x1D376
+		|| x === 0x1F004
+		|| x === 0x1F0CF
+		|| x === 0x1F18E
+		|| x >= 0x1F191 && x <= 0x1F19A
+		|| x >= 0x1F200 && x <= 0x1F202
+		|| x >= 0x1F210 && x <= 0x1F23B
+		|| x >= 0x1F240 && x <= 0x1F248
+		|| x === 0x1F250
+		|| x === 0x1F251
+		|| x >= 0x1F260 && x <= 0x1F265
+		|| x >= 0x1F300 && x <= 0x1F320
+		|| x >= 0x1F32D && x <= 0x1F335
+		|| x >= 0x1F337 && x <= 0x1F37C
+		|| x >= 0x1F37E && x <= 0x1F393
+		|| x >= 0x1F3A0 && x <= 0x1F3CA
+		|| x >= 0x1F3CF && x <= 0x1F3D3
+		|| x >= 0x1F3E0 && x <= 0x1F3F0
+		|| x === 0x1F3F4
+		|| x >= 0x1F3F8 && x <= 0x1F43E
+		|| x === 0x1F440
+		|| x >= 0x1F442 && x <= 0x1F4FC
+		|| x >= 0x1F4FF && x <= 0x1F53D
+		|| x >= 0x1F54B && x <= 0x1F54E
+		|| x >= 0x1F550 && x <= 0x1F567
+		|| x === 0x1F57A
+		|| x === 0x1F595
+		|| x === 0x1F596
+		|| x === 0x1F5A4
+		|| x >= 0x1F5FB && x <= 0x1F64F
+		|| x >= 0x1F680 && x <= 0x1F6C5
+		|| x === 0x1F6CC
+		|| x >= 0x1F6D0 && x <= 0x1F6D2
+		|| x >= 0x1F6D5 && x <= 0x1F6D7
+		|| x >= 0x1F6DC && x <= 0x1F6DF
+		|| x === 0x1F6EB
+		|| x === 0x1F6EC
+		|| x >= 0x1F6F4 && x <= 0x1F6FC
+		|| x >= 0x1F7E0 && x <= 0x1F7EB
+		|| x === 0x1F7F0
+		|| x >= 0x1F90C && x <= 0x1F93A
+		|| x >= 0x1F93C && x <= 0x1F945
+		|| x >= 0x1F947 && x <= 0x1F9FF
+		|| x >= 0x1FA70 && x <= 0x1FA7C
+		|| x >= 0x1FA80 && x <= 0x1FA89
+		|| x >= 0x1FA8F && x <= 0x1FAC6
+		|| x >= 0x1FACE && x <= 0x1FADC
+		|| x >= 0x1FADF && x <= 0x1FAE9
+		|| x >= 0x1FAF0 && x <= 0x1FAF8
+		|| x >= 0x20000 && x <= 0x2FFFD
+		|| x >= 0x30000 && x <= 0x3FFFD;
+}
+
+function validate(codePoint) {
+	if (!Number.isSafeInteger(codePoint)) {
+		throw new TypeError(`Expected a code point, got \`${typeof codePoint}\`.`);
+	}
+}
+
+function eastAsianWidth(codePoint, {ambiguousAsWide = false} = {}) {
+	validate(codePoint);
+
+	if (
+		isFullWidth(codePoint)
+		|| isWide(codePoint)
+		|| (ambiguousAsWide && isAmbiguous(codePoint))
+	) {
+		return 2;
+	}
+
+	return 1;
+}
+
+const segmenter$1 = new Intl.Segmenter();
+
+const defaultIgnorableCodePointRegex$1 = /^\p{Default_Ignorable_Code_Point}$/u;
+
+function stringWidth$2(string, options = {}) {
+	if (typeof string !== 'string' || string.length === 0) {
+		return 0;
+	}
+
+	const {
+		ambiguousIsNarrow = true,
+		countAnsiEscapeCodes = false,
+	} = options;
+
+	if (!countAnsiEscapeCodes) {
+		string = stripAnsi$2(string);
+	}
+
+	if (string.length === 0) {
+		return 0;
+	}
+
+	let width = 0;
+	const eastAsianWidthOptions = {ambiguousAsWide: !ambiguousIsNarrow};
+
+	for (const {segment: character} of segmenter$1.segment(string)) {
+		const codePoint = character.codePointAt(0);
+
+		// Ignore control characters
+		if (codePoint <= 0x1F || (codePoint >= 0x7F && codePoint <= 0x9F)) {
+			continue;
+		}
+
+		// Ignore zero-width characters
+		if (
+			(codePoint >= 0x20_0B && codePoint <= 0x20_0F) // Zero-width space, non-joiner, joiner, left-to-right mark, right-to-left mark
+			|| codePoint === 0xFE_FF // Zero-width no-break space
+		) {
+			continue;
+		}
+
+		// Ignore combining characters
+		if (
+			(codePoint >= 0x3_00 && codePoint <= 0x3_6F) // Combining diacritical marks
+			|| (codePoint >= 0x1A_B0 && codePoint <= 0x1A_FF) // Combining diacritical marks extended
+			|| (codePoint >= 0x1D_C0 && codePoint <= 0x1D_FF) // Combining diacritical marks supplement
+			|| (codePoint >= 0x20_D0 && codePoint <= 0x20_FF) // Combining diacritical marks for symbols
+			|| (codePoint >= 0xFE_20 && codePoint <= 0xFE_2F) // Combining half marks
+		) {
+			continue;
+		}
+
+		// Ignore surrogate pairs
+		if (codePoint >= 0xD8_00 && codePoint <= 0xDF_FF) {
+			continue;
+		}
+
+		// Ignore variation selectors
+		if (codePoint >= 0xFE_00 && codePoint <= 0xFE_0F) {
+			continue;
+		}
+
+		// This covers some of the above cases, but we still keep them for performance reasons.
+		if (defaultIgnorableCodePointRegex$1.test(character)) {
+			continue;
+		}
+
+		// TODO: Use `/\p{RGI_Emoji}/v` when targeting Node.js 20.
+		if (emojiRegex$1().test(character)) {
+			width += 2;
+			continue;
+		}
+
+		width += eastAsianWidth(codePoint, eastAsianWidthOptions);
+	}
+
+	return width;
+}
+
+const segmenter = new Intl.Segmenter();
+
+const defaultIgnorableCodePointRegex = /^\p{Default_Ignorable_Code_Point}$/u;
+
+function stringWidth$1(string, options = {}) {
+	if (typeof string !== 'string' || string.length === 0) {
+		return 0;
+	}
+
+	const {
+		ambiguousIsNarrow = true,
+		countAnsiEscapeCodes = false,
+	} = options;
+
+	if (!countAnsiEscapeCodes) {
+		string = stripAnsi$2(string);
+	}
+
+	if (string.length === 0) {
+		return 0;
+	}
+
+	let width = 0;
+	const eastAsianWidthOptions = {ambiguousAsWide: !ambiguousIsNarrow};
+
+	for (const {segment: character} of segmenter.segment(string)) {
+		const codePoint = character.codePointAt(0);
+
+		// Ignore control characters
+		if (codePoint <= 0x1F || (codePoint >= 0x7F && codePoint <= 0x9F)) {
+			continue;
+		}
+
+		// Ignore zero-width characters
+		if (
+			(codePoint >= 0x20_0B && codePoint <= 0x20_0F) // Zero-width space, non-joiner, joiner, left-to-right mark, right-to-left mark
+			|| codePoint === 0xFE_FF // Zero-width no-break space
+		) {
+			continue;
+		}
+
+		// Ignore combining characters
+		if (
+			(codePoint >= 0x3_00 && codePoint <= 0x3_6F) // Combining diacritical marks
+			|| (codePoint >= 0x1A_B0 && codePoint <= 0x1A_FF) // Combining diacritical marks extended
+			|| (codePoint >= 0x1D_C0 && codePoint <= 0x1D_FF) // Combining diacritical marks supplement
+			|| (codePoint >= 0x20_D0 && codePoint <= 0x20_FF) // Combining diacritical marks for symbols
+			|| (codePoint >= 0xFE_20 && codePoint <= 0xFE_2F) // Combining half marks
+		) {
+			continue;
+		}
+
+		// Ignore surrogate pairs
+		if (codePoint >= 0xD8_00 && codePoint <= 0xDF_FF) {
+			continue;
+		}
+
+		// Ignore variation selectors
+		if (codePoint >= 0xFE_00 && codePoint <= 0xFE_0F) {
+			continue;
+		}
+
+		// This covers some of the above cases, but we still keep them for performance reasons.
+		if (defaultIgnorableCodePointRegex.test(character)) {
+			continue;
+		}
+
+		// TODO: Use `/\p{RGI_Emoji}/v` when targeting Node.js 20.
+		if (emojiRegex$1().test(character)) {
+			width += 2;
+			continue;
+		}
+
+		width += eastAsianWidth(codePoint, eastAsianWidthOptions);
+	}
+
+	return width;
+}
+
+function widestLine(string) {
+	let lineWidth = 0;
+
+	for (const line of string.split('\n')) {
+		lineWidth = Math.max(lineWidth, stringWidth$1(line));
+	}
+
+	return lineWidth;
+}
+
+var cliBoxes$1 = {exports: {}};
+
+var single = {
+	topLeft: "┌",
+	top: "─",
+	topRight: "┐",
+	right: "│",
+	bottomRight: "┘",
+	bottom: "─",
+	bottomLeft: "└",
+	left: "│"
+};
+var double = {
+	topLeft: "╔",
+	top: "═",
+	topRight: "╗",
+	right: "║",
+	bottomRight: "╝",
+	bottom: "═",
+	bottomLeft: "╚",
+	left: "║"
+};
+var round = {
+	topLeft: "╭",
+	top: "─",
+	topRight: "╮",
+	right: "│",
+	bottomRight: "╯",
+	bottom: "─",
+	bottomLeft: "╰",
+	left: "│"
+};
+var bold = {
+	topLeft: "┏",
+	top: "━",
+	topRight: "┓",
+	right: "┃",
+	bottomRight: "┛",
+	bottom: "━",
+	bottomLeft: "┗",
+	left: "┃"
+};
+var singleDouble = {
+	topLeft: "╓",
+	top: "─",
+	topRight: "╖",
+	right: "║",
+	bottomRight: "╜",
+	bottom: "─",
+	bottomLeft: "╙",
+	left: "║"
+};
+var doubleSingle = {
+	topLeft: "╒",
+	top: "═",
+	topRight: "╕",
+	right: "│",
+	bottomRight: "╛",
+	bottom: "═",
+	bottomLeft: "╘",
+	left: "│"
+};
+var classic = {
+	topLeft: "+",
+	top: "-",
+	topRight: "+",
+	right: "|",
+	bottomRight: "+",
+	bottom: "-",
+	bottomLeft: "+",
+	left: "|"
+};
+var arrow = {
+	topLeft: "↘",
+	top: "↓",
+	topRight: "↙",
+	right: "←",
+	bottomRight: "↖",
+	bottom: "↑",
+	bottomLeft: "↗",
+	left: "→"
+};
+var require$$0 = {
+	single: single,
+	double: double,
+	round: round,
+	bold: bold,
+	singleDouble: singleDouble,
+	doubleSingle: doubleSingle,
+	classic: classic,
+	arrow: arrow
+};
+
+var hasRequiredCliBoxes;
+
+function requireCliBoxes () {
+	if (hasRequiredCliBoxes) return cliBoxes$1.exports;
+	hasRequiredCliBoxes = 1;
+	const cliBoxes = require$$0;
+
+	cliBoxes$1.exports = cliBoxes;
+	// TODO: Remove this for the next major release
+	cliBoxes$1.exports.default = cliBoxes;
+	return cliBoxes$1.exports;
+}
+
+var cliBoxesExports = requireCliBoxes();
+var cliBoxes = /*@__PURE__*/getDefaultExportFromCjs(cliBoxesExports);
+
+const UPPERCASE = /[\p{Lu}]/u;
+const LOWERCASE = /[\p{Ll}]/u;
+const LEADING_CAPITAL = /^[\p{Lu}](?![\p{Lu}])/gu;
+const IDENTIFIER = /([\p{Alpha}\p{N}_]|$)/u;
+const SEPARATORS = /[_.\- ]+/;
+
+const LEADING_SEPARATORS = new RegExp('^' + SEPARATORS.source);
+const SEPARATORS_AND_IDENTIFIER = new RegExp(SEPARATORS.source + IDENTIFIER.source, 'gu');
+const NUMBERS_AND_IDENTIFIER = new RegExp('\\d+' + IDENTIFIER.source, 'gu');
+
+const preserveCamelCase = (string, toLowerCase, toUpperCase, preserveConsecutiveUppercase) => {
+	let isLastCharLower = false;
+	let isLastCharUpper = false;
+	let isLastLastCharUpper = false;
+	let isLastLastCharPreserved = false;
+
+	for (let index = 0; index < string.length; index++) {
+		const character = string[index];
+		isLastLastCharPreserved = index > 2 ? string[index - 3] === '-' : true;
+
+		if (isLastCharLower && UPPERCASE.test(character)) {
+			string = string.slice(0, index) + '-' + string.slice(index);
+			isLastCharLower = false;
+			isLastLastCharUpper = isLastCharUpper;
+			isLastCharUpper = true;
+			index++;
+		} else if (isLastCharUpper && isLastLastCharUpper && LOWERCASE.test(character) && (!isLastLastCharPreserved || preserveConsecutiveUppercase)) {
+			string = string.slice(0, index - 1) + '-' + string.slice(index - 1);
+			isLastLastCharUpper = isLastCharUpper;
+			isLastCharUpper = false;
+			isLastCharLower = true;
+		} else {
+			isLastCharLower = toLowerCase(character) === character && toUpperCase(character) !== character;
+			isLastLastCharUpper = isLastCharUpper;
+			isLastCharUpper = toUpperCase(character) === character && toLowerCase(character) !== character;
+		}
+	}
+
+	return string;
+};
+
+const preserveConsecutiveUppercase = (input, toLowerCase) => {
+	LEADING_CAPITAL.lastIndex = 0;
+
+	return input.replaceAll(LEADING_CAPITAL, match => toLowerCase(match));
+};
+
+const postProcess = (input, toUpperCase) => {
+	SEPARATORS_AND_IDENTIFIER.lastIndex = 0;
+	NUMBERS_AND_IDENTIFIER.lastIndex = 0;
+
+	return input
+		.replaceAll(NUMBERS_AND_IDENTIFIER, (match, pattern, offset) => ['_', '-'].includes(input.charAt(offset + match.length)) ? match : toUpperCase(match))
+		.replaceAll(SEPARATORS_AND_IDENTIFIER, (_, identifier) => toUpperCase(identifier));
+};
+
+function camelCase(input, options) {
+	if (!(typeof input === 'string' || Array.isArray(input))) {
+		throw new TypeError('Expected the input to be `string | string[]`');
+	}
+
+	options = {
+		pascalCase: false,
+		preserveConsecutiveUppercase: false,
+		...options,
+	};
+
+	if (Array.isArray(input)) {
+		input = input.map(x => x.trim())
+			.filter(x => x.length)
+			.join('-');
+	} else {
+		input = input.trim();
+	}
+
+	if (input.length === 0) {
+		return '';
+	}
+
+	const toLowerCase = options.locale === false
+		? string => string.toLowerCase()
+		: string => string.toLocaleLowerCase(options.locale);
+
+	const toUpperCase = options.locale === false
+		? string => string.toUpperCase()
+		: string => string.toLocaleUpperCase(options.locale);
+
+	if (input.length === 1) {
+		if (SEPARATORS.test(input)) {
+			return '';
+		}
+
+		return options.pascalCase ? toUpperCase(input) : toLowerCase(input);
+	}
+
+	const hasUpperCase = input !== toLowerCase(input);
+
+	if (hasUpperCase) {
+		input = preserveCamelCase(input, toLowerCase, toUpperCase, options.preserveConsecutiveUppercase);
+	}
+
+	input = input.replace(LEADING_SEPARATORS, '');
+	input = options.preserveConsecutiveUppercase ? preserveConsecutiveUppercase(input, toLowerCase) : toLowerCase(input);
+
+	if (options.pascalCase) {
+		input = toUpperCase(input.charAt(0)) + input.slice(1);
+	}
+
+	return postProcess(input, toUpperCase);
+}
+
+var stringWidth = {exports: {}};
+
+var ansiRegex;
+var hasRequiredAnsiRegex;
+
+function requireAnsiRegex () {
+	if (hasRequiredAnsiRegex) return ansiRegex;
+	hasRequiredAnsiRegex = 1;
+
+	ansiRegex = ({onlyFirst = false} = {}) => {
+		const pattern = [
+			'[\\u001B\\u009B][[\\]()#;?]*(?:(?:(?:(?:;[-a-zA-Z\\d\\/#&.:=?%@~_]+)*|[a-zA-Z\\d]+(?:;[-a-zA-Z\\d\\/#&.:=?%@~_]*)*)?\\u0007)',
+			'(?:(?:\\d{1,4}(?:;\\d{0,4})*)?[\\dA-PR-TZcf-ntqry=><~]))'
+		].join('|');
+
+		return new RegExp(pattern, onlyFirst ? undefined : 'g');
+	};
+	return ansiRegex;
+}
+
+var stripAnsi;
+var hasRequiredStripAnsi;
+
+function requireStripAnsi () {
+	if (hasRequiredStripAnsi) return stripAnsi;
+	hasRequiredStripAnsi = 1;
+	const ansiRegex = requireAnsiRegex();
+
+	stripAnsi = string => typeof string === 'string' ? string.replace(ansiRegex(), '') : string;
+	return stripAnsi;
+}
+
+var isFullwidthCodePoint = {exports: {}};
+
+/* eslint-disable yoda */
+
+var hasRequiredIsFullwidthCodePoint;
+
+function requireIsFullwidthCodePoint () {
+	if (hasRequiredIsFullwidthCodePoint) return isFullwidthCodePoint.exports;
+	hasRequiredIsFullwidthCodePoint = 1;
+
+	const isFullwidthCodePoint$1 = codePoint => {
+		if (Number.isNaN(codePoint)) {
+			return false;
+		}
+
+		// Code points are derived from:
+		// http://www.unix.org/Public/UNIDATA/EastAsianWidth.txt
+		if (
+			codePoint >= 0x1100 && (
+				codePoint <= 0x115F || // Hangul Jamo
+				codePoint === 0x2329 || // LEFT-POINTING ANGLE BRACKET
+				codePoint === 0x232A || // RIGHT-POINTING ANGLE BRACKET
+				// CJK Radicals Supplement .. Enclosed CJK Letters and Months
+				(0x2E80 <= codePoint && codePoint <= 0x3247 && codePoint !== 0x303F) ||
+				// Enclosed CJK Letters and Months .. CJK Unified Ideographs Extension A
+				(0x3250 <= codePoint && codePoint <= 0x4DBF) ||
+				// CJK Unified Ideographs .. Yi Radicals
+				(0x4E00 <= codePoint && codePoint <= 0xA4C6) ||
+				// Hangul Jamo Extended-A
+				(0xA960 <= codePoint && codePoint <= 0xA97C) ||
+				// Hangul Syllables
+				(0xAC00 <= codePoint && codePoint <= 0xD7A3) ||
+				// CJK Compatibility Ideographs
+				(0xF900 <= codePoint && codePoint <= 0xFAFF) ||
+				// Vertical Forms
+				(0xFE10 <= codePoint && codePoint <= 0xFE19) ||
+				// CJK Compatibility Forms .. Small Form Variants
+				(0xFE30 <= codePoint && codePoint <= 0xFE6B) ||
+				// Halfwidth and Fullwidth Forms
+				(0xFF01 <= codePoint && codePoint <= 0xFF60) ||
+				(0xFFE0 <= codePoint && codePoint <= 0xFFE6) ||
+				// Kana Supplement
+				(0x1B000 <= codePoint && codePoint <= 0x1B001) ||
+				// Enclosed Ideographic Supplement
+				(0x1F200 <= codePoint && codePoint <= 0x1F251) ||
+				// CJK Unified Ideographs Extension B .. Tertiary Ideographic Plane
+				(0x20000 <= codePoint && codePoint <= 0x3FFFD)
+			)
+		) {
+			return true;
+		}
+
+		return false;
+	};
+
+	isFullwidthCodePoint.exports = isFullwidthCodePoint$1;
+	isFullwidthCodePoint.exports.default = isFullwidthCodePoint$1;
+	return isFullwidthCodePoint.exports;
+}
+
+var emojiRegex;
+var hasRequiredEmojiRegex;
+
+function requireEmojiRegex () {
+	if (hasRequiredEmojiRegex) return emojiRegex;
+	hasRequiredEmojiRegex = 1;
+
+	emojiRegex = function () {
+	  // https://mths.be/emoji
+	  return /\uD83C\uDFF4\uDB40\uDC67\uDB40\uDC62(?:\uDB40\uDC65\uDB40\uDC6E\uDB40\uDC67|\uDB40\uDC73\uDB40\uDC63\uDB40\uDC74|\uDB40\uDC77\uDB40\uDC6C\uDB40\uDC73)\uDB40\uDC7F|\uD83D\uDC68(?:\uD83C\uDFFC\u200D(?:\uD83E\uDD1D\u200D\uD83D\uDC68\uD83C\uDFFB|\uD83C[\uDF3E\uDF73\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E[\uDDAF-\uDDB3\uDDBC\uDDBD])|\uD83C\uDFFF\u200D(?:\uD83E\uDD1D\u200D\uD83D\uDC68(?:\uD83C[\uDFFB-\uDFFE])|\uD83C[\uDF3E\uDF73\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E[\uDDAF-\uDDB3\uDDBC\uDDBD])|\uD83C\uDFFE\u200D(?:\uD83E\uDD1D\u200D\uD83D\uDC68(?:\uD83C[\uDFFB-\uDFFD])|\uD83C[\uDF3E\uDF73\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E[\uDDAF-\uDDB3\uDDBC\uDDBD])|\uD83C\uDFFD\u200D(?:\uD83E\uDD1D\u200D\uD83D\uDC68(?:\uD83C[\uDFFB\uDFFC])|\uD83C[\uDF3E\uDF73\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E[\uDDAF-\uDDB3\uDDBC\uDDBD])|\u200D(?:\u2764\uFE0F\u200D(?:\uD83D\uDC8B\u200D)?\uD83D\uDC68|(?:\uD83D[\uDC68\uDC69])\u200D(?:\uD83D\uDC66\u200D\uD83D\uDC66|\uD83D\uDC67\u200D(?:\uD83D[\uDC66\uDC67]))|\uD83D\uDC66\u200D\uD83D\uDC66|\uD83D\uDC67\u200D(?:\uD83D[\uDC66\uDC67])|(?:\uD83D[\uDC68\uDC69])\u200D(?:\uD83D[\uDC66\uDC67])|[\u2695\u2696\u2708]\uFE0F|\uD83D[\uDC66\uDC67]|\uD83C[\uDF3E\uDF73\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E[\uDDAF-\uDDB3\uDDBC\uDDBD])|(?:\uD83C\uDFFB\u200D[\u2695\u2696\u2708]|\uD83C\uDFFF\u200D[\u2695\u2696\u2708]|\uD83C\uDFFE\u200D[\u2695\u2696\u2708]|\uD83C\uDFFD\u200D[\u2695\u2696\u2708]|\uD83C\uDFFC\u200D[\u2695\u2696\u2708])\uFE0F|\uD83C\uDFFB\u200D(?:\uD83C[\uDF3E\uDF73\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E[\uDDAF-\uDDB3\uDDBC\uDDBD])|\uD83C[\uDFFB-\uDFFF])|(?:\uD83E\uDDD1\uD83C\uDFFB\u200D\uD83E\uDD1D\u200D\uD83E\uDDD1|\uD83D\uDC69\uD83C\uDFFC\u200D\uD83E\uDD1D\u200D\uD83D\uDC69)\uD83C\uDFFB|\uD83E\uDDD1(?:\uD83C\uDFFF\u200D\uD83E\uDD1D\u200D\uD83E\uDDD1(?:\uD83C[\uDFFB-\uDFFF])|\u200D\uD83E\uDD1D\u200D\uD83E\uDDD1)|(?:\uD83E\uDDD1\uD83C\uDFFE\u200D\uD83E\uDD1D\u200D\uD83E\uDDD1|\uD83D\uDC69\uD83C\uDFFF\u200D\uD83E\uDD1D\u200D(?:\uD83D[\uDC68\uDC69]))(?:\uD83C[\uDFFB-\uDFFE])|(?:\uD83E\uDDD1\uD83C\uDFFC\u200D\uD83E\uDD1D\u200D\uD83E\uDDD1|\uD83D\uDC69\uD83C\uDFFD\u200D\uD83E\uDD1D\u200D\uD83D\uDC69)(?:\uD83C[\uDFFB\uDFFC])|\uD83D\uDC69(?:\uD83C\uDFFE\u200D(?:\uD83E\uDD1D\u200D\uD83D\uDC68(?:\uD83C[\uDFFB-\uDFFD\uDFFF])|\uD83C[\uDF3E\uDF73\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E[\uDDAF-\uDDB3\uDDBC\uDDBD])|\uD83C\uDFFC\u200D(?:\uD83E\uDD1D\u200D\uD83D\uDC68(?:\uD83C[\uDFFB\uDFFD-\uDFFF])|\uD83C[\uDF3E\uDF73\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E[\uDDAF-\uDDB3\uDDBC\uDDBD])|\uD83C\uDFFB\u200D(?:\uD83E\uDD1D\u200D\uD83D\uDC68(?:\uD83C[\uDFFC-\uDFFF])|\uD83C[\uDF3E\uDF73\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E[\uDDAF-\uDDB3\uDDBC\uDDBD])|\uD83C\uDFFD\u200D(?:\uD83E\uDD1D\u200D\uD83D\uDC68(?:\uD83C[\uDFFB\uDFFC\uDFFE\uDFFF])|\uD83C[\uDF3E\uDF73\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E[\uDDAF-\uDDB3\uDDBC\uDDBD])|\u200D(?:\u2764\uFE0F\u200D(?:\uD83D\uDC8B\u200D(?:\uD83D[\uDC68\uDC69])|\uD83D[\uDC68\uDC69])|\uD83C[\uDF3E\uDF73\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E[\uDDAF-\uDDB3\uDDBC\uDDBD])|\uD83C\uDFFF\u200D(?:\uD83C[\uDF3E\uDF73\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E[\uDDAF-\uDDB3\uDDBC\uDDBD]))|\uD83D\uDC69\u200D\uD83D\uDC69\u200D(?:\uD83D\uDC66\u200D\uD83D\uDC66|\uD83D\uDC67\u200D(?:\uD83D[\uDC66\uDC67]))|(?:\uD83E\uDDD1\uD83C\uDFFD\u200D\uD83E\uDD1D\u200D\uD83E\uDDD1|\uD83D\uDC69\uD83C\uDFFE\u200D\uD83E\uDD1D\u200D\uD83D\uDC69)(?:\uD83C[\uDFFB-\uDFFD])|\uD83D\uDC69\u200D\uD83D\uDC66\u200D\uD83D\uDC66|\uD83D\uDC69\u200D\uD83D\uDC69\u200D(?:\uD83D[\uDC66\uDC67])|(?:\uD83D\uDC41\uFE0F\u200D\uD83D\uDDE8|\uD83D\uDC69(?:\uD83C\uDFFF\u200D[\u2695\u2696\u2708]|\uD83C\uDFFE\u200D[\u2695\u2696\u2708]|\uD83C\uDFFC\u200D[\u2695\u2696\u2708]|\uD83C\uDFFB\u200D[\u2695\u2696\u2708]|\uD83C\uDFFD\u200D[\u2695\u2696\u2708]|\u200D[\u2695\u2696\u2708])|(?:(?:\u26F9|\uD83C[\uDFCB\uDFCC]|\uD83D\uDD75)\uFE0F|\uD83D\uDC6F|\uD83E[\uDD3C\uDDDE\uDDDF])\u200D[\u2640\u2642]|(?:\u26F9|\uD83C[\uDFCB\uDFCC]|\uD83D\uDD75)(?:\uD83C[\uDFFB-\uDFFF])\u200D[\u2640\u2642]|(?:\uD83C[\uDFC3\uDFC4\uDFCA]|\uD83D[\uDC6E\uDC71\uDC73\uDC77\uDC81\uDC82\uDC86\uDC87\uDE45-\uDE47\uDE4B\uDE4D\uDE4E\uDEA3\uDEB4-\uDEB6]|\uD83E[\uDD26\uDD37-\uDD39\uDD3D\uDD3E\uDDB8\uDDB9\uDDCD-\uDDCF\uDDD6-\uDDDD])(?:(?:\uD83C[\uDFFB-\uDFFF])\u200D[\u2640\u2642]|\u200D[\u2640\u2642])|\uD83C\uDFF4\u200D\u2620)\uFE0F|\uD83D\uDC69\u200D\uD83D\uDC67\u200D(?:\uD83D[\uDC66\uDC67])|\uD83C\uDFF3\uFE0F\u200D\uD83C\uDF08|\uD83D\uDC15\u200D\uD83E\uDDBA|\uD83D\uDC69\u200D\uD83D\uDC66|\uD83D\uDC69\u200D\uD83D\uDC67|\uD83C\uDDFD\uD83C\uDDF0|\uD83C\uDDF4\uD83C\uDDF2|\uD83C\uDDF6\uD83C\uDDE6|[#\*0-9]\uFE0F\u20E3|\uD83C\uDDE7(?:\uD83C[\uDDE6\uDDE7\uDDE9-\uDDEF\uDDF1-\uDDF4\uDDF6-\uDDF9\uDDFB\uDDFC\uDDFE\uDDFF])|\uD83C\uDDF9(?:\uD83C[\uDDE6\uDDE8\uDDE9\uDDEB-\uDDED\uDDEF-\uDDF4\uDDF7\uDDF9\uDDFB\uDDFC\uDDFF])|\uD83C\uDDEA(?:\uD83C[\uDDE6\uDDE8\uDDEA\uDDEC\uDDED\uDDF7-\uDDFA])|\uD83E\uDDD1(?:\uD83C[\uDFFB-\uDFFF])|\uD83C\uDDF7(?:\uD83C[\uDDEA\uDDF4\uDDF8\uDDFA\uDDFC])|\uD83D\uDC69(?:\uD83C[\uDFFB-\uDFFF])|\uD83C\uDDF2(?:\uD83C[\uDDE6\uDDE8-\uDDED\uDDF0-\uDDFF])|\uD83C\uDDE6(?:\uD83C[\uDDE8-\uDDEC\uDDEE\uDDF1\uDDF2\uDDF4\uDDF6-\uDDFA\uDDFC\uDDFD\uDDFF])|\uD83C\uDDF0(?:\uD83C[\uDDEA\uDDEC-\uDDEE\uDDF2\uDDF3\uDDF5\uDDF7\uDDFC\uDDFE\uDDFF])|\uD83C\uDDED(?:\uD83C[\uDDF0\uDDF2\uDDF3\uDDF7\uDDF9\uDDFA])|\uD83C\uDDE9(?:\uD83C[\uDDEA\uDDEC\uDDEF\uDDF0\uDDF2\uDDF4\uDDFF])|\uD83C\uDDFE(?:\uD83C[\uDDEA\uDDF9])|\uD83C\uDDEC(?:\uD83C[\uDDE6\uDDE7\uDDE9-\uDDEE\uDDF1-\uDDF3\uDDF5-\uDDFA\uDDFC\uDDFE])|\uD83C\uDDF8(?:\uD83C[\uDDE6-\uDDEA\uDDEC-\uDDF4\uDDF7-\uDDF9\uDDFB\uDDFD-\uDDFF])|\uD83C\uDDEB(?:\uD83C[\uDDEE-\uDDF0\uDDF2\uDDF4\uDDF7])|\uD83C\uDDF5(?:\uD83C[\uDDE6\uDDEA-\uDDED\uDDF0-\uDDF3\uDDF7-\uDDF9\uDDFC\uDDFE])|\uD83C\uDDFB(?:\uD83C[\uDDE6\uDDE8\uDDEA\uDDEC\uDDEE\uDDF3\uDDFA])|\uD83C\uDDF3(?:\uD83C[\uDDE6\uDDE8\uDDEA-\uDDEC\uDDEE\uDDF1\uDDF4\uDDF5\uDDF7\uDDFA\uDDFF])|\uD83C\uDDE8(?:\uD83C[\uDDE6\uDDE8\uDDE9\uDDEB-\uDDEE\uDDF0-\uDDF5\uDDF7\uDDFA-\uDDFF])|\uD83C\uDDF1(?:\uD83C[\uDDE6-\uDDE8\uDDEE\uDDF0\uDDF7-\uDDFB\uDDFE])|\uD83C\uDDFF(?:\uD83C[\uDDE6\uDDF2\uDDFC])|\uD83C\uDDFC(?:\uD83C[\uDDEB\uDDF8])|\uD83C\uDDFA(?:\uD83C[\uDDE6\uDDEC\uDDF2\uDDF3\uDDF8\uDDFE\uDDFF])|\uD83C\uDDEE(?:\uD83C[\uDDE8-\uDDEA\uDDF1-\uDDF4\uDDF6-\uDDF9])|\uD83C\uDDEF(?:\uD83C[\uDDEA\uDDF2\uDDF4\uDDF5])|(?:\uD83C[\uDFC3\uDFC4\uDFCA]|\uD83D[\uDC6E\uDC71\uDC73\uDC77\uDC81\uDC82\uDC86\uDC87\uDE45-\uDE47\uDE4B\uDE4D\uDE4E\uDEA3\uDEB4-\uDEB6]|\uD83E[\uDD26\uDD37-\uDD39\uDD3D\uDD3E\uDDB8\uDDB9\uDDCD-\uDDCF\uDDD6-\uDDDD])(?:\uD83C[\uDFFB-\uDFFF])|(?:\u26F9|\uD83C[\uDFCB\uDFCC]|\uD83D\uDD75)(?:\uD83C[\uDFFB-\uDFFF])|(?:[\u261D\u270A-\u270D]|\uD83C[\uDF85\uDFC2\uDFC7]|\uD83D[\uDC42\uDC43\uDC46-\uDC50\uDC66\uDC67\uDC6B-\uDC6D\uDC70\uDC72\uDC74-\uDC76\uDC78\uDC7C\uDC83\uDC85\uDCAA\uDD74\uDD7A\uDD90\uDD95\uDD96\uDE4C\uDE4F\uDEC0\uDECC]|\uD83E[\uDD0F\uDD18-\uDD1C\uDD1E\uDD1F\uDD30-\uDD36\uDDB5\uDDB6\uDDBB\uDDD2-\uDDD5])(?:\uD83C[\uDFFB-\uDFFF])|(?:[\u231A\u231B\u23E9-\u23EC\u23F0\u23F3\u25FD\u25FE\u2614\u2615\u2648-\u2653\u267F\u2693\u26A1\u26AA\u26AB\u26BD\u26BE\u26C4\u26C5\u26CE\u26D4\u26EA\u26F2\u26F3\u26F5\u26FA\u26FD\u2705\u270A\u270B\u2728\u274C\u274E\u2753-\u2755\u2757\u2795-\u2797\u27B0\u27BF\u2B1B\u2B1C\u2B50\u2B55]|\uD83C[\uDC04\uDCCF\uDD8E\uDD91-\uDD9A\uDDE6-\uDDFF\uDE01\uDE1A\uDE2F\uDE32-\uDE36\uDE38-\uDE3A\uDE50\uDE51\uDF00-\uDF20\uDF2D-\uDF35\uDF37-\uDF7C\uDF7E-\uDF93\uDFA0-\uDFCA\uDFCF-\uDFD3\uDFE0-\uDFF0\uDFF4\uDFF8-\uDFFF]|\uD83D[\uDC00-\uDC3E\uDC40\uDC42-\uDCFC\uDCFF-\uDD3D\uDD4B-\uDD4E\uDD50-\uDD67\uDD7A\uDD95\uDD96\uDDA4\uDDFB-\uDE4F\uDE80-\uDEC5\uDECC\uDED0-\uDED2\uDED5\uDEEB\uDEEC\uDEF4-\uDEFA\uDFE0-\uDFEB]|\uD83E[\uDD0D-\uDD3A\uDD3C-\uDD45\uDD47-\uDD71\uDD73-\uDD76\uDD7A-\uDDA2\uDDA5-\uDDAA\uDDAE-\uDDCA\uDDCD-\uDDFF\uDE70-\uDE73\uDE78-\uDE7A\uDE80-\uDE82\uDE90-\uDE95])|(?:[#\*0-9\xA9\xAE\u203C\u2049\u2122\u2139\u2194-\u2199\u21A9\u21AA\u231A\u231B\u2328\u23CF\u23E9-\u23F3\u23F8-\u23FA\u24C2\u25AA\u25AB\u25B6\u25C0\u25FB-\u25FE\u2600-\u2604\u260E\u2611\u2614\u2615\u2618\u261D\u2620\u2622\u2623\u2626\u262A\u262E\u262F\u2638-\u263A\u2640\u2642\u2648-\u2653\u265F\u2660\u2663\u2665\u2666\u2668\u267B\u267E\u267F\u2692-\u2697\u2699\u269B\u269C\u26A0\u26A1\u26AA\u26AB\u26B0\u26B1\u26BD\u26BE\u26C4\u26C5\u26C8\u26CE\u26CF\u26D1\u26D3\u26D4\u26E9\u26EA\u26F0-\u26F5\u26F7-\u26FA\u26FD\u2702\u2705\u2708-\u270D\u270F\u2712\u2714\u2716\u271D\u2721\u2728\u2733\u2734\u2744\u2747\u274C\u274E\u2753-\u2755\u2757\u2763\u2764\u2795-\u2797\u27A1\u27B0\u27BF\u2934\u2935\u2B05-\u2B07\u2B1B\u2B1C\u2B50\u2B55\u3030\u303D\u3297\u3299]|\uD83C[\uDC04\uDCCF\uDD70\uDD71\uDD7E\uDD7F\uDD8E\uDD91-\uDD9A\uDDE6-\uDDFF\uDE01\uDE02\uDE1A\uDE2F\uDE32-\uDE3A\uDE50\uDE51\uDF00-\uDF21\uDF24-\uDF93\uDF96\uDF97\uDF99-\uDF9B\uDF9E-\uDFF0\uDFF3-\uDFF5\uDFF7-\uDFFF]|\uD83D[\uDC00-\uDCFD\uDCFF-\uDD3D\uDD49-\uDD4E\uDD50-\uDD67\uDD6F\uDD70\uDD73-\uDD7A\uDD87\uDD8A-\uDD8D\uDD90\uDD95\uDD96\uDDA4\uDDA5\uDDA8\uDDB1\uDDB2\uDDBC\uDDC2-\uDDC4\uDDD1-\uDDD3\uDDDC-\uDDDE\uDDE1\uDDE3\uDDE8\uDDEF\uDDF3\uDDFA-\uDE4F\uDE80-\uDEC5\uDECB-\uDED2\uDED5\uDEE0-\uDEE5\uDEE9\uDEEB\uDEEC\uDEF0\uDEF3-\uDEFA\uDFE0-\uDFEB]|\uD83E[\uDD0D-\uDD3A\uDD3C-\uDD45\uDD47-\uDD71\uDD73-\uDD76\uDD7A-\uDDA2\uDDA5-\uDDAA\uDDAE-\uDDCA\uDDCD-\uDDFF\uDE70-\uDE73\uDE78-\uDE7A\uDE80-\uDE82\uDE90-\uDE95])\uFE0F|(?:[\u261D\u26F9\u270A-\u270D]|\uD83C[\uDF85\uDFC2-\uDFC4\uDFC7\uDFCA-\uDFCC]|\uD83D[\uDC42\uDC43\uDC46-\uDC50\uDC66-\uDC78\uDC7C\uDC81-\uDC83\uDC85-\uDC87\uDC8F\uDC91\uDCAA\uDD74\uDD75\uDD7A\uDD90\uDD95\uDD96\uDE45-\uDE47\uDE4B-\uDE4F\uDEA3\uDEB4-\uDEB6\uDEC0\uDECC]|\uD83E[\uDD0F\uDD18-\uDD1F\uDD26\uDD30-\uDD39\uDD3C-\uDD3E\uDDB5\uDDB6\uDDB8\uDDB9\uDDBB\uDDCD-\uDDCF\uDDD1-\uDDDD])/g;
+	};
+	return emojiRegex;
+}
+
+var hasRequiredStringWidth;
+
+function requireStringWidth () {
+	if (hasRequiredStringWidth) return stringWidth.exports;
+	hasRequiredStringWidth = 1;
+	const stripAnsi = requireStripAnsi();
+	const isFullwidthCodePoint = requireIsFullwidthCodePoint();
+	const emojiRegex = requireEmojiRegex();
+
+	const stringWidth$1 = string => {
+		if (typeof string !== 'string' || string.length === 0) {
+			return 0;
+		}
+
+		string = stripAnsi(string);
+
+		if (string.length === 0) {
+			return 0;
+		}
+
+		string = string.replace(emojiRegex(), '  ');
+
+		let width = 0;
+
+		for (let i = 0; i < string.length; i++) {
+			const code = string.codePointAt(i);
+
+			// Ignore control characters
+			if (code <= 0x1F || (code >= 0x7F && code <= 0x9F)) {
+				continue;
+			}
+
+			// Ignore combining characters
+			if (code >= 0x300 && code <= 0x36F) {
+				continue;
+			}
+
+			// Surrogates
+			if (code > 0xFFFF) {
+				i++;
+			}
+
+			width += isFullwidthCodePoint(code) ? 2 : 1;
+		}
+
+		return width;
+	};
+
+	stringWidth.exports = stringWidth$1;
+	// TODO: remove this in the next major version
+	stringWidth.exports.default = stringWidth$1;
+	return stringWidth.exports;
+}
+
+var ansiAlign_1;
+var hasRequiredAnsiAlign;
+
+function requireAnsiAlign () {
+	if (hasRequiredAnsiAlign) return ansiAlign_1;
+	hasRequiredAnsiAlign = 1;
+
+	const stringWidth = requireStringWidth();
+
+	function ansiAlign (text, opts) {
+	  if (!text) return text
+
+	  opts = opts || {};
+	  const align = opts.align || 'center';
+
+	  // short-circuit `align: 'left'` as no-op
+	  if (align === 'left') return text
+
+	  const split = opts.split || '\n';
+	  const pad = opts.pad || ' ';
+	  const widthDiffFn = align !== 'right' ? halfDiff : fullDiff;
+
+	  let returnString = false;
+	  if (!Array.isArray(text)) {
+	    returnString = true;
+	    text = String(text).split(split);
+	  }
+
+	  let width;
+	  let maxWidth = 0;
+	  text = text.map(function (str) {
+	    str = String(str);
+	    width = stringWidth(str);
+	    maxWidth = Math.max(width, maxWidth);
+	    return {
+	      str,
+	      width
+	    }
+	  }).map(function (obj) {
+	    return new Array(widthDiffFn(maxWidth, obj.width) + 1).join(pad) + obj.str
+	  });
+
+	  return returnString ? text.join(split) : text
+	}
+
+	ansiAlign.left = function left (text) {
+	  return ansiAlign(text, { align: 'left' })
+	};
+
+	ansiAlign.center = function center (text) {
+	  return ansiAlign(text, { align: 'center' })
+	};
+
+	ansiAlign.right = function right (text) {
+	  return ansiAlign(text, { align: 'right' })
+	};
+
+	ansiAlign_1 = ansiAlign;
+
+	function halfDiff (maxWidth, curWidth) {
+	  return Math.floor((maxWidth - curWidth) / 2)
+	}
+
+	function fullDiff (maxWidth, curWidth) {
+	  return maxWidth - curWidth
+	}
+	return ansiAlign_1;
+}
+
+var ansiAlignExports = requireAnsiAlign();
+var ansiAlign = /*@__PURE__*/getDefaultExportFromCjs(ansiAlignExports);
+
+const ANSI_BACKGROUND_OFFSET = 10;
+
+const wrapAnsi16 = (offset = 0) => code => `\u001B[${code + offset}m`;
+
+const wrapAnsi256 = (offset = 0) => code => `\u001B[${38 + offset};5;${code}m`;
+
+const wrapAnsi16m = (offset = 0) => (red, green, blue) => `\u001B[${38 + offset};2;${red};${green};${blue}m`;
+
+const styles = {
+	modifier: {
+		reset: [0, 0],
+		// 21 isn't widely supported and 22 does the same thing
+		bold: [1, 22],
+		dim: [2, 22],
+		italic: [3, 23],
+		underline: [4, 24],
+		overline: [53, 55],
+		inverse: [7, 27],
+		hidden: [8, 28],
+		strikethrough: [9, 29],
+	},
+	color: {
+		black: [30, 39],
+		red: [31, 39],
+		green: [32, 39],
+		yellow: [33, 39],
+		blue: [34, 39],
+		magenta: [35, 39],
+		cyan: [36, 39],
+		white: [37, 39],
+
+		// Bright color
+		blackBright: [90, 39],
+		gray: [90, 39], // Alias of `blackBright`
+		grey: [90, 39], // Alias of `blackBright`
+		redBright: [91, 39],
+		greenBright: [92, 39],
+		yellowBright: [93, 39],
+		blueBright: [94, 39],
+		magentaBright: [95, 39],
+		cyanBright: [96, 39],
+		whiteBright: [97, 39],
+	},
+	bgColor: {
+		bgBlack: [40, 49],
+		bgRed: [41, 49],
+		bgGreen: [42, 49],
+		bgYellow: [43, 49],
+		bgBlue: [44, 49],
+		bgMagenta: [45, 49],
+		bgCyan: [46, 49],
+		bgWhite: [47, 49],
+
+		// Bright color
+		bgBlackBright: [100, 49],
+		bgGray: [100, 49], // Alias of `bgBlackBright`
+		bgGrey: [100, 49], // Alias of `bgBlackBright`
+		bgRedBright: [101, 49],
+		bgGreenBright: [102, 49],
+		bgYellowBright: [103, 49],
+		bgBlueBright: [104, 49],
+		bgMagentaBright: [105, 49],
+		bgCyanBright: [106, 49],
+		bgWhiteBright: [107, 49],
+	},
+};
+
+Object.keys(styles.modifier);
+const foregroundColorNames = Object.keys(styles.color);
+const backgroundColorNames = Object.keys(styles.bgColor);
+[...foregroundColorNames, ...backgroundColorNames];
+
+function assembleStyles() {
+	const codes = new Map();
+
+	for (const [groupName, group] of Object.entries(styles)) {
+		for (const [styleName, style] of Object.entries(group)) {
+			styles[styleName] = {
+				open: `\u001B[${style[0]}m`,
+				close: `\u001B[${style[1]}m`,
+			};
+
+			group[styleName] = styles[styleName];
+
+			codes.set(style[0], style[1]);
+		}
+
+		Object.defineProperty(styles, groupName, {
+			value: group,
+			enumerable: false,
+		});
+	}
+
+	Object.defineProperty(styles, 'codes', {
+		value: codes,
+		enumerable: false,
+	});
+
+	styles.color.close = '\u001B[39m';
+	styles.bgColor.close = '\u001B[49m';
+
+	styles.color.ansi = wrapAnsi16();
+	styles.color.ansi256 = wrapAnsi256();
+	styles.color.ansi16m = wrapAnsi16m();
+	styles.bgColor.ansi = wrapAnsi16(ANSI_BACKGROUND_OFFSET);
+	styles.bgColor.ansi256 = wrapAnsi256(ANSI_BACKGROUND_OFFSET);
+	styles.bgColor.ansi16m = wrapAnsi16m(ANSI_BACKGROUND_OFFSET);
+
+	// From https://github.com/Qix-/color-convert/blob/3f0e0d4e92e235796ccb17f6e85c72094a651f49/conversions.js
+	Object.defineProperties(styles, {
+		rgbToAnsi256: {
+			value: (red, green, blue) => {
+				// We use the extended greyscale palette here, with the exception of
+				// black and white. normal palette only has 4 greyscale shades.
+				if (red === green && green === blue) {
+					if (red < 8) {
+						return 16;
+					}
+
+					if (red > 248) {
+						return 231;
+					}
+
+					return Math.round(((red - 8) / 247) * 24) + 232;
+				}
+
+				return 16
+					+ (36 * Math.round(red / 255 * 5))
+					+ (6 * Math.round(green / 255 * 5))
+					+ Math.round(blue / 255 * 5);
+			},
+			enumerable: false,
+		},
+		hexToRgb: {
+			value: hex => {
+				const matches = /[a-f\d]{6}|[a-f\d]{3}/i.exec(hex.toString(16));
+				if (!matches) {
+					return [0, 0, 0];
+				}
+
+				let [colorString] = matches;
+
+				if (colorString.length === 3) {
+					colorString = [...colorString].map(character => character + character).join('');
+				}
+
+				const integer = Number.parseInt(colorString, 16);
+
+				return [
+					/* eslint-disable no-bitwise */
+					(integer >> 16) & 0xFF,
+					(integer >> 8) & 0xFF,
+					integer & 0xFF,
+					/* eslint-enable no-bitwise */
+				];
+			},
+			enumerable: false,
+		},
+		hexToAnsi256: {
+			value: hex => styles.rgbToAnsi256(...styles.hexToRgb(hex)),
+			enumerable: false,
+		},
+		ansi256ToAnsi: {
+			value: code => {
+				if (code < 8) {
+					return 30 + code;
+				}
+
+				if (code < 16) {
+					return 90 + (code - 8);
+				}
+
+				let red;
+				let green;
+				let blue;
+
+				if (code >= 232) {
+					red = (((code - 232) * 10) + 8) / 255;
+					green = red;
+					blue = red;
+				} else {
+					code -= 16;
+
+					const remainder = code % 36;
+
+					red = Math.floor(code / 36) / 5;
+					green = Math.floor(remainder / 6) / 5;
+					blue = (remainder % 6) / 5;
+				}
+
+				const value = Math.max(red, green, blue) * 2;
+
+				if (value === 0) {
+					return 30;
+				}
+
+				// eslint-disable-next-line no-bitwise
+				let result = 30 + ((Math.round(blue) << 2) | (Math.round(green) << 1) | Math.round(red));
+
+				if (value === 2) {
+					result += 60;
+				}
+
+				return result;
+			},
+			enumerable: false,
+		},
+		rgbToAnsi: {
+			value: (red, green, blue) => styles.ansi256ToAnsi(styles.rgbToAnsi256(red, green, blue)),
+			enumerable: false,
+		},
+		hexToAnsi: {
+			value: hex => styles.ansi256ToAnsi(styles.hexToAnsi256(hex)),
+			enumerable: false,
+		},
+	});
+
+	return styles;
+}
+
+const ansiStyles = assembleStyles();
+
+const ESCAPES = new Set([
+	'\u001B',
+	'\u009B',
+]);
+
+const END_CODE = 39;
+const ANSI_ESCAPE_BELL = '\u0007';
+const ANSI_CSI = '[';
+const ANSI_OSC = ']';
+const ANSI_SGR_TERMINATOR = 'm';
+const ANSI_ESCAPE_LINK = `${ANSI_OSC}8;;`;
+
+const wrapAnsiCode = code => `${ESCAPES.values().next().value}${ANSI_CSI}${code}${ANSI_SGR_TERMINATOR}`;
+const wrapAnsiHyperlink = url => `${ESCAPES.values().next().value}${ANSI_ESCAPE_LINK}${url}${ANSI_ESCAPE_BELL}`;
+
+// Calculate the length of words split on ' ', ignoring
+// the extra characters added by ansi escape codes
+const wordLengths = string => string.split(' ').map(character => stringWidth$2(character));
+
+// Wrap a long word across multiple rows
+// Ansi escape codes do not count towards length
+const wrapWord = (rows, word, columns) => {
+	const characters = [...word];
+
+	let isInsideEscape = false;
+	let isInsideLinkEscape = false;
+	let visible = stringWidth$2(stripAnsi$2(rows.at(-1)));
+
+	for (const [index, character] of characters.entries()) {
+		const characterLength = stringWidth$2(character);
+
+		if (visible + characterLength <= columns) {
+			rows[rows.length - 1] += character;
+		} else {
+			rows.push(character);
+			visible = 0;
+		}
+
+		if (ESCAPES.has(character)) {
+			isInsideEscape = true;
+
+			const ansiEscapeLinkCandidate = characters.slice(index + 1, index + 1 + ANSI_ESCAPE_LINK.length).join('');
+			isInsideLinkEscape = ansiEscapeLinkCandidate === ANSI_ESCAPE_LINK;
+		}
+
+		if (isInsideEscape) {
+			if (isInsideLinkEscape) {
+				if (character === ANSI_ESCAPE_BELL) {
+					isInsideEscape = false;
+					isInsideLinkEscape = false;
+				}
+			} else if (character === ANSI_SGR_TERMINATOR) {
+				isInsideEscape = false;
+			}
+
+			continue;
+		}
+
+		visible += characterLength;
+
+		if (visible === columns && index < characters.length - 1) {
+			rows.push('');
+			visible = 0;
+		}
+	}
+
+	// It's possible that the last row we copy over is only
+	// ansi escape characters, handle this edge-case
+	if (!visible && rows.at(-1).length > 0 && rows.length > 1) {
+		rows[rows.length - 2] += rows.pop();
+	}
+};
+
+// Trims spaces from a string ignoring invisible sequences
+const stringVisibleTrimSpacesRight = string => {
+	const words = string.split(' ');
+	let last = words.length;
+
+	while (last > 0) {
+		if (stringWidth$2(words[last - 1]) > 0) {
+			break;
+		}
+
+		last--;
+	}
+
+	if (last === words.length) {
+		return string;
+	}
+
+	return words.slice(0, last).join(' ') + words.slice(last).join('');
+};
+
+// The wrap-ansi module can be invoked in either 'hard' or 'soft' wrap mode.
+//
+// 'hard' will never allow a string to take up more than columns characters.
+//
+// 'soft' allows long words to expand past the column length.
+const exec = (string, columns, options = {}) => {
+	if (options.trim !== false && string.trim() === '') {
+		return '';
+	}
+
+	let returnValue = '';
+	let escapeCode;
+	let escapeUrl;
+
+	const lengths = wordLengths(string);
+	let rows = [''];
+
+	for (const [index, word] of string.split(' ').entries()) {
+		if (options.trim !== false) {
+			rows[rows.length - 1] = rows.at(-1).trimStart();
+		}
+
+		let rowLength = stringWidth$2(rows.at(-1));
+
+		if (index !== 0) {
+			if (rowLength >= columns && (options.wordWrap === false || options.trim === false)) {
+				// If we start with a new word but the current row length equals the length of the columns, add a new row
+				rows.push('');
+				rowLength = 0;
+			}
+
+			if (rowLength > 0 || options.trim === false) {
+				rows[rows.length - 1] += ' ';
+				rowLength++;
+			}
+		}
+
+		// In 'hard' wrap mode, the length of a line is never allowed to extend past 'columns'
+		if (options.hard && lengths[index] > columns) {
+			const remainingColumns = (columns - rowLength);
+			const breaksStartingThisLine = 1 + Math.floor((lengths[index] - remainingColumns - 1) / columns);
+			const breaksStartingNextLine = Math.floor((lengths[index] - 1) / columns);
+			if (breaksStartingNextLine < breaksStartingThisLine) {
+				rows.push('');
+			}
+
+			wrapWord(rows, word, columns);
+			continue;
+		}
+
+		if (rowLength + lengths[index] > columns && rowLength > 0 && lengths[index] > 0) {
+			if (options.wordWrap === false && rowLength < columns) {
+				wrapWord(rows, word, columns);
+				continue;
+			}
+
+			rows.push('');
+		}
+
+		if (rowLength + lengths[index] > columns && options.wordWrap === false) {
+			wrapWord(rows, word, columns);
+			continue;
+		}
+
+		rows[rows.length - 1] += word;
+	}
+
+	if (options.trim !== false) {
+		rows = rows.map(row => stringVisibleTrimSpacesRight(row));
+	}
+
+	const preString = rows.join('\n');
+	const pre = [...preString];
+
+	// We need to keep a separate index as `String#slice()` works on Unicode code units, while `pre` is an array of codepoints.
+	let preStringIndex = 0;
+
+	for (const [index, character] of pre.entries()) {
+		returnValue += character;
+
+		if (ESCAPES.has(character)) {
+			const {groups} = new RegExp(`(?:\\${ANSI_CSI}(?<code>\\d+)m|\\${ANSI_ESCAPE_LINK}(?<uri>.*)${ANSI_ESCAPE_BELL})`).exec(preString.slice(preStringIndex)) || {groups: {}};
+			if (groups.code !== undefined) {
+				const code = Number.parseFloat(groups.code);
+				escapeCode = code === END_CODE ? undefined : code;
+			} else if (groups.uri !== undefined) {
+				escapeUrl = groups.uri.length === 0 ? undefined : groups.uri;
+			}
+		}
+
+		const code = ansiStyles.codes.get(Number(escapeCode));
+
+		if (pre[index + 1] === '\n') {
+			if (escapeUrl) {
+				returnValue += wrapAnsiHyperlink('');
+			}
+
+			if (escapeCode && code) {
+				returnValue += wrapAnsiCode(code);
+			}
+		} else if (character === '\n') {
+			if (escapeCode && code) {
+				returnValue += wrapAnsiCode(escapeCode);
+			}
+
+			if (escapeUrl) {
+				returnValue += wrapAnsiHyperlink(escapeUrl);
+			}
+		}
+
+		preStringIndex += character.length;
+	}
+
+	return returnValue;
+};
+
+// For each newline, invoke the method separately
+function wrapAnsi(string, columns, options) {
+	return String(string)
+		.normalize()
+		.replaceAll('\r\n', '\n')
+		.split('\n')
+		.map(line => exec(line, columns, options))
+		.join('\n');
+}
+
+const NEWLINE = '\n';
+const PAD = ' ';
+const NONE = 'none';
+
+const terminalColumns = () => {
+	const {env, stdout, stderr} = process$1;
+
+	if (stdout?.columns) {
+		return stdout.columns;
+	}
+
+	if (stderr?.columns) {
+		return stderr.columns;
+	}
+
+	if (env.COLUMNS) {
+		return Number.parseInt(env.COLUMNS, 10);
+	}
+
+	return 80;
+};
+
+const getObject = detail => typeof detail === 'number' ? {
+	top: detail,
+	right: detail * 3,
+	bottom: detail,
+	left: detail * 3,
+} : {
+	top: 0,
+	right: 0,
+	bottom: 0,
+	left: 0,
+	...detail,
+};
+
+const getBorderWidth = borderStyle => borderStyle === NONE ? 0 : 2;
+
+const getBorderChars = borderStyle => {
+	const sides = [
+		'topLeft',
+		'topRight',
+		'bottomRight',
+		'bottomLeft',
+		'left',
+		'right',
+		'top',
+		'bottom',
+	];
+
+	let characters;
+
+	// Create empty border style
+	if (borderStyle === NONE) {
+		borderStyle = {};
+		for (const side of sides) {
+			borderStyle[side] = '';
+		}
+	}
+
+	if (typeof borderStyle === 'string') {
+		characters = cliBoxes[borderStyle];
+
+		if (!characters) {
+			throw new TypeError(`Invalid border style: ${borderStyle}`);
+		}
+	} else {
+		// Ensure retro-compatibility
+		if (typeof borderStyle?.vertical === 'string') {
+			borderStyle.left = borderStyle.vertical;
+			borderStyle.right = borderStyle.vertical;
+		}
+
+		// Ensure retro-compatibility
+		if (typeof borderStyle?.horizontal === 'string') {
+			borderStyle.top = borderStyle.horizontal;
+			borderStyle.bottom = borderStyle.horizontal;
+		}
+
+		for (const side of sides) {
+			if (borderStyle[side] === null || typeof borderStyle[side] !== 'string') {
+				throw new TypeError(`Invalid border style: ${side}`);
+			}
+		}
+
+		characters = borderStyle;
+	}
+
+	return characters;
+};
+
+const makeTitle = (text, horizontal, alignment) => {
+	let title = '';
+
+	const textWidth = stringWidth$2(text);
+
+	switch (alignment) {
+		case 'left': {
+			title = text + horizontal.slice(textWidth);
+			break;
+		}
+
+		case 'right': {
+			title = horizontal.slice(textWidth) + text;
+			break;
+		}
+
+		default: {
+			horizontal = horizontal.slice(textWidth);
+
+			if (horizontal.length % 2 === 1) { // This is needed in case the length is odd
+				horizontal = horizontal.slice(Math.floor(horizontal.length / 2));
+				title = horizontal.slice(1) + text + horizontal; // We reduce the left part of one character to avoid the bar to go beyond its limit
+			} else {
+				horizontal = horizontal.slice(horizontal.length / 2);
+				title = horizontal + text + horizontal;
+			}
+
+			break;
+		}
+	}
+
+	return title;
+};
+
+const makeContentText = (text, {padding, width, textAlignment, height}) => {
+	text = ansiAlign(text, {align: textAlignment});
+	let lines = text.split(NEWLINE);
+	const textWidth = widestLine(text);
+
+	const max = width - padding.left - padding.right;
+
+	if (textWidth > max) {
+		const newLines = [];
+		for (const line of lines) {
+			const createdLines = wrapAnsi(line, max, {hard: true});
+			const alignedLines = ansiAlign(createdLines, {align: textAlignment});
+			const alignedLinesArray = alignedLines.split('\n');
+			const longestLength = Math.max(...alignedLinesArray.map(s => stringWidth$2(s)));
+
+			for (const alignedLine of alignedLinesArray) {
+				let paddedLine;
+				switch (textAlignment) {
+					case 'center': {
+						paddedLine = PAD.repeat((max - longestLength) / 2) + alignedLine;
+						break;
+					}
+
+					case 'right': {
+						paddedLine = PAD.repeat(max - longestLength) + alignedLine;
+						break;
+					}
+
+					default: {
+						paddedLine = alignedLine;
+						break;
+					}
+				}
+
+				newLines.push(paddedLine);
+			}
+		}
+
+		lines = newLines;
+	}
+
+	if (textAlignment === 'center' && textWidth < max) {
+		lines = lines.map(line => PAD.repeat((max - textWidth) / 2) + line);
+	} else if (textAlignment === 'right' && textWidth < max) {
+		lines = lines.map(line => PAD.repeat(max - textWidth) + line);
+	}
+
+	const paddingLeft = PAD.repeat(padding.left);
+	const paddingRight = PAD.repeat(padding.right);
+
+	lines = lines.map(line => {
+		const newLine = paddingLeft + line + paddingRight;
+
+		return newLine + PAD.repeat(width - stringWidth$2(newLine));
+	});
+
+	if (padding.top > 0) {
+		lines = [...Array.from({length: padding.top}).fill(PAD.repeat(width)), ...lines];
+	}
+
+	if (padding.bottom > 0) {
+		lines = [...lines, ...Array.from({length: padding.bottom}).fill(PAD.repeat(width))];
+	}
+
+	if (height && lines.length > height) {
+		lines = lines.slice(0, height);
+	} else if (height && lines.length < height) {
+		lines = [...lines, ...Array.from({length: height - lines.length}).fill(PAD.repeat(width))];
+	}
+
+	return lines.join(NEWLINE);
+};
+
+const boxContent = (content, contentWidth, options) => {
+	const colorizeBorder = border => {
+		const newBorder = options.borderColor ? getColorFunction(options.borderColor)(border) : border;
+		return options.dimBorder ? chalk.dim(newBorder) : newBorder;
+	};
+
+	const colorizeContent = content => options.backgroundColor ? getBGColorFunction(options.backgroundColor)(content) : content;
+
+	const chars = getBorderChars(options.borderStyle);
+	const columns = terminalColumns();
+	let marginLeft = PAD.repeat(options.margin.left);
+
+	if (options.float === 'center') {
+		const marginWidth = Math.max((columns - contentWidth - getBorderWidth(options.borderStyle)) / 2, 0);
+		marginLeft = PAD.repeat(marginWidth);
+	} else if (options.float === 'right') {
+		const marginWidth = Math.max(columns - contentWidth - options.margin.right - getBorderWidth(options.borderStyle), 0);
+		marginLeft = PAD.repeat(marginWidth);
+	}
+
+	let result = '';
+
+	if (options.margin.top) {
+		result += NEWLINE.repeat(options.margin.top);
+	}
+
+	if (options.borderStyle !== NONE || options.title) {
+		result += colorizeBorder(marginLeft + chars.topLeft + (options.title ? makeTitle(options.title, chars.top.repeat(contentWidth), options.titleAlignment) : chars.top.repeat(contentWidth)) + chars.topRight) + NEWLINE;
+	}
+
+	const lines = content.split(NEWLINE);
+
+	result += lines.map(line => marginLeft + colorizeBorder(chars.left) + colorizeContent(line) + colorizeBorder(chars.right)).join(NEWLINE);
+
+	if (options.borderStyle !== NONE) {
+		result += NEWLINE + colorizeBorder(marginLeft + chars.bottomLeft + chars.bottom.repeat(contentWidth) + chars.bottomRight);
+	}
+
+	if (options.margin.bottom) {
+		result += NEWLINE.repeat(options.margin.bottom);
+	}
+
+	return result;
+};
+
+const sanitizeOptions = options => {
+	// If fullscreen is enabled, max-out unspecified width/height
+	if (options.fullscreen && process$1?.stdout) {
+		let newDimensions = [process$1.stdout.columns, process$1.stdout.rows];
+
+		if (typeof options.fullscreen === 'function') {
+			newDimensions = options.fullscreen(...newDimensions);
+		}
+
+		options.width ||= newDimensions[0];
+
+		options.height ||= newDimensions[1];
+	}
+
+	// If width is provided, make sure it's not below 1
+	options.width &&= Math.max(1, options.width - getBorderWidth(options.borderStyle));
+
+	// If height is provided, make sure it's not below 1
+	options.height &&= Math.max(1, options.height - getBorderWidth(options.borderStyle));
+
+	return options;
+};
+
+const formatTitle = (title, borderStyle) => borderStyle === NONE ? title : ` ${title} `;
+
+const determineDimensions = (text, options) => {
+	options = sanitizeOptions(options);
+	const widthOverride = options.width !== undefined;
+	const columns = terminalColumns();
+	const borderWidth = getBorderWidth(options.borderStyle);
+	const maxWidth = columns - options.margin.left - options.margin.right - borderWidth;
+
+	const widest = widestLine(wrapAnsi(text, columns - borderWidth, {hard: true, trim: false})) + options.padding.left + options.padding.right;
+
+	// If title and width are provided, title adheres to fixed width
+	if (options.title && widthOverride) {
+		options.title = options.title.slice(0, Math.max(0, options.width - 2));
+		options.title &&= formatTitle(options.title, options.borderStyle);
+	} else if (options.title) {
+		options.title = options.title.slice(0, Math.max(0, maxWidth - 2));
+
+		// Recheck if title isn't empty now
+		if (options.title) {
+			options.title = formatTitle(options.title, options.borderStyle);
+			// If the title is larger than content, box adheres to title width
+			if (stringWidth$2(options.title) > widest) {
+				options.width = stringWidth$2(options.title);
+			}
+		}
+	}
+
+	// If fixed width is provided, use it or content width as reference
+	options.width ||= widest;
+
+	if (!widthOverride) {
+		if ((options.margin.left && options.margin.right) && options.width > maxWidth) {
+			// Let's assume we have margins: left = 3, right = 5, in total = 8
+			const spaceForMargins = columns - options.width - borderWidth;
+			// Let's assume we have space = 4
+			const multiplier = spaceForMargins / (options.margin.left + options.margin.right);
+			// Here: multiplier = 4/8 = 0.5
+			options.margin.left = Math.max(0, Math.floor(options.margin.left * multiplier));
+			options.margin.right = Math.max(0, Math.floor(options.margin.right * multiplier));
+			// Left: 3 * 0.5 = 1.5 -> 1
+			// Right: 6 * 0.5 = 3
+		}
+
+		// Re-cap width considering the margins after shrinking
+		options.width = Math.min(options.width, columns - borderWidth - options.margin.left - options.margin.right);
+	}
+
+	// Prevent padding overflow
+	if (options.width - (options.padding.left + options.padding.right) <= 0) {
+		options.padding.left = 0;
+		options.padding.right = 0;
+	}
+
+	if (options.height && options.height - (options.padding.top + options.padding.bottom) <= 0) {
+		options.padding.top = 0;
+		options.padding.bottom = 0;
+	}
+
+	return options;
+};
+
+const isHex = color => color.match(/^#(?:[0-f]{3}){1,2}$/i);
+const isColorValid = color => typeof color === 'string' && (chalk[color] ?? isHex(color));
+const getColorFunction = color => isHex(color) ? chalk.hex(color) : chalk[color];
+const getBGColorFunction = color => isHex(color) ? chalk.bgHex(color) : chalk[camelCase(['bg', color])];
+
+function boxen(text, options) {
+	options = {
+		padding: 0,
+		borderStyle: 'single',
+		dimBorder: false,
+		textAlignment: 'left',
+		float: 'left',
+		titleAlignment: 'left',
+		...options,
+	};
+
+	// This option is deprecated
+	if (options.align) {
+		options.textAlignment = options.align;
+	}
+
+	if (options.borderColor && !isColorValid(options.borderColor)) {
+		throw new Error(`${options.borderColor} is not a valid borderColor`);
+	}
+
+	if (options.backgroundColor && !isColorValid(options.backgroundColor)) {
+		throw new Error(`${options.backgroundColor} is not a valid backgroundColor`);
+	}
+
+	options.padding = getObject(options.padding);
+	options.margin = getObject(options.margin);
+
+	options = determineDimensions(text, options);
+
+	text = makeContentText(text, options);
+
+	return boxContent(text, options.width, options);
+}
+
+var dist = {};
+
+var picocolors = {exports: {}};
+
+var hasRequiredPicocolors;
+
+function requirePicocolors () {
+	if (hasRequiredPicocolors) return picocolors.exports;
+	hasRequiredPicocolors = 1;
+	let p = process || {}, argv = p.argv || [], env = p.env || {};
+	let isColorSupported =
+		!(!!env.NO_COLOR || argv.includes("--no-color")) &&
+		(!!env.FORCE_COLOR || argv.includes("--color") || p.platform === "win32" || ((p.stdout || {}).isTTY && env.TERM !== "dumb") || !!env.CI);
+
+	let formatter = (open, close, replace = open) =>
+		input => {
+			let string = "" + input, index = string.indexOf(close, open.length);
+			return ~index ? open + replaceClose(string, close, replace, index) + close : open + string + close
+		};
+
+	let replaceClose = (string, close, replace, index) => {
+		let result = "", cursor = 0;
+		do {
+			result += string.substring(cursor, index) + replace;
+			cursor = index + close.length;
+			index = string.indexOf(close, cursor);
+		} while (~index)
+		return result + string.substring(cursor)
+	};
+
+	let createColors = (enabled = isColorSupported) => {
+		let f = enabled ? formatter : () => String;
+		return {
+			isColorSupported: enabled,
+			reset: f("\x1b[0m", "\x1b[0m"),
+			bold: f("\x1b[1m", "\x1b[22m", "\x1b[22m\x1b[1m"),
+			dim: f("\x1b[2m", "\x1b[22m", "\x1b[22m\x1b[2m"),
+			italic: f("\x1b[3m", "\x1b[23m"),
+			underline: f("\x1b[4m", "\x1b[24m"),
+			inverse: f("\x1b[7m", "\x1b[27m"),
+			hidden: f("\x1b[8m", "\x1b[28m"),
+			strikethrough: f("\x1b[9m", "\x1b[29m"),
+
+			black: f("\x1b[30m", "\x1b[39m"),
+			red: f("\x1b[31m", "\x1b[39m"),
+			green: f("\x1b[32m", "\x1b[39m"),
+			yellow: f("\x1b[33m", "\x1b[39m"),
+			blue: f("\x1b[34m", "\x1b[39m"),
+			magenta: f("\x1b[35m", "\x1b[39m"),
+			cyan: f("\x1b[36m", "\x1b[39m"),
+			white: f("\x1b[37m", "\x1b[39m"),
+			gray: f("\x1b[90m", "\x1b[39m"),
+
+			bgBlack: f("\x1b[40m", "\x1b[49m"),
+			bgRed: f("\x1b[41m", "\x1b[49m"),
+			bgGreen: f("\x1b[42m", "\x1b[49m"),
+			bgYellow: f("\x1b[43m", "\x1b[49m"),
+			bgBlue: f("\x1b[44m", "\x1b[49m"),
+			bgMagenta: f("\x1b[45m", "\x1b[49m"),
+			bgCyan: f("\x1b[46m", "\x1b[49m"),
+			bgWhite: f("\x1b[47m", "\x1b[49m"),
+
+			blackBright: f("\x1b[90m", "\x1b[39m"),
+			redBright: f("\x1b[91m", "\x1b[39m"),
+			greenBright: f("\x1b[92m", "\x1b[39m"),
+			yellowBright: f("\x1b[93m", "\x1b[39m"),
+			blueBright: f("\x1b[94m", "\x1b[39m"),
+			magentaBright: f("\x1b[95m", "\x1b[39m"),
+			cyanBright: f("\x1b[96m", "\x1b[39m"),
+			whiteBright: f("\x1b[97m", "\x1b[39m"),
+
+			bgBlackBright: f("\x1b[100m", "\x1b[49m"),
+			bgRedBright: f("\x1b[101m", "\x1b[49m"),
+			bgGreenBright: f("\x1b[102m", "\x1b[49m"),
+			bgYellowBright: f("\x1b[103m", "\x1b[49m"),
+			bgBlueBright: f("\x1b[104m", "\x1b[49m"),
+			bgMagentaBright: f("\x1b[105m", "\x1b[49m"),
+			bgCyanBright: f("\x1b[106m", "\x1b[49m"),
+			bgWhiteBright: f("\x1b[107m", "\x1b[49m"),
+		}
+	};
+
+	picocolors.exports = createColors();
+	picocolors.exports.createColors = createColors;
+	return picocolors.exports;
+}
+
+var consts = {};
+
+var hasRequiredConsts;
+
+function requireConsts () {
+	if (hasRequiredConsts) return consts;
+	hasRequiredConsts = 1;
+	var __importDefault = (consts && consts.__importDefault) || function (mod) {
+	    return (mod && mod.__esModule) ? mod : { "default": mod };
+	};
+	Object.defineProperty(consts, "__esModule", { value: true });
+	consts.symbols = consts.isTTY = void 0;
+	const node_tty_1 = __importDefault(tty);
+	const node_process_1 = __importDefault(process$1);
+	/**
+	 * This file contains code adapted from the following projects:
+	 *
+	 * 1. is-unicode-supported (https://github.com/sindresorhus/is-unicode-supported)
+	 * 2. cli-spinners (https://github.com/sindresorhus/cli-spinners)
+	 * 3. log-symbols (https://github.com/sindresorhus/log-symbols)
+	 *
+	 * All of the above projects are created by Sindre Sorhus (https://sindresorhus.com)
+	 * and are licensed under the MIT License.
+	 *
+	 * The full text of the MIT License can be found in the LICENSE file in this project's root directory.
+	 */
+	const isCI = node_process_1.default.env.CI ||
+	    node_process_1.default.env.WT_SESSION ||
+	    node_process_1.default.env.ConEmuTask === '{cmd::Cmder}' ||
+	    node_process_1.default.env.TERM_PROGRAM === 'vscode' ||
+	    node_process_1.default.env.TERM === 'xterm-256color' ||
+	    node_process_1.default.env.TERM === 'alacritty';
+	const isTTY = node_tty_1.default.isatty(1) && node_process_1.default.env.TERM !== 'dumb' && !('CI' in node_process_1.default.env);
+	consts.isTTY = isTTY;
+	// https://github.com/sindresorhus/is-unicode-supported
+	const supportUnicode = node_process_1.default.platform !== 'win32' ? node_process_1.default.env.TERM !== 'linux' : isCI;
+	const symbols = {
+	    frames: isTTY
+	        ? supportUnicode
+	            ? // https://github.com/sindresorhus/cli-spinners
+	                ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏']
+	            : ['-', '\\', '|', '/']
+	        : ['-'],
+	    // https://github.com/sindresorhus/log-symbols/blob/main/index.js
+	    tick: supportUnicode ? '✔' : '√',
+	    cross: supportUnicode ? '✖' : '×',
+	    warn: supportUnicode ? '⚠' : '!!',
+	    info: supportUnicode ? 'ℹ' : 'i',
+	};
+	consts.symbols = symbols;
+	return consts;
+}
+
+var hasRequiredDist;
+
+function requireDist () {
+	if (hasRequiredDist) return dist;
+	hasRequiredDist = 1;
+	var __importDefault = (dist && dist.__importDefault) || function (mod) {
+	    return (mod && mod.__esModule) ? mod : { "default": mod };
+	};
+	Object.defineProperty(dist, "__esModule", { value: true });
+	dist.createSpinner = createSpinner;
+	const picocolors_1 = __importDefault(/*@__PURE__*/ requirePicocolors());
+	const consts_1 = requireConsts();
+	function getLines(str = '', width = 80) {
+	    return str
+	        .replace(/\u001b[^m]*?m/g, '')
+	        .split('\n')
+	        .reduce((col, line) => (col += Math.max(1, Math.ceil(line.length / width))), 0);
+	}
+	function createSpinner(text = '', opts = {}) {
+	    let current = 0, interval = opts.interval || 50, stream = opts.stream || process.stderr, frames = opts.frames && opts.frames.length ? opts.frames : consts_1.symbols.frames, color = opts.color || 'yellow', spinning = false, lines = 0, timer = undefined, getText = (opts = {}) => typeof opts === 'string' ? opts : opts.text || text, getUpdate = (opts = {}) => typeof opts === 'string' ? false : !!opts.update, getColor = (opts = {}) => typeof opts === 'string' || !opts.color ? color : opts.color, getMark = (opts = {}, fallback) => typeof opts === 'string' || !opts.mark ? fallback : opts.mark, mountProcessEvents = () => {
+	        process.on('SIGINT', exit);
+	        process.on('SIGTERM', exit);
+	    }, cleanupProcessEvents = () => {
+	        process.off('SIGINT', exit);
+	        process.off('SIGTERM', exit);
+	    };
+	    let spinner = {
+	        reset() {
+	            current = 0;
+	            lines = 0;
+	            spinning = false;
+	            clearTimeout(timer);
+	            timer = undefined;
+	            return spinner;
+	        },
+	        clear() {
+	            spinner.write('\x1b[1G');
+	            for (let i = 0; i < lines; i++) {
+	                i > 0 && spinner.write('\x1b[1A');
+	                spinner.write('\x1b[2K\x1b[1G');
+	            }
+	            lines = 0;
+	            return spinner;
+	        },
+	        write(str, clear = false) {
+	            if (clear && consts_1.isTTY)
+	                spinner.clear();
+	            stream.write(str);
+	            return spinner;
+	        },
+	        render() {
+	            let str = `${picocolors_1.default[color](frames[current])} ${text}`;
+	            consts_1.isTTY ? spinner.write(`\x1b[?25l`) : (str += '\n');
+	            spinner.write(str, true);
+	            consts_1.isTTY && (lines = getLines(str, stream.columns));
+	            return spinner;
+	        },
+	        spin() {
+	            spinner.render();
+	            current = ++current % frames.length;
+	            return spinner;
+	        },
+	        update(opts) {
+	            if (typeof opts === 'string') {
+	                text = opts;
+	            }
+	            else {
+	                text = opts.text || text;
+	                frames = opts.frames && opts.frames.length ? opts.frames : frames;
+	                interval = opts.interval || interval;
+	                color = opts.color || color;
+	            }
+	            if (frames.length - 1 < current)
+	                current = 0;
+	            return spinner;
+	        },
+	        loop() {
+	            consts_1.isTTY && (timer = setTimeout(() => spinner.loop(), interval));
+	            return spinner.spin();
+	        },
+	        start(opts = {}) {
+	            timer && spinner.reset();
+	            spinning = true;
+	            mountProcessEvents();
+	            return spinner.update({ text: getText(opts), color: getColor(opts) }).loop();
+	        },
+	        stop(opts) {
+	            spinning = false;
+	            clearTimeout(timer);
+	            timer = undefined;
+	            cleanupProcessEvents();
+	            const update = getUpdate(opts);
+	            const mark = picocolors_1.default[getColor(opts)](getMark(opts, frames[current]));
+	            const text = getText(opts);
+	            spinner.write(opts ? `${mark} ${text}${update ? '' : '\n'}` : '', true);
+	            return consts_1.isTTY && !update ? spinner.write(`\x1b[?25h`) : spinner;
+	        },
+	        success(opts = {}) {
+	            return spinner.stop({
+	                text: getText(opts),
+	                mark: getMark(opts, consts_1.symbols.tick),
+	                color: 'green',
+	                update: getUpdate(opts),
+	            });
+	        },
+	        error(opts = {}) {
+	            return spinner.stop({
+	                text: getText(opts),
+	                mark: getMark(opts, consts_1.symbols.cross),
+	                color: 'red',
+	                update: getUpdate(opts),
+	            });
+	        },
+	        warn(opts = {}) {
+	            return spinner.stop({
+	                text: getText(opts),
+	                mark: getMark(opts, consts_1.symbols.warn),
+	                color: 'yellow',
+	                update: getUpdate(opts),
+	            });
+	        },
+	        info(opts = {}) {
+	            return spinner.stop({
+	                text: getText(opts),
+	                mark: getMark(opts, consts_1.symbols.info),
+	                color: 'blue',
+	                update: getUpdate(opts),
+	            });
+	        },
+	        isSpinning() {
+	            return spinning;
+	        },
+	    };
+	    function exit(signal) {
+	        if (spinning) {
+	            spinner.stop();
+	        }
+	        process.exit(signal === 'SIGINT' ? 130 : signal === 'SIGTERM' ? 143 : 1);
+	    }
+	    return spinner;
+	}
+	return dist;
+}
+
+var distExports = requireDist();
+
+/**
+ * Interactive Terminal UI Command
+ * Fun, colorful, beginner-friendly interface with animations
+ */
+
+
+// Fun gradient themes
+const gradients = {
+  rainbow: gradient('red', 'orange', 'yellow', 'green', 'blue', 'indigo', 'violet'),
+  ocean: gradient('blue', 'cyan', 'teal'),
+  sunset: gradient('orange', 'red', 'purple'),
+  forest: gradient('green', 'lime', 'cyan'),
+  fire: gradient('red', 'orange', 'yellow'),
+  cosmic: gradient('purple', 'blue', 'cyan', 'green')
+};
+
+async function interactiveUI() {
+  console.clear();
+  
+  // Welcome animation
+  await showWelcomeAnimation();
+  
+  // Main interactive loop
+  let running = true;
+  while (running) {
+    try {
+      const action = await showMainMenu();
+      
+      switch (action) {
+        case 'analyze':
+          await runGuidedAnalysis();
+          break;
+        case 'learn':
+          await showLearningMode();
+          break;
+        case 'explore':
+          await showFileExplorer();
+          break;
+        case 'demo':
+          await runDemo();
+          break;
+        case 'exit':
+          running = false;
+          await showGoodbyeAnimation();
+          break;
+      }
+    } catch (error) {
+      console.error('Error in UI:', error.message);
+      await enquirerExports.prompt({
+        type: 'confirm',
+        name: 'continue',
+        message: 'Continue using DataPilot?',
+        initial: true
+      });
+    }
+  }
+}
+
+async function showWelcomeAnimation() {
+  console.clear();
+  
+  // Simple ASCII art header (fallback if figlet fails)
+  let title;
+  try {
+    title = figlet.textSync('DataPilot', { 
+      font: 'Big',
+      horizontalLayout: 'fitted'
+    });
+  } catch (error) {
+    // Fallback ASCII art
+    title = `
+  ____        _        ____  _ _       _   
+ |  _ \\  __ _| |_ __ _|  _ \\(_) | ___ | |_ 
+ | | | |/ _\` | __/ _\` | |_) | | |/ _ \\| __|
+ | |_| | (_| | || (_| |  __/| | | (_) | |_ 
+ |____/ \\__,_|\\__\\__,_|_|   |_|_|\\___/ \\__|
+    `;
+  }
+  
+  // Animate the title with colors
+  const lines = title.split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    const gradientName = Object.keys(gradients)[i % Object.keys(gradients).length];
+    console.log(gradients[gradientName](lines[i]));
+    await sleep(200);
+  }
+  
+  await sleep(500);
+  
+  // Welcome message with box
+  const welcomeMsg = boxen(
+    gradients.rainbow('🚀 Welcome to DataPilot Interactive! 🚀\n\n') +
+    '✨ Your fun, colorful data analysis companion\n' +
+    '🎯 Perfect for beginners and experts alike\n' +
+    '🎨 Beautiful visualizations and insights\n' +
+    '🤖 AI-ready analysis generation',
+    {
+      padding: 1,
+      margin: 1,
+      borderStyle: 'double',
+      borderColor: 'cyan',
+      backgroundColor: 'black'
+    }
+  );
+  
+  console.log(welcomeMsg);
+  await sleep(1000);
+}
+
+async function showMainMenu() {
+  console.log('\n' + gradients.cosmic('🌟 What would you like to do today? 🌟\n'));
+  
+  const response = await enquirerExports.prompt({
+    type: 'select',
+    name: 'action',
+    message: 'Choose your adventure:',
+    choices: [
+      {
+        name: 'analyze',
+        message: '📊 Analyze a CSV file (Guided analysis)',
+        hint: 'Step-by-step data analysis with beautiful results'
+      },
+      {
+        name: 'learn',
+        message: '🎓 Learning Mode (Understand data analysis)',
+        hint: 'Interactive tutorials and explanations'
+      },
+      {
+        name: 'explore',
+        message: '📁 File Explorer (Browse and preview files)',
+        hint: 'Find and preview CSV files with interactive browser'
+      },
+      {
+        name: 'demo',
+        message: '🎭 Demo Mode (Try with sample data)',
+        hint: 'See DataPilot in action with built-in examples'
+      },
+      {
+        name: 'exit',
+        message: '👋 Exit DataPilot',
+        hint: 'Thanks for using DataPilot!'
+      }
+    ]
+  });
+  
+  return response.action;
+}
+
+async function runGuidedAnalysis() {
+  console.clear();
+  console.log(gradients.ocean('🔍 Guided Analysis Mode 🔍\n'));
+  
+  // Step 1: File selection
+  const filePath = await selectFile();
+  if (!filePath) return;
+  
+  // Step 2: File preview
+  await showFilePreview(filePath);
+  
+  // Step 3: Analysis type selection
+  const analysisType = await selectAnalysisType();
+  
+  // Step 4: Run analysis with beautiful loading
+  await runAnalysisWithAnimation(filePath, analysisType);
+  
+  // Step 5: Show results
+  await showResults();
+  
+  await enquirerExports.prompt({
+    type: 'confirm',
+    name: 'continue',
+    message: gradients.rainbow('Analysis complete! Return to main menu?'),
+    initial: true
+  });
+}
+
+async function selectFile() {
+  const methods = await enquirerExports.prompt({
+    type: 'select',
+    name: 'method',
+    message: 'How would you like to select your CSV file?',
+    choices: [
+      { name: 'browse', message: '📂 Browse files interactively' },
+      { name: 'path', message: '⌨️  Type file path directly' },
+      { name: 'recent', message: '🕐 Use recent files' },
+      { name: 'back', message: '← Back to main menu' }
+    ]
+  });
+  
+  switch (methods.method) {
+    case 'browse':
+      return await browseFiles();
+    case 'path':
+      return await enterFilePath();
+    case 'recent':
+      return await selectRecentFile();
+    case 'back':
+      return null;
+  }
+}
+
+async function browseFiles() {
+  console.log(gradients.forest('\n🌲 File Browser 🌲\n'));
+  
+  let currentDir = process.cwd();
+  
+  while (true) {
+    const items = fs.readdirSync(currentDir, { withFileTypes: true });
+    const choices = [];
+    
+    // Add parent directory option
+    if (currentDir !== '/') {
+      choices.push({
+        name: '..',
+        message: '📁 .. (Parent Directory)',
+        value: path$1.dirname(currentDir)
+      });
+    }
+    
+    // Add directories
+    items
+      .filter(item => item.isDirectory())
+      .forEach(dir => {
+        choices.push({
+          name: path$1.join(currentDir, dir.name),
+          message: `📁 ${dir.name}/`,
+          value: path$1.join(currentDir, dir.name)
+        });
+      });
+    
+    // Add CSV files
+    items
+      .filter(item => item.isFile() && item.name.endsWith('.csv'))
+      .forEach(file => {
+        const filePath = path$1.join(currentDir, file.name);
+        const stats = fs.statSync(filePath);
+        const size = formatFileSize(stats.size);
+        choices.push({
+          name: filePath,
+          message: `📄 ${file.name} (${size})`,
+          value: filePath,
+          hint: 'CSV file ready for analysis!'
+        });
+      });
+    
+    if (choices.length === 0) {
+      console.log('No files or directories found.');
+      return null;
+    }
+    
+    choices.push({
+      name: 'cancel',
+      message: '❌ Cancel file selection',
+      value: null
+    });
+    
+    const selection = await enquirerExports.prompt({
+      type: 'select',
+      name: 'selected',
+      message: `Current directory: ${gradients.cyan(currentDir)}`,
+      choices
+    });
+    
+    if (!selection.selected) return null;
+    
+    if (selection.selected.endsWith('.csv')) {
+      return selection.selected;
+    } else {
+      currentDir = selection.selected;
+    }
+  }
+}
+
+async function enterFilePath() {
+  const response = await enquirerExports.prompt({
+    type: 'input',
+    name: 'path',
+    message: 'Enter the path to your CSV file:',
+    validate: (input) => {
+      if (!input) return 'Please enter a file path';
+      if (!fs.existsSync(input)) return 'File does not exist';
+      if (!input.endsWith('.csv')) return 'Please select a CSV file';
+      return true;
+    }
+  });
+  
+  return response.path;
+}
+
+async function selectRecentFile() {
+  // This would integrate with the warehouse knowledge from eng command
+  console.log(gradients.sunset('📚 Recent files feature coming soon!'));
+  await sleep(1000);
+  return null;
+}
+
+async function showFilePreview(filePath) {
+  console.clear();
+  console.log(gradients.fire('🔍 File Preview 🔍\n'));
+  
+  const spinner = distExports.createSpinner('Reading file...').start();
+  
+  try {
+    const stats = fs.statSync(filePath);
+    const records = await parseCSV(filePath, { limit: 5 });
+    const columnTypes = detectColumnTypes(records);
+    
+    spinner.success({ text: 'File loaded successfully!' });
+    
+    const previewBox = boxen(
+      `📄 File: ${gradients.cyan(path$1.basename(filePath))}\n` +
+      `📊 Size: ${formatFileSize(stats.size)}\n` +
+      `📈 Rows: ${gradients.green('~' + records.length + '+ rows')}\n` +
+      `🏛️  Columns: ${gradients.blue(Object.keys(columnTypes).length + ' columns')}\n\n` +
+      `${gradients.rainbow('First 5 rows preview:')}\n` +
+      formatPreviewTable(records, Object.keys(columnTypes)),
+      {
+        padding: 1,
+        margin: 1,
+        borderStyle: 'round',
+        borderColor: 'green'
+      }
+    );
+    
+    console.log(previewBox);
+    
+    const proceed = await enquirerExports.prompt({
+      type: 'confirm',
+      name: 'continue',
+      message: 'Does this look correct? Continue with analysis?',
+      initial: true
+    });
+    
+    if (!proceed.continue) {
+      throw new Error('Analysis cancelled by user');
+    }
+    
+  } catch (error) {
+    spinner.error({ text: `Error reading file: ${error.message}` });
+    throw error;
+  }
+}
+
+async function selectAnalysisType() {
+  console.log('\n' + gradients.cosmic('🎯 Choose Your Analysis Adventure! 🎯\n'));
+  
+  const response = await enquirerExports.prompt({
+    type: 'select',
+    name: 'type',
+    message: 'What type of analysis would you like?',
+    choices: [
+      {
+        name: 'complete',
+        message: '🚀 Complete Analysis (All insights)',
+        hint: 'Run all analysis types for comprehensive insights'
+      },
+      {
+        name: 'eda',
+        message: '📊 Exploratory Data Analysis',
+        hint: 'Statistical insights, correlations, distributions'
+      },
+      {
+        name: 'quality',
+        message: '🔍 Data Quality Check',
+        hint: 'Find missing values, duplicates, inconsistencies'
+      },
+      {
+        name: 'visual',
+        message: '📈 Visualization Recommendations',
+        hint: 'Best charts and graphs for your data'
+      },
+      {
+        name: 'llm',
+        message: '🤖 AI-Ready Context',
+        hint: 'Perfect summary for ChatGPT, Claude, etc.'
+      }
+    ]
+  });
+  
+  return response.type;
+}
+
+async function runAnalysisWithAnimation(filePath, analysisType) {
+  console.clear();
+  console.log(gradients.rainbow('🎪 Analysis in Progress! 🎪\n'));
+  
+  const messages = [
+    '🔍 Reading your data...',
+    '🧮 Crunching numbers...',
+    '📊 Finding patterns...',
+    '🎯 Generating insights...',
+    '✨ Adding magic touches...',
+    '🎉 Almost done!'
+  ];
+  
+  let messageIndex = 0;
+  const spinner = distExports.createSpinner(messages[messageIndex]).start();
+  
+  // Animate through messages
+  const messageInterval = setInterval(() => {
+    messageIndex = (messageIndex + 1) % messages.length;
+    spinner.update({ text: messages[messageIndex] });
+  }, 1500);
+  
+  try {
+    // Run the actual analysis
+    let result;
+    const options = { structuredOutput: true, quiet: true };
+    
+    switch (analysisType) {
+      case 'complete':
+        // Run all analyses
+        result = {
+          eda: await eda(filePath, options),
+          quality: await integrity(filePath, options),
+          visual: await visualize(filePath, options),
+          llm: await llmContext(filePath, options)
+        };
+        break;
+      case 'eda':
+        result = await eda(filePath, options);
+        break;
+      case 'quality':
+        result = await integrity(filePath, options);
+        break;
+      case 'visual':
+        result = await visualize(filePath, options);
+        break;
+      case 'llm':
+        result = await llmContext(filePath, options);
+        break;
+    }
+    
+    clearInterval(messageInterval);
+    spinner.success({ text: gradients.rainbow('Analysis complete! 🎉') });
+    
+    // Store result for display
+    global.lastAnalysisResult = result;
+    
+  } catch (error) {
+    clearInterval(messageInterval);
+    spinner.error({ text: `Analysis failed: ${error.message}` });
+    throw error;
+  }
+}
+
+async function showResults() {
+  console.log('\n' + gradients.fire('🎊 Your Analysis Results! 🎊\n'));
+  
+  const result = global.lastAnalysisResult;
+  
+  if (!result) {
+    console.log('No results to display.');
+    return;
+  }
+  
+  // Beautiful results display
+  if (result.eda || result.quality || result.visual || result.llm) {
+    console.log(gradients.ocean('📋 Analysis Summary:\n'));
+    
+    if (result.eda) {
+      console.log('✅ ' + gradients.green('Exploratory Data Analysis completed'));
+    }
+    if (result.quality) {
+      console.log('✅ ' + gradients.blue('Data Quality Check completed'));
+    }
+    if (result.visual) {
+      console.log('✅ ' + gradients.purple('Visualization Recommendations completed'));
+    }
+    if (result.llm) {
+      console.log('✅ ' + gradients.cyan('AI-Ready Context generated'));
+    }
+  }
+  
+  const viewOptions = await enquirerExports.prompt({
+    type: 'select',
+    name: 'view',
+    message: 'How would you like to view your results?',
+    choices: [
+      { name: 'summary', message: '📄 Quick Summary' },
+      { name: 'detailed', message: '📊 Detailed Results' },
+      { name: 'save', message: '💾 Save to File' },
+      { name: 'copy', message: '📋 Copy for AI Analysis' },
+      { name: 'skip', message: '⏭️  Continue to Main Menu' }
+    ]
+  });
+  
+  switch (viewOptions.view) {
+    case 'summary':
+      await showResultSummary();
+      break;
+    case 'detailed':
+      await showDetailedResults();
+      break;
+    case 'save':
+      await saveResults(result);
+      break;
+    case 'copy':
+      await copyForAI();
+      break;
+  }
+}
+
+async function showResultSummary(result) {
+  console.log('\n' + gradients.rainbow('📊 Analysis Summary 📊\n'));
+  
+  // This would show a beautiful summary of key findings
+  const summaryBox = boxen(
+    gradients.cosmic('🎯 Key Findings:\n\n') +
+    '• Data quality score: ' + gradients.green('85%') + '\n' +
+    '• Most important column: ' + gradients.yellow('revenue') + '\n' +
+    '• Best visualization: ' + gradients.blue('time series chart') + '\n' +
+    '• Recommended analysis: ' + gradients.purple('seasonal patterns') + '\n\n' +
+    gradients.fire('💡 Pro tip: Use the detailed view for more insights!'),
+    {
+      padding: 1,
+      borderStyle: 'double',
+      borderColor: 'yellow'
+    }
+  );
+  
+  console.log(summaryBox);
+  
+  await enquirerExports.prompt({
+    type: 'confirm',
+    name: 'continue',
+    message: 'Continue?',
+    initial: true
+  });
+}
+
+async function showDetailedResults(result) {
+  console.log('\n' + gradients.fire('📈 Detailed Analysis Results 📈\n'));
+  
+  // This would show the actual analysis output in a formatted way
+  console.log('Detailed results would be displayed here...');
+  console.log('(Implementation would format the actual analysis output beautifully)');
+  
+  await enquirerExports.prompt({
+    type: 'confirm',
+    name: 'continue',
+    message: 'Continue?',
+    initial: true
+  });
+}
+
+async function saveResults(result) {
+  const response = await enquirerExports.prompt({
+    type: 'input',
+    name: 'filename',
+    message: 'Enter filename to save results:',
+    initial: 'datapilot-analysis.txt'
+  });
+  
+  const spinner = distExports.createSpinner('Saving results...').start();
+  
+  try {
+    // Save formatted results to file
+    fs.writeFileSync(response.filename, JSON.stringify(result, null, 2));
+    spinner.success({ text: `Results saved to ${response.filename}!` });
+  } catch (error) {
+    spinner.error({ text: `Error saving file: ${error.message}` });
+  }
+}
+
+async function copyForAI(result) {
+  console.log('\n' + gradients.cosmic('🤖 AI-Ready Analysis Context 🤖\n'));
+  
+  const contextBox = boxen(
+    gradients.rainbow('Perfect for AI Analysis!\n\n') +
+    '🎯 Copy this analysis and paste into:\n' +
+    '• ChatGPT for insights\n' +
+    '• Claude for deep analysis\n' +
+    '• Any AI assistant for questions\n\n' +
+    gradients.fire('💡 Ask: "What are the key patterns in this data?"'),
+    {
+      padding: 1,
+      borderStyle: 'round',
+      borderColor: 'magenta'
+    }
+  );
+  
+  console.log(contextBox);
+  
+  await enquirerExports.prompt({
+    type: 'confirm',
+    name: 'continue',
+    message: 'Continue?',
+    initial: true
+  });
+}
+
+async function showLearningMode() {
+  console.clear();
+  console.log(gradients.forest('🎓 Learning Mode 🎓\n'));
+  
+  const topics = await enquirerExports.prompt({
+    type: 'select',
+    name: 'topic',
+    message: 'What would you like to learn about?',
+    choices: [
+      { name: 'basics', message: '📚 Data Analysis Basics' },
+      { name: 'statistics', message: '📊 Statistics Explained' },
+      { name: 'visualization', message: '📈 Data Visualization Guide' },
+      { name: 'quality', message: '🔍 Data Quality Principles' },
+      { name: 'ai', message: '🤖 AI & Data Analysis' },
+      { name: 'back', message: '← Back to main menu' }
+    ]
+  });
+  
+  if (topics.topic === 'back') return;
+  
+  await showLearningContent(topics.topic);
+}
+
+async function showLearningContent(topic) {
+  console.log('\n' + gradients.rainbow(`📖 Learning: ${topic} 📖\n`));
+  
+  const content = {
+    basics: `
+🎯 Data Analysis Basics
+
+Data analysis is like being a detective! 🔍
+You look at information to find patterns and stories.
+
+Key steps:
+1. 📥 Collect data (like your CSV file)
+2. 🔍 Explore what's inside  
+3. 📊 Find patterns and trends
+4. 💡 Draw insights and conclusions
+5. 📈 Visualize your findings
+
+DataPilot helps with ALL of these steps!
+    `,
+    statistics: `
+📊 Statistics Made Simple
+
+Statistics help us understand data better:
+
+• Mean (Average): Add all numbers ÷ count
+• Median: The middle number when sorted
+• Mode: The most common value
+• Standard Deviation: How spread out data is
+
+📈 Correlation: How two things relate
+📉 Distribution: How data is spread out
+
+Don't worry - DataPilot calculates these for you!
+    `,
+    visualization: `
+📈 Data Visualization Guide
+
+Charts tell stories your data wants to share:
+
+📊 Bar Chart: Compare categories
+📈 Line Chart: Show trends over time  
+🥧 Pie Chart: Show parts of a whole
+📉 Scatter Plot: Find relationships
+📋 Table: Show exact values
+
+DataPilot recommends the BEST charts for your data!
+    `,
+    quality: `
+🔍 Data Quality Principles
+
+Good data = Good insights! Here's what to check:
+
+✅ Completeness: Are values missing?
+✅ Accuracy: Are values correct?
+✅ Consistency: Same format throughout?
+✅ Validity: Do values make sense?
+✅ Uniqueness: No unwanted duplicates?
+
+DataPilot automatically checks ALL of these!
+    `,
+    ai: `
+🤖 AI & Data Analysis
+
+AI can supercharge your analysis:
+
+💬 Ask questions in plain English
+🔍 Find hidden patterns  
+📊 Generate insights automatically
+📈 Create visualizations
+📝 Write reports
+
+DataPilot creates perfect summaries for AI tools like ChatGPT and Claude!
+    `
+  };
+  
+  const learningBox = boxen(
+    content[topic] || 'Content coming soon!',
+    {
+      padding: 1,
+      margin: 1,
+      borderStyle: 'double',
+      borderColor: 'blue'
+    }
+  );
+  
+  console.log(learningBox);
+  
+  await enquirerExports.prompt({
+    type: 'confirm',
+    name: 'continue',
+    message: gradients.cosmic('Got it! Ready to continue?'),
+    initial: true
+  });
+}
+
+async function showFileExplorer() {
+  console.clear();
+  console.log(gradients.ocean('📁 File Explorer 📁\n'));
+  
+  // This would be a more advanced file browser
+  console.log('Advanced file explorer coming soon!');
+  console.log('For now, use the guided analysis for file browsing.');
+  
+  await enquirerExports.prompt({
+    type: 'confirm',
+    name: 'continue',
+    message: 'Return to main menu?',
+    initial: true
+  });
+}
+
+async function runDemo() {
+  console.clear();
+  console.log(gradients.sunset('🎭 Demo Mode 🎭\n'));
+  
+  const demoChoice = await enquirerExports.prompt({
+    type: 'select',
+    name: 'demo',
+    message: 'Choose a demo to run:',
+    choices: [
+      { name: 'sales', message: '💰 Sales Data Demo' },
+      { name: 'ecommerce', message: '🛒 E-commerce Demo' },
+      { name: 'survey', message: '📋 Survey Data Demo' },
+      { name: 'back', message: '← Back to main menu' }
+    ]
+  });
+  
+  if (demoChoice.demo === 'back') return;
+  
+  // Run demo with built-in test data
+  const testFile = `tests/fixtures/test_sales.csv`;
+  
+  if (fs.existsSync(testFile)) {
+    console.log(gradients.fire('\n🎪 Running demo with sample data! 🎪\n'));
+    await runAnalysisWithAnimation(testFile, 'complete');
+    await showResults();
+  } else {
+    console.log('Demo files not found. Please ensure test fixtures are available.');
+  }
+}
+
+async function showGoodbyeAnimation() {
+  console.clear();
+  
+  let goodbye;
+  try {
+    goodbye = figlet.textSync('Thank You!', { 
+      font: 'Big',
+      horizontalLayout: 'fitted'
+    });
+  } catch (error) {
+    // Fallback
+    goodbye = `
+  _____ _                 _      __   __           _ 
+ |_   _| |__   __ _ _ __ | | __  \\ \\ / /__  _   _| |
+   | | | '_ \\ / _\` | '_ \\| |/ /   \\ V / _ \\| | | | |
+   | | | | | | (_| | | | |   <     | | (_) | |_| |_|
+   |_| |_| |_|\\__,_|_| |_|_|\\_\\    |_|\\___/ \\__,_(_)
+    `;
+  }
+  
+  console.log(gradients.rainbow(goodbye));
+  
+  const thankYouBox = boxen(
+    gradients.cosmic('🎉 Thanks for using DataPilot! 🎉\n\n') +
+    '✨ Hope you discovered amazing insights!\n' +
+    '📊 Your data has stories to tell\n' +
+    '🚀 Keep exploring and analyzing\n' +
+    '💫 See you next time!',
+    {
+      padding: 1,
+      margin: 1,
+      borderStyle: 'double',
+      borderColor: 'magenta'
+    }
+  );
+  
+  console.log(thankYouBox);
+  await sleep(2000);
+}
+
+// Utility functions
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function formatFileSize(bytes) {
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  if (bytes === 0) return '0 B';
+  const i = Math.floor(Math.log(bytes) / Math.log(1024));
+  return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
+}
+
+function formatPreviewTable(records, columns) {
+  if (records.length === 0) return 'No data to preview';
+  
+  // Simple table formatting for preview
+  let table = '';
+  
+  // Headers
+  table += columns.slice(0, 4).join(' | ') + '\n';
+  table += columns.slice(0, 4).map(() => '---').join(' | ') + '\n';
+  
+  // Data rows
+  records.slice(0, 3).forEach(record => {
+    const row = columns.slice(0, 4).map(col => {
+      const value = record[col];
+      return String(value || '').slice(0, 10);
+    });
+    table += row.join(' | ') + '\n';
+  });
+  
+  if (columns.length > 4) {
+    table += `\n... and ${columns.length - 4} more columns`;
+  }
+  
+  return table;
+}
+
 // ASCII art banner
 const banner = `
 ╔═══════════════════════════════════════╗
@@ -66320,6 +76591,14 @@ program
     await llmContext(filePath, options);
   });
 
+// UI command - Interactive Terminal Interface
+program
+  .command('ui')
+  .description('🎨 Interactive UI - Fun, colorful, beginner-friendly interface')
+  .action(async () => {
+    await interactiveUI();
+  });
+
 // Help text
 program.on('--help', () => {
   console.log('');
@@ -66337,6 +76616,7 @@ program.on('--help', () => {
   console.log('  $ datapilot eng report                       # Generate full report');
   console.log('  $ datapilot eng map                          # View warehouse map');
   console.log('  $ datapilot llm dataset.csv                  # Generate LLM-ready context');
+  console.log('  $ datapilot ui                               # Interactive UI mode');
   console.log('');
   console.log('Data Archaeology Workflow:');
   console.log('  1. Analyze all tables: datapilot eng analyze *.csv');

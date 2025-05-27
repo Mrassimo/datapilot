@@ -12,6 +12,7 @@ import { visualize } from '../src/commands/vis.js';
 import { engineering } from '../src/commands/eng.js';
 import { llmContext } from '../src/commands/llm.js';
 import { runAll } from '../src/commands/all.js';
+import { interactiveUI } from '../src/commands/ui.js';
 
 // ASCII art banner
 const banner = `
@@ -205,6 +206,14 @@ program
     await llmContext(filePath, options);
   });
 
+// UI command - Interactive Terminal Interface
+program
+  .command('ui')
+  .description('🎨 Interactive UI - Fun, colorful, beginner-friendly interface')
+  .action(async () => {
+    await interactiveUI();
+  });
+
 // Help text
 program.on('--help', () => {
   console.log('');
@@ -222,6 +231,7 @@ program.on('--help', () => {
   console.log('  $ datapilot eng report                       # Generate full report');
   console.log('  $ datapilot eng map                          # View warehouse map');
   console.log('  $ datapilot llm dataset.csv                  # Generate LLM-ready context');
+  console.log('  $ datapilot ui                               # Interactive UI mode');
   console.log('');
   console.log('Data Archaeology Workflow:');
   console.log('  1. Analyze all tables: datapilot eng analyze *.csv');
