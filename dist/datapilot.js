@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 import require$$0$3 from 'events';
 import require$$1$1 from 'child_process';
-import path$1, { basename, resolve } from 'path';
-import fs, { openSync, readSync, closeSync, statSync, readFileSync, createReadStream, writeFileSync, existsSync, realpathSync as realpathSync$1, readlinkSync, readdirSync, readdir as readdir$1, lstatSync } from 'fs';
+import path$2, { basename } from 'path';
+import fs, { existsSync, openSync, readSync, closeSync, statSync, readFileSync, createReadStream, writeFileSync, realpathSync as realpathSync$1, readlinkSync, readdirSync, readdir as readdir$1, lstatSync } from 'fs';
 import require$$4 from 'process';
 import process$1 from 'node:process';
 import os from 'node:os';
@@ -12,9 +12,9 @@ import readline from 'node:readline';
 import require$$0$5, { Transform } from 'stream';
 import require$$0$6 from 'buffer';
 import require$$0$7 from 'util';
+import os$1 from 'os';
 import { pipeline } from 'stream/promises';
 import 'crypto';
-import os$1 from 'os';
 import require$$0$8 from 'readline';
 import { fileURLToPath } from 'node:url';
 import { win32, posix } from 'node:path';
@@ -1196,7 +1196,7 @@ function requireCommand () {
 	hasRequiredCommand = 1;
 	const EventEmitter = require$$0$3.EventEmitter;
 	const childProcess = require$$1$1;
-	const path = path$1;
+	const path = path$2;
 	const fs$1 = fs;
 	const process = require$$4;
 
@@ -6219,7 +6219,7 @@ const fallback = {
 
 const logSymbols = isUnicodeSupported() ? main : fallback;
 
-function ansiRegex$2({onlyFirst = false} = {}) {
+function ansiRegex$3({onlyFirst = false} = {}) {
 	// Valid string terminator sequences are BEL, ESC\, and 0x9c
 	const ST = '(?:\\u0007|\\u001B\\u005C|\\u009C)';
 	const pattern = [
@@ -6230,9 +6230,9 @@ function ansiRegex$2({onlyFirst = false} = {}) {
 	return new RegExp(pattern, onlyFirst ? undefined : 'g');
 }
 
-const regex = ansiRegex$2();
+const regex$2 = ansiRegex$3();
 
-function stripAnsi$2(string) {
+function stripAnsi$3(string) {
 	if (typeof string !== 'string') {
 		throw new TypeError(`Expected a \`string\`, got \`${typeof string}\``);
 	}
@@ -6240,7 +6240,7 @@ function stripAnsi$2(string) {
 	// Even though the regex is global, we don't need to reset the `.lastIndex`
 	// because unlike `.exec()` and `.test()`, `.replace()` does it automatically
 	// and doing it manually has a performance penalty.
-	return string.replace(regex, '');
+	return string.replace(regex$2, '');
 }
 
 var eastasianwidth = {exports: {}};
@@ -6572,7 +6572,7 @@ var emojiRegex$1 = () => {
 	return /[#*0-9]\uFE0F?\u20E3|[\xA9\xAE\u203C\u2049\u2122\u2139\u2194-\u2199\u21A9\u21AA\u231A\u231B\u2328\u23CF\u23ED-\u23EF\u23F1\u23F2\u23F8-\u23FA\u24C2\u25AA\u25AB\u25B6\u25C0\u25FB\u25FC\u25FE\u2600-\u2604\u260E\u2611\u2614\u2615\u2618\u2620\u2622\u2623\u2626\u262A\u262E\u262F\u2638-\u263A\u2640\u2642\u2648-\u2653\u265F\u2660\u2663\u2665\u2666\u2668\u267B\u267E\u267F\u2692\u2694-\u2697\u2699\u269B\u269C\u26A0\u26A7\u26AA\u26B0\u26B1\u26BD\u26BE\u26C4\u26C8\u26CF\u26D1\u26E9\u26F0-\u26F5\u26F7\u26F8\u26FA\u2702\u2708\u2709\u270F\u2712\u2714\u2716\u271D\u2721\u2733\u2734\u2744\u2747\u2757\u2763\u27A1\u2934\u2935\u2B05-\u2B07\u2B1B\u2B1C\u2B55\u3030\u303D\u3297\u3299]\uFE0F?|[\u261D\u270C\u270D](?:\uD83C[\uDFFB-\uDFFF]|\uFE0F)?|[\u270A\u270B](?:\uD83C[\uDFFB-\uDFFF])?|[\u23E9-\u23EC\u23F0\u23F3\u25FD\u2693\u26A1\u26AB\u26C5\u26CE\u26D4\u26EA\u26FD\u2705\u2728\u274C\u274E\u2753-\u2755\u2795-\u2797\u27B0\u27BF\u2B50]|\u26D3\uFE0F?(?:\u200D\uD83D\uDCA5)?|\u26F9(?:\uD83C[\uDFFB-\uDFFF]|\uFE0F)?(?:\u200D[\u2640\u2642]\uFE0F?)?|\u2764\uFE0F?(?:\u200D(?:\uD83D\uDD25|\uD83E\uDE79))?|\uD83C(?:[\uDC04\uDD70\uDD71\uDD7E\uDD7F\uDE02\uDE37\uDF21\uDF24-\uDF2C\uDF36\uDF7D\uDF96\uDF97\uDF99-\uDF9B\uDF9E\uDF9F\uDFCD\uDFCE\uDFD4-\uDFDF\uDFF5\uDFF7]\uFE0F?|[\uDF85\uDFC2\uDFC7](?:\uD83C[\uDFFB-\uDFFF])?|[\uDFC4\uDFCA](?:\uD83C[\uDFFB-\uDFFF])?(?:\u200D[\u2640\u2642]\uFE0F?)?|[\uDFCB\uDFCC](?:\uD83C[\uDFFB-\uDFFF]|\uFE0F)?(?:\u200D[\u2640\u2642]\uFE0F?)?|[\uDCCF\uDD8E\uDD91-\uDD9A\uDE01\uDE1A\uDE2F\uDE32-\uDE36\uDE38-\uDE3A\uDE50\uDE51\uDF00-\uDF20\uDF2D-\uDF35\uDF37-\uDF43\uDF45-\uDF4A\uDF4C-\uDF7C\uDF7E-\uDF84\uDF86-\uDF93\uDFA0-\uDFC1\uDFC5\uDFC6\uDFC8\uDFC9\uDFCF-\uDFD3\uDFE0-\uDFF0\uDFF8-\uDFFF]|\uDDE6\uD83C[\uDDE8-\uDDEC\uDDEE\uDDF1\uDDF2\uDDF4\uDDF6-\uDDFA\uDDFC\uDDFD\uDDFF]|\uDDE7\uD83C[\uDDE6\uDDE7\uDDE9-\uDDEF\uDDF1-\uDDF4\uDDF6-\uDDF9\uDDFB\uDDFC\uDDFE\uDDFF]|\uDDE8\uD83C[\uDDE6\uDDE8\uDDE9\uDDEB-\uDDEE\uDDF0-\uDDF7\uDDFA-\uDDFF]|\uDDE9\uD83C[\uDDEA\uDDEC\uDDEF\uDDF0\uDDF2\uDDF4\uDDFF]|\uDDEA\uD83C[\uDDE6\uDDE8\uDDEA\uDDEC\uDDED\uDDF7-\uDDFA]|\uDDEB\uD83C[\uDDEE-\uDDF0\uDDF2\uDDF4\uDDF7]|\uDDEC\uD83C[\uDDE6\uDDE7\uDDE9-\uDDEE\uDDF1-\uDDF3\uDDF5-\uDDFA\uDDFC\uDDFE]|\uDDED\uD83C[\uDDF0\uDDF2\uDDF3\uDDF7\uDDF9\uDDFA]|\uDDEE\uD83C[\uDDE8-\uDDEA\uDDF1-\uDDF4\uDDF6-\uDDF9]|\uDDEF\uD83C[\uDDEA\uDDF2\uDDF4\uDDF5]|\uDDF0\uD83C[\uDDEA\uDDEC-\uDDEE\uDDF2\uDDF3\uDDF5\uDDF7\uDDFC\uDDFE\uDDFF]|\uDDF1\uD83C[\uDDE6-\uDDE8\uDDEE\uDDF0\uDDF7-\uDDFB\uDDFE]|\uDDF2\uD83C[\uDDE6\uDDE8-\uDDED\uDDF0-\uDDFF]|\uDDF3\uD83C[\uDDE6\uDDE8\uDDEA-\uDDEC\uDDEE\uDDF1\uDDF4\uDDF5\uDDF7\uDDFA\uDDFF]|\uDDF4\uD83C\uDDF2|\uDDF5\uD83C[\uDDE6\uDDEA-\uDDED\uDDF0-\uDDF3\uDDF7-\uDDF9\uDDFC\uDDFE]|\uDDF6\uD83C\uDDE6|\uDDF7\uD83C[\uDDEA\uDDF4\uDDF8\uDDFA\uDDFC]|\uDDF8\uD83C[\uDDE6-\uDDEA\uDDEC-\uDDF4\uDDF7-\uDDF9\uDDFB\uDDFD-\uDDFF]|\uDDF9\uD83C[\uDDE6\uDDE8\uDDE9\uDDEB-\uDDED\uDDEF-\uDDF4\uDDF7\uDDF9\uDDFB\uDDFC\uDDFF]|\uDDFA\uD83C[\uDDE6\uDDEC\uDDF2\uDDF3\uDDF8\uDDFE\uDDFF]|\uDDFB\uD83C[\uDDE6\uDDE8\uDDEA\uDDEC\uDDEE\uDDF3\uDDFA]|\uDDFC\uD83C[\uDDEB\uDDF8]|\uDDFD\uD83C\uDDF0|\uDDFE\uD83C[\uDDEA\uDDF9]|\uDDFF\uD83C[\uDDE6\uDDF2\uDDFC]|\uDF44(?:\u200D\uD83D\uDFEB)?|\uDF4B(?:\u200D\uD83D\uDFE9)?|\uDFC3(?:\uD83C[\uDFFB-\uDFFF])?(?:\u200D(?:[\u2640\u2642]\uFE0F?(?:\u200D\u27A1\uFE0F?)?|\u27A1\uFE0F?))?|\uDFF3\uFE0F?(?:\u200D(?:\u26A7\uFE0F?|\uD83C\uDF08))?|\uDFF4(?:\u200D\u2620\uFE0F?|\uDB40\uDC67\uDB40\uDC62\uDB40(?:\uDC65\uDB40\uDC6E\uDB40\uDC67|\uDC73\uDB40\uDC63\uDB40\uDC74|\uDC77\uDB40\uDC6C\uDB40\uDC73)\uDB40\uDC7F)?)|\uD83D(?:[\uDC3F\uDCFD\uDD49\uDD4A\uDD6F\uDD70\uDD73\uDD76-\uDD79\uDD87\uDD8A-\uDD8D\uDDA5\uDDA8\uDDB1\uDDB2\uDDBC\uDDC2-\uDDC4\uDDD1-\uDDD3\uDDDC-\uDDDE\uDDE1\uDDE3\uDDE8\uDDEF\uDDF3\uDDFA\uDECB\uDECD-\uDECF\uDEE0-\uDEE5\uDEE9\uDEF0\uDEF3]\uFE0F?|[\uDC42\uDC43\uDC46-\uDC50\uDC66\uDC67\uDC6B-\uDC6D\uDC72\uDC74-\uDC76\uDC78\uDC7C\uDC83\uDC85\uDC8F\uDC91\uDCAA\uDD7A\uDD95\uDD96\uDE4C\uDE4F\uDEC0\uDECC](?:\uD83C[\uDFFB-\uDFFF])?|[\uDC6E\uDC70\uDC71\uDC73\uDC77\uDC81\uDC82\uDC86\uDC87\uDE45-\uDE47\uDE4B\uDE4D\uDE4E\uDEA3\uDEB4\uDEB5](?:\uD83C[\uDFFB-\uDFFF])?(?:\u200D[\u2640\u2642]\uFE0F?)?|[\uDD74\uDD90](?:\uD83C[\uDFFB-\uDFFF]|\uFE0F)?|[\uDC00-\uDC07\uDC09-\uDC14\uDC16-\uDC25\uDC27-\uDC3A\uDC3C-\uDC3E\uDC40\uDC44\uDC45\uDC51-\uDC65\uDC6A\uDC79-\uDC7B\uDC7D-\uDC80\uDC84\uDC88-\uDC8E\uDC90\uDC92-\uDCA9\uDCAB-\uDCFC\uDCFF-\uDD3D\uDD4B-\uDD4E\uDD50-\uDD67\uDDA4\uDDFB-\uDE2D\uDE2F-\uDE34\uDE37-\uDE41\uDE43\uDE44\uDE48-\uDE4A\uDE80-\uDEA2\uDEA4-\uDEB3\uDEB7-\uDEBF\uDEC1-\uDEC5\uDED0-\uDED2\uDED5-\uDED7\uDEDC-\uDEDF\uDEEB\uDEEC\uDEF4-\uDEFC\uDFE0-\uDFEB\uDFF0]|\uDC08(?:\u200D\u2B1B)?|\uDC15(?:\u200D\uD83E\uDDBA)?|\uDC26(?:\u200D(?:\u2B1B|\uD83D\uDD25))?|\uDC3B(?:\u200D\u2744\uFE0F?)?|\uDC41\uFE0F?(?:\u200D\uD83D\uDDE8\uFE0F?)?|\uDC68(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:\uDC8B\u200D\uD83D)?\uDC68|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D(?:[\uDC68\uDC69]\u200D\uD83D(?:\uDC66(?:\u200D\uD83D\uDC66)?|\uDC67(?:\u200D\uD83D[\uDC66\uDC67])?)|[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uDC66(?:\u200D\uD83D\uDC66)?|\uDC67(?:\u200D\uD83D[\uDC66\uDC67])?)|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]))|\uD83C(?:\uDFFB(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:\uDC8B\u200D\uD83D)?\uDC68\uD83C[\uDFFB-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]|\uDD1D\u200D\uD83D\uDC68\uD83C[\uDFFC-\uDFFF])))?|\uDFFC(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:\uDC8B\u200D\uD83D)?\uDC68\uD83C[\uDFFB-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]|\uDD1D\u200D\uD83D\uDC68\uD83C[\uDFFB\uDFFD-\uDFFF])))?|\uDFFD(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:\uDC8B\u200D\uD83D)?\uDC68\uD83C[\uDFFB-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]|\uDD1D\u200D\uD83D\uDC68\uD83C[\uDFFB\uDFFC\uDFFE\uDFFF])))?|\uDFFE(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:\uDC8B\u200D\uD83D)?\uDC68\uD83C[\uDFFB-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]|\uDD1D\u200D\uD83D\uDC68\uD83C[\uDFFB-\uDFFD\uDFFF])))?|\uDFFF(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:\uDC8B\u200D\uD83D)?\uDC68\uD83C[\uDFFB-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]|\uDD1D\u200D\uD83D\uDC68\uD83C[\uDFFB-\uDFFE])))?))?|\uDC69(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:\uDC8B\u200D\uD83D)?[\uDC68\uDC69]|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D(?:[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uDC66(?:\u200D\uD83D\uDC66)?|\uDC67(?:\u200D\uD83D[\uDC66\uDC67])?|\uDC69\u200D\uD83D(?:\uDC66(?:\u200D\uD83D\uDC66)?|\uDC67(?:\u200D\uD83D[\uDC66\uDC67])?))|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]))|\uD83C(?:\uDFFB(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:[\uDC68\uDC69]|\uDC8B\u200D\uD83D[\uDC68\uDC69])\uD83C[\uDFFB-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]|\uDD1D\u200D\uD83D[\uDC68\uDC69]\uD83C[\uDFFC-\uDFFF])))?|\uDFFC(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:[\uDC68\uDC69]|\uDC8B\u200D\uD83D[\uDC68\uDC69])\uD83C[\uDFFB-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]|\uDD1D\u200D\uD83D[\uDC68\uDC69]\uD83C[\uDFFB\uDFFD-\uDFFF])))?|\uDFFD(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:[\uDC68\uDC69]|\uDC8B\u200D\uD83D[\uDC68\uDC69])\uD83C[\uDFFB-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]|\uDD1D\u200D\uD83D[\uDC68\uDC69]\uD83C[\uDFFB\uDFFC\uDFFE\uDFFF])))?|\uDFFE(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:[\uDC68\uDC69]|\uDC8B\u200D\uD83D[\uDC68\uDC69])\uD83C[\uDFFB-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]|\uDD1D\u200D\uD83D[\uDC68\uDC69]\uD83C[\uDFFB-\uDFFD\uDFFF])))?|\uDFFF(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:[\uDC68\uDC69]|\uDC8B\u200D\uD83D[\uDC68\uDC69])\uD83C[\uDFFB-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]|\uDD1D\u200D\uD83D[\uDC68\uDC69]\uD83C[\uDFFB-\uDFFE])))?))?|\uDC6F(?:\u200D[\u2640\u2642]\uFE0F?)?|\uDD75(?:\uD83C[\uDFFB-\uDFFF]|\uFE0F)?(?:\u200D[\u2640\u2642]\uFE0F?)?|\uDE2E(?:\u200D\uD83D\uDCA8)?|\uDE35(?:\u200D\uD83D\uDCAB)?|\uDE36(?:\u200D\uD83C\uDF2B\uFE0F?)?|\uDE42(?:\u200D[\u2194\u2195]\uFE0F?)?|\uDEB6(?:\uD83C[\uDFFB-\uDFFF])?(?:\u200D(?:[\u2640\u2642]\uFE0F?(?:\u200D\u27A1\uFE0F?)?|\u27A1\uFE0F?))?)|\uD83E(?:[\uDD0C\uDD0F\uDD18-\uDD1F\uDD30-\uDD34\uDD36\uDD77\uDDB5\uDDB6\uDDBB\uDDD2\uDDD3\uDDD5\uDEC3-\uDEC5\uDEF0\uDEF2-\uDEF8](?:\uD83C[\uDFFB-\uDFFF])?|[\uDD26\uDD35\uDD37-\uDD39\uDD3D\uDD3E\uDDB8\uDDB9\uDDCD\uDDCF\uDDD4\uDDD6-\uDDDD](?:\uD83C[\uDFFB-\uDFFF])?(?:\u200D[\u2640\u2642]\uFE0F?)?|[\uDDDE\uDDDF](?:\u200D[\u2640\u2642]\uFE0F?)?|[\uDD0D\uDD0E\uDD10-\uDD17\uDD20-\uDD25\uDD27-\uDD2F\uDD3A\uDD3F-\uDD45\uDD47-\uDD76\uDD78-\uDDB4\uDDB7\uDDBA\uDDBC-\uDDCC\uDDD0\uDDE0-\uDDFF\uDE70-\uDE7C\uDE80-\uDE89\uDE8F-\uDEC2\uDEC6\uDECE-\uDEDC\uDEDF-\uDEE9]|\uDD3C(?:\u200D[\u2640\u2642]\uFE0F?|\uD83C[\uDFFB-\uDFFF])?|\uDDCE(?:\uD83C[\uDFFB-\uDFFF])?(?:\u200D(?:[\u2640\u2642]\uFE0F?(?:\u200D\u27A1\uFE0F?)?|\u27A1\uFE0F?))?|\uDDD1(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\uD83C[\uDF3E\uDF73\uDF7C\uDF84\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]|\uDD1D\u200D\uD83E\uDDD1|\uDDD1\u200D\uD83E\uDDD2(?:\u200D\uD83E\uDDD2)?|\uDDD2(?:\u200D\uD83E\uDDD2)?))|\uD83C(?:\uDFFB(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D(?:\uD83D\uDC8B\u200D)?\uD83E\uDDD1\uD83C[\uDFFC-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF84\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]|\uDD1D\u200D\uD83E\uDDD1\uD83C[\uDFFB-\uDFFF])))?|\uDFFC(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D(?:\uD83D\uDC8B\u200D)?\uD83E\uDDD1\uD83C[\uDFFB\uDFFD-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF84\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]|\uDD1D\u200D\uD83E\uDDD1\uD83C[\uDFFB-\uDFFF])))?|\uDFFD(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D(?:\uD83D\uDC8B\u200D)?\uD83E\uDDD1\uD83C[\uDFFB\uDFFC\uDFFE\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF84\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]|\uDD1D\u200D\uD83E\uDDD1\uD83C[\uDFFB-\uDFFF])))?|\uDFFE(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D(?:\uD83D\uDC8B\u200D)?\uD83E\uDDD1\uD83C[\uDFFB-\uDFFD\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF84\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]|\uDD1D\u200D\uD83E\uDDD1\uD83C[\uDFFB-\uDFFF])))?|\uDFFF(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D(?:\uD83D\uDC8B\u200D)?\uD83E\uDDD1\uD83C[\uDFFB-\uDFFE]|\uD83C[\uDF3E\uDF73\uDF7C\uDF84\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF\uDDBC\uDDBD](?:\u200D\u27A1\uFE0F?)?|[\uDDB0-\uDDB3]|\uDD1D\u200D\uD83E\uDDD1\uD83C[\uDFFB-\uDFFF])))?))?|\uDEF1(?:\uD83C(?:\uDFFB(?:\u200D\uD83E\uDEF2\uD83C[\uDFFC-\uDFFF])?|\uDFFC(?:\u200D\uD83E\uDEF2\uD83C[\uDFFB\uDFFD-\uDFFF])?|\uDFFD(?:\u200D\uD83E\uDEF2\uD83C[\uDFFB\uDFFC\uDFFE\uDFFF])?|\uDFFE(?:\u200D\uD83E\uDEF2\uD83C[\uDFFB-\uDFFD\uDFFF])?|\uDFFF(?:\u200D\uD83E\uDEF2\uD83C[\uDFFB-\uDFFE])?))?)/g;
 };
 
-function stringWidth$3(string, options) {
+function stringWidth$2(string, options) {
 	if (typeof string !== 'string' || string.length === 0) {
 		return 0;
 	}
@@ -6584,7 +6584,7 @@ function stringWidth$3(string, options) {
 	};
 
 	if (!options.countAnsiEscapeCodes) {
-		string = stripAnsi$2(string);
+		string = stripAnsi$3(string);
 	}
 
 	if (string.length === 0) {
@@ -10651,8 +10651,8 @@ class Ora {
 		const fullText = ' '.repeat(this.#indent) + fullPrefixText + '--' + this.#text + '--' + fullSuffixText;
 
 		this.#lineCount = 0;
-		for (const line of stripAnsi$2(fullText).split('\n')) {
-			this.#lineCount += Math.max(1, Math.ceil(stringWidth$3(line, {countAnsiEscapeCodes: true}) / columns));
+		for (const line of stripAnsi$3(fullText).split('\n')) {
+			this.#lineCount += Math.max(1, Math.ceil(stringWidth$2(line, {countAnsiEscapeCodes: true}) / columns));
 		}
 	}
 
@@ -35442,24 +35442,68 @@ const SAMPLE_THRESHOLD = 50 * 1024 * 1024; // 50MB
 const MAX_MEMORY_ROWS = 100000; // Maximum rows to keep in memory
 const MAX_ROWS_FOR_FULL_ANALYSIS = 50000;
 
-// Detect file encoding with validation and fallback
+// Enhanced path normalization for Windows
+function normalizePath(filePath) {
+  // Handle Windows paths with spaces and special characters
+  let normalized = filePath;
+  
+  // Remove quotes if present
+  normalized = normalized.replace(/^["']|["']$/g, '');
+  
+  // Convert forward slashes to backslashes on Windows
+  if (os$1.platform() === 'win32') {
+    normalized = normalized.replace(/\//g, '\\');
+  }
+  
+  // Resolve to absolute path
+  normalized = path$2.resolve(normalized);
+  
+  // On Windows, ensure proper drive letter format
+  if (os$1.platform() === 'win32' && normalized.match(/^[a-z]:/i)) {
+    normalized = normalized.charAt(0).toUpperCase() + normalized.slice(1);
+  }
+  
+  return normalized;
+}
+
+// Enhanced encoding detection with better fallback
 function detectEncoding(filePath) {
   try {
-    const encoding = chardetExports.detectFileSync(filePath, { sampleSize: 65536 });
+    // Normalize the path first
+    const normalizedPath = normalizePath(filePath);
     
-    // Validate detected encoding
+    // Try chardet first
+    const encoding = chardetExports.detectFileSync(normalizedPath, { sampleSize: 65536 });
+    
     if (!encoding) {
-      console.log(chalk.yellow('Could not detect encoding, trying UTF-8 with BOM detection'));
+      console.log(chalk.yellow('Could not detect encoding, checking for BOM...'));
       
       // Check for BOM
-      const fd = openSync(filePath, 'r');
-      const buffer = Buffer.alloc(3);
-      readSync(fd, buffer, 0, 3, 0);
+      const fd = openSync(normalizedPath, 'r');
+      const buffer = Buffer.alloc(4); // Check 4 bytes for UTF-32
+      readSync(fd, buffer, 0, 4, 0);
       closeSync(fd);
       
+      // Check various BOMs
       if (buffer[0] === 0xEF && buffer[1] === 0xBB && buffer[2] === 0xBF) {
-        return 'utf8';  // UTF-8 with BOM
+        return 'utf8'; // UTF-8 with BOM
       }
+      if (buffer[0] === 0xFF && buffer[1] === 0xFE) {
+        if (buffer[2] === 0x00 && buffer[3] === 0x00) {
+          console.log(chalk.yellow('UTF-32LE detected, will use UTF-8 fallback'));
+          return 'utf8'; // UTF-32LE (not supported, fallback)
+        }
+        return 'utf16le'; // UTF-16LE
+      }
+      if (buffer[0] === 0xFE && buffer[1] === 0xFF) {
+        return 'utf16be'; // UTF-16BE
+      }
+      if (buffer[0] === 0x00 && buffer[1] === 0x00 && buffer[2] === 0xFE && buffer[3] === 0xFF) {
+        console.log(chalk.yellow('UTF-32BE detected, will use UTF-8 fallback'));
+        return 'utf8'; // UTF-32BE (not supported, fallback)
+      }
+      
+      // Default to UTF-8
       return 'utf8';
     }
     
@@ -35467,80 +35511,134 @@ function detectEncoding(filePath) {
       console.log(chalk.yellow(`Detected ${encoding} encoding (will handle automatically)`));
     }
     
-    // Map common encodings to Node.js supported encodings
+    // Enhanced encoding map with better Windows support
     const encodingMap = {
       'UTF-8': 'utf8',
       'ascii': 'ascii',
-      'windows-1250': 'latin1',  // Added missing encoding
+      'windows-1250': 'latin1',
+      'windows-1251': 'win1251',
       'windows-1252': 'latin1',
       'ISO-8859-1': 'latin1',
+      'ISO-8859-2': 'latin1',
       'UTF-16LE': 'utf16le',
       'UTF-16BE': 'utf16be',
-      'UTF-32LE': 'utf32le',     // Add more encodings
-      'UTF-32BE': 'utf32be',
-      'Big5': 'big5',
-      'Shift_JIS': 'shiftjis'
+      'UTF-32LE': 'utf8', // Fallback
+      'UTF-32BE': 'utf8', // Fallback
+      'Big5': 'utf8', // Fallback
+      'GB2312': 'utf8', // Fallback
+      'Shift_JIS': 'utf8', // Fallback
+      'EUC-JP': 'utf8', // Fallback
+      'EUC-KR': 'utf8' // Fallback
     };
     
-    return encodingMap[encoding] || 'utf8';
+    const mappedEncoding = encodingMap[encoding] || 'utf8';
+    
+    // Warn about unsupported encodings
+    if (encoding && !encodingMap[encoding]) {
+      console.log(chalk.yellow(`Warning: ${encoding} encoding not fully supported, using UTF-8 fallback`));
+    }
+    
+    return mappedEncoding;
   } catch (error) {
     console.log(chalk.yellow('Encoding detection failed, defaulting to UTF-8'));
     return 'utf8';
   }
 }
 
-// Detect CSV delimiter
+// Detect CSV delimiter with improved logic
 function detectDelimiter(filePath, encoding = 'utf8') {
   try {
-    const sample = readFileSync(filePath, { encoding, end: 4096 }).toString();
+    const normalizedPath = normalizePath(filePath);
+    const sample = readFileSync(normalizedPath, { encoding, end: 8192 }).toString();
     const lines = sample.split(/\r?\n/).filter(l => l.trim());
     
     if (lines.length < 2) return ',';
     
     const delimiters = [',', ';', '\t', '|'];
-    const counts = {};
+    const scores = {};
     
+    // Test each delimiter
     for (const delimiter of delimiters) {
-      counts[delimiter] = lines.slice(0, 5).map(line => 
-        line.split(delimiter).length
-      );
+      const counts = lines.slice(0, Math.min(10, lines.length)).map(line => {
+        // Count occurrences, considering quoted fields
+        let count = 0;
+        let inQuotes = false;
+        for (let i = 0; i < line.length; i++) {
+          if (line[i] === '"' && (i === 0 || line[i-1] !== '\\')) {
+            inQuotes = !inQuotes;
+          } else if (line[i] === delimiter && !inQuotes) {
+            count++;
+          }
+        }
+        return count;
+      });
+      
+      // Calculate consistency score
+      const avg = counts.reduce((a, b) => a + b, 0) / counts.length;
+      if (avg > 0) {
+        const variance = counts.reduce((sum, count) => 
+          sum + Math.pow(count - avg, 2), 0) / counts.length;
+        const consistency = avg / (variance + 1);
+        scores[delimiter] = { avg, variance, consistency };
+      } else {
+        scores[delimiter] = { avg: 0, variance: 0, consistency: 0 };
+      }
     }
     
-    // Find delimiter with most consistent count across lines
+    // Find best delimiter
     let bestDelimiter = ',';
     let bestScore = 0;
     
-    for (const [delimiter, lineCounts] of Object.entries(counts)) {
-      const avg = lineCounts.reduce((a, b) => a + b, 0) / lineCounts.length;
-      if (avg > 1) {
-        const variance = lineCounts.reduce((sum, count) => 
-          sum + Math.pow(count - avg, 2), 0) / lineCounts.length;
-        const score = avg / (variance + 1);
-        
-        if (score > bestScore) {
-          bestScore = score;
-          bestDelimiter = delimiter;
-        }
+    for (const [delimiter, score] of Object.entries(scores)) {
+      if (score.consistency > bestScore && score.avg > 0) {
+        bestScore = score.consistency;
+        bestDelimiter = delimiter;
       }
     }
     
     if (bestDelimiter !== ',') {
-      console.log(chalk.yellow(`Detected delimiter: ${bestDelimiter === '\t' ? '\\t' : bestDelimiter}`));
+      console.log(chalk.yellow(`Detected delimiter: ${bestDelimiter === '\t' ? '\\t (tab)' : bestDelimiter}`));
     }
     
     return bestDelimiter;
   } catch (error) {
+    console.log(chalk.yellow(`Delimiter detection failed: ${error.message}, using comma`));
     return ',';
   }
 }
 
-// Parse numbers with various formats
+// Enhanced number parsing
 function parseNumber(value) {
   if (typeof value === 'number') return value;
   if (typeof value !== 'string') return null;
   
-  // Remove commas and spaces
-  const cleaned = value.replace(/[,\s]/g, '');
+  // Remove currency symbols and spaces
+  let cleaned = value.replace(/[$€£¥₹\s]/g, '');
+  
+  // Handle different decimal separators
+  if (cleaned.includes(',') && cleaned.includes('.')) {
+    // Determine which is decimal separator
+    const lastComma = cleaned.lastIndexOf(',');
+    const lastDot = cleaned.lastIndexOf('.');
+    
+    if (lastComma > lastDot) {
+      // Comma is decimal separator (European format)
+      cleaned = cleaned.replace(/\./g, '').replace(',', '.');
+    } else {
+      // Dot is decimal separator (US format)
+      cleaned = cleaned.replace(/,/g, '');
+    }
+  } else if (cleaned.includes(',') && !cleaned.includes('.')) {
+    // Check if comma is thousands separator or decimal
+    const parts = cleaned.split(',');
+    if (parts.length === 2 && parts[1].length <= 2) {
+      // Likely decimal separator
+      cleaned = cleaned.replace(',', '.');
+    } else {
+      // Likely thousands separator
+      cleaned = cleaned.replace(/,/g, '');
+    }
+  }
   
   // Check for percentage
   if (cleaned.endsWith('%')) {
@@ -35553,67 +35651,90 @@ function parseNumber(value) {
   return isNaN(num) ? null : num;
 }
 
-// Enhanced date parsing with format detection
+// Enhanced date parsing with Australian format priority
 function parseDate$3(value, dateFormats = null) {
   if (value instanceof Date) return value;
   if (typeof value !== 'string') return null;
   
-  // Common date patterns
+  const trimmed = value.trim();
+  
+  // Common date patterns with Australian priority
   const patterns = dateFormats || [
     // ISO formats
     /^\d{4}-\d{2}-\d{2}$/,
     /^\d{4}-\d{2}-\d{2}T/,
-    // Australian format DD/MM/YYYY
+    /^\d{4}\/\d{2}\/\d{2}$/,
+    // Australian format DD/MM/YYYY (prioritized)
     /^\d{1,2}\/\d{1,2}\/\d{4}$/,
-    // US format MM/DD/YYYY
     /^\d{1,2}-\d{1,2}-\d{4}$/,
+    /^\d{1,2}\.\d{1,2}\.\d{4}$/,
     // Other formats
-    /^\d{1,2}\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/i
+    /^\d{1,2}\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/i,
+    /^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2}/i
   ];
   
   // Check if it matches date patterns
   const hasDatePattern = patterns.some(pattern => 
-    pattern.test ? pattern.test(value) : value.match(pattern)
+    pattern.test ? pattern.test(trimmed) : trimmed.match(pattern)
   );
   
   if (!hasDatePattern) return null;
   
-  const date = new Date(value);
-  
-  // For ambiguous dates like 01/02/2023, try to detect format
-  if (value.match(/^\d{1,2}\/\d{1,2}\/\d{4}$/)) {
-    const parts = value.split('/');
-    const d1 = parseInt(parts[0]);
-    const d2 = parseInt(parts[1]);
+  // For DD/MM/YYYY format (Australian), parse explicitly
+  if (trimmed.match(/^\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{4}$/)) {
+    const separator = trimmed.includes('/') ? '/' : trimmed.includes('-') ? '-' : '.';
+    const parts = trimmed.split(separator);
+    const day = parseInt(parts[0]);
+    const month = parseInt(parts[1]);
     const year = parseInt(parts[2]);
     
-    // If one is clearly a month (>12), we can determine format
-    if (d1 > 12 && d2 <= 12) {
-      // DD/MM/YYYY format
-      return new Date(year, d2 - 1, d1);
-    } else if (d2 > 12 && d1 <= 12) {
-      // MM/DD/YYYY format
-      return new Date(year, d1 - 1, d2);
+    // Validate day and month
+    if (day >= 1 && day <= 31 && month >= 1 && month <= 12) {
+      // Use Australian format (DD/MM/YYYY)
+      const date = new Date(year, month - 1, day);
+      
+      // Verify the date is valid
+      if (date.getDate() === day && date.getMonth() === month - 1 && date.getFullYear() === year) {
+        return date;
+      }
     }
-    // Otherwise, assume DD/MM/YYYY (Australian default)
-    return new Date(year, d2 - 1, d1);
   }
   
+  // Try standard Date parsing for other formats
+  const date = new Date(trimmed);
   return isNaN(date.getTime()) ? null : date;
+}
+
+// Progress callback wrapper for better UI feedback
+function createProgressCallback(spinner, totalSize) {
+  let lastUpdate = Date.now();
+  const updateInterval = 250; // Update every 250ms
+  
+  return (progress, rowCount) => {
+    const now = Date.now();
+    if (now - lastUpdate >= updateInterval) {
+      const percentage = Math.round(progress);
+      const sizeProcessed = (totalSize * progress / 100 / 1024 / 1024).toFixed(1);
+      const totalSizeMB = (totalSize / 1024 / 1024).toFixed(1);
+      
+      spinner.text = `Processing: ${percentage}% (${sizeProcessed}MB / ${totalSizeMB}MB) - ${rowCount.toLocaleString()} rows processed`;
+      lastUpdate = now;
+    }
+  };
 }
 
 // Helper function to attempt parsing with a specific encoding
 async function attemptParse(filePath, encoding, options = {}) {
-  const delimiter = options.delimiter || detectDelimiter(filePath, encoding);
-  const fileSize = statSync(filePath).size;
+  const normalizedPath = normalizePath(filePath);
+  const delimiter = options.delimiter || detectDelimiter(normalizedPath, encoding);
+  const fileSize = statSync(normalizedPath).size;
   
-  // Progressive sampling logic - estimate file size and determine sampling strategy
+  // Progressive sampling logic
   let useSampling = false;
   let sampleRate = 1.0;
   
   if (fileSize > 100 * 1024 * 1024 && !options.noSampling) { // 100MB threshold
-    // Estimate average bytes per row (rough approximation)
-    const averageBytesPerRow = 80; // Conservative estimate
+    const averageBytesPerRow = 80;
     const estimatedRows = fileSize / averageBytesPerRow;
     
     if (estimatedRows > MAX_ROWS_FOR_FULL_ANALYSIS) {
@@ -35628,15 +35749,14 @@ async function attemptParse(filePath, encoding, options = {}) {
       }
     }
   } else if (fileSize > SAMPLE_THRESHOLD && !options.noSampling) {
-    // Use the older sampling method for smaller large files
     useSampling = true;
-    sampleRate = 1.0; // Will use reservoir sampling
+    sampleRate = 1.0;
   }
   
-  return await parseCSVWithEncoding(filePath, encoding, delimiter, useSampling, sampleRate, options);
+  return await parseCSVWithEncoding(normalizedPath, encoding, delimiter, useSampling, sampleRate, options);
 }
 
-// Core parsing function separated for fallback mechanism
+// Core parsing function with better error handling
 async function parseCSVWithEncoding(filePath, encoding, delimiter, useSampling, sampleRate, options = {}) {
   const fileSize = statSync(filePath).size;
   const { onProgress } = options;
@@ -35650,6 +35770,11 @@ async function parseCSVWithEncoding(filePath, encoding, delimiter, useSampling, 
   
   const records = [];
   const spinner = options.quiet ? null : ora('Reading CSV file...').start();
+  
+  // Create progress callback if spinner exists
+  const progressCallback = spinner && fileSize > 1024 * 1024 ? 
+    createProgressCallback(spinner, fileSize) : null;
+  
   let rowCount = 0;
   let errorCount = 0;
   let skipCount = 0;
@@ -35664,47 +35789,64 @@ async function parseCSVWithEncoding(filePath, encoding, delimiter, useSampling, 
     delimiter,
     encoding,
     relax_quotes: true,
-    relax_column_count: true,  // Add this for better quote handling
-    quote: '"',                // Explicitly set quote character
-    escape: '"',               // Set escape character (for quotes inside quotes)
+    relax_column_count: true,
+    quote: '"',
+    escape: '"',
     skip_records_with_error: true,
+    bom: true, // Handle BOM automatically
+    max_record_size: 1048576, // 1MB max record size
     on_record: (record, { lines }) => {
-      // Update progress
-      if (spinner && lines % 10000 === 0) {
-        spinner.text = `Processing row ${lines.toLocaleString()}...`;
+      // Update progress via spinner
+      if (spinner && lines % 1000 === 0) {
+        const progress = (processedBytes / fileSize) * 100;
+        if (progressCallback) {
+          progressCallback(progress, lines);
+        } else {
+          spinner.text = `Processing row ${lines.toLocaleString()}...`;
+        }
       }
       return record;
     },
     cast: (value) => {
       if (value === '' || value === null || value === undefined) return null;
       
-      // If value is purely numeric (no spaces, letters, special chars except . and -), try parsing as number
+      // Enhanced type casting
       if (typeof value === 'string') {
         const trimmed = value.trim();
         
-        // Only try to parse as number if it looks purely numeric
-        if (/^[\d\s,.-]+$/.test(trimmed) && !/[a-zA-Z]/.test(trimmed)) {
-          const num = parseNumber(value);
+        // Boolean values
+        const lowerCase = trimmed.toLowerCase();
+        if (['true', 'false', 'yes', 'no', '1', '0', 'y', 'n'].includes(lowerCase)) {
+          return lowerCase === 'true' || lowerCase === 'yes' || lowerCase === '1' || lowerCase === 'y';
+        }
+        
+        // Try number parsing
+        if (/^[\d\s,.$€£¥₹%-]+$/.test(trimmed) && !/[a-zA-Z]/.test(trimmed)) {
+          const num = parseNumber(trimmed);
           if (num !== null) return num;
         }
         
-        // Try to parse as date
-        const date = parseDate$3(value);
+        // Try date parsing
+        const date = parseDate$3(trimmed);
         if (date !== null) return date;
       }
       
-      // Return as string
       return value;
     }
   };
 
-  // Don't override columns option if explicitly set in options
   const parser = parse({ ...parserOptions, ...options });
 
   parser.on('skip', (err) => {
     errorCount++;
     if (errorCount <= 5 && !options.quiet) {
       console.log(chalk.red(`\nSkipped row ${err.lines}: ${err.message}`));
+    }
+  });
+
+  parser.on('error', (err) => {
+    if (!options.quiet) {
+      console.error(chalk.red(`\nParser error: ${err.message}`));
     }
   });
 
@@ -35732,20 +35874,19 @@ async function parseCSVWithEncoding(filePath, encoding, delimiter, useSampling, 
             });
           }
           
-          // Check memory usage periodically and adjust sampling if needed
+          // Memory management
           let aggressiveSampling = false;
           if (rowCount % 5000 === 0) {
             const memoryStatus = checkMemoryUsage();
             if (memoryStatus.shouldUseAggressiveSampling && !options.quiet) {
-              console.warn(chalk.red(`High memory usage detected (${memoryStatus.heapUsedGB.toFixed(1)}GB), enabling aggressive sampling`));
+              console.warn(chalk.red(`\nHigh memory usage detected (${memoryStatus.heapUsedGB.toFixed(1)}GB), enabling aggressive sampling`));
               aggressiveSampling = true;
             }
           }
           
-          // Apply progressive or reservoir sampling
+          // Apply sampling
           if (useSampling || aggressiveSampling) {
             if (sampleRate < 1.0 || aggressiveSampling) {
-              // Progressive sampling: sample while streaming based on calculated rate
               const effectiveRate = aggressiveSampling ? Math.min(sampleRate * 0.1, 0.01) : sampleRate;
               if (Math.random() < effectiveRate) {
                 records.push(processedRecord);
@@ -35753,7 +35894,7 @@ async function parseCSVWithEncoding(filePath, encoding, delimiter, useSampling, 
                 skipCount++;
               }
             } else if (records.length >= MAX_MEMORY_ROWS) {
-              // Reservoir sampling for very large files
+              // Reservoir sampling
               skipCount++;
               const j = Math.floor(Math.random() * rowCount);
               if (j < MAX_MEMORY_ROWS) {
@@ -35770,7 +35911,9 @@ async function parseCSVWithEncoding(filePath, encoding, delimiter, useSampling, 
       }
     );
     
-    if (spinner) spinner.succeed(`Processed ${rowCount.toLocaleString()} rows`);
+    if (spinner) {
+      spinner.succeed(`Processed ${rowCount.toLocaleString()} rows`);
+    }
     
     if (errorCount > 0 && !options.quiet) {
       console.log(chalk.yellow(
@@ -35792,40 +35935,62 @@ async function parseCSVWithEncoding(filePath, encoding, delimiter, useSampling, 
   }
 }
 
-// Main parseCSV function with fallback mechanism
+// Main parseCSV function with enhanced fallback mechanism
 async function parseCSV(filePath, options = {}) {
-  const detectedEncoding = options.encoding || detectEncoding(filePath);
+  // Normalize the file path first
+  const normalizedPath = normalizePath(filePath);
   
-  // If parsing fails with detected encoding, retry with different encodings
-  const fallbackEncodings = ['utf8', 'latin1', 'utf16le'];
+  // Check if file exists
+  if (!existsSync(normalizedPath)) {
+    throw new Error(`File not found: ${normalizedPath}`);
+  }
   
-  for (const encoding of [detectedEncoding, ...fallbackEncodings]) {
-    if (encoding === detectedEncoding || !fallbackEncodings.includes(encoding)) {
-      try {
-        const result = await attemptParse(filePath, encoding, options);
-        if (result.success) {
-          // Handle empty file - return empty array instead of throwing
-          if (result.data.length === 0) {
-            if (!options.quiet) {
-              console.log(chalk.yellow('⚠️  Warning: No data found in CSV file. The file may be empty or have no valid rows.'));
-            }
+  const detectedEncoding = options.encoding || detectEncoding(normalizedPath);
+  
+  // Enhanced fallback encoding list
+  const fallbackEncodings = ['utf8', 'latin1', 'utf16le', 'ascii'];
+  const encodingsToTry = [detectedEncoding, ...fallbackEncodings.filter(e => e !== detectedEncoding)];
+  
+  let lastError = null;
+  let attempts = [];
+  
+  for (const encoding of encodingsToTry) {
+    try {
+      const result = await attemptParse(normalizedPath, encoding, options);
+      if (result.success) {
+        if (result.data.length === 0) {
+          if (!options.quiet) {
+            console.log(chalk.yellow('⚠️  Warning: No data found in CSV file. The file may be empty or have no valid rows.'));
           }
-          return result.data;
         }
-      } catch (e) {
-        continue;
+        return result.data;
       }
+      lastError = result.error;
+      attempts.push({ encoding, error: result.error?.message || 'Unknown error' });
+    } catch (e) {
+      lastError = e;
+      attempts.push({ encoding, error: e.message });
+      if (!options.quiet && encodingsToTry.indexOf(encoding) < encodingsToTry.length - 1) {
+        console.log(chalk.yellow(`Failed with ${encoding} encoding, trying next...`));
+      }
+      continue;
     }
   }
   
-  // If all encodings fail, throw the original error with enhanced message
+  // Enhanced error message
+  const attemptDetails = attempts.map(a => `  - ${a.encoding}: ${a.error}`).join('\n');
   throw new Error(
-    'CSV parsing failed with all attempted encodings. ' +
-    'The file may be corrupted or in an unsupported format.'
+    'CSV parsing failed with all attempted encodings.\n' +
+    'The file may be corrupted, in an unsupported format, or have encoding issues.\n' +
+    'Attempted encodings:\n' + attemptDetails + '\n' +
+    'Suggestions:\n' +
+    '  1. Try converting the file to UTF-8 encoding\n' +
+    '  2. Check if the file is a valid CSV format\n' +
+    '  3. Remove any special characters from the file path'
   );
 }
 
-// Enhanced column type detection with confidence scores
+// Enhanced column type detection
 function detectColumnTypes(records) {
   if (records.length === 0) return {};
   
@@ -35851,7 +36016,8 @@ function detectColumnTypes(records) {
     columnTypes[column] = {
       ...analysis,
       nullable: records.some(r => r[column] === null),
-      nullCount: records.filter(r => r[column] === null).length
+      nullCount: records.filter(r => r[column] === null).length,
+      nullPercentage: (records.filter(r => r[column] === null).length / records.length * 100).toFixed(1)
     };
   }
   
@@ -35859,6 +36025,7 @@ function detectColumnTypes(records) {
   return columnTypes;
 }
 
+// Enhanced column value analysis
 function analyzeColumnValues(values, totalRecords) {
   const typeVotes = {
     integer: 0,
@@ -35868,13 +36035,25 @@ function analyzeColumnValues(values, totalRecords) {
     phone: 0,
     postcode: 0,
     boolean: 0,
-    url: 0
+    url: 0,
+    currency: 0
   };
   
   const dateFormats = new Set();
-  const ambiguousDates = [];
+  const sampleValues = [];
   
   for (const value of values) {
+    // Keep sample values
+    if (sampleValues.length < 5 && typeof value === 'string') {
+      sampleValues.push(value);
+    }
+    
+    // Check for boolean first
+    if (typeof value === 'boolean') {
+      typeVotes.boolean++;
+      continue;
+    }
+    
     // Check numbers
     if (typeof value === 'number') {
       if (Number.isInteger(value)) {
@@ -35887,6 +36066,12 @@ function analyzeColumnValues(values, totalRecords) {
     
     if (typeof value === 'string') {
       const trimmed = value.trim();
+      
+      // Currency check
+      if (/^[$€£¥₹][\d,]+\.?\d*$/.test(trimmed) || /^[\d,]+\.?\d*\s*[$€£¥₹]$/.test(trimmed)) {
+        typeVotes.currency++;
+        typeVotes.float++; // Also count as float
+      }
       
       // Boolean check
       if (['true', 'false', 'yes', 'no', '1', '0', 'y', 'n'].includes(trimmed.toLowerCase())) {
@@ -35903,10 +36088,10 @@ function analyzeColumnValues(values, totalRecords) {
         typeVotes.url++;
       }
       
-      // Phone check (enhanced)
+      // Phone check (enhanced for international formats)
       const phoneDigits = trimmed.replace(/[^\d]/g, '');
       if (phoneDigits.length >= 8 && phoneDigits.length <= 15 && 
-          /^[\d\s\-\+\(\)\.]+$/.test(trimmed)) {
+          /^[\d\s\-\+\(\)\.ext]+$/i.test(trimmed)) {
         typeVotes.phone++;
       }
       
@@ -35915,7 +36100,7 @@ function analyzeColumnValues(values, totalRecords) {
         typeVotes.postcode++;
       }
       
-      // Date detection with format tracking
+      // Date detection
       if (value instanceof Date || 
           /\d{4}-\d{2}-\d{2}/.test(trimmed) ||
           /\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}/.test(trimmed)) {
@@ -35925,19 +36110,15 @@ function analyzeColumnValues(values, totalRecords) {
         if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) {
           dateFormats.add('YYYY-MM-DD');
         } else if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(trimmed)) {
-          dateFormats.add('D/M/YYYY or M/D/YYYY');
-          // Check for ambiguous dates
-          const parts = trimmed.split('/');
-          if (parseInt(parts[0]) <= 12 && parseInt(parts[1]) <= 12) {
-            ambiguousDates.push(trimmed);
-          }
+          dateFormats.add('DD/MM/YYYY');
+        } else if (/^\d{1,2}-\d{1,2}-\d{4}$/.test(trimmed)) {
+          dateFormats.add('DD-MM-YYYY');
         }
       }
       
-      // Number with commas check
-      const cleanedForNumber = trimmed.replace(/[,\s]/g, '');
-      if (!isNaN(cleanedForNumber) && cleanedForNumber !== '') {
-        const num = parseFloat(cleanedForNumber);
+      // Number check
+      const num = parseNumber(trimmed);
+      if (num !== null) {
         if (Number.isInteger(num)) {
           typeVotes.integer++;
         } else {
@@ -35962,79 +36143,57 @@ function analyzeColumnValues(values, totalRecords) {
     }
   }
   
-  // Special handling for mixed numeric types
-  if (bestType === 'integer' || bestType === 'float') {
-    const numericVotes = typeVotes.integer + typeVotes.float;
+  // Special handling for numeric types
+  if (bestType === 'integer' || bestType === 'float' || bestType === 'currency') {
+    const numericVotes = typeVotes.integer + typeVotes.float + typeVotes.currency;
     if (numericVotes / totalVotes > 0.9) {
-      bestType = typeVotes.float > 0 ? 'float' : 'integer';
+      bestType = typeVotes.float > 0 || typeVotes.currency > 0 ? 'float' : 'integer';
       confidence = numericVotes / totalVotes;
     }
   }
   
-  // If we have a strong numeric type detection, stick with it
-  if ((bestType === 'integer' || bestType === 'float') && confidence > 0.8) {
-    // This is definitely a numeric column, don't check for categorical/identifier
-    const result = {
-      type: bestType,
-      confidence: confidence
+  // Check for categorical
+  const uniqueValues = [...new Set(values.filter(v => typeof v === 'string'))];
+  if (bestType === 'string' && uniqueValues.length < Math.min(20, totalRecords * 0.1)) {
+    return {
+      type: 'categorical',
+      categories: uniqueValues.sort(),
+      confidence: 1.0,
+      uniqueCount: uniqueValues.length,
+      sampleValues: sampleValues.slice(0, 3)
     };
-    
-    // Add numeric statistics
-    const numbers = values.map(v => parseNumber(v)).filter(n => n !== null);
-    if (numbers.length > 0) {
-      result.min = Math.min(...numbers);
-      result.max = Math.max(...numbers);
-      result.uniqueCount = [...new Set(numbers)].length;
-    }
-    
-    return result;
   }
   
-  // Check for categorical - but only for non-numeric types
-  if (bestType !== 'integer' && bestType !== 'float') {
-    const uniqueValues = [...new Set(values.filter(v => typeof v === 'string'))];
-    if (uniqueValues.length < Math.min(20, totalRecords * 0.1)) {
-      return {
-        type: 'categorical',
-        categories: uniqueValues.sort(),
-        confidence: 1.0,
-        uniqueCount: uniqueValues.length
-      };
-    }
-  }
-  
-  // Check for identifier - but not for numeric types
-  if (bestType !== 'integer' && bestType !== 'float') {
-    const allUniqueValues = [...new Set(values)];
-    if (allUniqueValues.length > totalRecords * 0.95) {
-      return {
-        type: 'identifier',
-        confidence: allUniqueValues.length / totalRecords,
-        uniqueCount: allUniqueValues.length
-      };
-    }
+  // Check for identifier
+  const allUniqueValues = [...new Set(values)];
+  if (bestType === 'string' && allUniqueValues.length > totalRecords * 0.95) {
+    return {
+      type: 'identifier',
+      confidence: allUniqueValues.length / totalRecords,
+      uniqueCount: allUniqueValues.length,
+      sampleValues: sampleValues.slice(0, 3)
+    };
   }
   
   // Prepare result
   const result = {
     type: bestType,
-    confidence: confidence
+    confidence: confidence,
+    sampleValues: sampleValues.slice(0, 3)
   };
   
   // Add type-specific metadata
   if (bestType === 'date' && dateFormats.size > 0) {
     result.formats = Array.from(dateFormats);
-    if (ambiguousDates.length > 0) {
-      result.ambiguousCount = ambiguousDates.length;
-      result.ambiguousExamples = ambiguousDates.slice(0, 3);
-    }
   }
   
-  if (bestType === 'integer' || bestType === 'float') {
+  if (bestType === 'integer' || bestType === 'float' || bestType === 'currency') {
     const numbers = values.map(v => parseNumber(v)).filter(n => n !== null);
     if (numbers.length > 0) {
       result.min = Math.min(...numbers);
       result.max = Math.max(...numbers);
+      result.mean = numbers.reduce((a, b) => a + b, 0) / numbers.length;
+      result.uniqueCount = [...new Set(numbers)].length;
     }
   }
   
@@ -36045,12 +36204,17 @@ function analyzeColumnValues(values, totalRecords) {
 function checkMemoryUsage() {
   const used = process.memoryUsage();
   const memoryUsageGB = used.heapUsed / (1024 * 1024 * 1024);
+  const totalMemoryGB = os$1.totalmem() / (1024 * 1024 * 1024);
+  const freeMemoryGB = os$1.freemem() / (1024 * 1024 * 1024);
   
   return {
     heapUsed: used.heapUsed,
     heapUsedGB: memoryUsageGB,
-    isHighMemory: used.heapUsed > 1024 * 1024 * 1024, // 1GB threshold
-    shouldUseAggressiveSampling: used.heapUsed > 1024 * 1024 * 1024
+    totalMemoryGB,
+    freeMemoryGB,
+    memoryPercentage: (memoryUsageGB / totalMemoryGB) * 100,
+    isHighMemory: memoryUsageGB > 1, // 1GB threshold
+    shouldUseAggressiveSampling: memoryUsageGB > 1.5 || freeMemoryGB < 0.5
   };
 }
 
@@ -59373,11 +59537,11 @@ var jsYaml = {
 
 class KnowledgeBase {
   constructor(basePath = null) {
-    this.basePath = basePath || path$1.join(os$1.homedir(), '.datapilot', 'archaeology');
-    this.warehousePath = path$1.join(this.basePath, 'warehouse_knowledge.yaml');
-    this.tablesPath = path$1.join(this.basePath, 'tables');
-    this.patternsPath = path$1.join(this.basePath, 'patterns.yaml');
-    this.relationshipsPath = path$1.join(this.basePath, 'relationships.yaml');
+    this.basePath = basePath || path$2.join(os$1.homedir(), '.datapilot', 'archaeology');
+    this.warehousePath = path$2.join(this.basePath, 'warehouse_knowledge.yaml');
+    this.tablesPath = path$2.join(this.basePath, 'tables');
+    this.patternsPath = path$2.join(this.basePath, 'patterns.yaml');
+    this.relationshipsPath = path$2.join(this.basePath, 'relationships.yaml');
     
     this.initializeDirectories();
   }
@@ -59465,7 +59629,7 @@ class KnowledgeBase {
       for (const file of files) {
         if (file.endsWith('.yaml')) {
           const tableName = file.replace('.yaml', '');
-          tables[tableName] = this.loadYaml(path$1.join(this.tablesPath, file));
+          tables[tableName] = this.loadYaml(path$2.join(this.tablesPath, file));
         }
       }
       
@@ -59477,7 +59641,7 @@ class KnowledgeBase {
   }
 
   async saveTable(tableName, analysis) {
-    const tablePath = path$1.join(this.tablesPath, `${tableName}.yaml`);
+    const tablePath = path$2.join(this.tablesPath, `${tableName}.yaml`);
     this.saveYaml(tablePath, analysis);
   }
 
@@ -66692,14 +66856,14 @@ function requireUtils () {
 	return utils;
 }
 
-var ansiRegex$1;
-var hasRequiredAnsiRegex$1;
+var ansiRegex$2;
+var hasRequiredAnsiRegex;
 
-function requireAnsiRegex$1 () {
-	if (hasRequiredAnsiRegex$1) return ansiRegex$1;
-	hasRequiredAnsiRegex$1 = 1;
+function requireAnsiRegex () {
+	if (hasRequiredAnsiRegex) return ansiRegex$2;
+	hasRequiredAnsiRegex = 1;
 
-	ansiRegex$1 = ({onlyFirst = false} = {}) => {
+	ansiRegex$2 = ({onlyFirst = false} = {}) => {
 		const pattern = [
 			'[\\u001B\\u009B][[\\]()#;?]*(?:(?:(?:(?:;[-a-zA-Z\\d\\/#&.:=?%@~_]+)*|[a-zA-Z\\d]+(?:;[-a-zA-Z\\d\\/#&.:=?%@~_]*)*)?\\u0007)',
 			'(?:(?:\\d{1,4}(?:;\\d{0,4})*)?[\\dA-PR-TZcf-ntqry=><~]))'
@@ -66707,19 +66871,19 @@ function requireAnsiRegex$1 () {
 
 		return new RegExp(pattern, onlyFirst ? undefined : 'g');
 	};
-	return ansiRegex$1;
+	return ansiRegex$2;
 }
 
-var stripAnsi$1;
-var hasRequiredStripAnsi$1;
+var stripAnsi$2;
+var hasRequiredStripAnsi;
 
-function requireStripAnsi$1 () {
-	if (hasRequiredStripAnsi$1) return stripAnsi$1;
-	hasRequiredStripAnsi$1 = 1;
-	const ansiRegex = requireAnsiRegex$1();
+function requireStripAnsi () {
+	if (hasRequiredStripAnsi) return stripAnsi$2;
+	hasRequiredStripAnsi = 1;
+	const ansiRegex = requireAnsiRegex();
 
-	stripAnsi$1 = string => typeof string === 'string' ? string.replace(ansiRegex(), '') : string;
-	return stripAnsi$1;
+	stripAnsi$2 = string => typeof string === 'string' ? string.replace(ansiRegex(), '') : string;
+	return stripAnsi$2;
 }
 
 var combos = {};
@@ -67477,7 +67641,7 @@ function requireAnsi () {
 	(function (module, exports) {
 
 		const isTerm = process.env.TERM_PROGRAM === 'Apple_Terminal';
-		const stripAnsi = requireStripAnsi$1();
+		const stripAnsi = requireStripAnsi();
 		const utils = requireUtils();
 		const ansi = module.exports = exports;
 		const ESC = '\u001b[';
@@ -67611,7 +67775,7 @@ function requirePrompt () {
 	hasRequiredPrompt = 1;
 
 	const Events = require$$0$3;
-	const stripAnsi = requireStripAnsi$1();
+	const stripAnsi = requireStripAnsi();
 	const keypress = requireKeypress();
 	const timer = requireTimer();
 	const State = requireState();
@@ -68171,7 +68335,7 @@ function requireArray () {
 	if (hasRequiredArray) return array;
 	hasRequiredArray = 1;
 
-	const stripAnsi = requireStripAnsi$1();
+	const stripAnsi = requireStripAnsi();
 	const Prompt = requirePrompt();
 	const roles = requireRoles();
 	const utils = requireUtils();
@@ -69187,7 +69351,7 @@ function requireForm () {
 	if (hasRequiredForm) return form;
 	hasRequiredForm = 1;
 
-	const stripAnsi = requireStripAnsi$1();
+	const stripAnsi = requireStripAnsi();
 	const SelectPrompt = requireSelect();
 	const placeholder = requirePlaceholder();
 
@@ -70288,7 +70452,7 @@ function requireScale () {
 	if (hasRequiredScale) return scale;
 	hasRequiredScale = 1;
 
-	const stripAnsi = requireStripAnsi$1();
+	const stripAnsi = requireStripAnsi();
 	const ArrayPrompt = requireArray();
 	const utils = requireUtils();
 
@@ -70533,7 +70697,7 @@ function requireInterpolate () {
 	if (hasRequiredInterpolate) return interpolate;
 	hasRequiredInterpolate = 1;
 
-	const stripAnsi = requireStripAnsi$1();
+	const stripAnsi = requireStripAnsi();
 	const clean = (str = '') => {
 	  return typeof str === 'string' ? str.replace(/^['"]|['"]$/g, '') : '';
 	};
@@ -70807,7 +70971,7 @@ function requireSnippet () {
 	if (hasRequiredSnippet) return snippet;
 	hasRequiredSnippet = 1;
 
-	const stripAnsi = requireStripAnsi$1();
+	const stripAnsi = requireStripAnsi();
 	const interpolate = requireInterpolate();
 	const Prompt = requirePrompt();
 
@@ -71699,6 +71863,30 @@ function requireEnquirer () {
 var enquirerExports = requireEnquirer();
 var enquirer = /*@__PURE__*/getDefaultExportFromCjs(enquirerExports);
 
+function ansiRegex$1({onlyFirst = false} = {}) {
+	// Valid string terminator sequences are BEL, ESC\, and 0x9c
+	const ST = '(?:\\u0007|\\u001B\\u005C|\\u009C)';
+	const pattern = [
+		`[\\u001B\\u009B][[\\]()#;?]*(?:(?:(?:(?:;[-a-zA-Z\\d\\/#&.:=?%@~_]+)*|[a-zA-Z\\d]+(?:;[-a-zA-Z\\d\\/#&.:=?%@~_]*)*)?${ST})`,
+		'(?:(?:\\d{1,4}(?:;\\d{0,4})*)?[\\dA-PR-TZcf-nq-uy=><~]))',
+	].join('|');
+
+	return new RegExp(pattern, onlyFirst ? undefined : 'g');
+}
+
+const regex$1 = ansiRegex$1();
+
+function stripAnsi$1(string) {
+	if (typeof string !== 'string') {
+		throw new TypeError(`Expected a \`string\`, got \`${typeof string}\``);
+	}
+
+	// Even though the regex is global, we don't need to reset the `.lastIndex`
+	// because unlike `.exec()` and `.test()`, `.replace()` does it automatically
+	// and doing it manually has a performance penalty.
+	return string.replace(regex$1, '');
+}
+
 // Generated code.
 
 function isAmbiguous(x) {
@@ -72084,85 +72272,6 @@ function eastAsianWidth(codePoint, {ambiguousAsWide = false} = {}) {
 	return 1;
 }
 
-const segmenter$1 = new Intl.Segmenter();
-
-const defaultIgnorableCodePointRegex$1 = /^\p{Default_Ignorable_Code_Point}$/u;
-
-function stringWidth$2(string, options = {}) {
-	if (typeof string !== 'string' || string.length === 0) {
-		return 0;
-	}
-
-	const {
-		ambiguousIsNarrow = true,
-		countAnsiEscapeCodes = false,
-	} = options;
-
-	if (!countAnsiEscapeCodes) {
-		string = stripAnsi$2(string);
-	}
-
-	if (string.length === 0) {
-		return 0;
-	}
-
-	let width = 0;
-	const eastAsianWidthOptions = {ambiguousAsWide: !ambiguousIsNarrow};
-
-	for (const {segment: character} of segmenter$1.segment(string)) {
-		const codePoint = character.codePointAt(0);
-
-		// Ignore control characters
-		if (codePoint <= 0x1F || (codePoint >= 0x7F && codePoint <= 0x9F)) {
-			continue;
-		}
-
-		// Ignore zero-width characters
-		if (
-			(codePoint >= 0x20_0B && codePoint <= 0x20_0F) // Zero-width space, non-joiner, joiner, left-to-right mark, right-to-left mark
-			|| codePoint === 0xFE_FF // Zero-width no-break space
-		) {
-			continue;
-		}
-
-		// Ignore combining characters
-		if (
-			(codePoint >= 0x3_00 && codePoint <= 0x3_6F) // Combining diacritical marks
-			|| (codePoint >= 0x1A_B0 && codePoint <= 0x1A_FF) // Combining diacritical marks extended
-			|| (codePoint >= 0x1D_C0 && codePoint <= 0x1D_FF) // Combining diacritical marks supplement
-			|| (codePoint >= 0x20_D0 && codePoint <= 0x20_FF) // Combining diacritical marks for symbols
-			|| (codePoint >= 0xFE_20 && codePoint <= 0xFE_2F) // Combining half marks
-		) {
-			continue;
-		}
-
-		// Ignore surrogate pairs
-		if (codePoint >= 0xD8_00 && codePoint <= 0xDF_FF) {
-			continue;
-		}
-
-		// Ignore variation selectors
-		if (codePoint >= 0xFE_00 && codePoint <= 0xFE_0F) {
-			continue;
-		}
-
-		// This covers some of the above cases, but we still keep them for performance reasons.
-		if (defaultIgnorableCodePointRegex$1.test(character)) {
-			continue;
-		}
-
-		// TODO: Use `/\p{RGI_Emoji}/v` when targeting Node.js 20.
-		if (emojiRegex$1().test(character)) {
-			width += 2;
-			continue;
-		}
-
-		width += eastAsianWidth(codePoint, eastAsianWidthOptions);
-	}
-
-	return width;
-}
-
 const segmenter = new Intl.Segmenter();
 
 const defaultIgnorableCodePointRegex = /^\p{Default_Ignorable_Code_Point}$/u;
@@ -72178,7 +72287,7 @@ function stringWidth$1(string, options = {}) {
 	} = options;
 
 	if (!countAnsiEscapeCodes) {
-		string = stripAnsi$2(string);
+		string = stripAnsi$1(string);
 	}
 
 	if (string.length === 0) {
@@ -72474,36 +72583,6 @@ function camelCase(input, options) {
 
 var stringWidth = {exports: {}};
 
-var ansiRegex;
-var hasRequiredAnsiRegex;
-
-function requireAnsiRegex () {
-	if (hasRequiredAnsiRegex) return ansiRegex;
-	hasRequiredAnsiRegex = 1;
-
-	ansiRegex = ({onlyFirst = false} = {}) => {
-		const pattern = [
-			'[\\u001B\\u009B][[\\]()#;?]*(?:(?:(?:(?:;[-a-zA-Z\\d\\/#&.:=?%@~_]+)*|[a-zA-Z\\d]+(?:;[-a-zA-Z\\d\\/#&.:=?%@~_]*)*)?\\u0007)',
-			'(?:(?:\\d{1,4}(?:;\\d{0,4})*)?[\\dA-PR-TZcf-ntqry=><~]))'
-		].join('|');
-
-		return new RegExp(pattern, onlyFirst ? undefined : 'g');
-	};
-	return ansiRegex;
-}
-
-var stripAnsi;
-var hasRequiredStripAnsi;
-
-function requireStripAnsi () {
-	if (hasRequiredStripAnsi) return stripAnsi;
-	hasRequiredStripAnsi = 1;
-	const ansiRegex = requireAnsiRegex();
-
-	stripAnsi = string => typeof string === 'string' ? string.replace(ansiRegex(), '') : string;
-	return stripAnsi;
-}
-
 var isFullwidthCodePoint = {exports: {}};
 
 /* eslint-disable yoda */
@@ -72703,6 +72782,30 @@ function requireAnsiAlign () {
 
 var ansiAlignExports = requireAnsiAlign();
 var ansiAlign = /*@__PURE__*/getDefaultExportFromCjs(ansiAlignExports);
+
+function ansiRegex({onlyFirst = false} = {}) {
+	// Valid string terminator sequences are BEL, ESC\, and 0x9c
+	const ST = '(?:\\u0007|\\u001B\\u005C|\\u009C)';
+	const pattern = [
+		`[\\u001B\\u009B][[\\]()#;?]*(?:(?:(?:(?:;[-a-zA-Z\\d\\/#&.:=?%@~_]+)*|[a-zA-Z\\d]+(?:;[-a-zA-Z\\d\\/#&.:=?%@~_]*)*)?${ST})`,
+		'(?:(?:\\d{1,4}(?:;\\d{0,4})*)?[\\dA-PR-TZcf-nq-uy=><~]))',
+	].join('|');
+
+	return new RegExp(pattern, onlyFirst ? undefined : 'g');
+}
+
+const regex = ansiRegex();
+
+function stripAnsi(string) {
+	if (typeof string !== 'string') {
+		throw new TypeError(`Expected a \`string\`, got \`${typeof string}\``);
+	}
+
+	// Even though the regex is global, we don't need to reset the `.lastIndex`
+	// because unlike `.exec()` and `.test()`, `.replace()` does it automatically
+	// and doing it manually has a performance penalty.
+	return string.replace(regex, '');
+}
 
 const ANSI_BACKGROUND_OFFSET = 10;
 
@@ -72943,7 +73046,7 @@ const wrapAnsiHyperlink = url => `${ESCAPES.values().next().value}${ANSI_ESCAPE_
 
 // Calculate the length of words split on ' ', ignoring
 // the extra characters added by ansi escape codes
-const wordLengths = string => string.split(' ').map(character => stringWidth$2(character));
+const wordLengths = string => string.split(' ').map(character => stringWidth$1(character));
 
 // Wrap a long word across multiple rows
 // Ansi escape codes do not count towards length
@@ -72952,10 +73055,10 @@ const wrapWord = (rows, word, columns) => {
 
 	let isInsideEscape = false;
 	let isInsideLinkEscape = false;
-	let visible = stringWidth$2(stripAnsi$2(rows.at(-1)));
+	let visible = stringWidth$1(stripAnsi(rows.at(-1)));
 
 	for (const [index, character] of characters.entries()) {
-		const characterLength = stringWidth$2(character);
+		const characterLength = stringWidth$1(character);
 
 		if (visible + characterLength <= columns) {
 			rows[rows.length - 1] += character;
@@ -73005,7 +73108,7 @@ const stringVisibleTrimSpacesRight = string => {
 	let last = words.length;
 
 	while (last > 0) {
-		if (stringWidth$2(words[last - 1]) > 0) {
+		if (stringWidth$1(words[last - 1]) > 0) {
 			break;
 		}
 
@@ -73041,7 +73144,7 @@ const exec = (string, columns, options = {}) => {
 			rows[rows.length - 1] = rows.at(-1).trimStart();
 		}
 
-		let rowLength = stringWidth$2(rows.at(-1));
+		let rowLength = stringWidth$1(rows.at(-1));
 
 		if (index !== 0) {
 			if (rowLength >= columns && (options.wordWrap === false || options.trim === false)) {
@@ -73238,7 +73341,7 @@ const getBorderChars = borderStyle => {
 const makeTitle = (text, horizontal, alignment) => {
 	let title = '';
 
-	const textWidth = stringWidth$2(text);
+	const textWidth = stringWidth$1(text);
 
 	switch (alignment) {
 		case 'left': {
@@ -73282,7 +73385,7 @@ const makeContentText = (text, {padding, width, textAlignment, height}) => {
 			const createdLines = wrapAnsi(line, max, {hard: true});
 			const alignedLines = ansiAlign(createdLines, {align: textAlignment});
 			const alignedLinesArray = alignedLines.split('\n');
-			const longestLength = Math.max(...alignedLinesArray.map(s => stringWidth$2(s)));
+			const longestLength = Math.max(...alignedLinesArray.map(s => stringWidth$1(s)));
 
 			for (const alignedLine of alignedLinesArray) {
 				let paddedLine;
@@ -73322,7 +73425,7 @@ const makeContentText = (text, {padding, width, textAlignment, height}) => {
 	lines = lines.map(line => {
 		const newLine = paddingLeft + line + paddingRight;
 
-		return newLine + PAD.repeat(width - stringWidth$2(newLine));
+		return newLine + PAD.repeat(width - stringWidth$1(newLine));
 	});
 
 	if (padding.top > 0) {
@@ -73432,8 +73535,8 @@ const determineDimensions = (text, options) => {
 		if (options.title) {
 			options.title = formatTitle(options.title, options.borderStyle);
 			// If the title is larger than content, box adheres to title width
-			if (stringWidth$2(options.title) > widest) {
-				options.width = stringWidth$2(options.title);
+			if (stringWidth$1(options.title) > widest) {
+				options.width = stringWidth$1(options.title);
 			}
 		}
 	}
@@ -73857,7 +73960,7 @@ const gradients = {
 };
 
 // Recent files storage
-const RECENT_FILES_PATH = path$1.join(process.env.HOME || process.env.USERPROFILE, '.datapilot_recent.json');
+const RECENT_FILES_PATH = path$2.join(process.env.HOME || process.env.USERPROFILE, '.datapilot_recent.json');
 const MAX_RECENT_FILES = 10;
 
 async function interactiveUI() {
@@ -74017,7 +74120,7 @@ async function selectFile() {
     choices.push({
       name: 'discovered',
       message: `🎯 Use discovered CSV files (${discoveredFiles.length} found)`,
-      hint: discoveredFiles.slice(0, 3).map(f => path$1.basename(f)).join(', ') + (discoveredFiles.length > 3 ? '...' : '')
+      hint: discoveredFiles.slice(0, 3).map(f => path$2.basename(f)).join(', ') + (discoveredFiles.length > 3 ? '...' : '')
     });
   }
   
@@ -74067,7 +74170,7 @@ async function browseFiles() {
         choices.push({
           name: '..',
           message: '📁 .. (Parent Directory)',
-          value: path$1.dirname(currentDir)
+          value: path$2.dirname(currentDir)
         });
       }
       
@@ -74076,9 +74179,9 @@ async function browseFiles() {
         .filter(item => item.isDirectory())
         .forEach(dir => {
           choices.push({
-            name: path$1.join(currentDir, dir.name),
+            name: path$2.join(currentDir, dir.name),
             message: `📁 ${dir.name}/`,
-            value: path$1.join(currentDir, dir.name)
+            value: path$2.join(currentDir, dir.name)
           });
         });
       
@@ -74087,9 +74190,9 @@ async function browseFiles() {
         .filter(item => item.isFile() && item.name.endsWith('.csv'))
         .forEach(file => {
           choices.push({
-            name: path$1.join(currentDir, file.name),
+            name: path$2.join(currentDir, file.name),
             message: `📊 ${file.name}`,
-            value: path$1.join(currentDir, file.name)
+            value: path$2.join(currentDir, file.name)
           });
         });
       
@@ -74160,7 +74263,7 @@ async function selectRecentFile() {
   
   const choices = recentFiles.map(file => ({
     name: file.path,
-    message: `📊 ${path$1.basename(file.path)}`,
+    message: `📊 ${path$2.basename(file.path)}`,
     hint: `Last used: ${new Date(file.lastUsed).toLocaleDateString()}`
   }));
   
@@ -74214,14 +74317,22 @@ async function showFilePreview(filePath) {
   
   try {
     const stats = fs.statSync(filePath);
-    const { data: records, headers } = await parseCSV(filePath);
-    const columnTypes = detectColumnTypes(records, headers);
+    const records = await parseCSV(filePath);
+    
+    // Handle empty file
+    if (!records || records.length === 0) {
+      spinner.error({ text: 'File is empty or could not be parsed' });
+      return;
+    }
+    
+    const headers = Object.keys(records[0]);
+    const columnTypes = detectColumnTypes(records);
     
     spinner.success({ text: 'File loaded successfully!' });
     
     // File info
     const previewBox = boxen(
-      `📄 File: ${path$1.basename(filePath)}\\n` +
+      `📄 File: ${path$2.basename(filePath)}\\n` +
       `📊 Size: ${formatFileSize(stats.size)}\\n` +
       `📈 Rows: ~${records.length}+ rows\\n` +
       `🏛️  Columns: ${Object.keys(columnTypes).length} columns\\n\\n` +
@@ -74268,7 +74379,8 @@ async function runAnalysisWithAnimation(filePath, analysisType) {
   const spinner = distExports.createSpinner('Parsing CSV file...').start();
   
   try {
-    const { data, headers } = await parseCSV(filePath);
+    const data = await parseCSV(filePath);
+    const headers = Object.keys(data[0] || {});
     spinner.update({ text: 'CSV parsed successfully!' });
     await sleep(500);
     
@@ -74282,16 +74394,16 @@ async function runAnalysisWithAnimation(filePath, analysisType) {
         let result;
         switch (analysis) {
           case 'eda':
-            result = await eda(data, headers, filePath, {});
+            result = await eda(filePath, { preloadedData: { records: data, columnTypes: detectColumnTypes(data) } });
             break;
           case 'int':
-            result = await integrity(data, headers, filePath, {});
+            result = await integrity(filePath, { preloadedData: { records: data, columnTypes: detectColumnTypes(data) } });
             break;
           case 'vis':
-            result = await visualize(data, headers, filePath, {});
+            result = await visualize(filePath, { preloadedData: { records: data, columnTypes: detectColumnTypes(data) } });
             break;
           case 'llm':
-            result = await llmContext(data, headers, filePath, {});
+            result = await llmContext(filePath, { preloadedData: { records: data, columnTypes: detectColumnTypes(data) } });
             break;
         }
         
@@ -74306,16 +74418,16 @@ async function runAnalysisWithAnimation(filePath, analysisType) {
       let result;
       switch (analysisType) {
         case 'eda':
-          result = await eda(data, headers, filePath, {});
+          result = await eda(filePath, { preloadedData: { records: data, columnTypes: detectColumnTypes(data) } });
           break;
         case 'int':
-          result = await integrity(data, headers, filePath, {});
+          result = await integrity(filePath, { preloadedData: { records: data, columnTypes: detectColumnTypes(data) } });
           break;
         case 'vis':
-          result = await visualize(data, headers, filePath, {});
+          result = await visualize(filePath, { preloadedData: { records: data, columnTypes: detectColumnTypes(data) } });
           break;
         case 'llm':
-          result = await llmContext(data, headers, filePath, {});
+          result = await llmContext(filePath, { preloadedData: { records: data, columnTypes: detectColumnTypes(data) } });
           break;
       }
       
@@ -74632,17 +74744,17 @@ async function discoverCSVFiles(directory = process.cwd()) {
     const items = await fs.promises.readdir(directory, { withFileTypes: true });
     const csvFiles = items
       .filter(item => item.isFile() && item.name.endsWith('.csv'))
-      .map(file => path$1.join(directory, file.name));
+      .map(file => path$2.join(directory, file.name));
     
     // Also check common data directories
     const commonDataDirs = ['data', 'csv', 'datasets', 'files'];
     for (const dir of commonDataDirs) {
-      const dirPath = path$1.join(directory, dir);
+      const dirPath = path$2.join(directory, dir);
       try {
         const dataDirItems = await fs.promises.readdir(dirPath, { withFileTypes: true });
         const dataCsvFiles = dataDirItems
           .filter(item => item.isFile() && item.name.endsWith('.csv'))
-          .map(file => path$1.join(dirPath, file.name));
+          .map(file => path$2.join(dirPath, file.name));
         csvFiles.push(...dataCsvFiles);
       } catch (error) {
         // Directory doesn't exist, continue
@@ -74668,13 +74780,13 @@ async function selectFromDiscovered(files) {
       const sizeStr = formatFileSize(stats.size);
       choices.push({
         name: file,
-        message: `📊 ${path$1.basename(file)} (${sizeStr})`,
-        hint: `Location: ${path$1.dirname(file)}`
+        message: `📊 ${path$2.basename(file)} (${sizeStr})`,
+        hint: `Location: ${path$2.dirname(file)}`
       });
     } catch (error) {
       choices.push({
         name: file,
-        message: `📊 ${path$1.basename(file)}`,
+        message: `📊 ${path$2.basename(file)}`,
         hint: 'File info unavailable'
       });
     }
@@ -74745,11 +74857,12 @@ async function batchAnalyzeFiles(files, analysisTypes) {
   const results = [];
   for (let i = 0; i < files.length; i++) {
     const file = files[i];
-    console.log(`\\n📊 Analyzing file ${i + 1}/${files.length}: ${path$1.basename(file)}`);
+    console.log(`\\n📊 Analyzing file ${i + 1}/${files.length}: ${path$2.basename(file)}`);
     
     try {
       // Parse CSV first
-      const { data, headers } = await parseCSV(file);
+      const data = await parseCSV(file);
+      const headers = Object.keys(data[0] || {});
       
       // Run selected analyses
       for (const analysisType of analysisTypes) {
@@ -74758,29 +74871,29 @@ async function batchAnalyzeFiles(files, analysisTypes) {
         let analysisResult;
         switch (analysisType) {
           case 'eda':
-            analysisResult = await eda(data, headers, file, {});
+            analysisResult = await eda(file, { preloadedData: { records: data, columnTypes: detectColumnTypes(data) } });
             break;
           case 'int':
-            analysisResult = await integrity(data, headers, file, {});
+            analysisResult = await integrity(file, { preloadedData: { records: data, columnTypes: detectColumnTypes(data) } });
             break;
           case 'vis':
-            analysisResult = await visualize(data, headers, file, {});
+            analysisResult = await visualize(file, { preloadedData: { records: data, columnTypes: detectColumnTypes(data) } });
             break;
           case 'llm':
-            analysisResult = await llmContext(data, headers, file, {});
+            analysisResult = await llmContext(file, { preloadedData: { records: data, columnTypes: detectColumnTypes(data) } });
             break;
         }
         
         results.push({
-          file: path$1.basename(file),
+          file: path$2.basename(file),
           analysis: analysisType,
           result: analysisResult
         });
       }
     } catch (error) {
-      console.log(`  ❌ Error analyzing ${path$1.basename(file)}: ${error.message}`);
+      console.log(`  ❌ Error analyzing ${path$2.basename(file)}: ${error.message}`);
       results.push({
-        file: path$1.basename(file),
+        file: path$2.basename(file),
         error: error.message
       });
     }
@@ -74821,16 +74934,17 @@ async function analyzeRelationships(files) {
   
   for (const file of files) {
     try {
-      const { data, headers } = await parseCSV(file);
-      const columnTypes = detectColumnTypes(data, headers);
+      const data = await parseCSV(file);
+      const headers = Object.keys(data[0] || {});
+      const columnTypes = detectColumnTypes(data);
       fileSchemas.push({
-        file: path$1.basename(file),
+        file: path$2.basename(file),
         headers,
         types: columnTypes,
         sampleData: data.slice(0, 5)
       });
     } catch (error) {
-      console.log(`❌ Could not analyze ${path$1.basename(file)}: ${error.message}`);
+      console.log(`❌ Could not analyze ${path$2.basename(file)}: ${error.message}`);
     }
   }
   
@@ -74941,11 +75055,13 @@ async function calculateTotalSize(files) {
 
 // Export already done above with function declaration
 
-// ASCII art banner
+// ASCII art banner with version
+const VERSION = '1.1.1';
 const banner = `
 ╔═══════════════════════════════════════╗
 ║          ${chalk.cyan('DataPilot CLI')}              ║
 ║    ${chalk.gray('Simple & LLM-Ready Analysis')}      ║
+║         ${chalk.yellow(`Version ${VERSION}`)}             ║
 ╚═══════════════════════════════════════╝
 `;
 
@@ -74955,20 +75071,72 @@ console.log(banner);
 program
   .name('datapilot')
   .description('CSV analysis tool optimized for LLM consumption')
-  .version('1.1.0');
+  .version(VERSION);
 
-// Helper to validate file exists
+// Enhanced file validation with better error messages
 function validateFile(filePath) {
-  const resolvedPath = resolve(filePath);
-  if (!existsSync(resolvedPath)) {
-    console.error(chalk.red(`Error: File not found: ${filePath}`));
+  try {
+    // Use enhanced path normalization
+    const resolvedPath = normalizePath(filePath);
+    
+    if (!existsSync(resolvedPath)) {
+      // Provide helpful error message for common issues
+      console.error(chalk.red(`❌ Error: File not found: ${filePath}`));
+      
+      // Check if it's a path with spaces issue
+      if (filePath.includes(' ') && !filePath.startsWith('"')) {
+        console.error(chalk.yellow(`💡 Tip: For paths with spaces, use quotes: "${filePath}"`));
+      }
+      
+      // Check if it's a relative path issue
+      if (!path.isAbsolute(filePath)) {
+        const suggestedPath = path.resolve(filePath);
+        console.error(chalk.yellow(`💡 Tip: Try using the full path: ${suggestedPath}`));
+      }
+      
+      process.exit(1);
+    }
+    
+    if (!filePath.toLowerCase().endsWith('.csv')) {
+      console.error(chalk.red(`❌ Error: File must be a CSV file: ${filePath}`));
+      console.error(chalk.yellow(`💡 Tip: DataPilot works with CSV files only`));
+      process.exit(1);
+    }
+    
+    return resolvedPath;
+  } catch (error) {
+    console.error(chalk.red(`❌ Error validating file: ${error.message}`));
     process.exit(1);
   }
-  if (!filePath.toLowerCase().endsWith('.csv')) {
-    console.error(chalk.red(`Error: File must be a CSV file: ${filePath}`));
-    process.exit(1);
+}
+
+// Progress tracking wrapper for commands
+async function runWithProgress(command, filePath, options) {
+  const spinner = ora({
+    text: 'Initializing analysis...',
+    color: 'cyan'
+  }).start();
+  
+  try {
+    // Add progress callback to options
+    const enhancedOptions = {
+      ...options,
+      onProgress: (progress, details) => {
+        if (progress < 100) {
+          spinner.text = `Processing: ${Math.round(progress)}%${details ? ` - ${details}` : ''}`;
+        } else {
+          spinner.text = 'Finalizing analysis...';
+        }
+      }
+    };
+    
+    spinner.stop();
+    const result = await command(filePath, enhancedOptions);
+    return result;
+  } catch (error) {
+    spinner.fail(`Analysis failed: ${error.message}`);
+    throw error;
   }
-  return resolvedPath;
 }
 
 // ALL command - run complete analysis suite
@@ -74978,9 +75146,11 @@ program
   .option('-o, --output <path>', 'Save analysis to file')
   .option('-q, --quick', 'Quick mode - skip detailed analyses for speed')
   .option('--no-header', 'CSV file has no header row')
+  .option('--encoding <encoding>', 'Force specific encoding (utf8, latin1, etc.)')
+  .option('--delimiter <delimiter>', 'Force specific delimiter (comma, semicolon, tab, pipe)')
   .action(async (file, options) => {
     const filePath = validateFile(file);
-    await runAll(filePath, options);
+    await runWithProgress(runAll, filePath, options);
   });
 
 // EDA command
@@ -74990,9 +75160,11 @@ program
   .option('-o, --output <path>', 'Save analysis to file')
   .option('-q, --quick', 'Quick mode - basic statistics only')
   .option('--no-header', 'CSV file has no header row')
+  .option('--encoding <encoding>', 'Force specific encoding (utf8, latin1, etc.)')
+  .option('--delimiter <delimiter>', 'Force specific delimiter (comma, semicolon, tab, pipe)')
   .action(async (file, options) => {
     const filePath = validateFile(file);
-    await eda(filePath, options);
+    await runWithProgress(eda, filePath, options);
   });
 
 // INT command
@@ -75001,9 +75173,11 @@ program
   .description('Data Integrity Check - find quality issues and inconsistencies')
   .option('-o, --output <path>', 'Save analysis to file')
   .option('--no-header', 'CSV file has no header row')
+  .option('--encoding <encoding>', 'Force specific encoding (utf8, latin1, etc.)')
+  .option('--delimiter <delimiter>', 'Force specific delimiter (comma, semicolon, tab, pipe)')
   .action(async (file, options) => {
     const filePath = validateFile(file);
-    await integrity(filePath, options);
+    await runWithProgress(integrity, filePath, options);
   });
 
 // VIS command
@@ -75012,9 +75186,11 @@ program
   .description('Visualization Recommendations - what charts would be most insightful')
   .option('-o, --output <path>', 'Save analysis to file')
   .option('--no-header', 'CSV file has no header row')
+  .option('--encoding <encoding>', 'Force specific encoding (utf8, latin1, etc.)')
+  .option('--delimiter <delimiter>', 'Force specific delimiter (comma, semicolon, tab, pipe)')
   .action(async (file, options) => {
     const filePath = validateFile(file);
-    await visualize(filePath, options);
+    await runWithProgress(visualize, filePath, options);
   });
 
 // ENG command - Data Archaeology System with subcommands
@@ -75026,10 +75202,12 @@ eng
   .argument('[file]', 'CSV file to analyze')
   .option('-o, --output <path>', 'Save analysis to file')
   .option('--no-header', 'CSV file has no header row')
+  .option('--encoding <encoding>', 'Force specific encoding (utf8, latin1, etc.)')
+  .option('--delimiter <delimiter>', 'Force specific delimiter (comma, semicolon, tab, pipe)')
   .action(async (file, options) => {
     if (file) {
       const filePath = validateFile(file);
-      await engineering(filePath, options);
+      await runWithProgress(engineering, filePath, options);
     } else {
       // Show help if no file provided
       eng.help();
@@ -75041,6 +75219,8 @@ eng
   .command('analyze <files...>')
   .description('Analyze multiple CSV files and detect relationships')
   .option('--no-header', 'CSV files have no header row')
+  .option('--encoding <encoding>', 'Force specific encoding for all files')
+  .option('--delimiter <delimiter>', 'Force specific delimiter for all files')
   .action(async (files, options) => {
     const { glob } = await Promise.resolve().then(function () { return index; });
     console.log(chalk.blue('🏛️  Starting multi-file warehouse analysis...\n'));
@@ -75049,31 +75229,65 @@ eng
     const allFiles = [];
     for (const pattern of files) {
       if (pattern.includes('*')) {
-        const matches = await glob(pattern, { nodir: true });
-        allFiles.push(...matches.filter(f => f.endsWith('.csv')));
+        try {
+          // Handle Windows paths in glob patterns
+          const normalizedPattern = os$1.platform() === 'win32' 
+            ? pattern.replace(/\\/g, '/')
+            : pattern;
+          const matches = await glob(normalizedPattern, { nodir: true });
+          allFiles.push(...matches.filter(f => f.endsWith('.csv')));
+        } catch (error) {
+          console.error(chalk.red(`Error with pattern ${pattern}: ${error.message}`));
+        }
       } else {
         allFiles.push(pattern);
       }
     }
     
     // Validate all files
-    const filePaths = allFiles.map(f => validateFile(f));
+    const filePaths = [];
+    for (const file of allFiles) {
+      try {
+        const validated = validateFile(file);
+        filePaths.push(validated);
+      } catch (error) {
+        console.error(chalk.red(`Skipping invalid file: ${file}`));
+      }
+    }
     
     if (filePaths.length === 0) {
-      console.error('No CSV files found');
+      console.error(chalk.red('❌ No valid CSV files found'));
       process.exit(1);
     }
     
-    console.log(`Found ${filePaths.length} CSV files to analyze\n`);
+    console.log(chalk.green(`✓ Found ${filePaths.length} CSV files to analyze\n`));
     
-    // Analyze each file with auto-save
+    // Analyze each file with progress
     for (const filePath of filePaths) {
       console.log(chalk.cyan(`\nAnalyzing ${basename(filePath)}...`));
-      await engineering(filePath, { ...options, quiet: true, autoSave: true });
+      
+      const spinner = ora({
+        text: 'Processing...',
+        color: 'cyan'
+      }).start();
+      
+      try {
+        await engineering(filePath, { 
+          ...options, 
+          quiet: true, 
+          autoSave: true,
+          onProgress: (progress) => {
+            spinner.text = `Processing: ${Math.round(progress)}%`;
+          }
+        });
+        spinner.succeed(`Completed ${basename(filePath)}`);
+      } catch (error) {
+        spinner.fail(`Failed: ${error.message}`);
+      }
     }
     
     // Show relationships and generate report
-    console.log(chalk.green('\n✓ All files analyzed!'));
+    console.log(chalk.green('\n✅ All files analyzed!'));
     console.log(chalk.blue('\nGenerating warehouse map and relationships...\n'));
     await engineering(null, { showMap: true });
   });
@@ -75095,7 +75309,7 @@ eng
     }
     
     if (!finalInsights) {
-      console.error('Error: Please provide insights either as argument or via stdin');
+      console.error(chalk.red('❌ Error: Please provide insights either as argument or via stdin'));
       console.log('\nExamples:');
       console.log('  datapilot eng save orders "PURPOSE: Transaction fact table..."');
       console.log('  echo "PURPOSE: Transaction fact table..." | datapilot eng save orders');
@@ -75128,9 +75342,11 @@ program
   .description('LLM Context Generation - perfect summary for AI analysis')
   .option('-o, --output <path>', 'Save analysis to file')
   .option('--no-header', 'CSV file has no header row')
+  .option('--encoding <encoding>', 'Force specific encoding (utf8, latin1, etc.)')
+  .option('--delimiter <delimiter>', 'Force specific delimiter (comma, semicolon, tab, pipe)')
   .action(async (file, options) => {
     const filePath = validateFile(file);
-    await llmContext(filePath, options);
+    await runWithProgress(llmContext, filePath, options);
   });
 
 // UI command - Interactive Terminal Interface
@@ -75138,42 +75354,69 @@ program
   .command('ui')
   .description('🎨 Interactive UI - Fun, colorful, beginner-friendly interface')
   .action(async () => {
+    // Check terminal capabilities
+    if (process.platform === 'win32' && !process.env.WT_SESSION) {
+      console.log(chalk.yellow('⚠️  Note: For best experience on Windows, use Windows Terminal'));
+    }
     await interactiveUI();
   });
 
-// Help text
+// Help text with enhanced examples
 program.on('--help', () => {
   console.log('');
-  console.log('Examples:');
-  console.log('  $ datapilot all data.csv        # Run complete analysis suite');
-  console.log('  $ datapilot all data.csv -o analysis.txt   # Save to file');
-  console.log('  $ datapilot all data.csv --quick           # Quick mode');
-  console.log('  $ datapilot eda sales.csv       # Run exploratory data analysis');
-  console.log('  $ datapilot int customers.csv   # Check data integrity');
-  console.log('  $ datapilot vis metrics.csv     # Get visualization recommendations');
-  console.log('  $ datapilot eng orders.csv                   # Analyze single file');
-  console.log('  $ datapilot eng analyze *.csv                # Analyze all CSV files');
-  console.log('  $ datapilot eng save orders "PURPOSE: ..."   # Save LLM insights');
-  console.log('  $ echo "PURPOSE: ..." | datapilot eng save orders  # Pipe from LLM');
-  console.log('  $ datapilot eng report                       # Generate full report');
-  console.log('  $ datapilot eng map                          # View warehouse map');
-  console.log('  $ datapilot llm dataset.csv                  # Generate LLM-ready context');
-  console.log('  $ datapilot ui                               # Interactive UI mode');
+  console.log(chalk.cyan('Examples:'));
+  console.log('  $ datapilot all data.csv                    # Run complete analysis');
+  console.log('  $ datapilot all "C:\\My Data\\sales.csv"      # Path with spaces (use quotes)');
+  console.log('  $ datapilot all data.csv -o analysis.txt    # Save to file');
+  console.log('  $ datapilot all data.csv --quick            # Quick mode');
+  console.log('  $ datapilot eda sales.csv --encoding latin1 # Force encoding');
+  console.log('  $ datapilot int data.csv --delimiter ";"    # Force delimiter');
   console.log('');
-  console.log('Data Archaeology Workflow:');
+  console.log(chalk.cyan('Data Archaeology Workflow:'));
   console.log('  1. Analyze all tables: datapilot eng analyze *.csv');
   console.log('  2. Copy LLM prompts and get insights from your AI');
   console.log('  3. Save insights: datapilot eng save <table> "<insights>"');
   console.log('  4. Generate report: datapilot eng report');
   console.log('');
-  console.log('Options:');
-  console.log('  -o, --output <path>  Save analysis to file instead of stdout');
-  console.log('  -q, --quick          Quick mode - skip detailed analyses for speed');
-  console.log('  --no-header          CSV file has no header row (uses column1, column2, etc.)');
+  console.log(chalk.cyan('Common Options:'));
+  console.log('  -o, --output <path>      Save analysis to file');
+  console.log('  -q, --quick              Quick mode - skip detailed analyses');
+  console.log('  --no-header              CSV has no header row');
+  console.log('  --encoding <type>        Force encoding (utf8, latin1, utf16le)');
+  console.log('  --delimiter <char>       Force delimiter (comma, semicolon, tab, pipe)');
   console.log('');
-  console.log('Output:');
-  console.log('  All commands produce verbose text output optimized for copying');
-  console.log('  into ChatGPT, Claude, or any other LLM for further analysis.');
+  console.log(chalk.cyan('Troubleshooting:'));
+  console.log('  • For paths with spaces, use quotes: "C:\\My Folder\\data.csv"');
+  console.log('  • For encoding issues, try: --encoding latin1');
+  console.log('  • For delimiter issues, try: --delimiter ";"');
+  console.log('  • For large files, quick mode is recommended: --quick');
+  console.log('');
+  console.log(chalk.gray('Output:'));
+  console.log(chalk.gray('  All commands produce verbose text output optimized for'));
+  console.log(chalk.gray('  copying into ChatGPT, Claude, or any other LLM.'));
+});
+
+// Enhanced error handling
+process.on('uncaughtException', (error) => {
+  console.error(chalk.red('\n❌ Unexpected error:'), error.message);
+  
+  // Provide helpful suggestions based on error type
+  if (error.message.includes('ENOENT')) {
+    console.error(chalk.yellow('💡 File not found. Check the file path and try again.'));
+  } else if (error.message.includes('EACCES')) {
+    console.error(chalk.yellow('💡 Permission denied. Check file permissions.'));
+  } else if (error.message.includes('encoding')) {
+    console.error(chalk.yellow('💡 Try specifying encoding: --encoding latin1'));
+  } else if (error.message.includes('memory')) {
+    console.error(chalk.yellow('💡 Out of memory. Try --quick mode or process smaller files.'));
+  }
+  
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error(chalk.red('\n❌ Unhandled promise rejection:'), reason);
+  process.exit(1);
 });
 
 // Parse arguments
@@ -76316,12 +76559,12 @@ const defaultPlatform$2 = (typeof process === 'object' && process
         process.env.__MINIMATCH_TESTING_PLATFORM__) ||
         process.platform
     : 'posix');
-const path = {
+const path$1 = {
     win32: { sep: '\\' },
     posix: { sep: '/' },
 };
 /* c8 ignore stop */
-const sep = defaultPlatform$2 === 'win32' ? path.win32.sep : path.posix.sep;
+const sep = defaultPlatform$2 === 'win32' ? path$1.win32.sep : path$1.posix.sep;
 minimatch.sep = sep;
 const GLOBSTAR = Symbol('globstar **');
 minimatch.GLOBSTAR = GLOBSTAR;
