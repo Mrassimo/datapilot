@@ -29,6 +29,7 @@ import {
   generateDataQuestions,
   generateTechnicalNotes
 } from './utils/llmUtils.js';
+import { createSamplingStrategy, performSampling } from '../eda/utils/sampling.js';
 
 // Import summarizers
 import { extractEdaSummary } from './summarizers/edaSummarizer.js';
@@ -49,13 +50,24 @@ const analysisCache = new Map();
 export async function comprehensiveLLMAnalysis(records, headers, filePath, options = {}) {
   const spinner = options.quiet ? null : ora('Generating comprehensive LLM context...').start();
   
+  // Performance optimization: Use sampling for comprehensive analysis
+  const samplingStrategy = createSamplingStrategy(records, 'basic');
+  let sampledRecords = records;
+  
+  if (samplingStrategy.method !== 'none' && records.length > 10000) {
+    sampledRecords = performSampling(records, samplingStrategy);
+    if (spinner) {
+      spinner.text = `Using smart sampling (${sampledRecords.length.toLocaleString()} of ${records.length.toLocaleString()} rows) for faster analysis...`;
+    }
+  }
+  
   try {
     const fileName = basename(filePath);
-    const columnTypes = records.length > 0 ? detectColumnTypes(records) : {};
+    const columnTypes = sampledRecords.length > 0 ? detectColumnTypes(sampledRecords) : {};
     const columns = Object.keys(columnTypes);
     
     // Check cache
-    const cacheKey = `${filePath}_${records.length}_${columns.length}`;
+    const cacheKey = `${filePath}_${sampledRecords.length}_${columns.length}`;
     if (analysisCache.has(cacheKey) && !options.noCache) {
       const cached = analysisCache.get(cacheKey);
       const age = Date.now() - cached.timestamp;
@@ -67,13 +79,13 @@ export async function comprehensiveLLMAnalysis(records, headers, filePath, optio
     
     if (spinner) spinner.text = 'Running exploratory data analysis...';
     
-    // Run all analyses in parallel with summary mode
+    // Run all analyses in parallel with summary mode using sampled data
     const [edaResults, intResults, visResults, engResults, originalContext] = await Promise.all([
-      runEdaAnalysis(records, headers, filePath, options),
-      runIntAnalysis(records, headers, filePath, options),
-      runVisAnalysis(records, headers, filePath, options),
-      runEngAnalysis(records, headers, filePath, options),
-      generateOriginalContext(records, columns, columnTypes)
+      runEdaAnalysis(sampledRecords, headers, filePath, options),
+      runIntAnalysis(sampledRecords, headers, filePath, options),
+      runVisAnalysis(sampledRecords, headers, filePath, options),
+      runEngAnalysis(sampledRecords, headers, filePath, options),
+      generateOriginalContext(sampledRecords, columns, columnTypes)
     ]);
     
     if (spinner) spinner.text = 'Extracting key insights...';
@@ -175,7 +187,14 @@ async function runEdaAnalysis(records, headers, filePath, options) {
   };
   
   try {
-    const result = await edaCommand(filePath, captureOptions);
+    // Add timeout for large dataset analysis
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('EDA analysis timeout')), 15000); // 15 second timeout
+    });
+    
+    const analysisPromise = edaCommand(filePath, captureOptions);
+    const result = await Promise.race([analysisPromise, timeoutPromise]);
+    
     return result?.structuredResults || {};
   } catch (error) {
     console.error('EDA analysis error:', error);

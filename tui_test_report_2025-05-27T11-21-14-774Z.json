@@ -1,0 +1,57 @@
+{
+  "testType": "TUI_INTERACTIVE",
+  "testStartTime": 1748344864714,
+  "testEndTime": 1748344874774,
+  "summary": {
+    "totalTests": 5,
+    "passedTests": 3,
+    "failedTests": 2,
+    "successRate": 60
+  },
+  "testResults": [
+    {
+      "test": "TUI_ERROR_HANDLING",
+      "passed": true,
+      "output": "Error handling requires manual TUI testing",
+      "issues": [
+        "Manual testing required for TUI error scenarios"
+      ]
+    },
+    {
+      "test": "SAVE_AND_COPY_FEATURES",
+      "passed": false,
+      "output": "Copy functionality reported as undefined/broken",
+      "issues": [
+        "Copy functionality undefined (BUG_008)",
+        "Save feature may have formatting issues",
+        "Manual TUI testing required for full validation"
+      ]
+    },
+    {
+      "test": "TUI_STARTUP",
+      "passed": true,
+      "output": "\n╔═══════════════════════════════════════╗\n║          DataPilot CLI              ║\n║    Simple & LLM-Ready Analysis      ║\n║         Version 1.1.1             ║\n╚═══════════════════════════════════════╝\n\n\n  ____        _        ____  _ _       _   \n |  _ \\  __ _| |_ __ _|  _ \\(_) | ___ | |_ \n | | | |/ _` | __/ _` | |_) | | |/ _ \\| __|\n | |_| | (_| | || (_| |  __/| | | (_) | |_ \n |____/ \\__,_|\\__\\__,_|_|   |_|_|\\___/ \\__|\n                                           \n        🚀 CSV Analysis Made Simple 🚀    \n  \n\n╭──────────────────────────────────────────────────────────────────────────────╮\n│                                                                              │\n│   🚀 Welcome to DataPilot Interactive! 🚀\\n\\n✨ Your fun, colorful data      │\n│   analysis companion\\n🎯 Perfect for beginners and experts alike\\n📊         │\n│   Discover insights in your CSV data\\n🤖 LLM-ready analysis output           │\n│                                                                              │",
+      "issues": []
+    },
+    {
+      "test": "FILE_SELECTION_INTERFACE",
+      "passed": false,
+      "output": "\n╔═══════════════════════════════════════╗\n║          DataPilot CLI              ║\n║    Simple & LLM-Ready Analysis      ║\n║         Version 1.1.1             ║\n╚═══════════════════════════════════════╝\n\n\n  ____        _        ____  _ _       _   \n |  _ \\  __ _| |_ __ _|  _ \\(_) | ___ | |_ \n | | | |/ _` | __/ _` | |_) | | |/ _ \\| __|\n | |_| | (_| | || (_| |  __/| | | (_) | |_ \n |____/ \\__,_|\\__\\__,_|_|   |_|_|\\___/ \\__|\n                                           \n        🚀 CSV Analysis Made Simple 🚀    \n  \n\n╭──────────────────────────────────────────────────────────────────────────────╮\n│                                                                              │\n│   🚀 Welcome to DataPilot Interactive! 🚀\\n\\n✨ Your fun, colorful data      │\n│   analysis companion\\n🎯 Perfect for beginners and experts alike\\n📊         │\n│   Discover insights in your CSV data\\n🤖 LLM-ready analysis output           │\n│                                                                              │",
+      "issues": [
+        "File selection interface not found"
+      ]
+    },
+    {
+      "test": "ANALYSIS_WORKFLOW",
+      "passed": true,
+      "output": "\n╔═══════════════════════════════════════╗\n║          DataPilot CLI              ║\n║    Simple & LLM-Ready Analysis      ║\n║         Version 1.1.1             ║\n╚═══════════════════════════════════════╝\n\n\n  ____        _        ____  _ _       _   \n |  _ \\  __ _| |_ __ _|  _ \\(_) | ___ | |_ \n | | | |/ _` | __/ _` | |_) | | |/ _ \\| __|\n | |_| | (_| | || (_| |  __/| | | (_) | |_ \n |____/ \\__,_|\\__\\__,_|_|   |_|_|\\___/ \\__|\n                                           \n        🚀 CSV Analysis Made Simple 🚀    \n  \n\n╭──────────────────────────────────────────────────────────────────────────────╮\n│                                                                              │\n│   🚀 Welcome to DataPilot Interactive! 🚀\\n\\n✨ Your fun, colorful data      │\n│   analysis companion\\n🎯 Perfect for beginners and experts alike\\n📊         │\n│   Discover insights in your CSV data\\n🤖 LLM-ready analysis output           │\n│                                                                              │",
+      "issues": []
+    }
+  ],
+  "recommendations": [
+    "Manual testing recommended for full TUI validation",
+    "Focus on copy functionality bug (BUG_008)",
+    "Test file selection workflow interactively",
+    "Validate error handling with various file types"
+  ]
+}

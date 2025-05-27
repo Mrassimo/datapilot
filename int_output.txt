@@ -1,0 +1,113 @@
+
+╔═══════════════════════════════════════╗
+║          DataPilot CLI              ║
+║    Simple & LLM-Ready Analysis      ║
+║         Version 1.1.1             ║
+╚═══════════════════════════════════════╝
+
+Detected UTF-32BE encoding (will handle automatically)
+
+=============================
+=== DATA INTEGRITY REPORT ===
+=============================
+Dataset: test_sales.csv
+Generated: 2025-05-27 11:41:14
+Quality Framework: ISO 8000 / DAMA-DMBOK Aligned
+
+OVERALL DATA QUALITY SCORE: 0/100 (F)
+Failing
+↓ Quality is declining
+76.0 points below industry average
+
+CRITICAL ISSUES (immediate action required):
+1. transaction_id: 100.0% missing values (20/20 records) [critical]
+2. customer_id: 100.0% missing values (20/20 records) [critical]
+3. transaction_date: 100.0% missing values (20/20 records) [critical]
+4. amount: 100.0% missing values (20/20 records) [critical]
+5. quantity: 100.0% missing values (20/20 records) [critical]
+6. product_category: 100.0% missing values (20/20 records) [critical]
+7. customer_segment: 100.0% missing values (20/20 records) [critical]
+8. discount_percentage: 100.0% missing values (20/20 records) [critical]
+9. transaction_date: 100.0% invalid values (20/20) [critical]
+10. transaction_id: 19 duplicate values in supposedly unique field [critical]
+11. customer_id: 19 duplicate values in supposedly unique field [critical]
+
+WARNINGS (should be addressed):
+1. transaction_date: High duplication rate: 95.0%
+2. amount: High duplication rate: 95.0%
+3. quantity: High duplication rate: 95.0%
+4. product_category: High duplication rate: 95.0%
+5. customer_segment: High duplication rate: 95.0%
+6. discount_percentage: High duplication rate: 95.0%
+7. Composite Duplicates: Duplicate records when combining transaction_id + customer_id
+
+BUSINESS RULE DISCOVERY:
+Automatically Detected Rules (Confidence >95%):
+
+1. LENGTH_CONSTRAINT: LENGTH(transaction_id) = 9
+   - Confidence: 100.0%
+   - Violations: 0 records
+   - SQL: CHECK (LENGTH(transaction_id) = 9)
+
+2. CONDITIONAL_CONSTRAINT: IF customer_id = 'undefined' THEN transaction_id = 'undefined'
+   - Confidence: 100.0%
+   - Violations: 0 records
+   - SQL: CHECK (customer_id != 'undefined' OR transaction_id = 'undefined')
+
+3. CONDITIONAL_CONSTRAINT: IF transaction_date = 'undefined' THEN transaction_id = 'undefined'
+   - Confidence: 100.0%
+   - Violations: 0 records
+   - SQL: CHECK (transaction_date != 'undefined' OR transaction_id = 'undefined')
+
+4. CONDITIONAL_CONSTRAINT: IF amount = 'undefined' THEN transaction_id = 'undefined'
+   - Confidence: 100.0%
+   - Violations: 0 records
+   - SQL: CHECK (amount != 'undefined' OR transaction_id = 'undefined')
+
+5. CONDITIONAL_CONSTRAINT: IF quantity = 'undefined' THEN transaction_id = 'undefined'
+   - Confidence: 100.0%
+   - Violations: 0 records
+   - SQL: CHECK (quantity != 'undefined' OR transaction_id = 'undefined')
+
+PATTERN-BASED ANOMALIES:
+
+
+============================
+=== DATA QUALITY METRICS ===
+============================
+Overall Score: 0/100 (F)
+
+Dimensional Breakdown:
+┌─────────────────┬────────┬────────────────────────┐
+│ Dimension       │ Score  │ Key Issues             │
+├─────────────────┼────────┼────────────────────────┤
+│ accuracy        │ 100    │ Excellent issues       │
+│ timeliness      │ 100    │ Excellent issues       │
+│ consistency     │ 99     │ Excellent issues       │
+│ validity        │ 85     │ Good issues            │
+│ uniqueness      │ 25     │ Critical issues        │
+│ completeness    │ 0      │ Critical issues        │
+└─────────────────┴────────┴────────────────────────┘
+
+RECOMMENDATION PRIORITY MATRIX:
+
+
+🎯 Quick Wins (High Impact, Low Effort):
+1. Review and fix transaction_id [Impact: 8/10, Effort: 2/10]
+2. Review and fix customer_id [Impact: 8/10, Effort: 2/10]
+📋 Strategic Initiatives (High Impact, High Effort):
+1. Review and fix transaction_id [Impact: 8/10, Effort: 4/10]
+2. Review and fix customer_id [Impact: 8/10, Effort: 4/10]
+3. Review and fix transaction_date [Impact: 8/10, Effort: 4/10]
+AUTOMATED FIX SCRIPTS:
+SQL fixes available: Yes
+Python scripts available: Yes
+
+To generate fix scripts, run with --generate-fixes flag
+
+CERTIFICATION STATUS:
+Not yet certified. To achieve Bronze:
+- Improve score by 70.0 points
+- Fix 6 critical issues
+- Resolve 0 warnings
+

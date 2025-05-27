@@ -1,12 +1,14 @@
 import { parseCSV, detectColumnTypes } from '../utils/parser.js';
 import { calculateStats, calculateCorrelation, analyzeDistribution } from '../utils/stats.js';
 import { createSection, createSubSection, formatTimestamp, formatNumber, formatPercentage, formatCurrency, bulletList, formatSmallDatasetWarning, formatDataTable } from '../utils/format.js';
+import { createSamplingStrategy, performSampling, createProgressTracker } from './eda/utils/sampling.js';
+import { InputValidator, SafeArrayOps, withErrorBoundary, safeGet } from '../utils/errorHandler.js';
 import { OutputHandler } from '../utils/output.js';
 import { basename } from 'path';
 import ora from 'ora';
 import { comprehensiveLLMAnalysis } from './llm/index.js';
 
-export async function llmContext(filePath, options = {}) {
+export const llmContext = withErrorBoundary(async function llmContextInternal(filePath, options = {}) {
   const outputHandler = new OutputHandler(options);
   const spinner = options.quiet ? null : ora('Reading CSV file...').start();
   
@@ -22,7 +24,25 @@ export async function llmContext(filePath, options = {}) {
       headers = Object.keys(columnTypes);
     } else {
       // Parse CSV
-      records = await parseCSV(filePath, { quiet: options.quiet, header: options.header });
+      const allRecords = await parseCSV(filePath, { quiet: options.quiet, header: options.header });
+      const originalSize = allRecords.length;
+      
+      // Create smart sampling strategy for large datasets
+      const samplingStrategy = createSamplingStrategy(allRecords, 'basic');
+      
+      if (samplingStrategy.method !== 'none') {
+        if (spinner) {
+          spinner.text = `Large dataset detected (${originalSize.toLocaleString()} rows). Applying smart sampling...`;
+        } else {
+          console.log(`- Large dataset detected (${originalSize.toLocaleString()} rows). Applying smart sampling...`);
+        }
+        
+        records = performSampling(allRecords, samplingStrategy);
+        console.log(`⚠️  Large dataset sampled: ${records.length.toLocaleString()} of ${originalSize.toLocaleString()} rows (${samplingStrategy.method} sampling)`);
+      } else {
+        records = allRecords;
+      }
+      
       if (spinner) spinner.text = 'Generating LLM context...';
       columnTypes = detectColumnTypes(records);
       headers = Object.keys(columnTypes);
@@ -97,8 +117,8 @@ export async function llmContext(filePath, options = {}) {
     report += createSubSection('KEY COLUMNS AND THEIR CHARACTERISTICS', '');
     
     columns.forEach((column, idx) => {
-      const type = columnTypes[column];
-      const values = records.map(r => r[column]);
+      const type = safeGet(columnTypes, column, { type: 'unknown' });
+      const values = SafeArrayOps.safeMap(records, r => safeGet(r, column), []);
       
       report += `\n${idx + 1}. ${column}: `;
       
@@ -256,7 +276,7 @@ export async function llmContext(filePath, options = {}) {
     if (!options.quiet) process.exit(1);
     throw error;
   }
-}
+}, null, { function: 'llmContext' });
 
 export function getDateRange(records, dateColumns) {
   if (dateColumns.length === 0) return null;
@@ -436,15 +456,21 @@ export function analyzeSeasonality(records, dateColumn, columns, columnTypes) {
   if (numericColumns.length === 0) return null;
   
   const monthlyData = {};
-  records.forEach(record => {
-    const date = record[dateColumn];
+  
+  // Performance optimization: Use sampling for large datasets
+  const samplingStrategy = createSamplingStrategy(records, 'timeseries');
+  const sampledRecords = performSampling(records, samplingStrategy);
+  
+  SafeArrayOps.safeForEach(sampledRecords, record => {
+    const date = safeGet(record, dateColumn);
     if (date instanceof Date) {
       const month = date.getMonth();
       if (!monthlyData[month]) monthlyData[month] = [];
       
-      numericColumns.forEach(col => {
-        if (typeof record[col] === 'number') {
-          monthlyData[month].push(record[col]);
+      SafeArrayOps.safeForEach(numericColumns, col => {
+        const value = safeGet(record, col);
+        if (typeof value === 'number') {
+          monthlyData[month].push(value);
         }
       });
     }

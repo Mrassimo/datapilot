@@ -1,6 +1,7 @@
 import { parseCSV, detectColumnTypes } from '../utils/parser.js';
 import { calculateStats } from '../utils/stats.js';
 import { createSection, createSubSection, formatTimestamp, formatFileSize, bulletList, formatNumber, formatSmallDatasetWarning, formatDataTable } from '../utils/format.js';
+import { createSamplingStrategy, performSampling, createProgressTracker } from './eda/utils/sampling.js';
 import { OutputHandler } from '../utils/output.js';
 import { statSync } from 'fs';
 import { basename } from 'path';
@@ -27,7 +28,25 @@ class ArchaeologyEngine {
       records = options.preloadedData.records;
       columnTypes = options.preloadedData.columnTypes;
     } else {
-      records = await parseCSV(csvPath, { quiet: options.quiet, header: options.header });
+      const allRecords = await parseCSV(csvPath, { quiet: options.quiet, header: options.header });
+      const originalSize = allRecords.length;
+      
+      // Apply smart sampling for large datasets
+      const samplingStrategy = createSamplingStrategy(allRecords, 'basic');
+      
+      if (samplingStrategy.method !== 'none') {
+        if (spinner) {
+          spinner.text = `Large dataset detected (${originalSize.toLocaleString()} rows). Applying smart sampling...`;
+        } else {
+          console.log(`- Large dataset detected (${originalSize.toLocaleString()} rows). Applying smart sampling...`);
+        }
+        
+        records = performSampling(allRecords, samplingStrategy);
+        console.log(`⚠️  Large dataset sampled: ${records.length.toLocaleString()} of ${originalSize.toLocaleString()} rows (${samplingStrategy.method} sampling)`);
+      } else {
+        records = allRecords;
+      }
+      
       if (spinner) spinner.text = 'Performing data archaeology...';
       columnTypes = detectColumnTypes(records);
     }
@@ -589,9 +608,12 @@ NEXT_INVESTIGATE: [what tables to analyze next]`;
       const measureKeywords = ['amount', 'count', 'total', 'quantity', 'value', 'sum', 'avg', 'price', 'cost', 'revenue', 'profit'];
       const isMeasureByName = measureKeywords.some(keyword => colLower.includes(keyword));
       
-      // Statistical identification (high cardinality numeric)
+      // Statistical identification (high cardinality numeric) with sampling
       if (records.length > 0) {
-        const values = records.map(r => r[col]).filter(v => v !== null && v !== undefined);
+        const samplingStrategy = createSamplingStrategy(records, 'basic');
+        const sampledRecords = performSampling(records, samplingStrategy);
+        
+        const values = sampledRecords.map(r => r[col]).filter(v => v !== null && v !== undefined);
         const uniqueRatio = new Set(values).size / values.length;
         const isHighCardinality = uniqueRatio > 0.8;
         
@@ -612,9 +634,12 @@ NEXT_INVESTIGATE: [what tables to analyze next]`;
           colLower.includes('category') || colLower.includes('status') ||
           colLower.includes('code')) return true;
       
-      // Categorical columns with reasonable cardinality
+      // Categorical columns with reasonable cardinality (with sampling)
       if (type?.type === 'categorical' && records.length > 0) {
-        const values = records.map(r => r[col]).filter(v => v);
+        const samplingStrategy = createSamplingStrategy(records, 'basic');
+        const sampledRecords = performSampling(records, samplingStrategy);
+        
+        const values = sampledRecords.map(r => r[col]).filter(v => v);
         const uniqueCount = new Set(values).size;
         return uniqueCount >= 2 && uniqueCount <= Math.min(values.length * 0.5, 100);
       }

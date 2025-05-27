@@ -1,0 +1,6 @@
+patient_id,age,bmi,glucose_level,blood_pressure,insulin,diabetes_diagnosis
+P001,50,31.4,140,92,0,1
+P002,31,25.6,85,66,94,0
+P003,32,29.7,165,74,325,1
+P004,21,23.1,95,70,0,0
+P005,33,35.3,155,80,0,1

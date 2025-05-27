@@ -1,0 +1,185 @@
+
+╔═══════════════════════════════════════╗
+║          DataPilot CLI              ║
+║    Simple & LLM-Ready Analysis      ║
+║         Version 1.1.1             ║
+╚═══════════════════════════════════════╝
+
+Detected windows-1252 encoding (will handle automatically)
+{
+  analysis: {
+    table_name: 'diabetes_test',
+    file_path: '/Users/massimoraso/Code/jseda/datapilot/tests/fixtures/diabetes_test.csv',
+    analyzed_date: '2025-05-27T11:50:23.117Z',
+    row_count: 5,
+    column_count: 7,
+    columns: [
+      [Object], [Object],
+      [Object], [Object],
+      [Object], [Object],
+      [Object]
+    ],
+    quality_score: 100,
+    tech_debt_hours: 0,
+    domain: 'Reference',
+    likely_purpose: 'Dimension table - descriptive attributes',
+    relationships: [ [Object], [Object] ],
+    patterns: {
+      naming: [Array],
+      issues: [],
+      table_type: 'dimension_table',
+      granularity: 'entity',
+      quality_flags: [Array],
+      statistical_profile: [Object],
+      complexity_score: 8.1
+    },
+    schema_recommendations: '\n' +
+      'Suggested Table Structure:\n' +
+      '```sql\n' +
+      '-- Recommended data types based on analysis\n' +
+      'CREATE TABLE diabetes_test (\n' +
+      '    patient_id               VARCHAR(20) NOT NULL PRIMARY KEY,\n' +
+      '    age                  SMALLINT NOT NULL,\n' +
+      '    bmi                    DECIMAL(10,2) NOT NULL,\n' +
+      '    glucose_level                  SMALLINT NOT NULL,\n' +
+      '    blood_pressure                  SMALLINT NOT NULL,\n' +
+      '    insulin                  VARCHAR(50) NOT NULL,\n' +
+      '    diabetes_diagnosis                  VARCHAR(50) NOT NULL\n' +
+      ');\n' +
+      '```\n',
+    etl_recommendations: 'ADVANCED ETL IMPLEMENTATION RECOMMENDATIONS:\n' +
+      '\n' +
+      'PERFORMANCE:\n' +
+      '  🔸 [Medium] Create strategic indexes\n' +
+      '     Recommended indexes: patient_id (primary). Query performance boost: 20-40%\n' +
+      '\n' +
+      '  🔸 [Low] Optimize storage format\n' +
+      '     Current size estimate: 2 KB. Optimized: 583 B (67% savings)\n' +
+      '\n' +
+      'ARCHITECTURE:\n' +
+      '  🔸 [High] Implement Operational Data Store pattern\n' +
+      '     Table classified as operational. Business process data requiring normalization. Performance characteristics: Optimize for transactions, consider read replicas\n' +
+      '\n' +
+      '  🔸 [Medium] Adopt data modeling strategy\n' +
+      '     Recommended approach: Denormalized analytical model. Rationale: Compact dataset suitable for analytical workloads\n' +
+      '\n' +
+      'SECURITY:\n' +
+      '  🔸 [Medium] Define access controls\n' +
+      '     Recommended access levels: public, internal. Implementation: row-level security with column-level permissions\n' +
+      '\n' +
+      'GOVERNANCE:\n' +
+      '  🔸 [High] Set up quality monitoring\n' +
+      '     Monitor: completeness, uniqueness, statistical drift. Frequency: weekly\n' +
+      '\n' +
+      '  🔸 [Medium] Implement data lineage tracking\n' +
+      '     Track lineage for: patient_id. Method: automated lineage tracking with data flow documentation\n' +
+      '\n' +
+      '  🔸 [Low] Define retention policy\n' +
+      '     Recommended retention: indefinite (reference data). Archival strategy: periodic backup only\n' +
+      '\n' +
+      'ANALYTICS:\n' +
+      '  🔸 [Medium] Implement feature engineering\n' +
+      '     Opportunities: feature scaling/normalization, interaction features. ML readiness score: 7/10\n' +
+      '\n' +
+      '  🔸 [Medium] Prepare data for analytics\n' +
+      '     Required steps: missing value imputation, distribution analysis. Complexity: Medium\n' +
+      '\n' +
+      '  🔸 [Low] Implement batch processing\n' +
+      '     Recommended: batch. Rationale: Simple batch processing sufficient for dataset size\n' +
+      '\n' +
+      'IMPLEMENTATION SUMMARY:\n' +
+      '  High Priority: 2 items (implement first)\n' +
+      '  Medium Priority: 6 items (implement next)\n' +
+      '  Low Priority: 3 items (implement when resources allow)\n',
+    warehouse_design: 'Fact Table: fact_transactions\n' +
+      '- Grain: One row per record\n' +
+      '- Measures: count(*)\n' +
+      '- Keys: patient_id\n' +
+      '\n',
+    performance_recs: [ 'Compression ratio estimate: 3:1' ],
+    warehouse_context: {
+      total_tables_analyzed: 0,
+      related_tables: [],
+      cumulative_patterns: 4,
+      domain_classification: 'Reference'
+    },
+    cross_references: [
+      '"patient_id" matches pattern found in 12 other tables',
+      '"age" matches pattern found in 11 other tables',
+      '"bmi" matches pattern found in 3 other tables',
+      '"insulin" matches pattern found in 2 other tables',
+      'patient_id likely references patients.id',
+      'undefined likely references self_reference.parent_key'
+    ],
+    accumulated_debt: 0
+  },
+  structuredResults: {
+    schemaRecommendations: '\n' +
+      'Suggested Table Structure:\n' +
+      '```sql\n' +
+      '-- Recommended data types based on analysis\n' +
+      'CREATE TABLE diabetes_test (\n' +
+      '    patient_id               VARCHAR(20) NOT NULL PRIMARY KEY,\n' +
+      '    age                  SMALLINT NOT NULL,\n' +
+      '    bmi                    DECIMAL(10,2) NOT NULL,\n' +
+      '    glucose_level                  SMALLINT NOT NULL,\n' +
+      '    blood_pressure                  SMALLINT NOT NULL,\n' +
+      '    insulin                  VARCHAR(50) NOT NULL,\n' +
+      '    diabetes_diagnosis                  VARCHAR(50) NOT NULL\n' +
+      ');\n' +
+      '```\n',
+    performanceAnalysis: { dataVolume: 5, queryPatterns: [], joinComplexity: 'moderate' },
+    etlAnalysis: 'ADVANCED ETL IMPLEMENTATION RECOMMENDATIONS:\n' +
+      '\n' +
+      'PERFORMANCE:\n' +
+      '  🔸 [Medium] Create strategic indexes\n' +
+      '     Recommended indexes: patient_id (primary). Query performance boost: 20-40%\n' +
+      '\n' +
+      '  🔸 [Low] Optimize storage format\n' +
+      '     Current size estimate: 2 KB. Optimized: 583 B (67% savings)\n' +
+      '\n' +
+      'ARCHITECTURE:\n' +
+      '  🔸 [High] Implement Operational Data Store pattern\n' +
+      '     Table classified as operational. Business process data requiring normalization. Performance characteristics: Optimize for transactions, consider read replicas\n' +
+      '\n' +
+      '  🔸 [Medium] Adopt data modeling strategy\n' +
+      '     Recommended approach: Denormalized analytical model. Rationale: Compact dataset suitable for analytical workloads\n' +
+      '\n' +
+      'SECURITY:\n' +
+      '  🔸 [Medium] Define access controls\n' +
+      '     Recommended access levels: public, internal. Implementation: row-level security with column-level permissions\n' +
+      '\n' +
+      'GOVERNANCE:\n' +
+      '  🔸 [High] Set up quality monitoring\n' +
+      '     Monitor: completeness, uniqueness, statistical drift. Frequency: weekly\n' +
+      '\n' +
+      '  🔸 [Medium] Implement data lineage tracking\n' +
+      '     Track lineage for: patient_id. Method: automated lineage tracking with data flow documentation\n' +
+      '\n' +
+      '  🔸 [Low] Define retention policy\n' +
+      '     Recommended retention: indefinite (reference data). Archival strategy: periodic backup only\n' +
+      '\n' +
+      'ANALYTICS:\n' +
+      '  🔸 [Medium] Implement feature engineering\n' +
+      '     Opportunities: feature scaling/normalization, interaction features. ML readiness score: 7/10\n' +
+      '\n' +
+      '  🔸 [Medium] Prepare data for analytics\n' +
+      '     Required steps: missing value imputation, distribution analysis. Complexity: Medium\n' +
+      '\n' +
+      '  🔸 [Low] Implement batch processing\n' +
+      '     Recommended: batch. Rationale: Simple batch processing sufficient for dataset size\n' +
+      '\n' +
+      'IMPLEMENTATION SUMMARY:\n' +
+      '  High Priority: 2 items (implement first)\n' +
+      '  Medium Priority: 6 items (implement next)\n' +
+      '  Low Priority: 3 items (implement when resources allow)\n',
+    technicalDebt: [ [Object] ],
+    relationships: [ [Object], [Object] ],
+    warehouseKnowledge: {
+      warehouse: [Object],
+      patterns: [Object],
+      relationships: [Object],
+      tables: [Object]
+    }
+  }
+}

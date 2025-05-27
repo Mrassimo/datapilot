@@ -1,0 +1,8 @@
+
+╔═══════════════════════════════════════╗
+║          DataPilot CLI              ║
+║    Simple & LLM-Ready Analysis      ║
+║         Version 1.1.1             ║
+╚═══════════════════════════════════════╝
+
+Detected windows-1252 encoding (will handle automatically)
