@@ -330,4 +330,106 @@ WAREHOUSE ARCHAEOLOGY SUMMARY:
 - Last Updated: ${metadata.last_updated}
     `.trim();
   }
+
+  async deleteTable(tableName) {
+    try {
+      // Load current warehouse knowledge
+      const knowledge = await this.load();
+      
+      // Remove table YAML file
+      const tableFilePath = path.join(this.tablesPath, `${tableName}.yaml`);
+      if (fs.existsSync(tableFilePath)) {
+        fs.unlinkSync(tableFilePath);
+      }
+      
+      // Update warehouse metadata
+      if (knowledge.warehouse && knowledge.warehouse.table_registry) {
+        const tableInfo = knowledge.warehouse.table_registry[tableName];
+        if (tableInfo) {
+          // Update technical debt
+          if (knowledge.warehouse.warehouse_metadata && tableInfo.tech_debt_hours) {
+            knowledge.warehouse.warehouse_metadata.total_technical_debt_hours -= tableInfo.tech_debt_hours;
+          }
+          
+          // Remove from registry
+          delete knowledge.warehouse.table_registry[tableName];
+          
+          // Update discovered tables count
+          if (knowledge.warehouse.warehouse_metadata) {
+            knowledge.warehouse.warehouse_metadata.discovered_tables = 
+              Object.keys(knowledge.warehouse.table_registry).length;
+          }
+          
+          // Remove from domains
+          if (knowledge.warehouse.domains && tableInfo.domain) {
+            const domainTables = knowledge.warehouse.domains[tableInfo.domain] || [];
+            knowledge.warehouse.domains[tableInfo.domain] = domainTables.filter(t => t !== tableName);
+            
+            // Remove empty domains
+            if (knowledge.warehouse.domains[tableInfo.domain].length === 0) {
+              delete knowledge.warehouse.domains[tableInfo.domain];
+            }
+          }
+          
+          // Update timestamp
+          knowledge.warehouse.warehouse_metadata.last_updated = new Date().toISOString();
+          
+          // Save updated warehouse
+          this.saveYaml(this.warehousePath, knowledge.warehouse);
+        }
+      }
+      
+      // Remove any relationships referencing this table
+      if (knowledge.relationships) {
+        knowledge.relationships.confirmed = (knowledge.relationships.confirmed || [])
+          .filter(rel => rel.source_table !== tableName && rel.target_table !== tableName);
+        knowledge.relationships.suspected = (knowledge.relationships.suspected || [])
+          .filter(rel => rel.source_table !== tableName && rel.target_table !== tableName);
+        this.saveYaml(this.relationshipsPath, knowledge.relationships);
+      }
+      
+      return true;
+    } catch (error) {
+      console.error(`Failed to delete table ${tableName}:`, error.message);
+      throw error;
+    }
+  }
+
+  async clearAll() {
+    try {
+      // Remove the entire archaeology directory
+      if (fs.existsSync(this.basePath)) {
+        // Recursively remove all files and directories
+        this.removeDirectory(this.basePath);
+      }
+      
+      // Reinitialize empty directories
+      this.initializeDirectories();
+      
+      // Create empty warehouse file
+      const emptyWarehouse = this.createEmptyWarehouse();
+      this.saveYaml(this.warehousePath, emptyWarehouse);
+      
+      return true;
+    } catch (error) {
+      console.error('Failed to clear all memories:', error.message);
+      throw error;
+    }
+  }
+
+  removeDirectory(dirPath) {
+    if (fs.existsSync(dirPath)) {
+      fs.readdirSync(dirPath).forEach((file) => {
+        const curPath = path.join(dirPath, file);
+        if (fs.lstatSync(curPath).isDirectory()) {
+          // Recursive call for directories
+          this.removeDirectory(curPath);
+        } else {
+          // Delete file
+          fs.unlinkSync(curPath);
+        }
+      });
+      fs.rmdirSync(dirPath);
+    }
+  }
 }

@@ -47,6 +47,8 @@ import { eda } from './eda.js';
 import { integrity } from './int.js';
 import { visualize } from './vis.js';
 import { llmContext } from './llm.js';
+import { KnowledgeBase } from '../utils/knowledgeBase.js';
+import yaml from 'js-yaml';
 
 // Create comprehensive color object with ALL needed functions
 const gradients = {
@@ -97,6 +99,9 @@ export async function interactiveUI() {
             break;
           case 'demo':
             await runDemo();
+            break;
+          case 'memory':
+            await showMemoryManager();
             break;
           case 'exit':
             running = false;
@@ -184,6 +189,11 @@ async function showMainMenu() {
         name: 'demo',
         message: '🎭 Try Demo Mode',
         hint: 'See DataPilot in action with built-in sample datasets'
+      },
+      {
+        name: 'memory',
+        message: '🧠 Manage Memories',
+        hint: 'View, delete, or manage DataPilot\'s warehouse knowledge'
       },
       {
         name: 'exit',
@@ -1235,6 +1245,361 @@ async function calculateTotalSize(files) {
     }
   }
   return total;
+}
+
+// Memory Management Functions
+async function showMemoryManager() {
+  console.clear();
+  const kb = new KnowledgeBase();
+  const knowledge = await kb.load();
+  
+  // Display summary
+  console.log(gradients.ocean('🧠 Memory Manager 🧠\\n'));
+  
+  const tableCount = Object.keys(knowledge.tables || {}).length;
+  const domains = [...new Set(Object.values(knowledge.tables || {}).map(t => t.domain))];
+  const totalDebHours = knowledge.warehouse_metadata?.total_technical_debt_hours || 0;
+  
+  console.log(boxen(
+    `📊 Tables Analyzed: ${chalk.cyan(tableCount)}\\n` +
+    `🏢 Domains Discovered: ${chalk.green(domains.length)}\\n` +
+    `💸 Technical Debt: ${chalk.yellow(totalDebHours + ' hours')}\\n` +
+    `📁 Storage Location: ${chalk.gray('~/.datapilot/archaeology')}`,
+    {
+      padding: 1,
+      borderColor: 'cyan',
+      title: '📈 Knowledge Base Summary',
+      titleAlignment: 'center'
+    }
+  ));
+  
+  console.log();
+  
+  let managing = true;
+  while (managing) {
+    const action = await prompt({
+      type: 'select',
+      name: 'action',
+      message: gradients.cyan('What would you like to do?'),
+      choices: [
+        { name: 'list', message: '📋 List All Memories', hint: 'View all analyzed tables and domains' },
+        { name: 'view', message: '🔍 View Memory Details', hint: 'Inspect a specific table\'s knowledge' },
+        { name: 'delete', message: '🗑️  Delete Memory', hint: 'Remove a specific table from knowledge base' },
+        { name: 'clear', message: '💣 Clear All Memories', hint: 'Remove all warehouse knowledge (careful!)' },
+        { name: 'extract', message: '💾 Export Memories', hint: 'Save current knowledge to a file' },
+        { name: 'session', message: '⏱️  Session Memories', hint: 'Manage temporary session-based knowledge' },
+        { name: 'back', message: '⬅️  Back to Main Menu', hint: 'Return to main menu' }
+      ]
+    });
+    
+    switch (action.action) {
+      case 'list':
+        await listMemories(knowledge);
+        break;
+      case 'view':
+        await viewMemoryDetails(kb, knowledge);
+        break;
+      case 'delete':
+        await deleteMemory(kb, knowledge);
+        knowledge = await kb.load(); // Reload after deletion
+        break;
+      case 'clear':
+        const cleared = await clearAllMemories(kb);
+        if (cleared) {
+          knowledge = await kb.load(); // Reload empty knowledge
+        }
+        break;
+      case 'extract':
+        await extractMemories(kb, knowledge);
+        break;
+      case 'session':
+        await manageSessionMemories();
+        break;
+      case 'back':
+        managing = false;
+        break;
+    }
+  }
+}
+
+async function listMemories(knowledge) {
+  console.clear();
+  console.log(gradients.ocean('📋 All Memories\\n'));
+  
+  const tables = Object.entries(knowledge.tables || {});
+  if (tables.length === 0) {
+    console.log(chalk.yellow('No memories found. Analyze some CSV files first!'));
+  } else {
+    // Group by domain
+    const byDomain = {};
+    tables.forEach(([name, info]) => {
+      const domain = info.domain || 'Unknown';
+      if (!byDomain[domain]) byDomain[domain] = [];
+      byDomain[domain].push({ name, info });
+    });
+    
+    Object.entries(byDomain).forEach(([domain, tables]) => {
+      console.log(chalk.cyan(`\\n🏢 ${domain} Domain:`));
+      tables.forEach(({ name, info }) => {
+        const rows = info.row_count || 0;
+        const cols = (info.columns || []).length;
+        const quality = info.quality_score ? `${info.quality_score.toFixed(1)}%` : 'N/A';
+        console.log(`  📊 ${chalk.green(name)} - ${rows} rows × ${cols} cols (Quality: ${quality})`);
+      });
+    });
+  }
+  
+  await prompt({ type: 'confirm', name: 'continue', message: '\\nPress Enter to continue...' });
+}
+
+async function viewMemoryDetails(kb, knowledge) {
+  const tables = Object.keys(knowledge.tables || {});
+  if (tables.length === 0) {
+    console.log(chalk.yellow('No memories to view!'));
+    await prompt({ type: 'confirm', name: 'continue', message: 'Press Enter to continue...' });
+    return;
+  }
+  
+  const { tableName } = await prompt({
+    type: 'autocomplete',
+    name: 'tableName',
+    message: 'Select a table to view:',
+    choices: tables.map(t => ({
+      name: t,
+      value: t,
+      hint: knowledge.tables[t].domain || 'Unknown domain'
+    }))
+  });
+  
+  console.clear();
+  console.log(gradients.ocean(`📊 Memory Details: ${tableName}\\n`));
+  
+  // Load full YAML file for detailed view
+  try {
+    const tableYamlPath = path.join(process.env.HOME, '.datapilot', 'archaeology', 'tables', `${tableName}.yaml`);
+    const tableData = yaml.load(fs.readFileSync(tableYamlPath, 'utf8'));
+    
+    // Display sections
+    console.log(chalk.cyan('📈 Basic Information:'));
+    console.log(`  Domain: ${tableData.domain || 'Unknown'}`);
+    console.log(`  Rows: ${tableData.row_count || 0}`);
+    console.log(`  Columns: ${(tableData.columns || []).length}`);
+    console.log(`  Quality Score: ${tableData.quality_score ? tableData.quality_score.toFixed(1) + '%' : 'N/A'}`);
+    console.log(`  Technical Debt: ${tableData.tech_debt_hours || 0} hours`);
+    
+    if (tableData.columns && tableData.columns.length > 0) {
+      console.log(chalk.cyan('\\n📊 Column Details:'));
+      tableData.columns.slice(0, 10).forEach(col => {
+        console.log(`  - ${col.name} (${col.type})`);
+      });
+      if (tableData.columns.length > 10) {
+        console.log(`  ... and ${tableData.columns.length - 10} more columns`);
+      }
+    }
+    
+    if (tableData.relationships && tableData.relationships.length > 0) {
+      console.log(chalk.cyan('\\n🔗 Detected Relationships:'));
+      tableData.relationships.slice(0, 5).forEach(rel => {
+        const source = rel.column || (rel.columns ? rel.columns.join(', ') : 'unknown');
+        console.log(`  - ${source} → ${rel.target_table}.${rel.target_column} (${(rel.confidence * 100).toFixed(0)}%)`);
+      });
+    }
+    
+    if (tableData.patterns) {
+      console.log(chalk.cyan('\\n🔍 Detected Patterns:'));
+      if (tableData.patterns.naming && tableData.patterns.naming.length > 0) {
+        console.log('  Naming conventions:');
+        tableData.patterns.naming.slice(0, 3).forEach(p => {
+          console.log(`    - ${p.pattern} (${(p.confidence * 100).toFixed(0)}% confidence)`);
+        });
+      }
+    }
+  } catch (error) {
+    console.log(chalk.red('Error loading detailed memory:'), error.message);
+  }
+  
+  await prompt({ type: 'confirm', name: 'continue', message: '\\nPress Enter to continue...' });
+}
+
+async function deleteMemory(kb, knowledge) {
+  const tables = Object.keys(knowledge.tables || {});
+  if (tables.length === 0) {
+    console.log(chalk.yellow('No memories to delete!'));
+    await prompt({ type: 'confirm', name: 'continue', message: 'Press Enter to continue...' });
+    return;
+  }
+  
+  const { tableName } = await prompt({
+    type: 'autocomplete',
+    name: 'tableName',
+    message: 'Select a table to delete:',
+    choices: tables.map(t => ({
+      name: t,
+      value: t,
+      hint: knowledge.tables[t].domain || 'Unknown domain'
+    }))
+  });
+  
+  const { confirm } = await prompt({
+    type: 'confirm',
+    name: 'confirm',
+    message: `Are you sure you want to delete memory for "${tableName}"?`,
+    initial: false
+  });
+  
+  if (confirm) {
+    const spinner = createSpinner('Deleting memory...').start();
+    try {
+      await kb.deleteTable(tableName);
+      spinner.success({ text: 'Memory deleted successfully!' });
+    } catch (error) {
+      spinner.error({ text: 'Failed to delete memory: ' + error.message });
+    }
+  } else {
+    console.log(chalk.gray('Deletion cancelled.'));
+  }
+  
+  await prompt({ type: 'confirm', name: 'continue', message: 'Press Enter to continue...' });
+}
+
+async function clearAllMemories(kb) {
+  console.log(chalk.red('\\n⚠️  WARNING: This will delete ALL warehouse knowledge!'));
+  console.log(chalk.yellow('This action cannot be undone.\\n'));
+  
+  const { confirmFirst } = await prompt({
+    type: 'confirm',
+    name: 'confirmFirst',
+    message: 'Are you absolutely sure you want to clear all memories?',
+    initial: false
+  });
+  
+  if (!confirmFirst) {
+    console.log(chalk.gray('Clear operation cancelled.'));
+    await prompt({ type: 'confirm', name: 'continue', message: 'Press Enter to continue...' });
+    return false;
+  }
+  
+  const { confirmSecond } = await prompt({
+    type: 'input',
+    name: 'confirmSecond',
+    message: 'Type "DELETE ALL" to confirm:',
+    validate: input => input === 'DELETE ALL' || 'Type exactly "DELETE ALL" to confirm'
+  });
+  
+  if (confirmSecond === 'DELETE ALL') {
+    const spinner = createSpinner('Clearing all memories...').start();
+    try {
+      await kb.clearAll();
+      spinner.success({ text: 'All memories cleared successfully!' });
+      return true;
+    } catch (error) {
+      spinner.error({ text: 'Failed to clear memories: ' + error.message });
+      return false;
+    }
+  } else {
+    console.log(chalk.gray('Clear operation cancelled.'));
+  }
+  
+  await prompt({ type: 'confirm', name: 'continue', message: 'Press Enter to continue...' });
+  return false;
+}
+
+async function extractMemories(kb, knowledge) {
+  console.clear();
+  console.log(gradients.ocean('💾 Export Memories\\n'));
+  
+  const { exportType } = await prompt({
+    type: 'select',
+    name: 'exportType',
+    message: 'What would you like to export?',
+    choices: [
+      { name: 'all', message: 'Export all knowledge', hint: 'Complete warehouse knowledge' },
+      { name: 'domain', message: 'Export specific domain', hint: 'Tables from one domain only' },
+      { name: 'table', message: 'Export specific table', hint: 'Single table knowledge' }
+    ]
+  });
+  
+  let dataToExport = {};
+  
+  switch (exportType) {
+    case 'all':
+      dataToExport = knowledge;
+      break;
+      
+    case 'domain':
+      const domains = [...new Set(Object.values(knowledge.tables || {}).map(t => t.domain))];
+      if (domains.length === 0) {
+        console.log(chalk.yellow('No domains found!'));
+        await prompt({ type: 'confirm', name: 'continue', message: 'Press Enter to continue...' });
+        return;
+      }
+      
+      const { domain } = await prompt({
+        type: 'select',
+        name: 'domain',
+        message: 'Select domain to export:',
+        choices: domains
+      });
+      
+      dataToExport = {
+        warehouse_metadata: knowledge.warehouse_metadata,
+        tables: Object.fromEntries(
+          Object.entries(knowledge.tables || {}).filter(([_, info]) => info.domain === domain)
+        )
+      };
+      break;
+      
+    case 'table':
+      const tables = Object.keys(knowledge.tables || {});
+      if (tables.length === 0) {
+        console.log(chalk.yellow('No tables found!'));
+        await prompt({ type: 'confirm', name: 'continue', message: 'Press Enter to continue...' });
+        return;
+      }
+      
+      const { tableName } = await prompt({
+        type: 'autocomplete',
+        name: 'tableName',
+        message: 'Select table to export:',
+        choices: tables
+      });
+      
+      dataToExport = {
+        [tableName]: knowledge.tables[tableName]
+      };
+      break;
+  }
+  
+  const { filename } = await prompt({
+    type: 'input',
+    name: 'filename',
+    message: 'Export filename:',
+    initial: `datapilot_export_${new Date().toISOString().split('T')[0]}.yaml`
+  });
+  
+  const spinner = createSpinner('Exporting memories...').start();
+  try {
+    const exportPath = path.join(process.cwd(), filename);
+    fs.writeFileSync(exportPath, yaml.dump(dataToExport, { indent: 2 }));
+    spinner.success({ text: `Memories exported to: ${exportPath}` });
+  } catch (error) {
+    spinner.error({ text: 'Failed to export memories: ' + error.message });
+  }
+  
+  await prompt({ type: 'confirm', name: 'continue', message: 'Press Enter to continue...' });
+}
+
+async function manageSessionMemories() {
+  console.clear();
+  console.log(gradients.ocean('⏱️  Session Memory Manager\\n'));
+  console.log(chalk.yellow('Feature coming soon!\\n'));
+  console.log('Session memories will allow you to:');
+  console.log('  • Create temporary analysis sessions');
+  console.log('  • Scope memories to specific directories');
+  console.log('  • Quick save/load analysis contexts');
+  console.log('  • Share knowledge between team members');
+  
+  await prompt({ type: 'confirm', name: 'continue', message: 'Press Enter to continue...' });
 }
 
 // Export already done above with function declaration
