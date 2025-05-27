@@ -4,6 +4,8 @@ import { program } from 'commander';
 import { existsSync } from 'fs';
 import { resolve, basename } from 'path';
 import chalk from 'chalk';
+import ora from 'ora';
+import os from 'os';
 
 // Import commands
 import { eda } from '../src/commands/eda.js';
@@ -14,11 +16,16 @@ import { llmContext } from '../src/commands/llm.js';
 import { runAll } from '../src/commands/all.js';
 import { interactiveUI } from '../src/commands/ui.js';
 
-// ASCII art banner
+// Import enhanced parser utilities
+import { normalizePath } from '../src/utils/parser.js';
+
+// ASCII art banner with version
+const VERSION = '1.1.1';
 const banner = `
 ╔═══════════════════════════════════════╗
 ║          ${chalk.cyan('DataPilot CLI')}              ║
 ║    ${chalk.gray('Simple & LLM-Ready Analysis')}      ║
+║         ${chalk.yellow(`Version ${VERSION}`)}             ║
 ╚═══════════════════════════════════════╝
 `;
 
@@ -28,20 +35,72 @@ console.log(banner);
 program
   .name('datapilot')
   .description('CSV analysis tool optimized for LLM consumption')
-  .version('1.1.0');
+  .version(VERSION);
 
-// Helper to validate file exists
+// Enhanced file validation with better error messages
 function validateFile(filePath) {
-  const resolvedPath = resolve(filePath);
-  if (!existsSync(resolvedPath)) {
-    console.error(chalk.red(`Error: File not found: ${filePath}`));
+  try {
+    // Use enhanced path normalization
+    const resolvedPath = normalizePath(filePath);
+    
+    if (!existsSync(resolvedPath)) {
+      // Provide helpful error message for common issues
+      console.error(chalk.red(`❌ Error: File not found: ${filePath}`));
+      
+      // Check if it's a path with spaces issue
+      if (filePath.includes(' ') && !filePath.startsWith('"')) {
+        console.error(chalk.yellow(`💡 Tip: For paths with spaces, use quotes: "${filePath}"`));
+      }
+      
+      // Check if it's a relative path issue
+      if (!path.isAbsolute(filePath)) {
+        const suggestedPath = path.resolve(filePath);
+        console.error(chalk.yellow(`💡 Tip: Try using the full path: ${suggestedPath}`));
+      }
+      
+      process.exit(1);
+    }
+    
+    if (!filePath.toLowerCase().endsWith('.csv')) {
+      console.error(chalk.red(`❌ Error: File must be a CSV file: ${filePath}`));
+      console.error(chalk.yellow(`💡 Tip: DataPilot works with CSV files only`));
+      process.exit(1);
+    }
+    
+    return resolvedPath;
+  } catch (error) {
+    console.error(chalk.red(`❌ Error validating file: ${error.message}`));
     process.exit(1);
   }
-  if (!filePath.toLowerCase().endsWith('.csv')) {
-    console.error(chalk.red(`Error: File must be a CSV file: ${filePath}`));
-    process.exit(1);
+}
+
+// Progress tracking wrapper for commands
+async function runWithProgress(command, filePath, options) {
+  const spinner = ora({
+    text: 'Initializing analysis...',
+    color: 'cyan'
+  }).start();
+  
+  try {
+    // Add progress callback to options
+    const enhancedOptions = {
+      ...options,
+      onProgress: (progress, details) => {
+        if (progress < 100) {
+          spinner.text = `Processing: ${Math.round(progress)}%${details ? ` - ${details}` : ''}`;
+        } else {
+          spinner.text = 'Finalizing analysis...';
+        }
+      }
+    };
+    
+    spinner.stop();
+    const result = await command(filePath, enhancedOptions);
+    return result;
+  } catch (error) {
+    spinner.fail(`Analysis failed: ${error.message}`);
+    throw error;
   }
-  return resolvedPath;
 }
 
 // ALL command - run complete analysis suite
@@ -51,9 +110,11 @@ program
   .option('-o, --output <path>', 'Save analysis to file')
   .option('-q, --quick', 'Quick mode - skip detailed analyses for speed')
   .option('--no-header', 'CSV file has no header row')
+  .option('--encoding <encoding>', 'Force specific encoding (utf8, latin1, etc.)')
+  .option('--delimiter <delimiter>', 'Force specific delimiter (comma, semicolon, tab, pipe)')
   .action(async (file, options) => {
     const filePath = validateFile(file);
-    await runAll(filePath, options);
+    await runWithProgress(runAll, filePath, options);
   });
 
 // EDA command
@@ -63,9 +124,11 @@ program
   .option('-o, --output <path>', 'Save analysis to file')
   .option('-q, --quick', 'Quick mode - basic statistics only')
   .option('--no-header', 'CSV file has no header row')
+  .option('--encoding <encoding>', 'Force specific encoding (utf8, latin1, etc.)')
+  .option('--delimiter <delimiter>', 'Force specific delimiter (comma, semicolon, tab, pipe)')
   .action(async (file, options) => {
     const filePath = validateFile(file);
-    await eda(filePath, options);
+    await runWithProgress(eda, filePath, options);
   });
 
 // INT command
@@ -74,9 +137,11 @@ program
   .description('Data Integrity Check - find quality issues and inconsistencies')
   .option('-o, --output <path>', 'Save analysis to file')
   .option('--no-header', 'CSV file has no header row')
+  .option('--encoding <encoding>', 'Force specific encoding (utf8, latin1, etc.)')
+  .option('--delimiter <delimiter>', 'Force specific delimiter (comma, semicolon, tab, pipe)')
   .action(async (file, options) => {
     const filePath = validateFile(file);
-    await integrity(filePath, options);
+    await runWithProgress(integrity, filePath, options);
   });
 
 // VIS command
@@ -85,9 +150,11 @@ program
   .description('Visualization Recommendations - what charts would be most insightful')
   .option('-o, --output <path>', 'Save analysis to file')
   .option('--no-header', 'CSV file has no header row')
+  .option('--encoding <encoding>', 'Force specific encoding (utf8, latin1, etc.)')
+  .option('--delimiter <delimiter>', 'Force specific delimiter (comma, semicolon, tab, pipe)')
   .action(async (file, options) => {
     const filePath = validateFile(file);
-    await visualize(filePath, options);
+    await runWithProgress(visualize, filePath, options);
   });
 
 // ENG command - Data Archaeology System with subcommands
@@ -99,10 +166,12 @@ eng
   .argument('[file]', 'CSV file to analyze')
   .option('-o, --output <path>', 'Save analysis to file')
   .option('--no-header', 'CSV file has no header row')
+  .option('--encoding <encoding>', 'Force specific encoding (utf8, latin1, etc.)')
+  .option('--delimiter <delimiter>', 'Force specific delimiter (comma, semicolon, tab, pipe)')
   .action(async (file, options) => {
     if (file) {
       const filePath = validateFile(file);
-      await engineering(filePath, options);
+      await runWithProgress(engineering, filePath, options);
     } else {
       // Show help if no file provided
       eng.help();
@@ -114,6 +183,8 @@ eng
   .command('analyze <files...>')
   .description('Analyze multiple CSV files and detect relationships')
   .option('--no-header', 'CSV files have no header row')
+  .option('--encoding <encoding>', 'Force specific encoding for all files')
+  .option('--delimiter <delimiter>', 'Force specific delimiter for all files')
   .action(async (files, options) => {
     const { glob } = await import('glob');
     console.log(chalk.blue('🏛️  Starting multi-file warehouse analysis...\n'));
@@ -122,31 +193,65 @@ eng
     const allFiles = [];
     for (const pattern of files) {
       if (pattern.includes('*')) {
-        const matches = await glob(pattern, { nodir: true });
-        allFiles.push(...matches.filter(f => f.endsWith('.csv')));
+        try {
+          // Handle Windows paths in glob patterns
+          const normalizedPattern = os.platform() === 'win32' 
+            ? pattern.replace(/\\/g, '/')
+            : pattern;
+          const matches = await glob(normalizedPattern, { nodir: true });
+          allFiles.push(...matches.filter(f => f.endsWith('.csv')));
+        } catch (error) {
+          console.error(chalk.red(`Error with pattern ${pattern}: ${error.message}`));
+        }
       } else {
         allFiles.push(pattern);
       }
     }
     
     // Validate all files
-    const filePaths = allFiles.map(f => validateFile(f));
+    const filePaths = [];
+    for (const file of allFiles) {
+      try {
+        const validated = validateFile(file);
+        filePaths.push(validated);
+      } catch (error) {
+        console.error(chalk.red(`Skipping invalid file: ${file}`));
+      }
+    }
     
     if (filePaths.length === 0) {
-      console.error('No CSV files found');
+      console.error(chalk.red('❌ No valid CSV files found'));
       process.exit(1);
     }
     
-    console.log(`Found ${filePaths.length} CSV files to analyze\n`);
+    console.log(chalk.green(`✓ Found ${filePaths.length} CSV files to analyze\n`));
     
-    // Analyze each file with auto-save
+    // Analyze each file with progress
     for (const filePath of filePaths) {
       console.log(chalk.cyan(`\nAnalyzing ${basename(filePath)}...`));
-      await engineering(filePath, { ...options, quiet: true, autoSave: true });
+      
+      const spinner = ora({
+        text: 'Processing...',
+        color: 'cyan'
+      }).start();
+      
+      try {
+        await engineering(filePath, { 
+          ...options, 
+          quiet: true, 
+          autoSave: true,
+          onProgress: (progress) => {
+            spinner.text = `Processing: ${Math.round(progress)}%`;
+          }
+        });
+        spinner.succeed(`Completed ${basename(filePath)}`);
+      } catch (error) {
+        spinner.fail(`Failed: ${error.message}`);
+      }
     }
     
     // Show relationships and generate report
-    console.log(chalk.green('\n✓ All files analyzed!'));
+    console.log(chalk.green('\n✅ All files analyzed!'));
     console.log(chalk.blue('\nGenerating warehouse map and relationships...\n'));
     await engineering(null, { showMap: true });
   });
@@ -168,7 +273,7 @@ eng
     }
     
     if (!finalInsights) {
-      console.error('Error: Please provide insights either as argument or via stdin');
+      console.error(chalk.red('❌ Error: Please provide insights either as argument or via stdin'));
       console.log('\nExamples:');
       console.log('  datapilot eng save orders "PURPOSE: Transaction fact table..."');
       console.log('  echo "PURPOSE: Transaction fact table..." | datapilot eng save orders');
@@ -201,9 +306,11 @@ program
   .description('LLM Context Generation - perfect summary for AI analysis')
   .option('-o, --output <path>', 'Save analysis to file')
   .option('--no-header', 'CSV file has no header row')
+  .option('--encoding <encoding>', 'Force specific encoding (utf8, latin1, etc.)')
+  .option('--delimiter <delimiter>', 'Force specific delimiter (comma, semicolon, tab, pipe)')
   .action(async (file, options) => {
     const filePath = validateFile(file);
-    await llmContext(filePath, options);
+    await runWithProgress(llmContext, filePath, options);
   });
 
 // UI command - Interactive Terminal Interface
@@ -211,42 +318,69 @@ program
   .command('ui')
   .description('🎨 Interactive UI - Fun, colorful, beginner-friendly interface')
   .action(async () => {
+    // Check terminal capabilities
+    if (process.platform === 'win32' && !process.env.WT_SESSION) {
+      console.log(chalk.yellow('⚠️  Note: For best experience on Windows, use Windows Terminal'));
+    }
     await interactiveUI();
   });
 
-// Help text
+// Help text with enhanced examples
 program.on('--help', () => {
   console.log('');
-  console.log('Examples:');
-  console.log('  $ datapilot all data.csv        # Run complete analysis suite');
-  console.log('  $ datapilot all data.csv -o analysis.txt   # Save to file');
-  console.log('  $ datapilot all data.csv --quick           # Quick mode');
-  console.log('  $ datapilot eda sales.csv       # Run exploratory data analysis');
-  console.log('  $ datapilot int customers.csv   # Check data integrity');
-  console.log('  $ datapilot vis metrics.csv     # Get visualization recommendations');
-  console.log('  $ datapilot eng orders.csv                   # Analyze single file');
-  console.log('  $ datapilot eng analyze *.csv                # Analyze all CSV files');
-  console.log('  $ datapilot eng save orders "PURPOSE: ..."   # Save LLM insights');
-  console.log('  $ echo "PURPOSE: ..." | datapilot eng save orders  # Pipe from LLM');
-  console.log('  $ datapilot eng report                       # Generate full report');
-  console.log('  $ datapilot eng map                          # View warehouse map');
-  console.log('  $ datapilot llm dataset.csv                  # Generate LLM-ready context');
-  console.log('  $ datapilot ui                               # Interactive UI mode');
+  console.log(chalk.cyan('Examples:'));
+  console.log('  $ datapilot all data.csv                    # Run complete analysis');
+  console.log('  $ datapilot all "C:\\My Data\\sales.csv"      # Path with spaces (use quotes)');
+  console.log('  $ datapilot all data.csv -o analysis.txt    # Save to file');
+  console.log('  $ datapilot all data.csv --quick            # Quick mode');
+  console.log('  $ datapilot eda sales.csv --encoding latin1 # Force encoding');
+  console.log('  $ datapilot int data.csv --delimiter ";"    # Force delimiter');
   console.log('');
-  console.log('Data Archaeology Workflow:');
+  console.log(chalk.cyan('Data Archaeology Workflow:'));
   console.log('  1. Analyze all tables: datapilot eng analyze *.csv');
   console.log('  2. Copy LLM prompts and get insights from your AI');
   console.log('  3. Save insights: datapilot eng save <table> "<insights>"');
   console.log('  4. Generate report: datapilot eng report');
   console.log('');
-  console.log('Options:');
-  console.log('  -o, --output <path>  Save analysis to file instead of stdout');
-  console.log('  -q, --quick          Quick mode - skip detailed analyses for speed');
-  console.log('  --no-header          CSV file has no header row (uses column1, column2, etc.)');
+  console.log(chalk.cyan('Common Options:'));
+  console.log('  -o, --output <path>      Save analysis to file');
+  console.log('  -q, --quick              Quick mode - skip detailed analyses');
+  console.log('  --no-header              CSV has no header row');
+  console.log('  --encoding <type>        Force encoding (utf8, latin1, utf16le)');
+  console.log('  --delimiter <char>       Force delimiter (comma, semicolon, tab, pipe)');
   console.log('');
-  console.log('Output:');
-  console.log('  All commands produce verbose text output optimized for copying');
-  console.log('  into ChatGPT, Claude, or any other LLM for further analysis.');
+  console.log(chalk.cyan('Troubleshooting:'));
+  console.log('  • For paths with spaces, use quotes: "C:\\My Folder\\data.csv"');
+  console.log('  • For encoding issues, try: --encoding latin1');
+  console.log('  • For delimiter issues, try: --delimiter ";"');
+  console.log('  • For large files, quick mode is recommended: --quick');
+  console.log('');
+  console.log(chalk.gray('Output:'));
+  console.log(chalk.gray('  All commands produce verbose text output optimized for'));
+  console.log(chalk.gray('  copying into ChatGPT, Claude, or any other LLM.'));
+});
+
+// Enhanced error handling
+process.on('uncaughtException', (error) => {
+  console.error(chalk.red('\n❌ Unexpected error:'), error.message);
+  
+  // Provide helpful suggestions based on error type
+  if (error.message.includes('ENOENT')) {
+    console.error(chalk.yellow('💡 File not found. Check the file path and try again.'));
+  } else if (error.message.includes('EACCES')) {
+    console.error(chalk.yellow('💡 Permission denied. Check file permissions.'));
+  } else if (error.message.includes('encoding')) {
+    console.error(chalk.yellow('💡 Try specifying encoding: --encoding latin1'));
+  } else if (error.message.includes('memory')) {
+    console.error(chalk.yellow('💡 Out of memory. Try --quick mode or process smaller files.'));
+  }
+  
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error(chalk.red('\n❌ Unhandled promise rejection:'), reason);
+  process.exit(1);
 });
 
 // Parse arguments

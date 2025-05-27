@@ -7,6 +7,7 @@ import ora from 'ora';
 import { readFileSync } from 'fs';
 import crypto from 'crypto';
 import path from 'path';
+import os from 'os';
 
 // Constants
 const SAMPLE_THRESHOLD = 50 * 1024 * 1024; // 50MB
@@ -15,24 +16,68 @@ const SAMPLE_RATE = 0.01; // 1% sampling for files > 1M rows
 const MAX_ROWS_FOR_FULL_ANALYSIS = 50000;
 const CHUNK_SIZE = 10000; // Process 10k rows at a time for CPU-intensive operations
 
-// Detect file encoding with validation and fallback
+// Enhanced path normalization for Windows
+export function normalizePath(filePath) {
+  // Handle Windows paths with spaces and special characters
+  let normalized = filePath;
+  
+  // Remove quotes if present
+  normalized = normalized.replace(/^["']|["']$/g, '');
+  
+  // Convert forward slashes to backslashes on Windows
+  if (os.platform() === 'win32') {
+    normalized = normalized.replace(/\//g, '\\');
+  }
+  
+  // Resolve to absolute path
+  normalized = path.resolve(normalized);
+  
+  // On Windows, ensure proper drive letter format
+  if (os.platform() === 'win32' && normalized.match(/^[a-z]:/i)) {
+    normalized = normalized.charAt(0).toUpperCase() + normalized.slice(1);
+  }
+  
+  return normalized;
+}
+
+// Enhanced encoding detection with better fallback
 export function detectEncoding(filePath) {
   try {
-    const encoding = chardet.detectFileSync(filePath, { sampleSize: 65536 });
+    // Normalize the path first
+    const normalizedPath = normalizePath(filePath);
     
-    // Validate detected encoding
+    // Try chardet first
+    const encoding = chardet.detectFileSync(normalizedPath, { sampleSize: 65536 });
+    
     if (!encoding) {
-      console.log(chalk.yellow('Could not detect encoding, trying UTF-8 with BOM detection'));
+      console.log(chalk.yellow('Could not detect encoding, checking for BOM...'));
       
       // Check for BOM
-      const fd = openSync(filePath, 'r');
-      const buffer = Buffer.alloc(3);
-      readSync(fd, buffer, 0, 3, 0);
+      const fd = openSync(normalizedPath, 'r');
+      const buffer = Buffer.alloc(4); // Check 4 bytes for UTF-32
+      readSync(fd, buffer, 0, 4, 0);
       closeSync(fd);
       
+      // Check various BOMs
       if (buffer[0] === 0xEF && buffer[1] === 0xBB && buffer[2] === 0xBF) {
-        return 'utf8';  // UTF-8 with BOM
+        return 'utf8'; // UTF-8 with BOM
       }
+      if (buffer[0] === 0xFF && buffer[1] === 0xFE) {
+        if (buffer[2] === 0x00 && buffer[3] === 0x00) {
+          console.log(chalk.yellow('UTF-32LE detected, will use UTF-8 fallback'));
+          return 'utf8'; // UTF-32LE (not supported, fallback)
+        }
+        return 'utf16le'; // UTF-16LE
+      }
+      if (buffer[0] === 0xFE && buffer[1] === 0xFF) {
+        return 'utf16be'; // UTF-16BE
+      }
+      if (buffer[0] === 0x00 && buffer[1] === 0x00 && buffer[2] === 0xFE && buffer[3] === 0xFF) {
+        console.log(chalk.yellow('UTF-32BE detected, will use UTF-8 fallback'));
+        return 'utf8'; // UTF-32BE (not supported, fallback)
+      }
+      
+      // Default to UTF-8
       return 'utf8';
     }
     
@@ -40,83 +85,134 @@ export function detectEncoding(filePath) {
       console.log(chalk.yellow(`Detected ${encoding} encoding (will handle automatically)`));
     }
     
-    // Map common encodings to Node.js supported encodings
+    // Enhanced encoding map with better Windows support
     const encodingMap = {
       'UTF-8': 'utf8',
       'ascii': 'ascii',
-      'windows-1250': 'latin1',  // Map to latin1 which handles most Windows encodings
-      'windows-1251': 'latin1',
+      'windows-1250': 'latin1',
+      'windows-1251': 'win1251',
       'windows-1252': 'latin1',
       'ISO-8859-1': 'latin1',
+      'ISO-8859-2': 'latin1',
       'UTF-16LE': 'utf16le',
       'UTF-16BE': 'utf16be',
-      // UTF-32 is not supported by Node.js, fallback to UTF-8
-      'UTF-32LE': 'utf8',
-      'UTF-32BE': 'utf8',
-      // These are not widely supported, fallback to latin1
-      'Big5': 'latin1',
-      'Shift_JIS': 'latin1'
+      'UTF-32LE': 'utf8', // Fallback
+      'UTF-32BE': 'utf8', // Fallback
+      'Big5': 'utf8', // Fallback
+      'GB2312': 'utf8', // Fallback
+      'Shift_JIS': 'utf8', // Fallback
+      'EUC-JP': 'utf8', // Fallback
+      'EUC-KR': 'utf8' // Fallback
     };
     
-    return encodingMap[encoding] || 'utf8';
+    const mappedEncoding = encodingMap[encoding] || 'utf8';
+    
+    // Warn about unsupported encodings
+    if (encoding && !encodingMap[encoding]) {
+      console.log(chalk.yellow(`Warning: ${encoding} encoding not fully supported, using UTF-8 fallback`));
+    }
+    
+    return mappedEncoding;
   } catch (error) {
     console.log(chalk.yellow('Encoding detection failed, defaulting to UTF-8'));
     return 'utf8';
   }
 }
 
-// Detect CSV delimiter
+// Detect CSV delimiter with improved logic
 export function detectDelimiter(filePath, encoding = 'utf8') {
   try {
-    const sample = readFileSync(filePath, { encoding, end: 4096 }).toString();
+    const normalizedPath = normalizePath(filePath);
+    const sample = readFileSync(normalizedPath, { encoding, end: 8192 }).toString();
     const lines = sample.split(/\r?\n/).filter(l => l.trim());
     
     if (lines.length < 2) return ',';
     
     const delimiters = [',', ';', '\t', '|'];
-    const counts = {};
+    const scores = {};
     
+    // Test each delimiter
     for (const delimiter of delimiters) {
-      counts[delimiter] = lines.slice(0, 5).map(line => 
-        line.split(delimiter).length
-      );
+      const counts = lines.slice(0, Math.min(10, lines.length)).map(line => {
+        // Count occurrences, considering quoted fields
+        let count = 0;
+        let inQuotes = false;
+        for (let i = 0; i < line.length; i++) {
+          if (line[i] === '"' && (i === 0 || line[i-1] !== '\\')) {
+            inQuotes = !inQuotes;
+          } else if (line[i] === delimiter && !inQuotes) {
+            count++;
+          }
+        }
+        return count;
+      });
+      
+      // Calculate consistency score
+      const avg = counts.reduce((a, b) => a + b, 0) / counts.length;
+      if (avg > 0) {
+        const variance = counts.reduce((sum, count) => 
+          sum + Math.pow(count - avg, 2), 0) / counts.length;
+        const consistency = avg / (variance + 1);
+        scores[delimiter] = { avg, variance, consistency };
+      } else {
+        scores[delimiter] = { avg: 0, variance: 0, consistency: 0 };
+      }
     }
     
-    // Find delimiter with most consistent count across lines
+    // Find best delimiter
     let bestDelimiter = ',';
     let bestScore = 0;
     
-    for (const [delimiter, lineCounts] of Object.entries(counts)) {
-      const avg = lineCounts.reduce((a, b) => a + b, 0) / lineCounts.length;
-      if (avg > 1) {
-        const variance = lineCounts.reduce((sum, count) => 
-          sum + Math.pow(count - avg, 2), 0) / lineCounts.length;
-        const score = avg / (variance + 1);
-        
-        if (score > bestScore) {
-          bestScore = score;
-          bestDelimiter = delimiter;
-        }
+    for (const [delimiter, score] of Object.entries(scores)) {
+      if (score.consistency > bestScore && score.avg > 0) {
+        bestScore = score.consistency;
+        bestDelimiter = delimiter;
       }
     }
     
     if (bestDelimiter !== ',') {
-      console.log(chalk.yellow(`Detected delimiter: ${bestDelimiter === '\t' ? '\\t' : bestDelimiter}`));
+      console.log(chalk.yellow(`Detected delimiter: ${bestDelimiter === '\t' ? '\\t (tab)' : bestDelimiter}`));
     }
     
     return bestDelimiter;
   } catch (error) {
+    console.log(chalk.yellow(`Delimiter detection failed: ${error.message}, using comma`));
     return ',';
   }
 }
 
-// Parse numbers with various formats
+// Enhanced number parsing
 function parseNumber(value) {
   if (typeof value === 'number') return value;
   if (typeof value !== 'string') return null;
   
-  // Remove commas and spaces
-  const cleaned = value.replace(/[,\s]/g, '');
+  // Remove currency symbols and spaces
+  let cleaned = value.replace(/[$€£¥₹\s]/g, '');
+  
+  // Handle different decimal separators
+  if (cleaned.includes(',') && cleaned.includes('.')) {
+    // Determine which is decimal separator
+    const lastComma = cleaned.lastIndexOf(',');
+    const lastDot = cleaned.lastIndexOf('.');
+    
+    if (lastComma > lastDot) {
+      // Comma is decimal separator (European format)
+      cleaned = cleaned.replace(/\./g, '').replace(',', '.');
+    } else {
+      // Dot is decimal separator (US format)
+      cleaned = cleaned.replace(/,/g, '');
+    }
+  } else if (cleaned.includes(',') && !cleaned.includes('.')) {
+    // Check if comma is thousands separator or decimal
+    const parts = cleaned.split(',');
+    if (parts.length === 2 && parts[1].length <= 2) {
+      // Likely decimal separator
+      cleaned = cleaned.replace(',', '.');
+    } else {
+      // Likely thousands separator
+      cleaned = cleaned.replace(/,/g, '');
+    }
+  }
   
   // Check for percentage
   if (cleaned.endsWith('%')) {
@@ -129,67 +225,90 @@ function parseNumber(value) {
   return isNaN(num) ? null : num;
 }
 
-// Enhanced date parsing with format detection
+// Enhanced date parsing with Australian format priority
 function parseDate(value, dateFormats = null) {
   if (value instanceof Date) return value;
   if (typeof value !== 'string') return null;
   
-  // Common date patterns
+  const trimmed = value.trim();
+  
+  // Common date patterns with Australian priority
   const patterns = dateFormats || [
     // ISO formats
     /^\d{4}-\d{2}-\d{2}$/,
     /^\d{4}-\d{2}-\d{2}T/,
-    // Australian format DD/MM/YYYY
+    /^\d{4}\/\d{2}\/\d{2}$/,
+    // Australian format DD/MM/YYYY (prioritized)
     /^\d{1,2}\/\d{1,2}\/\d{4}$/,
-    // US format MM/DD/YYYY
     /^\d{1,2}-\d{1,2}-\d{4}$/,
+    /^\d{1,2}\.\d{1,2}\.\d{4}$/,
     // Other formats
-    /^\d{1,2}\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/i
+    /^\d{1,2}\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/i,
+    /^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2}/i
   ];
   
   // Check if it matches date patterns
   const hasDatePattern = patterns.some(pattern => 
-    pattern.test ? pattern.test(value) : value.match(pattern)
+    pattern.test ? pattern.test(trimmed) : trimmed.match(pattern)
   );
   
   if (!hasDatePattern) return null;
   
-  const date = new Date(value);
-  
-  // For ambiguous dates like 01/02/2023, try to detect format
-  if (value.match(/^\d{1,2}\/\d{1,2}\/\d{4}$/)) {
-    const parts = value.split('/');
-    const d1 = parseInt(parts[0]);
-    const d2 = parseInt(parts[1]);
+  // For DD/MM/YYYY format (Australian), parse explicitly
+  if (trimmed.match(/^\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{4}$/)) {
+    const separator = trimmed.includes('/') ? '/' : trimmed.includes('-') ? '-' : '.';
+    const parts = trimmed.split(separator);
+    const day = parseInt(parts[0]);
+    const month = parseInt(parts[1]);
     const year = parseInt(parts[2]);
     
-    // If one is clearly a month (>12), we can determine format
-    if (d1 > 12 && d2 <= 12) {
-      // DD/MM/YYYY format
-      return new Date(year, d2 - 1, d1);
-    } else if (d2 > 12 && d1 <= 12) {
-      // MM/DD/YYYY format
-      return new Date(year, d1 - 1, d2);
+    // Validate day and month
+    if (day >= 1 && day <= 31 && month >= 1 && month <= 12) {
+      // Use Australian format (DD/MM/YYYY)
+      const date = new Date(year, month - 1, day);
+      
+      // Verify the date is valid
+      if (date.getDate() === day && date.getMonth() === month - 1 && date.getFullYear() === year) {
+        return date;
+      }
     }
-    // Otherwise, assume DD/MM/YYYY (Australian default)
-    return new Date(year, d2 - 1, d1);
   }
   
+  // Try standard Date parsing for other formats
+  const date = new Date(trimmed);
   return isNaN(date.getTime()) ? null : date;
+}
+
+// Progress callback wrapper for better UI feedback
+function createProgressCallback(spinner, totalSize) {
+  let lastUpdate = Date.now();
+  const updateInterval = 250; // Update every 250ms
+  
+  return (progress, rowCount) => {
+    const now = Date.now();
+    if (now - lastUpdate >= updateInterval) {
+      const percentage = Math.round(progress);
+      const sizeProcessed = (totalSize * progress / 100 / 1024 / 1024).toFixed(1);
+      const totalSizeMB = (totalSize / 1024 / 1024).toFixed(1);
+      
+      spinner.text = `Processing: ${percentage}% (${sizeProcessed}MB / ${totalSizeMB}MB) - ${rowCount.toLocaleString()} rows processed`;
+      lastUpdate = now;
+    }
+  };
 }
 
 // Helper function to attempt parsing with a specific encoding
 async function attemptParse(filePath, encoding, options = {}) {
-  const delimiter = options.delimiter || detectDelimiter(filePath, encoding);
-  const fileSize = statSync(filePath).size;
+  const normalizedPath = normalizePath(filePath);
+  const delimiter = options.delimiter || detectDelimiter(normalizedPath, encoding);
+  const fileSize = statSync(normalizedPath).size;
   
-  // Progressive sampling logic - estimate file size and determine sampling strategy
+  // Progressive sampling logic
   let useSampling = false;
   let sampleRate = 1.0;
   
   if (fileSize > 100 * 1024 * 1024 && !options.noSampling) { // 100MB threshold
-    // Estimate average bytes per row (rough approximation)
-    const averageBytesPerRow = 80; // Conservative estimate
+    const averageBytesPerRow = 80;
     const estimatedRows = fileSize / averageBytesPerRow;
     
     if (estimatedRows > MAX_ROWS_FOR_FULL_ANALYSIS) {
@@ -204,15 +323,14 @@ async function attemptParse(filePath, encoding, options = {}) {
       }
     }
   } else if (fileSize > SAMPLE_THRESHOLD && !options.noSampling) {
-    // Use the older sampling method for smaller large files
     useSampling = true;
-    sampleRate = 1.0; // Will use reservoir sampling
+    sampleRate = 1.0;
   }
   
-  return await parseCSVWithEncoding(filePath, encoding, delimiter, useSampling, sampleRate, options);
+  return await parseCSVWithEncoding(normalizedPath, encoding, delimiter, useSampling, sampleRate, options);
 }
 
-// Core parsing function separated for fallback mechanism
+// Core parsing function with better error handling
 async function parseCSVWithEncoding(filePath, encoding, delimiter, useSampling, sampleRate, options = {}) {
   const fileSize = statSync(filePath).size;
   const { onProgress } = options;
@@ -226,6 +344,11 @@ async function parseCSVWithEncoding(filePath, encoding, delimiter, useSampling, 
   
   const records = [];
   const spinner = options.quiet ? null : ora('Reading CSV file...').start();
+  
+  // Create progress callback if spinner exists
+  const progressCallback = spinner && fileSize > 1024 * 1024 ? 
+    createProgressCallback(spinner, fileSize) : null;
+  
   let rowCount = 0;
   let errorCount = 0;
   let skipCount = 0;
@@ -240,47 +363,64 @@ async function parseCSVWithEncoding(filePath, encoding, delimiter, useSampling, 
     delimiter,
     encoding,
     relax_quotes: true,
-    relax_column_count: true,  // Add this for better quote handling
-    quote: '"',                // Explicitly set quote character
-    escape: '"',               // Set escape character (for quotes inside quotes)
+    relax_column_count: true,
+    quote: '"',
+    escape: '"',
     skip_records_with_error: true,
+    bom: true, // Handle BOM automatically
+    max_record_size: 1048576, // 1MB max record size
     on_record: (record, { lines }) => {
-      // Update progress
-      if (spinner && lines % 10000 === 0) {
-        spinner.text = `Processing row ${lines.toLocaleString()}...`;
+      // Update progress via spinner
+      if (spinner && lines % 1000 === 0) {
+        const progress = (processedBytes / fileSize) * 100;
+        if (progressCallback) {
+          progressCallback(progress, lines);
+        } else {
+          spinner.text = `Processing row ${lines.toLocaleString()}...`;
+        }
       }
       return record;
     },
     cast: (value) => {
       if (value === '' || value === null || value === undefined) return null;
       
-      // If value is purely numeric (no spaces, letters, special chars except . and -), try parsing as number
+      // Enhanced type casting
       if (typeof value === 'string') {
         const trimmed = value.trim();
         
-        // Only try to parse as number if it looks purely numeric
-        if (/^[\d\s,.-]+$/.test(trimmed) && !/[a-zA-Z]/.test(trimmed)) {
-          const num = parseNumber(value);
+        // Boolean values
+        const lowerCase = trimmed.toLowerCase();
+        if (['true', 'false', 'yes', 'no', '1', '0', 'y', 'n'].includes(lowerCase)) {
+          return lowerCase === 'true' || lowerCase === 'yes' || lowerCase === '1' || lowerCase === 'y';
+        }
+        
+        // Try number parsing
+        if (/^[\d\s,.$€£¥₹%-]+$/.test(trimmed) && !/[a-zA-Z]/.test(trimmed)) {
+          const num = parseNumber(trimmed);
           if (num !== null) return num;
         }
         
-        // Try to parse as date
-        const date = parseDate(value);
+        // Try date parsing
+        const date = parseDate(trimmed);
         if (date !== null) return date;
       }
       
-      // Return as string
       return value;
     }
   };
 
-  // Don't override columns option if explicitly set in options
   const parser = parse({ ...parserOptions, ...options });
 
   parser.on('skip', (err) => {
     errorCount++;
     if (errorCount <= 5 && !options.quiet) {
       console.log(chalk.red(`\nSkipped row ${err.lines}: ${err.message}`));
+    }
+  });
+
+  parser.on('error', (err) => {
+    if (!options.quiet) {
+      console.error(chalk.red(`\nParser error: ${err.message}`));
     }
   });
 
@@ -308,20 +448,19 @@ async function parseCSVWithEncoding(filePath, encoding, delimiter, useSampling, 
             });
           }
           
-          // Check memory usage periodically and adjust sampling if needed
+          // Memory management
           let aggressiveSampling = false;
           if (rowCount % 5000 === 0) {
             const memoryStatus = checkMemoryUsage();
             if (memoryStatus.shouldUseAggressiveSampling && !options.quiet) {
-              console.warn(chalk.red(`High memory usage detected (${memoryStatus.heapUsedGB.toFixed(1)}GB), enabling aggressive sampling`));
+              console.warn(chalk.red(`\nHigh memory usage detected (${memoryStatus.heapUsedGB.toFixed(1)}GB), enabling aggressive sampling`));
               aggressiveSampling = true;
             }
           }
           
-          // Apply progressive or reservoir sampling
+          // Apply sampling
           if (useSampling || aggressiveSampling) {
             if (sampleRate < 1.0 || aggressiveSampling) {
-              // Progressive sampling: sample while streaming based on calculated rate
               const effectiveRate = aggressiveSampling ? Math.min(sampleRate * 0.1, 0.01) : sampleRate;
               if (Math.random() < effectiveRate) {
                 records.push(processedRecord);
@@ -329,7 +468,7 @@ async function parseCSVWithEncoding(filePath, encoding, delimiter, useSampling, 
                 skipCount++;
               }
             } else if (records.length >= MAX_MEMORY_ROWS) {
-              // Reservoir sampling for very large files
+              // Reservoir sampling
               skipCount++;
               const j = Math.floor(Math.random() * rowCount);
               if (j < MAX_MEMORY_ROWS) {
@@ -346,7 +485,9 @@ async function parseCSVWithEncoding(filePath, encoding, delimiter, useSampling, 
       }
     );
     
-    if (spinner) spinner.succeed(`Processed ${rowCount.toLocaleString()} rows`);
+    if (spinner) {
+      spinner.succeed(`Processed ${rowCount.toLocaleString()} rows`);
+    }
     
     if (errorCount > 0 && !options.quiet) {
       console.log(chalk.yellow(
@@ -368,21 +509,29 @@ async function parseCSVWithEncoding(filePath, encoding, delimiter, useSampling, 
   }
 }
 
-// Main parseCSV function with fallback mechanism
+// Main parseCSV function with enhanced fallback mechanism
 export async function parseCSV(filePath, options = {}) {
-  const detectedEncoding = options.encoding || detectEncoding(filePath);
+  // Normalize the file path first
+  const normalizedPath = normalizePath(filePath);
   
-  // If parsing fails with detected encoding, retry with different encodings
-  const fallbackEncodings = ['utf8', 'latin1', 'utf16le'];
+  // Check if file exists
+  if (!existsSync(normalizedPath)) {
+    throw new Error(`File not found: ${normalizedPath}`);
+  }
+  
+  const detectedEncoding = options.encoding || detectEncoding(normalizedPath);
+  
+  // Enhanced fallback encoding list
+  const fallbackEncodings = ['utf8', 'latin1', 'utf16le', 'ascii'];
   const encodingsToTry = [detectedEncoding, ...fallbackEncodings.filter(e => e !== detectedEncoding)];
   
   let lastError = null;
+  let attempts = [];
   
   for (const encoding of encodingsToTry) {
     try {
-      const result = await attemptParse(filePath, encoding, options);
+      const result = await attemptParse(normalizedPath, encoding, options);
       if (result.success) {
-        // Handle empty file - return empty array instead of throwing
         if (result.data.length === 0) {
           if (!options.quiet) {
             console.log(chalk.yellow('⚠️  Warning: No data found in CSV file. The file may be empty or have no valid rows.'));
@@ -391,24 +540,31 @@ export async function parseCSV(filePath, options = {}) {
         return result.data;
       }
       lastError = result.error;
+      attempts.push({ encoding, error: result.error?.message || 'Unknown error' });
     } catch (e) {
       lastError = e;
-      if (!options.quiet) {
+      attempts.push({ encoding, error: e.message });
+      if (!options.quiet && encodingsToTry.indexOf(encoding) < encodingsToTry.length - 1) {
         console.log(chalk.yellow(`Failed with ${encoding} encoding, trying next...`));
       }
       continue;
     }
   }
   
-  // If all encodings fail, throw the original error with enhanced message
+  // Enhanced error message
+  const attemptDetails = attempts.map(a => `  - ${a.encoding}: ${a.error}`).join('\n');
   throw new Error(
-    'CSV parsing failed with all attempted encodings. ' +
-    'The file may be corrupted or in an unsupported format.' +
-    (lastError ? ` Last error: ${lastError.message}` : '')
+    'CSV parsing failed with all attempted encodings.\n' +
+    'The file may be corrupted, in an unsupported format, or have encoding issues.\n' +
+    'Attempted encodings:\n' + attemptDetails + '\n' +
+    'Suggestions:\n' +
+    '  1. Try converting the file to UTF-8 encoding\n' +
+    '  2. Check if the file is a valid CSV format\n' +
+    '  3. Remove any special characters from the file path'
   );
 }
 
-// Enhanced column type detection with confidence scores
+// Enhanced column type detection
 export function detectColumnTypes(records) {
   if (records.length === 0) return {};
   
@@ -434,7 +590,8 @@ export function detectColumnTypes(records) {
     columnTypes[column] = {
       ...analysis,
       nullable: records.some(r => r[column] === null),
-      nullCount: records.filter(r => r[column] === null).length
+      nullCount: records.filter(r => r[column] === null).length,
+      nullPercentage: (records.filter(r => r[column] === null).length / records.length * 100).toFixed(1)
     };
   }
   
@@ -442,6 +599,7 @@ export function detectColumnTypes(records) {
   return columnTypes;
 }
 
+// Enhanced column value analysis
 function analyzeColumnValues(values, totalRecords) {
   const typeVotes = {
     integer: 0,
@@ -451,13 +609,25 @@ function analyzeColumnValues(values, totalRecords) {
     phone: 0,
     postcode: 0,
     boolean: 0,
-    url: 0
+    url: 0,
+    currency: 0
   };
   
   const dateFormats = new Set();
-  const ambiguousDates = [];
+  const sampleValues = [];
   
   for (const value of values) {
+    // Keep sample values
+    if (sampleValues.length < 5 && typeof value === 'string') {
+      sampleValues.push(value);
+    }
+    
+    // Check for boolean first
+    if (typeof value === 'boolean') {
+      typeVotes.boolean++;
+      continue;
+    }
+    
     // Check numbers
     if (typeof value === 'number') {
       if (Number.isInteger(value)) {
@@ -470,6 +640,12 @@ function analyzeColumnValues(values, totalRecords) {
     
     if (typeof value === 'string') {
       const trimmed = value.trim();
+      
+      // Currency check
+      if (/^[$€£¥₹][\d,]+\.?\d*$/.test(trimmed) || /^[\d,]+\.?\d*\s*[$€£¥₹]$/.test(trimmed)) {
+        typeVotes.currency++;
+        typeVotes.float++; // Also count as float
+      }
       
       // Boolean check
       if (['true', 'false', 'yes', 'no', '1', '0', 'y', 'n'].includes(trimmed.toLowerCase())) {
@@ -486,10 +662,10 @@ function analyzeColumnValues(values, totalRecords) {
         typeVotes.url++;
       }
       
-      // Phone check (enhanced)
+      // Phone check (enhanced for international formats)
       const phoneDigits = trimmed.replace(/[^\d]/g, '');
       if (phoneDigits.length >= 8 && phoneDigits.length <= 15 && 
-          /^[\d\s\-\+\(\)\.]+$/.test(trimmed)) {
+          /^[\d\s\-\+\(\)\.ext]+$/i.test(trimmed)) {
         typeVotes.phone++;
       }
       
@@ -498,7 +674,7 @@ function analyzeColumnValues(values, totalRecords) {
         typeVotes.postcode++;
       }
       
-      // Date detection with format tracking
+      // Date detection
       if (value instanceof Date || 
           /\d{4}-\d{2}-\d{2}/.test(trimmed) ||
           /\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}/.test(trimmed)) {
@@ -508,19 +684,15 @@ function analyzeColumnValues(values, totalRecords) {
         if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) {
           dateFormats.add('YYYY-MM-DD');
         } else if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(trimmed)) {
-          dateFormats.add('D/M/YYYY or M/D/YYYY');
-          // Check for ambiguous dates
-          const parts = trimmed.split('/');
-          if (parseInt(parts[0]) <= 12 && parseInt(parts[1]) <= 12) {
-            ambiguousDates.push(trimmed);
-          }
+          dateFormats.add('DD/MM/YYYY');
+        } else if (/^\d{1,2}-\d{1,2}-\d{4}$/.test(trimmed)) {
+          dateFormats.add('DD-MM-YYYY');
         }
       }
       
-      // Number with commas check
-      const cleanedForNumber = trimmed.replace(/[,\s]/g, '');
-      if (!isNaN(cleanedForNumber) && cleanedForNumber !== '') {
-        const num = parseFloat(cleanedForNumber);
+      // Number check
+      const num = parseNumber(trimmed);
+      if (num !== null) {
         if (Number.isInteger(num)) {
           typeVotes.integer++;
         } else {
@@ -545,91 +717,76 @@ function analyzeColumnValues(values, totalRecords) {
     }
   }
   
-  // Special handling for mixed numeric types
-  if (bestType === 'integer' || bestType === 'float') {
-    const numericVotes = typeVotes.integer + typeVotes.float;
+  // Special handling for numeric types
+  if (bestType === 'integer' || bestType === 'float' || bestType === 'currency') {
+    const numericVotes = typeVotes.integer + typeVotes.float + typeVotes.currency;
     if (numericVotes / totalVotes > 0.9) {
-      bestType = typeVotes.float > 0 ? 'float' : 'integer';
+      bestType = typeVotes.float > 0 || typeVotes.currency > 0 ? 'float' : 'integer';
       confidence = numericVotes / totalVotes;
     }
   }
   
-  // If we have a strong numeric type detection, stick with it
-  if ((bestType === 'integer' || bestType === 'float') && confidence > 0.8) {
-    // This is definitely a numeric column, don't check for categorical/identifier
-    const result = {
-      type: bestType,
-      confidence: confidence
+  // Check for categorical
+  const uniqueValues = [...new Set(values.filter(v => typeof v === 'string'))];
+  if (bestType === 'string' && uniqueValues.length < Math.min(20, totalRecords * 0.1)) {
+    return {
+      type: 'categorical',
+      categories: uniqueValues.sort(),
+      confidence: 1.0,
+      uniqueCount: uniqueValues.length,
+      sampleValues: sampleValues.slice(0, 3)
     };
-    
-    // Add numeric statistics
-    const numbers = values.map(v => parseNumber(v)).filter(n => n !== null);
-    if (numbers.length > 0) {
-      result.min = Math.min(...numbers);
-      result.max = Math.max(...numbers);
-      result.uniqueCount = [...new Set(numbers)].length;
-    }
-    
-    return result;
   }
   
-  // Check for categorical - but only for non-numeric types
-  if (bestType !== 'integer' && bestType !== 'float') {
-    const uniqueValues = [...new Set(values.filter(v => typeof v === 'string'))];
-    if (uniqueValues.length < Math.min(20, totalRecords * 0.1)) {
-      return {
-        type: 'categorical',
-        categories: uniqueValues.sort(),
-        confidence: 1.0,
-        uniqueCount: uniqueValues.length
-      };
-    }
-  }
-  
-  // Check for identifier - but not for numeric types
-  if (bestType !== 'integer' && bestType !== 'float') {
-    const allUniqueValues = [...new Set(values)];
-    if (allUniqueValues.length > totalRecords * 0.95) {
-      return {
-        type: 'identifier',
-        confidence: allUniqueValues.length / totalRecords,
-        uniqueCount: allUniqueValues.length
-      };
-    }
+  // Check for identifier
+  const allUniqueValues = [...new Set(values)];
+  if (bestType === 'string' && allUniqueValues.length > totalRecords * 0.95) {
+    return {
+      type: 'identifier',
+      confidence: allUniqueValues.length / totalRecords,
+      uniqueCount: allUniqueValues.length,
+      sampleValues: sampleValues.slice(0, 3)
+    };
   }
   
   // Prepare result
   const result = {
     type: bestType,
-    confidence: confidence
+    confidence: confidence,
+    sampleValues: sampleValues.slice(0, 3)
   };
   
   // Add type-specific metadata
   if (bestType === 'date' && dateFormats.size > 0) {
     result.formats = Array.from(dateFormats);
-    if (ambiguousDates.length > 0) {
-      result.ambiguousCount = ambiguousDates.length;
-      result.ambiguousExamples = ambiguousDates.slice(0, 3);
-    }
   }
   
-  if (bestType === 'integer' || bestType === 'float') {
+  if (bestType === 'integer' || bestType === 'float' || bestType === 'currency') {
     const numbers = values.map(v => parseNumber(v)).filter(n => n !== null);
     if (numbers.length > 0) {
       result.min = Math.min(...numbers);
       result.max = Math.max(...numbers);
+      result.mean = numbers.reduce((a, b) => a + b, 0) / numbers.length;
+      result.uniqueCount = [...new Set(numbers)].length;
     }
   }
   
   return result;
 }
 
-// Chunked processing utility for CPU-intensive operations
+// Chunked processing utility
 export async function processInChunks(records, processor, chunkSize = CHUNK_SIZE) {
   const results = [];
+  const totalChunks = Math.ceil(records.length / chunkSize);
   
   for (let i = 0; i < records.length; i += chunkSize) {
+    const chunkIndex = Math.floor(i / chunkSize) + 1;
     const chunk = records.slice(i, i + chunkSize);
+    
+    if (totalChunks > 1) {
+      console.log(chalk.blue(`Processing chunk ${chunkIndex}/${totalChunks}...`));
+    }
+    
     const chunkResults = await processor(chunk);
     results.push(...chunkResults);
     
@@ -644,19 +801,26 @@ export async function processInChunks(records, processor, chunkSize = CHUNK_SIZE
 export function checkMemoryUsage() {
   const used = process.memoryUsage();
   const memoryUsageGB = used.heapUsed / (1024 * 1024 * 1024);
+  const totalMemoryGB = os.totalmem() / (1024 * 1024 * 1024);
+  const freeMemoryGB = os.freemem() / (1024 * 1024 * 1024);
   
   return {
     heapUsed: used.heapUsed,
     heapUsedGB: memoryUsageGB,
-    isHighMemory: used.heapUsed > 1024 * 1024 * 1024, // 1GB threshold
-    shouldUseAggressiveSampling: used.heapUsed > 1024 * 1024 * 1024
+    totalMemoryGB,
+    freeMemoryGB,
+    memoryPercentage: (memoryUsageGB / totalMemoryGB) * 100,
+    isHighMemory: memoryUsageGB > 1, // 1GB threshold
+    shouldUseAggressiveSampling: memoryUsageGB > 1.5 || freeMemoryGB < 0.5
   };
 }
 
 // File hash utility for caching
 export function getFileHash(filePath) {
+  const normalizedPath = normalizePath(filePath);
   const hash = crypto.createHash('md5');
-  const stream = createReadStream(filePath);
+  const stream = createReadStream(normalizedPath);
+  
   return new Promise((resolve, reject) => {
     stream.on('data', data => hash.update(data));
     stream.on('end', () => resolve(hash.digest('hex')));
@@ -664,40 +828,63 @@ export function getFileHash(filePath) {
   });
 }
 
-// Configuration loader
+// Configuration loader with Windows path support
 export function loadConfig() {
   const defaultConfig = {
     performance: {
       maxMemoryRows: 100000,
       chunkSize: 10000,
       sampleRate: 0.01,
-      workerThreads: "auto"
+      workerThreads: "auto",
+      progressUpdateInterval: 250
     },
     parsing: {
       encoding: "auto",
       delimiter: "auto",
       quoteChar: '"',
-      escapeChar: '"'
+      escapeChar: '"',
+      maxRecordSize: 1048576,
+      dateFormats: ["DD/MM/YYYY", "YYYY-MM-DD", "DD-MM-YYYY"]
+    },
+    ui: {
+      showProgress: true,
+      colorOutput: true,
+      verboseErrors: false
     }
   };
 
-  // Look for config file in current directory, then in home directory
+  // Look for config file in multiple locations
   const configPaths = [
     './datapilot.config.json',
     path.join(process.cwd(), 'datapilot.config.json'),
-    path.join(process.env.HOME || process.env.USERPROFILE || '', '.datapilot', 'config.json')
-  ];
+    path.join(os.homedir(), '.datapilot', 'config.json'),
+    path.join(process.env.APPDATA || '', 'datapilot', 'config.json')
+  ].filter(p => p);
 
   for (const configPath of configPaths) {
-    if (existsSync(configPath)) {
-      try {
-        const userConfig = JSON.parse(readFileSync(configPath, 'utf8'));
+    try {
+      const normalizedConfigPath = normalizePath(configPath);
+      if (existsSync(normalizedConfigPath)) {
+        const userConfig = JSON.parse(readFileSync(normalizedConfigPath, 'utf8'));
         return { ...defaultConfig, ...userConfig };
-      } catch (error) {
-        console.warn(chalk.yellow(`Warning: Invalid config file at ${configPath}, using defaults`));
       }
+    } catch (error) {
+      console.warn(chalk.yellow(`Warning: Invalid config file at ${configPath}, using defaults`));
     }
   }
 
   return defaultConfig;
 }
+
+// Export additional utilities
+export default {
+  parseCSV,
+  detectColumnTypes,
+  detectEncoding,
+  detectDelimiter,
+  processInChunks,
+  checkMemoryUsage,
+  getFileHash,
+  loadConfig,
+  normalizePath
+};
