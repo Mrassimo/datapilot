@@ -44,15 +44,18 @@ export function detectEncoding(filePath) {
     const encodingMap = {
       'UTF-8': 'utf8',
       'ascii': 'ascii',
-      'windows-1250': 'latin1',  // Added missing encoding
+      'windows-1250': 'latin1',  // Map to latin1 which handles most Windows encodings
+      'windows-1251': 'latin1',
       'windows-1252': 'latin1',
       'ISO-8859-1': 'latin1',
       'UTF-16LE': 'utf16le',
       'UTF-16BE': 'utf16be',
-      'UTF-32LE': 'utf32le',     // Add more encodings
-      'UTF-32BE': 'utf32be',
-      'Big5': 'big5',
-      'Shift_JIS': 'shiftjis'
+      // UTF-32 is not supported by Node.js, fallback to UTF-8
+      'UTF-32LE': 'utf8',
+      'UTF-32BE': 'utf8',
+      // These are not widely supported, fallback to latin1
+      'Big5': 'latin1',
+      'Shift_JIS': 'latin1'
     };
     
     return encodingMap[encoding] || 'utf8';
@@ -371,30 +374,37 @@ export async function parseCSV(filePath, options = {}) {
   
   // If parsing fails with detected encoding, retry with different encodings
   const fallbackEncodings = ['utf8', 'latin1', 'utf16le'];
+  const encodingsToTry = [detectedEncoding, ...fallbackEncodings.filter(e => e !== detectedEncoding)];
   
-  for (const encoding of [detectedEncoding, ...fallbackEncodings]) {
-    if (encoding === detectedEncoding || !fallbackEncodings.includes(encoding)) {
-      try {
-        const result = await attemptParse(filePath, encoding, options);
-        if (result.success) {
-          // Handle empty file - return empty array instead of throwing
-          if (result.data.length === 0) {
-            if (!options.quiet) {
-              console.log(chalk.yellow('⚠️  Warning: No data found in CSV file. The file may be empty or have no valid rows.'));
-            }
+  let lastError = null;
+  
+  for (const encoding of encodingsToTry) {
+    try {
+      const result = await attemptParse(filePath, encoding, options);
+      if (result.success) {
+        // Handle empty file - return empty array instead of throwing
+        if (result.data.length === 0) {
+          if (!options.quiet) {
+            console.log(chalk.yellow('⚠️  Warning: No data found in CSV file. The file may be empty or have no valid rows.'));
           }
-          return result.data;
         }
-      } catch (e) {
-        continue;
+        return result.data;
       }
+      lastError = result.error;
+    } catch (e) {
+      lastError = e;
+      if (!options.quiet) {
+        console.log(chalk.yellow(`Failed with ${encoding} encoding, trying next...`));
+      }
+      continue;
     }
   }
   
   // If all encodings fail, throw the original error with enhanced message
   throw new Error(
     'CSV parsing failed with all attempted encodings. ' +
-    'The file may be corrupted or in an unsupported format.'
+    'The file may be corrupted or in an unsupported format.' +
+    (lastError ? ` Last error: ${lastError.message}` : '')
   );
 }
 

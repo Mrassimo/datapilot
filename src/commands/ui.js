@@ -432,8 +432,16 @@ async function showFilePreview(filePath) {
   
   try {
     const stats = fs.statSync(filePath);
-    const { data: records, headers } = await parseCSV(filePath);
-    const columnTypes = detectColumnTypes(records, headers);
+    const records = await parseCSV(filePath);
+    
+    // Handle empty file
+    if (!records || records.length === 0) {
+      spinner.error({ text: 'File is empty or could not be parsed' });
+      return;
+    }
+    
+    const headers = Object.keys(records[0]);
+    const columnTypes = detectColumnTypes(records);
     
     spinner.success({ text: 'File loaded successfully!' });
     
@@ -486,7 +494,8 @@ async function runAnalysisWithAnimation(filePath, analysisType) {
   const spinner = createSpinner('Parsing CSV file...').start();
   
   try {
-    const { data, headers } = await parseCSV(filePath);
+    const data = await parseCSV(filePath);
+    const headers = Object.keys(data[0] || {});
     spinner.update({ text: 'CSV parsed successfully!' });
     await sleep(500);
     
@@ -500,16 +509,16 @@ async function runAnalysisWithAnimation(filePath, analysisType) {
         let result;
         switch (analysis) {
           case 'eda':
-            result = await eda(data, headers, filePath, {});
+            result = await eda(filePath, { preloadedData: { records: data, columnTypes: detectColumnTypes(data) } });
             break;
           case 'int':
-            result = await integrity(data, headers, filePath, {});
+            result = await integrity(filePath, { preloadedData: { records: data, columnTypes: detectColumnTypes(data) } });
             break;
           case 'vis':
-            result = await visualize(data, headers, filePath, {});
+            result = await visualize(filePath, { preloadedData: { records: data, columnTypes: detectColumnTypes(data) } });
             break;
           case 'llm':
-            result = await llmContext(data, headers, filePath, {});
+            result = await llmContext(filePath, { preloadedData: { records: data, columnTypes: detectColumnTypes(data) } });
             break;
         }
         
@@ -524,16 +533,16 @@ async function runAnalysisWithAnimation(filePath, analysisType) {
       let result;
       switch (analysisType) {
         case 'eda':
-          result = await eda(data, headers, filePath, {});
+          result = await eda(filePath, { preloadedData: { records: data, columnTypes: detectColumnTypes(data) } });
           break;
         case 'int':
-          result = await integrity(data, headers, filePath, {});
+          result = await integrity(filePath, { preloadedData: { records: data, columnTypes: detectColumnTypes(data) } });
           break;
         case 'vis':
-          result = await visualize(data, headers, filePath, {});
+          result = await visualize(filePath, { preloadedData: { records: data, columnTypes: detectColumnTypes(data) } });
           break;
         case 'llm':
-          result = await llmContext(data, headers, filePath, {});
+          result = await llmContext(filePath, { preloadedData: { records: data, columnTypes: detectColumnTypes(data) } });
           break;
       }
       
@@ -967,7 +976,8 @@ async function batchAnalyzeFiles(files, analysisTypes) {
     
     try {
       // Parse CSV first
-      const { data, headers } = await parseCSV(file);
+      const data = await parseCSV(file);
+      const headers = Object.keys(data[0] || {});
       
       // Run selected analyses
       for (const analysisType of analysisTypes) {
@@ -976,16 +986,16 @@ async function batchAnalyzeFiles(files, analysisTypes) {
         let analysisResult;
         switch (analysisType) {
           case 'eda':
-            analysisResult = await eda(data, headers, file, {});
+            analysisResult = await eda(file, { preloadedData: { records: data, columnTypes: detectColumnTypes(data) } });
             break;
           case 'int':
-            analysisResult = await integrity(data, headers, file, {});
+            analysisResult = await integrity(file, { preloadedData: { records: data, columnTypes: detectColumnTypes(data) } });
             break;
           case 'vis':
-            analysisResult = await visualize(data, headers, file, {});
+            analysisResult = await visualize(file, { preloadedData: { records: data, columnTypes: detectColumnTypes(data) } });
             break;
           case 'llm':
-            analysisResult = await llmContext(data, headers, file, {});
+            analysisResult = await llmContext(file, { preloadedData: { records: data, columnTypes: detectColumnTypes(data) } });
             break;
         }
         
@@ -1039,8 +1049,9 @@ async function analyzeRelationships(files) {
   
   for (const file of files) {
     try {
-      const { data, headers } = await parseCSV(file);
-      const columnTypes = detectColumnTypes(data, headers);
+      const data = await parseCSV(file);
+      const headers = Object.keys(data[0] || {});
+      const columnTypes = detectColumnTypes(data);
       fileSchemas.push({
         file: path.basename(file),
         headers,
