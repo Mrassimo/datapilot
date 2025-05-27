@@ -175,11 +175,11 @@ function connectEngineeringAndOperational(eng, int, eda, synthesized) {
   if (eng.etlRequirements && int.automatedFixes) {
     const cleansingETL = eng.etlRequirements.find(req => req.stage === 'Cleansing');
     
-    if (cleansingETL && int.automatedFixes.length > 0) {
+    if (cleansingETL && int.automatedFixes && Array.isArray(int.automatedFixes) && int.automatedFixes.length > 0) {
       synthesized.connectedInsights.push({
         insight: `ETL cleansing stage can implement ${int.automatedFixes.length} automated data quality fixes`,
         impact: 'high',
-        action: `Integrate fixes into ETL pipeline: ${int.automatedFixes.slice(0, 2).map(f => f.fix).join(', ')}`,
+        action: `Integrate fixes into ETL pipeline: ${(int.automatedFixes && Array.isArray(int.automatedFixes) && int.automatedFixes.length > 0) ? int.automatedFixes.slice(0, 2).map(f => f.fix).join(', ') : 'Available via data integrity analysis'}`,
         confidence: 0.95
       });
     }

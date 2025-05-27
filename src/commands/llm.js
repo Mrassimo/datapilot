@@ -329,6 +329,15 @@ export function inferDataType(columns, columnTypes) {
     return 'transportation/logistics data';
   }
   
+  // Insurance/Financial detection
+  if (columnNames.includes('insurance') || columnNames.includes('premium') ||
+      columnNames.includes('policy') || columnNames.includes('claim') ||
+      columnNames.includes('coverage') || columnNames.includes('deductible') ||
+      (columnNames.includes('charges') && columnNames.includes('smoker')) ||
+      (columnNames.includes('charges') && columnNames.includes('bmi'))) {
+    return 'insurance/financial data';
+  }
+  
   // Business/Sales detection (moved after specific domains)
   if (columnNames.includes('transaction') || columnNames.includes('order') || columnNames.includes('sale')) {
     return 'sales transaction data';
@@ -915,7 +924,7 @@ export function generateAnalysisSuggestions(columns, columnTypes) {
   return suggestions;
 }
 
-export function generateDataQuestions(columns, columnTypes, dataType) {
+export function generateDataQuestions(columns, columnTypes, dataType, records = []) {
   const questions = [];
   
   // Medical/Healthcare questions
