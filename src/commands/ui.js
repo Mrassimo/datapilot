@@ -30,7 +30,13 @@ const safeColors = {
   sunset: (text) => chalk.yellow(text),
   forest: (text) => chalk.green(text),
   fire: (text) => chalk.red(text),
-  cosmic: (text) => chalk.magenta(text)
+  cosmic: (text) => chalk.magenta(text),
+  cyan: (text) => chalk.cyan(text),
+  green: (text) => chalk.green(text),
+  blue: (text) => chalk.blue(text),
+  red: (text) => chalk.red(text),
+  yellow: (text) => chalk.yellow(text),
+  magenta: (text) => chalk.magenta(text)
 };
 import fs from 'fs';
 import path from 'path';
@@ -40,8 +46,28 @@ import { integrity } from './int.js';
 import { visualize } from './vis.js';
 import { llmContext } from './llm.js';
 
-// Use safe color functions instead of gradients
-const gradients = safeColors;
+// Create comprehensive color object with ALL needed functions
+const gradients = {
+  // Base color functions
+  rainbow: (text) => safeColors.rainbow(text),
+  ocean: (text) => safeColors.ocean(text),
+  sunset: (text) => safeColors.sunset(text),
+  forest: (text) => safeColors.forest(text),
+  fire: (text) => safeColors.fire(text),
+  cosmic: (text) => safeColors.cosmic(text),
+  cyan: (text) => safeColors.cyan(text),
+  green: (text) => safeColors.green(text),
+  blue: (text) => safeColors.blue(text),
+  red: (text) => safeColors.red(text),
+  yellow: (text) => safeColors.yellow(text),
+  magenta: (text) => safeColors.magenta(text),
+  // Fallback for any missing color
+  purple: (text) => chalk.magenta(text),
+  gray: (text) => chalk.gray(text),
+  grey: (text) => chalk.gray(text),
+  white: (text) => chalk.white(text),
+  black: (text) => chalk.black(text)
+};
 
 // Recent files storage
 const RECENT_FILES_PATH = path.join(process.env.HOME || process.env.USERPROFILE, '.datapilot_recent.json');
@@ -243,68 +269,93 @@ async function browseFiles() {
   let currentDir = process.cwd();
   
   while (true) {
-    const items = fs.readdirSync(currentDir, { withFileTypes: true });
-    const choices = [];
-    
-    // Add parent directory option
-    if (currentDir !== '/') {
+    try {
+      const items = fs.readdirSync(currentDir, { withFileTypes: true });
+      const choices = [];
+      
+      // Add parent directory option
+      if (currentDir !== '/') {
+        choices.push({
+          name: '..',
+          message: '📁 .. (Parent Directory)',
+          value: path.dirname(currentDir)
+        });
+      }
+      
+      // Add directories
+      items
+        .filter(item => item.isDirectory())
+        .forEach(dir => {
+          choices.push({
+            name: path.join(currentDir, dir.name),
+            message: `📁 ${dir.name}/`,
+            value: path.join(currentDir, dir.name)
+          });
+        });
+      
+      // Add CSV files
+      items
+        .filter(item => item.isFile() && item.name.endsWith('.csv'))
+        .forEach(file => {
+          const filePath = path.join(currentDir, file.name);
+          try {
+            const stats = fs.statSync(filePath);
+            const size = formatFileSize(stats.size);
+            choices.push({
+              name: filePath,
+              message: `📄 ${file.name} (${size})`,
+              value: filePath,
+              hint: 'CSV file ready for analysis!'
+            });
+          } catch (error) {
+            // Skip files we can't read
+          }
+        });
+      
+      if (choices.length === 0) {
+        console.log(chalk.yellow('No CSV files or directories found in this location.'));
+        choices.push({
+          name: 'back',
+          message: '← Go back to parent directory',
+          value: path.dirname(currentDir)
+        });
+      }
+      
       choices.push({
-        name: '..',
-        message: '📁 .. (Parent Directory)',
-        value: path.dirname(currentDir)
+        name: 'cancel',
+        message: '❌ Cancel and return to main menu',
+        value: null
       });
-    }
-    
-    // Add directories
-    items
-      .filter(item => item.isDirectory())
-      .forEach(dir => {
-        choices.push({
-          name: path.join(currentDir, dir.name),
-          message: `📁 ${dir.name}/`,
-          value: path.join(currentDir, dir.name)
-        });
+      
+      const selection = await prompt({
+        type: 'select',
+        name: 'selected',
+        message: `Current directory: ${gradients.cyan(currentDir)}`,
+        choices
       });
-    
-    // Add CSV files
-    items
-      .filter(item => item.isFile() && item.name.endsWith('.csv'))
-      .forEach(file => {
-        const filePath = path.join(currentDir, file.name);
-        const stats = fs.statSync(filePath);
-        const size = formatFileSize(stats.size);
-        choices.push({
-          name: filePath,
-          message: `📄 ${file.name} (${size})`,
-          value: filePath,
-          hint: 'CSV file ready for analysis!'
-        });
+      
+      if (!selection.selected) return null;
+      
+      if (selection.selected.endsWith('.csv')) {
+        return selection.selected;
+      } else {
+        currentDir = selection.selected;
+      }
+    } catch (error) {
+      console.error(chalk.red(`Error reading directory: ${error.message}`));
+      
+      const goBack = await prompt({
+        type: 'confirm',
+        name: 'back',
+        message: 'Go back to parent directory?',
+        initial: true
       });
-    
-    if (choices.length === 0) {
-      console.log('No files or directories found.');
-      return null;
-    }
-    
-    choices.push({
-      name: 'cancel',
-      message: '❌ Cancel file selection',
-      value: null
-    });
-    
-    const selection = await prompt({
-      type: 'select',
-      name: 'selected',
-      message: `Current directory: ${gradients.cyan(currentDir)}`,
-      choices
-    });
-    
-    if (!selection.selected) return null;
-    
-    if (selection.selected.endsWith('.csv')) {
-      return selection.selected;
-    } else {
-      currentDir = selection.selected;
+      
+      if (goBack.back && currentDir !== '/') {
+        currentDir = path.dirname(currentDir);
+      } else {
+        return null;
+      }
     }
   }
 }
@@ -604,17 +655,30 @@ async function showResults() {
     }
   }
   
+  // Always offer save first
+  const wantToSave = await prompt({
+    type: 'confirm',
+    name: 'save',
+    message: '💾 Would you like to save your analysis results?',
+    initial: true
+  });
+  
+  if (wantToSave.save) {
+    await saveResults(result);
+  }
+  
   let keepShowing = true;
   while (keepShowing) {
     const viewOptions = await prompt({
       type: 'select',
       name: 'view',
-      message: 'How would you like to view your results?',
+      message: 'What would you like to do with your results?',
       choices: [
         { name: 'summary', message: '📄 Quick Summary' },
         { name: 'detailed', message: '📊 Detailed Results' },
         { name: 'save', message: '💾 Save to File' },
         { name: 'copy', message: '📋 Copy for AI Analysis' },
+        { name: 'select', message: '📋 View Results (for copying)' },
         { name: 'back', message: '← Back to Analysis Options' },
         { name: 'menu', message: '🏠 Return to Main Menu' }
       ]
@@ -632,6 +696,9 @@ async function showResults() {
         break;
       case 'copy':
         await copyForAI(result);
+        break;
+      case 'select':
+        await showSelectableResults(result);
         break;
       case 'back':
         // Go back to analysis type selection
@@ -793,6 +860,39 @@ async function copyForAI(result) {
     type: 'confirm',
     name: 'continue',
     message: 'Continue?',
+    initial: true
+  });
+}
+
+async function showSelectableResults(result) {
+  console.log('\n' + gradients.fire('📋 Analysis Results (Select All to Copy) 📋\n'));
+  
+  console.log(chalk.yellow('='.repeat(60)));
+  console.log(chalk.cyan('DATAPILOT ANALYSIS RESULTS'));
+  console.log(chalk.yellow('='.repeat(60)));
+  
+  // Format results as selectable text
+  let output = '';
+  if (typeof result === 'string') {
+    output = result;
+  } else if (result && typeof result === 'object') {
+    output = JSON.stringify(result, null, 2);
+  } else {
+    output = 'Analysis results not available in the expected format.';
+  }
+  
+  // Display the results without colors for easy copying
+  console.log(output);
+  
+  console.log(chalk.yellow('='.repeat(60)));
+  console.log(chalk.green('📋 Use Cmd+A (Mac) or Ctrl+A (Windows) to select all text above'));
+  console.log(chalk.green('📋 Then Cmd+C (Mac) or Ctrl+C (Windows) to copy'));
+  console.log(chalk.yellow('='.repeat(60)));
+  
+  await prompt({
+    type: 'confirm',
+    name: 'continue',
+    message: 'Done copying? Continue?',
     initial: true
   });
 }
