@@ -32,6 +32,47 @@ function formatDate(date) {
 export function inferDataType(columns, columnTypes) {
   const columnNames = columns.map(c => c.toLowerCase()).join(' ');
   
+  // Medical/Healthcare domain
+  if (columnNames.includes('patient') || columnNames.includes('diagnosis') || columnNames.includes('treatment') || 
+      columnNames.includes('medical') || columnNames.includes('health') || columnNames.includes('hospital') ||
+      columnNames.includes('doctor') || columnNames.includes('medication') || columnNames.includes('symptom') ||
+      columnNames.includes('diabetes') || columnNames.includes('glucose') || columnNames.includes('blood') ||
+      columnNames.includes('pressure') || columnNames.includes('cholesterol') || columnNames.includes('bmi')) {
+    return 'medical/healthcare data';
+  }
+  
+  // Scientific/Research domain
+  if (columnNames.includes('experiment') || columnNames.includes('measurement') || columnNames.includes('sample') ||
+      columnNames.includes('trial') || columnNames.includes('research') || columnNames.includes('lab') ||
+      columnNames.includes('test') && columnNames.includes('result')) {
+    return 'scientific/research data';
+  }
+  
+  // Education domain
+  if (columnNames.includes('student') || columnNames.includes('grade') || columnNames.includes('course') ||
+      columnNames.includes('school') || columnNames.includes('teacher') || columnNames.includes('exam')) {
+    return 'educational data';
+  }
+  
+  // Environmental/Climate domain
+  if (columnNames.includes('temperature') || columnNames.includes('climate') || columnNames.includes('weather') ||
+      columnNames.includes('pollution') || columnNames.includes('emission') || columnNames.includes('environment')) {
+    return 'environmental data';
+  }
+  
+  // Manufacturing/Production domain
+  if (columnNames.includes('production') || columnNames.includes('manufacturing') || columnNames.includes('assembly') ||
+      columnNames.includes('defect') || columnNames.includes('quality') && columnNames.includes('control')) {
+    return 'manufacturing/production data';
+  }
+  
+  // Transportation/Logistics domain
+  if (columnNames.includes('shipment') || columnNames.includes('delivery') || columnNames.includes('route') ||
+      columnNames.includes('vehicle') || columnNames.includes('transport') || columnNames.includes('logistics')) {
+    return 'transportation/logistics data';
+  }
+  
+  // Business/Sales domains (moved to later priority)
   if (columnNames.includes('transaction') || columnNames.includes('order') || columnNames.includes('sale')) {
     return 'sales transaction data';
   }
@@ -60,7 +101,7 @@ export function inferDataType(columns, columnTypes) {
     return 'transactional data';
   }
   
-  return 'structured business data';
+  return 'general structured data';
 }
 
 export function analyzeSeasonality(records, dateColumn, columns, columnTypes) {
@@ -107,13 +148,17 @@ export function analyzeSegments(records, columns, columnTypes) {
     c.toLowerCase().includes('segment') || 
     c.toLowerCase().includes('tier') ||
     c.toLowerCase().includes('type') ||
-    c.toLowerCase().includes('category')
+    c.toLowerCase().includes('category') ||
+    c.toLowerCase().includes('group') ||
+    c.toLowerCase().includes('class')
   ).filter(c => columnTypes[c] && columnTypes[c].type === 'categorical');
   
   if (segmentColumns.length === 0) return null;
   
   const valueColumns = columns.filter(c => 
-    (c.toLowerCase().includes('amount') || c.toLowerCase().includes('value')) &&
+    (c.toLowerCase().includes('amount') || c.toLowerCase().includes('value') || 
+     c.toLowerCase().includes('score') || c.toLowerCase().includes('count') ||
+     c.toLowerCase().includes('result') || c.toLowerCase().includes('outcome')) &&
     columnTypes[c] && ['integer', 'float'].includes(columnTypes[c].type)
   );
   
@@ -149,9 +194,31 @@ export function analyzeSegments(records, columns, columnTypes) {
     const totalValue = segments.reduce((sum, s) => sum + s.average * s.percentage, 0);
     const topValueShare = (top.average * top.percentage) / totalValue;
     
+    // Determine appropriate title based on data type
+    const dataType = inferDataType(columns, columnTypes);
+    let title = 'SEGMENT ANALYSIS';
+    let entityType = 'records';
+    
+    if (dataType === 'medical/healthcare data') {
+      title = 'PATIENT GROUP ANALYSIS';
+      entityType = 'patients';
+    } else if (dataType === 'educational data') {
+      title = 'STUDENT GROUP ANALYSIS';
+      entityType = 'students';
+    } else if (dataType === 'scientific/research data') {
+      title = 'EXPERIMENTAL GROUP ANALYSIS';
+      entityType = 'samples';
+    } else if (dataType.includes('customer')) {
+      title = 'CUSTOMER BEHAVIOR';
+      entityType = 'customers';
+    } else if (dataType.includes('product')) {
+      title = 'PRODUCT CATEGORY ANALYSIS';
+      entityType = 'products';
+    }
+    
     return {
-      title: 'CUSTOMER BEHAVIOR',
-      insight: `${top.name} customers account for ${formatPercentage(top.percentage)} of customer base but ${formatPercentage(topValueShare)} of value. Average ${valueCol}: ${formatCurrency(top.average)}`
+      title: title,
+      insight: `${top.name} ${entityType} account for ${formatPercentage(top.percentage)} of ${entityType} but ${formatPercentage(topValueShare)} of total ${valueCol}. Average ${valueCol}: ${formatNumber(top.average)}`
     };
   }
   
@@ -266,17 +333,45 @@ export function analyzePricing(records, columns, columnTypes) {
 
 export function detectAnomalies(records, columns, columnTypes) {
   const anomalies = [];
+  const dataType = inferDataType(columns, columnTypes);
   
-  // Check for zero amounts
-  const amountColumns = columns.filter(c => 
-    c.toLowerCase().includes('amount') &&
+  // Check for zero values in numeric columns
+  const numericColumns = columns.filter(c => 
+    (c.toLowerCase().includes('amount') || c.toLowerCase().includes('value') || 
+     c.toLowerCase().includes('score') || c.toLowerCase().includes('result') ||
+     c.toLowerCase().includes('measurement') || c.toLowerCase().includes('count')) &&
     columnTypes[c] && ['integer', 'float'].includes(columnTypes[c].type)
   );
   
-  amountColumns.forEach(col => {
+  numericColumns.forEach(col => {
     const zeros = records.filter(r => r[col] === 0).length;
     if (zeros > 0) {
-      anomalies.push(`${zeros} transactions with $0 ${col} (likely returns or errors)`);
+      let context = 'records';
+      let explanation = '';
+      
+      if (dataType === 'medical/healthcare data') {
+        context = 'patients';
+        explanation = '(potential missing or baseline measurements)';
+      } else if (dataType === 'educational data') {
+        context = 'students';
+        explanation = '(potential missing assignments or zero scores)';
+      } else if (dataType === 'scientific/research data') {
+        context = 'measurements';
+        explanation = '(potential calibration or measurement issues)';
+      } else if (dataType.includes('sales') || dataType.includes('transaction')) {
+        context = 'transactions';
+        explanation = '(likely returns or errors)';
+      } else {
+        explanation = '(potential data quality issues)';
+      }
+      
+      anomalies.push(`${zeros} ${context} with zero ${col} ${explanation}`);
+    }
+    
+    // Check for negative values where they shouldn't exist
+    const negatives = records.filter(r => typeof r[col] === 'number' && r[col] < 0).length;
+    if (negatives > 0 && !col.toLowerCase().includes('profit') && !col.toLowerCase().includes('loss')) {
+      anomalies.push(`${negatives} records with negative ${col} values`);
     }
   });
   
@@ -410,22 +505,98 @@ export function findSignificantCorrelations(records, columns, columnTypes) {
   return correlations.slice(0, 5);
 }
 
-export function generateAnalysisSuggestions(columns, columnTypes, records) {
+export function generateAnalysisSuggestions(columns, columnTypes) {
   const suggestions = [];
+  const columnNames = columns.map(c => c.toLowerCase()).join(' ');
+  const dataType = inferDataType(columns, columnTypes);
   
-  // Check for customer analysis potential
+  // Medical/Healthcare specific suggestions
+  if (dataType === 'medical/healthcare data') {
+    if (columns.some(c => c.toLowerCase().includes('patient'))) {
+      suggestions.push('Patient outcome analysis and risk stratification');
+      suggestions.push('Treatment effectiveness comparison');
+    }
+    if (columns.some(c => c.toLowerCase().includes('diagnosis') || c.toLowerCase().includes('condition'))) {
+      suggestions.push('Disease progression modeling and prediction');
+      suggestions.push('Comorbidity analysis and pattern detection');
+    }
+    if (columns.some(c => columnTypes[c] && columnTypes[c].type === 'date')) {
+      suggestions.push('Treatment timeline analysis and optimization');
+      suggestions.push('Patient readmission risk prediction');
+    }
+    if (columnNames.includes('glucose') || columnNames.includes('diabetes')) {
+      suggestions.push('Glucose pattern analysis and diabetes management insights');
+      suggestions.push('Risk factor identification for diabetic complications');
+    }
+    return suggestions;
+  }
+  
+  // Scientific/Research specific suggestions
+  if (dataType === 'scientific/research data') {
+    suggestions.push('Experiment result validation and reproducibility analysis');
+    suggestions.push('Statistical significance testing and confidence intervals');
+    if (columns.some(c => columnTypes[c] && columnTypes[c].type === 'date')) {
+      suggestions.push('Temporal trend analysis in experimental results');
+    }
+    return suggestions;
+  }
+  
+  // Educational specific suggestions
+  if (dataType === 'educational data') {
+    if (columns.some(c => c.toLowerCase().includes('student'))) {
+      suggestions.push('Student performance prediction and early intervention');
+      suggestions.push('Learning pattern analysis and personalization');
+    }
+    if (columns.some(c => c.toLowerCase().includes('grade') || c.toLowerCase().includes('score'))) {
+      suggestions.push('Grade distribution analysis and fairness assessment');
+      suggestions.push('Performance factors and correlation analysis');
+    }
+    return suggestions;
+  }
+  
+  // Environmental specific suggestions
+  if (dataType === 'environmental data') {
+    suggestions.push('Environmental impact assessment and trend analysis');
+    suggestions.push('Anomaly detection in environmental measurements');
+    if (columns.some(c => columnTypes[c] && columnTypes[c].type === 'date')) {
+      suggestions.push('Seasonal pattern analysis and climate modeling');
+    }
+    return suggestions;
+  }
+  
+  // Manufacturing specific suggestions
+  if (dataType === 'manufacturing/production data') {
+    suggestions.push('Quality control analysis and defect prediction');
+    suggestions.push('Production efficiency optimization');
+    if (columns.some(c => c.toLowerCase().includes('defect'))) {
+      suggestions.push('Root cause analysis for defects');
+    }
+    return suggestions;
+  }
+  
+  // Transportation/Logistics specific suggestions
+  if (dataType === 'transportation/logistics data') {
+    suggestions.push('Route optimization and delivery performance analysis');
+    suggestions.push('Fleet efficiency and utilization analysis');
+    if (columns.some(c => columnTypes[c] && columnTypes[c].type === 'date')) {
+      suggestions.push('Delivery time prediction and delay analysis');
+    }
+    return suggestions;
+  }
+  
+  // Business/Sales suggestions (existing logic)
   if (columns.some(c => c.toLowerCase().includes('customer'))) {
     suggestions.push('Customer Lifetime Value (CLV) calculation and segmentation');
   }
   
-  // Check for product analysis
   if (columns.some(c => c.toLowerCase().includes('product') || c.toLowerCase().includes('sku'))) {
     suggestions.push('Market basket analysis to find product associations');
   }
   
-  // Check for time series potential
   if (columns.some(c => columnTypes[c] && columnTypes[c].type === 'date')) {
-    suggestions.push('Time series forecasting for demand prediction');
+    if (dataType.includes('sales') || dataType.includes('transaction')) {
+      suggestions.push('Time series forecasting for demand prediction');
+    }
     
     if (columns.some(c => c.toLowerCase().includes('customer'))) {
       suggestions.push('Cohort analysis for customer retention');
@@ -435,20 +606,93 @@ export function generateAnalysisSuggestions(columns, columnTypes, records) {
   return suggestions;
 }
 
-export function generateDataQuestions(columns, columnTypes, dataType, records) {
+export function generateDataQuestions(columns, columnTypes, dataType) {
   const questions = [];
+  const columnNames = columns.map(c => c.toLowerCase()).join(' ');
   
-  // Generic questions based on data type
-  if (dataType.includes('sales') || dataType.includes('transaction')) {
+  // Medical/Healthcare questions
+  if (dataType === 'medical/healthcare data') {
+    questions.push('What are the key risk factors for adverse patient outcomes?');
+    questions.push('Which treatments show the highest effectiveness rates?');
+    questions.push('Are there patterns in patient demographics and health conditions?');
+    questions.push('What factors correlate with successful treatment outcomes?');
+    questions.push('How do different patient groups respond to various treatments?');
+    questions.push('What are the early warning signs for complications?');
+    if (columnNames.includes('diabetes') || columnNames.includes('glucose')) {
+      questions.push('What patterns exist in glucose levels across different patient groups?');
+      questions.push('Which factors most strongly correlate with diabetes complications?');
+    }
+  }
+  
+  // Scientific/Research questions
+  else if (dataType === 'scientific/research data') {
+    questions.push('What variables show the strongest correlations in the experiments?');
+    questions.push('Are there any unexpected patterns in the research data?');
+    questions.push('Which experimental conditions yield the most consistent results?');
+    questions.push('What factors might be influencing measurement variability?');
+    questions.push('Are there any outliers that warrant further investigation?');
+  }
+  
+  // Educational questions
+  else if (dataType === 'educational data') {
+    questions.push('What factors most strongly predict student success?');
+    questions.push('Are there achievement gaps between different student groups?');
+    questions.push('Which teaching methods or courses show the best outcomes?');
+    questions.push('What early indicators suggest students need additional support?');
+    questions.push('How do attendance and engagement correlate with performance?');
+  }
+  
+  // Environmental questions
+  else if (dataType === 'environmental data') {
+    questions.push('What are the long-term trends in environmental indicators?');
+    questions.push('Which factors show the strongest environmental impact?');
+    questions.push('Are there seasonal or cyclical patterns in the data?');
+    questions.push('What anomalies or extreme events are present in the data?');
+    questions.push('How do different environmental variables interact?');
+  }
+  
+  // Manufacturing questions
+  else if (dataType === 'manufacturing/production data') {
+    questions.push('What factors contribute most to production defects?');
+    questions.push('Which production lines or shifts show the best quality metrics?');
+    questions.push('Are there patterns in equipment failures or maintenance needs?');
+    questions.push('What variables correlate with production efficiency?');
+    questions.push('How can quality control processes be optimized?');
+  }
+  
+  // Transportation/Logistics questions
+  else if (dataType === 'transportation/logistics data') {
+    questions.push('What factors cause delivery delays?');
+    questions.push('Which routes show the best efficiency metrics?');
+    questions.push('Are there patterns in vehicle performance or maintenance?');
+    questions.push('How do external factors (weather, traffic) impact operations?');
+    questions.push('What opportunities exist for route optimization?');
+  }
+  
+  // Business/Sales questions (existing logic)
+  else if (dataType.includes('sales') || dataType.includes('transaction')) {
     questions.push('What factors drive sales performance?');
     questions.push('Which products/services generate the most revenue?');
     questions.push('What are the seasonal trends in sales?');
+    questions.push('How do pricing changes affect sales volume?');
+    questions.push('Which customer segments drive the most value?');
   }
   
-  if (dataType.includes('customer')) {
+  else if (dataType.includes('customer')) {
     questions.push('What factors drive customer loyalty?');
     questions.push('Which customer segments are most valuable?');
     questions.push('What is the typical customer journey?');
+    questions.push('How can customer churn be predicted and prevented?');
+    questions.push('What patterns exist in customer behavior?');
+  }
+  
+  // General questions for unclassified data
+  else {
+    questions.push('What are the key patterns and trends in this data?');
+    questions.push('Which variables show the strongest correlations?');
+    questions.push('Are there any notable outliers or anomalies?');
+    questions.push('What insights can be derived from the data distribution?');
+    questions.push('How has the data changed over time?');
   }
   
   return questions.slice(0, 8);

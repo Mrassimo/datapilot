@@ -494,7 +494,21 @@ async function runAnalysisWithAnimation(filePath, analysisType) {
   const spinner = createSpinner('Parsing CSV file...').start();
   
   try {
-    const data = await parseCSV(filePath);
+    // Check file size first
+    const stats = await fs.promises.stat(filePath);
+    const isLarge = stats.size > 10 * 1024 * 1024; // 10MB
+    
+    if (isLarge) {
+      spinner.update({ text: `Large file detected (${(stats.size / 1024 / 1024).toFixed(1)}MB). Processing...` });
+    }
+    
+    // Parse with progress updates for large files
+    const data = await parseCSV(filePath, {
+      onProgress: isLarge ? (progress, rowCount) => {
+        spinner.update({ text: `Processing: ${Math.round(progress)}% - ${rowCount.toLocaleString()} rows` });
+      } : undefined
+    });
+    
     const headers = Object.keys(data[0] || {});
     spinner.update({ text: 'CSV parsed successfully!' });
     await sleep(500);
@@ -506,23 +520,62 @@ async function runAnalysisWithAnimation(filePath, analysisType) {
       for (const analysis of analyses) {
         spinner.update({ text: `Running ${analysis.toUpperCase()} analysis...` });
         
-        let result;
-        switch (analysis) {
-          case 'eda':
-            result = await eda(filePath, { preloadedData: { records: data, columnTypes: detectColumnTypes(data) } });
-            break;
-          case 'int':
-            result = await integrity(filePath, { preloadedData: { records: data, columnTypes: detectColumnTypes(data) } });
-            break;
-          case 'vis':
-            result = await visualize(filePath, { preloadedData: { records: data, columnTypes: detectColumnTypes(data) } });
-            break;
-          case 'llm':
-            result = await llmContext(filePath, { preloadedData: { records: data, columnTypes: detectColumnTypes(data) } });
-            break;
+        // Add progress indicator for large datasets
+        const analysisOptions = { 
+          preloadedData: { 
+            records: data, 
+            columnTypes: detectColumnTypes(data) 
+          }
+        };
+        
+        if (isLarge) {
+          // Update spinner periodically during analysis
+          const progressInterval = setInterval(() => {
+            spinner.update({ text: `Running ${analysis.toUpperCase()} analysis... (processing ${data.length.toLocaleString()} rows)` });
+          }, 500);
+          
+          let result;
+          try {
+            switch (analysis) {
+              case 'eda':
+                result = await eda(filePath, analysisOptions);
+                break;
+              case 'int':
+                result = await integrity(filePath, analysisOptions);
+                break;
+              case 'vis':
+                result = await visualize(filePath, analysisOptions);
+                break;
+              case 'llm':
+                result = await llmContext(filePath, analysisOptions);
+                break;
+            }
+          } finally {
+            clearInterval(progressInterval);
+          }
+          
+          combinedResult += `\\n\\n=== ${analysis.toUpperCase()} ANALYSIS ===\\n\\n${result}`;
+        } else {
+          // Normal processing for small files
+          let result;
+          switch (analysis) {
+            case 'eda':
+              result = await eda(filePath, analysisOptions);
+              break;
+            case 'int':
+              result = await integrity(filePath, analysisOptions);
+              break;
+            case 'vis':
+              result = await visualize(filePath, analysisOptions);
+              break;
+            case 'llm':
+              result = await llmContext(filePath, analysisOptions);
+              break;
+          }
+          
+          combinedResult += `\\n\\n=== ${analysis.toUpperCase()} ANALYSIS ===\\n\\n${result}`;
         }
         
-        combinedResult += `\\n\\n=== ${analysis.toUpperCase()} ANALYSIS ===\\n\\n${result}`;
         await sleep(1000);
       }
       
@@ -710,6 +763,23 @@ async function copyForAI(result) {
   );
   
   console.log(contextBox);
+  
+  // Show the actual result for copying
+  console.log('\\n' + chalk.yellow('='.repeat(60)));
+  console.log(chalk.cyan('ANALYSIS RESULTS FOR AI:'));
+  console.log(chalk.yellow('='.repeat(60)) + '\\n');
+  
+  let output;
+  if (typeof result === 'string') {
+    output = result;
+  } else if (result && result.output) {
+    output = result.output;
+  } else {
+    output = 'Analysis results not available in the expected format.';
+  }
+  
+  console.log(output);
+  console.log('\\n' + chalk.yellow('='.repeat(60)));
   
   await prompt({
     type: 'confirm',
@@ -977,7 +1047,6 @@ async function batchAnalyzeFiles(files, analysisTypes) {
     try {
       // Parse CSV first
       const data = await parseCSV(file);
-      const headers = Object.keys(data[0] || {});
       
       // Run selected analyses
       for (const analysisType of analysisTypes) {

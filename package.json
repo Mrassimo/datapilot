@@ -9,6 +9,11 @@
   "type": "module",
   "scripts": {
     "test": "node tests/run_tests.js",
+    "test:tui": "node tests/run_tui_tests.js",
+    "test:tui:auto": "node tests/automated_tui_test.js",
+    "test:tui:windows": "tests\\tui_test_windows.bat",
+    "test:tui:powershell": "powershell -ExecutionPolicy Bypass -File tests/Test-DataPilotTUI.ps1",
+    "test:all": "npm run test && npm run test:tui",
     "build": "rollup -c",
     "build:watch": "rollup -c -w"
   },

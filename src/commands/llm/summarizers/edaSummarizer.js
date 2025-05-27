@@ -13,9 +13,9 @@ export function extractEdaSummary(edaResults, options = {}) {
   };
 
   // Extract top statistical insights
-  if (edaResults.statisticalInsights) {
+  if (edaResults.statisticalInsights && Array.isArray(edaResults.statisticalInsights)) {
     const topInsights = edaResults.statisticalInsights
-      .filter(insight => insight.importance === 'high' || insight.significance > 0.8)
+      .filter(insight => insight && (insight.importance === 'high' || insight.significance > 0.8))
       .slice(0, 3);
     
     summary.keyFindings.push(...topInsights.map(insight => ({
@@ -46,9 +46,9 @@ export function extractEdaSummary(edaResults, options = {}) {
   }
 
   // Extract significant correlations
-  if (edaResults.correlations) {
+  if (edaResults.correlations && Array.isArray(edaResults.correlations)) {
     const significantCorrelations = edaResults.correlations
-      .filter(corr => Math.abs(corr.value) > 0.5)
+      .filter(corr => corr && corr.value && Math.abs(corr.value) > 0.5)
       .sort((a, b) => Math.abs(b.value) - Math.abs(a.value))
       .slice(0, 3)
       .map(corr => ({
@@ -62,9 +62,9 @@ export function extractEdaSummary(edaResults, options = {}) {
   }
 
   // Extract distribution patterns
-  if (edaResults.distributions) {
+  if (edaResults.distributions && Array.isArray(edaResults.distributions)) {
     const notableDistributions = edaResults.distributions
-      .filter(dist => dist.skewness > 2 || dist.kurtosis > 7 || dist.bimodal)
+      .filter(dist => dist && (dist.skewness > 2 || dist.kurtosis > 7 || dist.bimodal))
       .slice(0, 3)
       .map(dist => ({
         column: dist.column,
@@ -110,7 +110,7 @@ export function extractEdaSummary(edaResults, options = {}) {
   // Extract key metrics for summary statistics
   if (edaResults.summaryStats) {
     // Only include the most business-relevant metrics
-    const relevantColumns = identifyBusinessMetrics(edaResults.columns);
+    const relevantColumns = identifyBusinessMetrics(edaResults.columns || []);
     
     relevantColumns.forEach(col => {
       if (edaResults.summaryStats[col]) {
@@ -131,7 +131,7 @@ export function extractEdaSummary(edaResults, options = {}) {
       summary.criticalInsights.push({
         type: 'ml_readiness',
         finding: `Low ML readiness score: ${(edaResults.mlReadiness.overallScore * 100).toFixed(0)}%`,
-        impact: edaResults.mlReadiness.majorIssues.join(', '),
+        impact: edaResults.mlReadiness.majorIssues ? edaResults.mlReadiness.majorIssues.join(', ') : 'Data preparation needed',
         confidence: 0.95
       });
     }
@@ -248,6 +248,8 @@ function getDistributionRecommendation(dist) {
 }
 
 function identifyBusinessMetrics(columns) {
+  if (!columns || !Array.isArray(columns)) return [];
+  
   const businessKeywords = [
     'revenue', 'sales', 'amount', 'total', 'price',
     'cost', 'profit', 'margin', 'quantity', 'count',
@@ -255,6 +257,7 @@ function identifyBusinessMetrics(columns) {
   ];
   
   return columns.filter(col => {
+    if (!col || typeof col !== 'string') return false;
     const colLower = col.toLowerCase();
     return businessKeywords.some(keyword => colLower.includes(keyword));
   }).slice(0, 5); // Limit to top 5 business metrics

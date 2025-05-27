@@ -1,0 +1,35 @@
+{
+  "timestamp": "2025-05-27T11:17:49.801Z",
+  "platform": "darwin",
+  "node": "v23.6.1",
+  "results": {
+    "passed": 3,
+    "failed": 5,
+    "skipped": 1,
+    "errors": [
+      {
+        "suite": "TUI Startup and Exit",
+        "test": "Should handle immediate exit gracefully"
+      },
+      {
+        "suite": "File Selection",
+        "test": "Should handle invalid file selection",
+        "error": "Timeout waiting for pattern: /not.*found|doesn.*t.*exist|error/i"
+      },
+      {
+        "suite": "Analysis Workflow",
+        "test": "Should complete demo analysis",
+        "error": "Timeout waiting for pattern: /Analysis.*complete|Results|Done/i"
+      },
+      {
+        "suite": "Encoding and Special Characters",
+        "test": "Should handle non-ASCII characters in prompts",
+        "error": "Timeout waiting for pattern: /DataPilot.*Interactive/i"
+      },
+      {
+        "suite": "Performance and Stability",
+        "test": "Should recover from interrupted operations"
+      }
+    ]
+  }
+}

@@ -1,0 +1,177 @@
+name: TUI Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Run daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+jobs:
+  test-linux:
+    runs-on: ubuntu-latest
+    name: TUI Tests (Linux)
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Run TUI tests
+      run: node tests/run_tui_tests.js
+      env:
+        FORCE_COLOR: 0
+        NO_COLOR: 1
+        CI: true
+    
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: tui-test-results-linux
+        path: |
+          tests/tui_test_consolidated_report.json
+          tests/TUI_TEST_RESULTS.md
+          tests/tui_test_report.json
+
+  test-windows:
+    runs-on: windows-latest
+    name: TUI Tests (Windows)
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Run TUI tests
+      run: node tests/run_tui_tests.js
+      env:
+        FORCE_COLOR: 0
+        NO_COLOR: 1
+        CI: true
+    
+    - name: Run PowerShell tests
+      run: powershell -ExecutionPolicy Bypass -File tests/Test-DataPilotTUI.ps1
+      continue-on-error: true
+    
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: tui-test-results-windows
+        path: |
+          tests/tui_test_consolidated_report.json
+          tests/TUI_TEST_RESULTS.md
+          tests/tui_test_report.json
+          tests/tui_test_report_windows.json
+
+  test-macos:
+    runs-on: macos-latest
+    name: TUI Tests (macOS)
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Run TUI tests
+      run: node tests/run_tui_tests.js
+      env:
+        FORCE_COLOR: 0
+        NO_COLOR: 1
+        CI: true
+    
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: tui-test-results-macos
+        path: |
+          tests/tui_test_consolidated_report.json
+          tests/TUI_TEST_RESULTS.md
+          tests/tui_test_report.json
+
+  report:
+    needs: [test-linux, test-windows, test-macos]
+    runs-on: ubuntu-latest
+    if: always()
+    name: Consolidate Test Results
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Download all artifacts
+      uses: actions/download-artifact@v3
+      with:
+        path: test-artifacts
+    
+    - name: Generate consolidated report
+      run: |
+        echo "# DataPilot TUI Test Results - All Platforms" > CONSOLIDATED_TUI_TESTS.md
+        echo "" >> CONSOLIDATED_TUI_TESTS.md
+        echo "Generated: $(date -u)" >> CONSOLIDATED_TUI_TESTS.md
+        echo "" >> CONSOLIDATED_TUI_TESTS.md
+        
+        for platform in linux windows macos; do
+          echo "## Platform: $platform" >> CONSOLIDATED_TUI_TESTS.md
+          echo "" >> CONSOLIDATED_TUI_TESTS.md
+          if [ -f "test-artifacts/tui-test-results-$platform/TUI_TEST_RESULTS.md" ]; then
+            tail -n +2 "test-artifacts/tui-test-results-$platform/TUI_TEST_RESULTS.md" >> CONSOLIDATED_TUI_TESTS.md
+          else
+            echo "No results found for $platform" >> CONSOLIDATED_TUI_TESTS.md
+          fi
+          echo "" >> CONSOLIDATED_TUI_TESTS.md
+          echo "---" >> CONSOLIDATED_TUI_TESTS.md
+          echo "" >> CONSOLIDATED_TUI_TESTS.md
+        done
+    
+    - name: Upload consolidated report
+      uses: actions/upload-artifact@v3
+      with:
+        name: tui-test-results-consolidated
+        path: CONSOLIDATED_TUI_TESTS.md
+    
+    - name: Comment PR with results (if PR)
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const fs = require('fs');
+          const report = fs.readFileSync('CONSOLIDATED_TUI_TESTS.md', 'utf8');
+          
+          // Truncate if too long
+          const maxLength = 65000;
+          const truncatedReport = report.length > maxLength 
+            ? report.substring(0, maxLength) + '\n\n... (truncated)'
+            : report;
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: truncatedReport
+          });

@@ -3,7 +3,7 @@
  * Orchestrates all analyses in summary mode and synthesizes insights
  */
 
-import { parseCSV, detectColumnTypes } from '../../utils/parser.js';
+import { detectColumnTypes } from '../../utils/parser.js';
 import { basename } from 'path';
 import ora from 'ora';
 
@@ -73,7 +73,7 @@ export async function comprehensiveLLMAnalysis(records, headers, filePath, optio
       runIntAnalysis(records, headers, filePath, options),
       runVisAnalysis(records, headers, filePath, options),
       runEngAnalysis(records, headers, filePath, options),
-      generateOriginalContext(records, columns, columnTypes, fileName, options)
+      generateOriginalContext(records, columns, columnTypes)
     ]);
     
     if (spinner) spinner.text = 'Extracting key insights...';
@@ -193,7 +193,7 @@ async function runEdaAnalysis(records, headers, filePath, options) {
   }
 }
 
-async function runIntAnalysis(records, headers, filePath, options) {
+async function runIntAnalysis(records, _headers, filePath, options) {
   const captureOptions = {
     ...options,
     structuredOutput: true,
@@ -226,7 +226,7 @@ async function runIntAnalysis(records, headers, filePath, options) {
   }
 }
 
-async function runVisAnalysis(records, headers, filePath, options) {
+async function runVisAnalysis(records, _headers, filePath, options) {
   const captureOptions = {
     ...options,
     structuredOutput: true,
@@ -252,7 +252,7 @@ async function runVisAnalysis(records, headers, filePath, options) {
   }
 }
 
-async function runEngAnalysis(records, headers, filePath, options) {
+async function runEngAnalysis(records, _headers, filePath, options) {
   const captureOptions = {
     ...options,
     structuredOutput: true,
@@ -282,7 +282,7 @@ async function runEngAnalysis(records, headers, filePath, options) {
 }
 
 // Generate original context data for compatibility
-async function generateOriginalContext(records, columns, columnTypes, fileName, options) {
+async function generateOriginalContext(records, columns, columnTypes) {
   // This maintains compatibility with the original LLM format
   const dateColumns = columns.filter(col => columnTypes[col] && columnTypes[col].type === 'date');
   const dateRange = getDateRange(records, dateColumns);
@@ -299,8 +299,8 @@ async function generateOriginalContext(records, columns, columnTypes, fileName, 
   const qualityMetrics = calculateDataQuality(records, columns);
   const summaryStats = generateSummaryStatistics(records, columns, columnTypes);
   const correlations = findSignificantCorrelations(records, columns, columnTypes);
-  const analysisSuggestions = generateAnalysisSuggestions(columns, columnTypes, records);
-  const dataQuestions = generateDataQuestions(columns, columnTypes, dataType, records);
+  const analysisSuggestions = generateAnalysisSuggestions(columns, columnTypes);
+  const dataQuestions = generateDataQuestions(columns, columnTypes, dataType);
   const technicalNotes = generateTechnicalNotes(records, columns, columnTypes);
   
   return {
