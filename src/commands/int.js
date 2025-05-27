@@ -13,7 +13,7 @@ import {
   createWarning,
   createError,
   OutputFormatter
-} from '../utils/unifiedFormat.js';
+} from '../utils/format.js';
 import { basename } from 'path';
 import ora from 'ora';
 import { OutputHandler } from '../utils/output.js';

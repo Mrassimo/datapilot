@@ -3,8 +3,8 @@
  * Tests complete user journeys through the TUI interface
  */
 
-import { TUIEngine } from '../src/commands/tuiEngine.js';
-import { createMockDependencies } from './tui_engine_test.js';
+import { TUIEngine } from '../../src/commands/ui/engine.js';
+import { createMockDependencies } from './engine.test.js';
 
 class TUIFlowTestSuite {
   constructor() {

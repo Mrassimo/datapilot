@@ -3,7 +3,7 @@
  * Comprehensive testing for TUI logic without UI rendering
  */
 
-import { TUIEngine } from '../src/commands/tuiEngine.js';
+import { TUIEngine } from '../../src/commands/ui/engine.js';
 import fs from 'fs';
 import path from 'path';
 

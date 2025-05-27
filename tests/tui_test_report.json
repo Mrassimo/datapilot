@@ -1,10 +1,10 @@
 {
-  "timestamp": "2025-05-27T12:04:01.468Z",
+  "timestamp": "2025-05-27T21:29:41.074Z",
   "platform": "darwin",
   "node": "v23.6.1",
   "results": {
-    "passed": 3,
-    "failed": 5,
+    "passed": 2,
+    "failed": 6,
     "skipped": 1,
     "errors": [
       {
@@ -13,8 +13,13 @@
       },
       {
         "suite": "File Selection",
+        "test": "Should browse for CSV files",
+        "error": "Timeout waiting for pattern: /How.*would.*you.*like.*to.*select/i"
+      },
+      {
+        "suite": "File Selection",
         "test": "Should handle invalid file selection",
-        "error": "Timeout waiting for pattern: /not.*found|doesn.*t.*exist|error/i"
+        "error": "Timeout waiting for pattern: /How.*would.*you.*like.*to.*select/i"
       },
       {
         "suite": "Analysis Workflow",

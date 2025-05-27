@@ -34,6 +34,12 @@ jobs:
         NO_COLOR: 1
         CI: true
     
+    - name: Run TUI engine unit tests
+      run: node tests/tui/engine.test.js
+      
+    - name: Run TUI flow tests
+      run: node tests/tui/flow.test.js
+    
     - name: Upload test results
       if: always()
       uses: actions/upload-artifact@v3
@@ -66,6 +72,12 @@ jobs:
         FORCE_COLOR: 0
         NO_COLOR: 1
         CI: true
+    
+    - name: Run TUI engine unit tests
+      run: node tests/tui/engine.test.js
+      
+    - name: Run TUI flow tests
+      run: node tests/tui/flow.test.js
     
     - name: Run PowerShell tests
       run: powershell -ExecutionPolicy Bypass -File tests/Test-DataPilotTUI.ps1
@@ -104,6 +116,12 @@ jobs:
         FORCE_COLOR: 0
         NO_COLOR: 1
         CI: true
+    
+    - name: Run TUI engine unit tests
+      run: node tests/tui/engine.test.js
+      
+    - name: Run TUI flow tests
+      run: node tests/tui/flow.test.js
     
     - name: Upload test results
       if: always()

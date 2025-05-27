@@ -1,35 +1,67 @@
 # Dependencies
 node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
-# Logs and temporary files
+# Runtime files
 *.log
-*.tmp
-logs/
-
-# System files
 .DS_Store
 Thumbs.db
 
-# Test outputs (excluded from repo)
+# Temporary files and outputs
+temp/
+*.tmp
+*.temp
+
+# Test outputs and reports (generated)
 tests/outputs/
-tests/fixtures/large_test.csv
-tests/fixtures/test.txt
+tests/reports/
+*_test_report_*.json
+*_output.txt
+test_*.txt
 
-# Environment files
-.env
-.env.local
+# DataPilot specific temporary files
+.datapilot_recent.json
+llm_*.txt
+int_*.txt
+eda_*.txt
+vis_*.txt
+eng_*.txt
 
-# Coverage reports
-coverage/
-
-# IDE files
+# IDE and editor files
 .vscode/
 .idea/
 *.swp
 *.swo
+*~
 
-# Temporary DataPilot files
-*. Datapilot
+# OS generated files
+.DS_Store?
+ehthumbs.db
+Icon?
+
+# Build outputs
+dist/
+build/
+
+# Logs directory contents (keep directory)
+logs/*
+!logs/.gitkeep
+
+# User data
+.datapilot/
+
+# Coverage reports
+coverage/
+*.lcov
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 
 # Include important dist folder for self-contained package
 !dist/

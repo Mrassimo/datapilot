@@ -1,0 +1,63 @@
+name: Continuous Integration
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        node-version: [18.x, 20.x, 22.x]
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run unit tests
+      run: |
+        node tests/unit/test_parser.js
+        node tests/unit/test_format.js
+        node tests/unit/test_stats.js
+
+    - name: Run TUI engine tests
+      run: node tests/tui_engine_test.js
+
+    - name: Run TUI flow tests
+      run: node tests/tui_flow_test.js
+
+    - name: Test core commands with sample data
+      run: |
+        node bin/datapilot.js eda tests/fixtures/test_sales.csv --output /tmp/eda_test.txt
+        node bin/datapilot.js int tests/fixtures/test_sales.csv --output /tmp/int_test.txt
+        node bin/datapilot.js vis tests/fixtures/test_sales.csv --output /tmp/vis_test.txt
+
+    - name: Verify CLI help functionality
+      run: |
+        node bin/datapilot.js --help
+        node bin/datapilot.js eda --help
+        node bin/datapilot.js int --help
+        node bin/datapilot.js vis --help
+        node bin/datapilot.js eng --help
+        node bin/datapilot.js llm --help
+
+    - name: Upload test artifacts
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-outputs-${{ matrix.os }}-${{ matrix.node-version }}
+        path: /tmp/*_test.txt
+        retention-days: 7

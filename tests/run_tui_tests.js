@@ -31,21 +31,21 @@ const testRunners = {
   engineUnit: {
     name: 'TUI Engine Unit Tests',
     command: 'node',
-    args: [path.join(__dirname, 'tui_engine_test.js')],
+    args: [path.join(__dirname, 'tui', 'engine.test.js')],
     platforms: ['all']
   },
   
   engineFlow: {
     name: 'TUI Engine Flow Tests',
     command: 'node',
-    args: [path.join(__dirname, 'tui_flow_test.js')],
+    args: [path.join(__dirname, 'tui', 'flow.test.js')],
     platforms: ['all']
   },
   
   automated: {
     name: 'Automated TUI Tests (E2E)',
     command: 'node',
-    args: [path.join(__dirname, 'automated_tui_test.js')],
+    args: [path.join(__dirname, 'tui', 'automation.test.js')],
     platforms: ['all']
   },
   

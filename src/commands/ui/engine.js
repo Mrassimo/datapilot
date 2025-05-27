@@ -5,12 +5,12 @@
 
 import fs from 'fs';
 import path from 'path';
-import { parseCSV, detectColumnTypes } from '../utils/parser.js';
-import { eda } from './eda.js';
-import { integrity } from './int.js';
-import { visualize } from './vis.js';
-import { llmContext } from './llm.js';
-import { KnowledgeBase } from '../utils/knowledgeBase.js';
+import { parseCSV, detectColumnTypes } from '../../utils/parser.js';
+import { eda } from '../eda.js';
+import { integrity } from '../int.js';
+import { visualize } from '../vis.js';
+import { llmContext } from '../llm.js';
+import { KnowledgeBase } from '../../utils/knowledgeBase.js';
 import yaml from 'js-yaml';
 
 // Recent files storage

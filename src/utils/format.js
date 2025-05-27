@@ -1,15 +1,45 @@
 import chalk from 'chalk';
-import { 
-  colors, 
-  symbols, 
-  lines,
-  createHeader as unifiedHeader,
-  createSubsection as unifiedSubsection,
-  createList,
-  formatNumber as unifiedFormatNumber,
-  formatPercent as unifiedFormatPercent,
-  formatFileSize as unifiedFormatFileSize
-} from './unifiedFormat.js';
+
+// Removed import of deleted unifiedFormat.js - using local implementations
+
+// Define missing exports that were previously in unifiedFormat.js
+export const colors = {
+  primary: chalk.blue,
+  success: chalk.green,
+  warning: chalk.yellow,
+  error: chalk.red,
+  info: chalk.cyan,
+  muted: chalk.gray
+};
+
+export const symbols = {
+  success: '✓',
+  error: '✗',
+  warning: '⚠',
+  info: 'ℹ',
+  bullet: '•'
+};
+
+export const createSuccess = (text) => `${colors.success(symbols.success)} ${text}`;
+export const createWarning = (text) => `${colors.warning(symbols.warning)} ${text}`;
+export const createError = (text) => `${colors.error(symbols.error)} ${text}`;
+
+export const createHeader = (text) => `\n${colors.primary('═'.repeat(60))}\n${colors.primary(text.toUpperCase().padStart((60 + text.length) / 2))}\n${colors.primary('═'.repeat(60))}`;
+export const createSubsection = (title, content = '') => `\n${colors.info(title)}\n${'─'.repeat(40)}\n${content}`;
+export const createTable = (data) => JSON.stringify(data, null, 2);
+export const createList = (items) => items.map(item => `${symbols.bullet} ${item}`).join('\n');
+export const createStandardSpinner = (text) => ({ text });
+export const formatPercent = (value) => `${(value * 100).toFixed(1)}%`;
+
+export class OutputFormatter {
+  constructor(options = {}) {
+    this.options = options;
+  }
+  
+  format(text) {
+    return text;
+  }
+}
 
 export function formatNumber(num, decimals = 2) {
   if (typeof num !== 'number' || isNaN(num)) return 'N/A';
