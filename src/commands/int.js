@@ -1,5 +1,19 @@
 import { parseCSV, detectColumnTypes } from '../utils/parser.js';
 import { createSection, createSubSection, formatTimestamp, formatPercentage, bulletList, numberedList } from '../utils/format.js';
+import { 
+  colors, 
+  symbols, 
+  createHeader,
+  createSubsection,
+  createTable,
+  createList,
+  createStandardSpinner,
+  formatPercent,
+  createSuccess,
+  createWarning,
+  createError,
+  OutputFormatter
+} from '../utils/unifiedFormat.js';
 import { basename } from 'path';
 import ora from 'ora';
 import { OutputHandler } from '../utils/output.js';
@@ -28,7 +42,7 @@ import { generatePythonFixes } from './int/fixers/pythonGenerator.js';
 
 export async function integrity(filePath, options = {}) {
   const outputHandler = new OutputHandler(options);
-  const spinner = options.quiet ? null : ora('Reading CSV file...').start();
+  const spinner = options.quiet ? null : createStandardSpinner('Reading CSV file...');
   
   // Structured data mode for LLM consumption
   const structuredMode = options.structuredOutput || options.llmMode;

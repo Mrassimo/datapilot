@@ -1,4 +1,15 @@
 import chalk from 'chalk';
+import { 
+  colors, 
+  symbols, 
+  lines,
+  createHeader as unifiedHeader,
+  createSubsection as unifiedSubsection,
+  createList,
+  formatNumber as unifiedFormatNumber,
+  formatPercent as unifiedFormatPercent,
+  formatFileSize as unifiedFormatFileSize
+} from './unifiedFormat.js';
 
 export function formatNumber(num, decimals = 2) {
   if (typeof num !== 'number' || isNaN(num)) return 'N/A';
@@ -35,12 +46,13 @@ export function formatFileSize(bytes) {
 }
 
 export function createSection(title, content) {
-  const separator = '='.repeat(title.length + 8);
-  return `\n${separator}\n=== ${title} ===\n${separator}\n${content}\n`;
+  // Use unified formatting for consistency
+  return unifiedHeader(title) + content;
 }
 
 export function createSubSection(title, content) {
-  return `\n${title}:\n${content}\n`;
+  // Use unified formatting for consistency
+  return unifiedSubsection(title) + content;
 }
 
 export function bulletList(items) {
