@@ -344,9 +344,8 @@ Performance: ${dataProfile.dimensions.rows > 10000 ? 'Consider server-side rende
     
   } catch (error) {
     outputHandler.restore();
-    if (spinner) spinner.fail('Error analyzing visualizations');
+    if (spinner) spinner.error({ text: 'Error analyzing visualizations' });
     console.error(error.message);
-    console.error(error.stack);
     if (!options.quiet) process.exit(1);
     throw error;
   }

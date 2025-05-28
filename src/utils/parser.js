@@ -382,11 +382,20 @@ async function parseCSVWithEncoding(filePath, encoding, delimiter, useSampling, 
       return record;
     },
     cast: (value) => {
+      // Enhanced type casting with better error handling and debugging
       if (value === '' || value === null || value === undefined) return null;
       
       // Enhanced type casting
       if (typeof value === 'string') {
         const trimmed = value.trim();
+        
+        // Handle empty strings after trimming
+        if (trimmed === '') return null;
+        
+        // Handle common null/undefined string representations
+        if (['null', 'undefined', 'na', 'n/a', '#n/a', '#null!', 'nil', 'none'].includes(trimmed.toLowerCase())) {
+          return null;
+        }
         
         // Boolean values
         const lowerCase = trimmed.toLowerCase();
@@ -394,17 +403,35 @@ async function parseCSVWithEncoding(filePath, encoding, delimiter, useSampling, 
           return lowerCase === 'true' || lowerCase === 'yes' || lowerCase === '1' || lowerCase === 'y';
         }
         
-        // Try number parsing
+        // Try number parsing (but be more conservative)
         if (/^[\d\s,.$€£¥₹%-]+$/.test(trimmed) && !/[a-zA-Z]/.test(trimmed)) {
           const num = parseNumber(trimmed);
-          if (num !== null) return num;
+          if (num !== null && !isNaN(num) && isFinite(num)) {
+            return num;
+          }
         }
         
-        // Try date parsing
-        const date = parseDate(trimmed);
-        if (date !== null) return date;
+        // Try date parsing (more conservative approach)
+        if (trimmed.length >= 4 && /\d/.test(trimmed)) {
+          const date = parseDate(trimmed);
+          if (date !== null && date instanceof Date && !isNaN(date.getTime())) {
+            return date;
+          }
+        }
+        
+        // Return the trimmed string if no conversion worked
+        return trimmed;
       }
       
+      // For non-string values, validate they're not problematic
+      if (typeof value === 'number') {
+        if (isNaN(value) || !isFinite(value)) {
+          return null; // Convert problematic numbers to null
+        }
+        return value;
+      }
+      
+      // Return the value as-is if it's already a proper type
       return value;
     }
   };
@@ -504,7 +531,7 @@ async function parseCSVWithEncoding(filePath, encoding, delimiter, useSampling, 
     return { success: true, data: records };
     
   } catch (error) {
-    if (spinner) spinner.fail('Failed to parse CSV');
+    if (spinner) spinner.error({ text: 'Failed to parse CSV' });
     return { success: false, error };
   }
 }
@@ -520,6 +547,7 @@ export async function parseCSV(filePath, options = {}) {
   }
   
   const detectedEncoding = options.encoding || detectEncoding(normalizedPath);
+  const detectedDelimiter = detectDelimiter(normalizedPath, detectedEncoding);
   
   // Enhanced fallback encoding list
   const fallbackEncodings = ['utf8', 'latin1', 'utf16le', 'ascii'];
@@ -527,41 +555,228 @@ export async function parseCSV(filePath, options = {}) {
   
   let lastError = null;
   let attempts = [];
+  let bestResult = null;
+  let debugInfo = {
+    fileSize: statSync(normalizedPath).size,
+    detectedEncoding,
+    detectedDelimiter,
+    attempts: []
+  };
+  
+  if (!options.quiet) {
+    console.log(chalk.blue(`📊 Parsing CSV: ${normalizedPath}`));
+    console.log(chalk.blue(`📏 File size: ${(debugInfo.fileSize / 1024 / 1024).toFixed(2)}MB`));
+    console.log(chalk.blue(`🔤 Detected encoding: ${detectedEncoding}`));
+    console.log(chalk.blue(`📋 Detected delimiter: ${detectedDelimiter === '\t' ? '\\t (tab)' : detectedDelimiter}`));
+  }
   
   for (const encoding of encodingsToTry) {
     try {
-      const result = await attemptParse(normalizedPath, encoding, options);
+      const result = await attemptParse(normalizedPath, encoding, { 
+        ...options, 
+        delimiter: detectedDelimiter,
+        debugMode: true 
+      });
+      
+      const attemptInfo = {
+        encoding,
+        success: result.success,
+        recordCount: result.success ? result.data.length : 0,
+        error: result.error?.message || null
+      };
+      
+      debugInfo.attempts.push(attemptInfo);
+      
       if (result.success) {
-        if (result.data.length === 0) {
+        // Validate the parsed data quality
+        const dataQuality = validateParsedData(result.data, normalizedPath);
+        attemptInfo.dataQuality = dataQuality;
+        
+        if (dataQuality.isAcceptable) {
           if (!options.quiet) {
-            console.log(chalk.yellow('⚠️  Warning: No data found in CSV file. The file may be empty or have no valid rows.'));
+            console.log(chalk.green(`✅ Successfully parsed with ${encoding} encoding`));
+            console.log(chalk.green(`📊 Records: ${result.data.length.toLocaleString()}`));
+            console.log(chalk.green(`📋 Columns: ${Object.keys(result.data[0] || {}).length}`));
+            
+            if (dataQuality.warnings.length > 0) {
+              console.log(chalk.yellow('⚠️  Data quality warnings:'));
+              dataQuality.warnings.forEach(warning => 
+                console.log(chalk.yellow(`   • ${warning}`))
+              );
+            }
           }
+          return result.data;
+        } else {
+          // Data quality is poor, try next encoding
+          if (!options.quiet) {
+            console.log(chalk.yellow(`⚠️  ${encoding} parsing succeeded but data quality is poor:`));
+            dataQuality.issues.forEach(issue => 
+              console.log(chalk.yellow(`   • ${issue}`))
+            );
+          }
+          bestResult = bestResult || { result, encoding, dataQuality };
         }
-        return result.data;
       }
+      
       lastError = result.error;
       attempts.push({ encoding, error: result.error?.message || 'Unknown error' });
+      if (!options.quiet && encodingsToTry.indexOf(encoding) < encodingsToTry.length - 1) {
+        console.log(chalk.yellow(`❌ Failed with ${encoding} encoding, trying next...`));
+      }
+      continue;
     } catch (e) {
       lastError = e;
+      const attemptInfo = {
+        encoding,
+        success: false,
+        recordCount: 0,
+        error: e.message
+      };
+      debugInfo.attempts.push(attemptInfo);
       attempts.push({ encoding, error: e.message });
       if (!options.quiet && encodingsToTry.indexOf(encoding) < encodingsToTry.length - 1) {
-        console.log(chalk.yellow(`Failed with ${encoding} encoding, trying next...`));
+        console.log(chalk.yellow(`❌ Failed with ${encoding} encoding: ${e.message}`));
       }
       continue;
     }
   }
   
-  // Enhanced error message
-  const attemptDetails = attempts.map(a => `  - ${a.encoding}: ${a.error}`).join('\n');
-  throw new Error(
-    'CSV parsing failed with all attempted encodings.\n' +
-    'The file may be corrupted, in an unsupported format, or have encoding issues.\n' +
-    'Attempted encodings:\n' + attemptDetails + '\n' +
-    'Suggestions:\n' +
-    '  1. Try converting the file to UTF-8 encoding\n' +
-    '  2. Check if the file is a valid CSV format\n' +
-    '  3. Remove any special characters from the file path'
+  // If we have a result with poor quality, use it as fallback
+  if (bestResult) {
+    if (!options.quiet) {
+      console.log(chalk.yellow('📊 Using best available result despite quality issues'));
+    }
+    return bestResult.result.data;
+  }
+  
+  // Enhanced error message with debugging information
+  const attemptDetails = attempts.map(a => `  • ${a.encoding}: ${a.error}`).join('\n');
+  const errorMessage = `
+🚨 CSV PARSING FAILED
+
+📁 File: ${normalizedPath}
+📏 Size: ${(debugInfo.fileSize / 1024 / 1024).toFixed(2)}MB
+🔤 Detected encoding: ${detectedEncoding}
+📋 Detected delimiter: ${detectedDelimiter === '\t' ? 'TAB' : detectedDelimiter}
+
+❌ All encoding attempts failed:
+${attemptDetails}
+
+🔧 TROUBLESHOOTING SUGGESTIONS:
+
+1. 📝 **Check file format**:
+   • Ensure the file is actually a CSV (not Excel, XML, etc.)
+   • Verify the file isn't corrupted or partially downloaded
+
+2. 🔤 **Try manual encoding**:
+   • Convert file to UTF-8 using a text editor
+   • Check for non-standard characters in column headers
+
+3. 📋 **Check delimiter**:
+   • File might use semicolon (;) or tab (\\t) instead of comma
+   • Special characters in data might be interfering
+
+4. 🛠️ **Manual fixes**:
+   • Remove or escape special characters from column names
+   • Check for embedded newlines in data fields
+   • Ensure all rows have the same number of columns
+
+5. 🔍 **Debug mode**:
+   • Run with --verbose flag for more detailed error information
+   • Check the first few lines of the file manually
+
+📞 If issues persist, please report this with a sample of your data structure.
+`;
+  
+  throw new Error(errorMessage);
+}
+
+// Add data validation function
+function validateParsedData(records, filePath) {
+  const validation = {
+    isAcceptable: true,
+    warnings: [],
+    issues: [],
+    metrics: {}
+  };
+  
+  // Check if we have any data
+  if (!records || records.length === 0) {
+    validation.isAcceptable = false;
+    validation.issues.push('No records parsed from file');
+    return validation;
+  }
+  
+  // Check for columns
+  const firstRecord = records[0];
+  const columnCount = Object.keys(firstRecord || {}).length;
+  validation.metrics.columnCount = columnCount;
+  
+  if (columnCount === 0) {
+    validation.isAcceptable = false;
+    validation.issues.push('No columns detected in parsed data');
+    return validation;
+  }
+  
+  // Check for undefined/null dominance
+  let totalCells = 0;
+  let undefinedCells = 0;
+  let nullCells = 0;
+  let emptyCells = 0;
+  
+  records.slice(0, Math.min(100, records.length)).forEach(record => {
+    Object.values(record).forEach(value => {
+      totalCells++;
+      if (value === undefined) undefinedCells++;
+      else if (value === null) nullCells++;
+      else if (value === '') emptyCells++;
+    });
+  });
+  
+  const undefinedPercentage = (undefinedCells / totalCells) * 100;
+  const nullPercentage = (nullCells / totalCells) * 100;
+  const emptyPercentage = (emptyCells / totalCells) * 100;
+  
+  validation.metrics.undefinedPercentage = undefinedPercentage;
+  validation.metrics.nullPercentage = nullPercentage;
+  validation.metrics.emptyPercentage = emptyPercentage;
+  
+  // Flag as unacceptable if too many undefined values
+  if (undefinedPercentage > 80) {
+    validation.isAcceptable = false;
+    validation.issues.push(`${undefinedPercentage.toFixed(1)}% of values are undefined - parsing likely failed`);
+  } else if (undefinedPercentage > 50) {
+    validation.warnings.push(`${undefinedPercentage.toFixed(1)}% of values are undefined`);
+  }
+  
+  // Check for suspicious column names
+  const columns = Object.keys(firstRecord);
+  const suspiciousColumns = columns.filter(col => 
+    col.includes('undefined') || 
+    col.match(/^column\d+$/i) || 
+    col.trim() === '' ||
+    col.includes('\n') ||
+    col.includes('\r')
   );
+  
+  if (suspiciousColumns.length > 0) {
+    validation.warnings.push(`Suspicious column names detected: ${suspiciousColumns.join(', ')}`);
+  }
+  
+  // Check data consistency across rows
+  const columnCounts = records.slice(0, 10).map(record => Object.keys(record).length);
+  const inconsistentColumns = new Set(columnCounts).size > 1;
+  
+  if (inconsistentColumns) {
+    validation.warnings.push('Inconsistent column counts across rows - may indicate parsing issues');
+  }
+  
+  // Reasonable record count check
+  if (records.length < 2) {
+    validation.warnings.push('Very few records parsed - file might be mostly headers or empty');
+  }
+  
+  return validation;
 }
 
 // Enhanced column type detection

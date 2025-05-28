@@ -1,0 +1,176 @@
+Detected ISO-8859-1 encoding (will handle automatically)
+
+========================================
+=== EXPLORATORY DATA ANALYSIS REPORT ===
+========================================
+Dataset: share-with-depression.csv
+Generated: 2025-05-28 10:43:33
+Analysis Depth: Comprehensive (auto-detected)
+
+DATASET OVERVIEW:
+- Total rows: 6,780
+- Total columns: 4
+- File size: 243.71 KB
+- Memory usage: ~211.9 KB
+- Numeric columns: 2
+- Categorical columns: 0
+- No date columns detected
+- Data completeness: 97.5%
+
+COLUMN ANALYSIS (Enhanced Statistics):
+
+
+[Column 1/4] Entity
+Type: string | Non-null: 100.0%
+
+
+------------------------------------------------------------
+
+[Column 2/4] Code
+Type: string | Non-null: 89.8%
+
+
+------------------------------------------------------------
+
+[Column 3/4] Year
+Type: integer | Non-null: 100.0%
+
+CENTRAL TENDENCY:
+  Mean: 2.00K | Median: 2.00K | Mode: 1.99K
+
+SPREAD:
+  Std Dev: 8.66 | Variance: 74.92
+  IQR: 15.00 | Range: [1.99K, 2.02K]
+  CV: 0.4%
+
+PERCENTILES:
+  5th: 1.99K | 25th: 2.00K | 50th: 2.00K | 75th: 2.01K | 95th: 2.02K
+
+SHAPE:
+  Skewness: 0.000 (symmetric)
+  Kurtosis: -1.202 (light tails)
+
+OUTLIERS:
+  IQR method: 0 outliers
+  Z-score method: 0 outliers
+
+------------------------------------------------------------
+
+[Column 4/4] Prevalence - Depressive disorders - Sex: Both - Age: Age-standardized (Percent)
+Type: float | Non-null: 100.0%
+
+CENTRAL TENDENCY:
+  Mean: 3.96 | Median: 3.92 | Mode: 1.64
+
+SPREAD:
+  Std Dev: 0.91 | Variance: 0.83
+  IQR: 1.29 | Range: [1.64, 7.69]
+  CV: 23.0%
+
+PERCENTILES:
+  5th: 2.76 | 25th: 3.27 | 50th: 3.92 | 75th: 4.56 | 95th: 5.53
+
+SHAPE:
+  Skewness: 0.587 (slightly skewed)
+  Kurtosis: 0.630 (near-normal tails)
+
+OUTLIERS:
+  IQR method: 89 outliers
+  Z-score method: 65 outliers
+
+------------------------------------------------------------
+
+DISTRIBUTION DEEP DIVE:
+
+
+Year:
+
+NORMALITY TESTS:
+  Jarque-Bera: JB=408.25 p=0.000
+  Overall: ✗ Non-normal
+
+Best Fit: none
+
+Prevalence - Depressive disorders - Sex: Both - Age: Age-standardized (Percent):
+
+NORMALITY TESTS:
+  Jarque-Bera: JB=501.06 p=0.000
+  Overall: ✗ Non-normal
+
+Best Fit: none
+
+RECOMMENDED TRANSFORMATIONS:
+  - Box-Cox transformation with λ=0.00: Skewness 0.59 → -0.13
+
+UNIVARIATE OUTLIER ANALYSIS:
+
+
+[Column: Year]
+Statistical Outliers: 0 records
+
+[Column: Prevalence - Depressive disorders - Sex: Both - Age: Age-standardized (Percent)]
+Statistical Outliers: 89 records
+  - IQR Method: 89 outliers (89 mild, 0 extreme)
+  - Modified Z-Score: 26 outliers (threshold: 3.5)
+  - Pattern: Outliers appear in sequences - may indicate temporal anomalies
+  - Recommendation: Consider if these represent legitimate peak events
+
+REGRESSION ANALYSIS:
+
+Target: Year | Predictors: Prevalence - Depressive disorders - Sex: Both - Age: Age-standardized (Percent)
+
+BEST MODEL: multiple
+  R²: 0.001 | Adjusted R²: 0.001
+  RMSE: 8.65
+  F-statistic: 8.26 (p=0.0041)
+
+COEFFICIENTS:
+  intercept: 2.006K (SE=0.105, p=0.000) *
+  Prevalence - Depressive disorders - Sex: Both - Age: Age-standardized (Percent): -0.331 (SE=0.115, p=0.004) *
+
+RESIDUAL ANALYSIS:
+  - Normality: Residuals appear normally distributed
+  - Homoscedasticity: Constant variance (homoscedastic)
+  - Independence: Positive autocorrelation
+
+MULTIVARIATE RELATIONSHIPS:
+
+
+AUSTRALIAN DATA VALIDATION:
+
+
+[Year]
+  Australian Postcodes: ✓ 6780 valid entries
+    - stateDistribution: NSW: 6780
+    - invalidExamples: 
+
+PATTERN DETECTION & ANOMALIES:
+
+BENFORD'S LAW ANALYSIS:
+  - Year: Data follows Benford's Law (typical of natural financial data)
+  - Prevalence - Depressive disorders - Sex: Both - Age: Age-standardized (Percent): Data follows Benford's Law (typical of natural financial data)
+
+DETECTED BUSINESS RULES:
+  Year:
+    - Non-negative values only
+    - Positive values only
+  Prevalence - Depressive disorders - Sex: Both - Age: Age-standardized (Percent):
+    - Non-negative values only
+    - Positive values only
+    - Percentage values (0-100)
+
+
+DATA QUALITY SUMMARY:
+- Completeness: 97.5% (good)
+- Duplicate rows: 0 (excellent)
+- Columns with >10% missing: 1
+- Data consistency: 10/10
+- Outlier prevalence: 0.7% of numeric data
+
+KEY INSIGHTS & RECOMMENDATIONS:
+
+1. 2 numeric columns show non-normal distributions
+
+SUGGESTED DEEP-DIVE ANALYSES:
+
+

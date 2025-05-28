@@ -338,18 +338,26 @@ DataPilot **remembers your work** across sessions:
 - **🗂️ Analysis history** with searchable insights
 - **🔗 Relationship mapping** across related datasets  
 - **📊 Pattern recognition** that improves over time
-- **🎯 Personalized recommendations** based on your usage
+- **🎯 Personalised recommendations** based on your usage
 
-### ⚡ **Performance Optimized**
+### ⚡ **Performance Optimised**
 - **🚀 Smart sampling** for files over 10,000 rows
 - **💾 Memory efficient** processing of large datasets
 - **🔄 Incremental analysis** for faster repeat runs
 - **📊 Parallel processing** where possible
+- **⏱️ Timeout protection** to prevent hanging on problematic data
+
+### 🔧 **Enhanced Error Handling & Debugging**
+- **📊 Comprehensive CSV parsing** with multiple encoding fallbacks
+- **🔍 Data quality validation** with detailed diagnostics
+- **⚠️ Intelligent error messages** with specific troubleshooting suggestions
+- **🛡️ Robust type casting** to handle malformed data gracefully
+- **📈 Progress monitoring** with early termination for problematic datasets
 
 ### 🌍 **Cross-Platform Excellence**
 - **🖥️ Windows**: Full support with `.bat` launchers
 - **🍎 macOS**: Native support with `.command` scripts  
-- **🐧 Linux**: Optimized for all distributions
+- **🐧 Linux**: Optimised for all distributions
 - **☁️ Cloud**: Works in any Node.js environment
 
 ---

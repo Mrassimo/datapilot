@@ -77,12 +77,12 @@ export function formatFileSize(bytes) {
 
 export function createSection(title, content) {
   // Use unified formatting for consistency
-  return unifiedHeader(title) + content;
+  return createHeader(title) + content;
 }
 
 export function createSubSection(title, content) {
   // Use unified formatting for consistency
-  return unifiedSubsection(title) + content;
+  return createSubsection(title, content);
 }
 
 export function bulletList(items) {

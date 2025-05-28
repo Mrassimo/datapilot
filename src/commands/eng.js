@@ -52,17 +52,13 @@ class ArchaeologyEngine {
       columnTypes = detectColumnTypes(records);
     }
     
-    // Handle empty dataset
-    if (records.length === 0) {
-      if (spinner) spinner.fail('Empty dataset - no data to analyze');
-      const tableName = basename(csvPath, '.csv');
-      let report = createSection('🏛️ DATA ENGINEERING ARCHAEOLOGY REPORT',
-        `Dataset: ${tableName}.csv\nAnalysis Date: ${formatTimestamp()}\n\n⚠️  Empty dataset - no archaeology to perform`);
-      
-      // Still include the required section header
-      report += createSubSection('🗄️ SCHEMA RECOMMENDATIONS', 'No data available for schema analysis');
-      
-      return report;
+    // Check if data is empty
+    if (!records || records.length === 0) {
+      outputHandler.restore();
+      if (spinner) spinner.error({ text: 'Empty dataset - no data to analyze' });
+      console.error('No data found in the CSV file');
+      if (!options.quiet) process.exit(1);
+      return;
     }
     
     if (spinner) spinner.text = 'Detecting cross-table patterns...';

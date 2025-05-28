@@ -7,274 +7,338 @@ import { OutputHandler } from '../utils/output.js';
 import { basename } from 'path';
 import ora from 'ora';
 import { comprehensiveLLMAnalysis } from './llm/index.js';
+import chalk from 'chalk';
 
 export const llmContext = withErrorBoundary(async function llmContextInternal(filePath, options = {}) {
   const outputHandler = new OutputHandler(options);
   const spinner = options.quiet ? null : ora('Reading CSV file...').start();
   
+  // Set timeout for analysis (default 60 seconds for LLM as it's more complex)
+  const timeoutMs = options.timeout || 60000;
+  
+  const analysisPromise = performLLMAnalysis();
+  const timeoutPromise = new Promise((_, reject) => {
+    setTimeout(() => {
+      reject(new Error(`⏱️  LLM analysis timed out after ${timeoutMs / 1000} seconds. This may indicate issues with the data format or file size.`));
+    }, timeoutMs);
+  });
+  
   try {
-    // Check if we should use comprehensive analysis
-    const useComprehensive = options.comprehensive !== false; // Default to true
-    
-    // Use preloaded data if available
-    let records, columnTypes, headers;
-    if (options.preloadedData) {
-      records = options.preloadedData.records;
-      columnTypes = options.preloadedData.columnTypes;
-      headers = Object.keys(columnTypes);
-    } else {
-      // Parse CSV
-      const allRecords = await parseCSV(filePath, { quiet: options.quiet, header: options.header });
-      const originalSize = allRecords.length;
-      
-      // Create smart sampling strategy for large datasets
-      const samplingStrategy = createSamplingStrategy(allRecords, 'basic');
-      
-      if (samplingStrategy.method !== 'none') {
-        if (spinner) {
-          spinner.text = `Large dataset detected (${originalSize.toLocaleString()} rows). Applying smart sampling...`;
-        } else {
-          console.log(`- Large dataset detected (${originalSize.toLocaleString()} rows). Applying smart sampling...`);
-        }
-        
-        records = performSampling(allRecords, samplingStrategy);
-        console.log(`⚠️  Large dataset sampled: ${records.length.toLocaleString()} of ${originalSize.toLocaleString()} rows (${samplingStrategy.method} sampling)`);
-      } else {
-        records = allRecords;
-      }
-      
-      if (spinner) spinner.text = 'Generating LLM context...';
-      columnTypes = detectColumnTypes(records);
-      headers = Object.keys(columnTypes);
-    }
-    
-    // Use comprehensive analysis if enabled
-    if (useComprehensive && records.length > 0) {
-      try {
-        const result = await comprehensiveLLMAnalysis(records, headers, filePath, options);
-        console.log(result.output);
-        outputHandler.finalize();
-        return;
-      } catch (error) {
-        // Fall back to original implementation if comprehensive fails
-        console.error('Comprehensive analysis failed, using original:', error.message);
-      }
-    }
-    
-    const fileName = basename(filePath);
-    const columns = Object.keys(columnTypes);
-    
-    // Handle empty dataset
-    if (records.length === 0) {
-      let report = createSection('LLM-READY CONTEXT',
-        `Dataset: ${fileName}\nGenerated: ${formatTimestamp()}\n\n⚠️  Empty dataset - no context to generate`);
-      
-      // Still include the required section header
-      report += createSubSection('DATASET SUMMARY FOR AI ANALYSIS', 'No data available for analysis');
-      
-      console.log(report);
-      outputHandler.finalize();
-      return;
-    }
-    
-    // Build report
-    let report = createSection('LLM-READY CONTEXT',
-      `Dataset: ${fileName}\nGenerated: ${formatTimestamp()}`);
-    
-    // Check for small dataset
-    const smallDatasetInfo = formatSmallDatasetWarning(records.length);
-    if (smallDatasetInfo) {
-      report += '\n' + smallDatasetInfo.warning + '\n';
-    }
-    
-    // Add parsing metadata
-    report += createSubSection('PARSING METADATA', bulletList([
-      `File encoding: ${options.encoding || 'UTF-8 (auto-detected)'}`,
-      `Delimiter: ${options.delimiter || 'comma (auto-detected)'}`,
-      `Header detection: ${options.header === false ? 'No headers (generated column names)' : 'Headers detected'}`,
-      `Rows processed: ${records.length}`,
-      `Analysis confidence: ${smallDatasetInfo ? 'Reduced due to small sample size' : 'High'}`
-    ]));
-    
-    report += createSubSection('DATASET SUMMARY FOR AI ANALYSIS', '');
-    
-    // Generate natural language summary
-    const dateColumns = columns.filter(col => columnTypes[col] && columnTypes[col].type === 'date');
-    const dateRange = getDateRange(records, dateColumns);
-    
-    report += `I have a CSV dataset with ${records.length.toLocaleString()} rows and ${columns.length} columns`;
-    
-    // Try to infer what kind of data this is
-    const dataType = inferDataType(columns, columnTypes);
-    report += ` containing ${dataType}`;
-    
-    if (dateRange) {
-      report += `. The data spans from ${dateRange.start} to ${dateRange.end}`;
-    }
-    report += '.\n';
-    
-    // Key columns and characteristics
-    report += createSubSection('KEY COLUMNS AND THEIR CHARACTERISTICS', '');
-    
-    columns.forEach((column, idx) => {
-      const type = safeGet(columnTypes, column, { type: 'unknown' });
-      const values = SafeArrayOps.safeMap(records, r => safeGet(r, column), []);
-      
-      report += `\n${idx + 1}. ${column}: `;
-      
-      if (type.type === 'identifier') {
-        const unique = new Set(values.filter(v => v !== null)).size;
-        report += `Unique identifier${unique === records.length ? '' : ` (${unique} unique values)`}`;
-      } else if (type.type === 'integer' || type.type === 'float') {
-        const stats = calculateStats(values);
-        const range = `range: ${formatValue(stats.min, column)} to ${formatValue(stats.max, column)}`;
-        report += `${inferColumnPurpose(column)} (${range})`;
-      } else if (type.type === 'categorical') {
-        const topValues = getTopCategoricalValues(values, 3);
-        const categoryCount = type.categories ? type.categories.length : 0;
-        report += `${categoryCount} categories: ${topValues}`;
-      } else if (type.type === 'date') {
-        report += 'Date field';
-        const dates = values.filter(v => v instanceof Date);
-        if (dates.length > 0) {
-          const sorted = dates.sort((a, b) => a - b);
-          report += ` (${formatDate(sorted[0])} to ${formatDate(sorted[sorted.length - 1])})`;
-        }
-      } else {
-        report += type.type.charAt(0).toUpperCase() + type.type.slice(1);
-      }
-    });
-    
-    // Important patterns and insights
-    report += '\n' + createSubSection('IMPORTANT PATTERNS AND INSIGHTS', '');
-    
-    let insightNumber = 1;
-    
-    // Seasonality analysis
-    if (dateColumns.length > 0) {
-      const seasonalPattern = analyzeSeasonality(records, dateColumns[0], columns, columnTypes);
-      if (seasonalPattern) {
-        report += `\n${insightNumber}. SEASONALITY: ${seasonalPattern}\n`;
-        insightNumber++;
-      }
-    }
-    
-    // Customer/segment analysis
-    const segmentAnalysis = analyzeSegments(records, columns, columnTypes);
-    if (segmentAnalysis) {
-      report += `\n${insightNumber}. ${segmentAnalysis.title}: ${segmentAnalysis.insight}\n`;
-      insightNumber++;
-    }
-    
-    // Category performance
-    const categoryAnalysis = analyzeCategoryPerformance(records, columns, columnTypes);
-    if (categoryAnalysis) {
-      report += `\n${insightNumber}. ${categoryAnalysis.title}: ${categoryAnalysis.insight}\n`;
-      insightNumber++;
-    }
-    
-    // Pricing insights
-    const pricingInsights = analyzePricing(records, columns, columnTypes);
-    if (pricingInsights) {
-      report += `\n${insightNumber}. PRICING INSIGHTS: ${pricingInsights}\n`;
-      insightNumber++;
-    }
-    
-    // Anomalies
-    const anomalies = detectAnomalies(records, columns, columnTypes);
-    if (anomalies.length > 0) {
-      report += `\n${insightNumber}. ANOMALIES DETECTED:\n`;
-      anomalies.forEach(anomaly => {
-        report += `   - ${anomaly}\n`;
-      });
-      insightNumber++;
-    }
-    
-    // Data quality notes
-    const qualityMetrics = calculateDataQuality(records, columns);
-    report += createSubSection('DATA QUALITY NOTES', bulletList([
-      `Missing values: ${qualityMetrics.missingDetails}`,
-      `Completeness: ${formatPercentage(qualityMetrics.completeness)} overall`,
-      qualityMetrics.duplicates > 0 ? `${qualityMetrics.duplicates} duplicate records identified` : 'No duplicate records found',
-      qualityMetrics.dateGaps ? qualityMetrics.dateGaps : 'Date range has no gaps'
-    ]));
-    
-    // Statistical summary
-    report += createSubSection('STATISTICAL SUMMARY', '');
-    
-    const summaryStats = generateSummaryStatistics(records, columns, columnTypes);
-    summaryStats.forEach(stat => {
-      report += `- ${stat}\n`;
-    });
-    
-    // Correlations discovered
-    const correlations = findSignificantCorrelations(records, columns, columnTypes);
-    if (correlations.length > 0) {
-      report += createSubSection('CORRELATIONS DISCOVERED', '');
-      correlations.forEach(corr => {
-        report += `- ${corr}\n`;
-      });
-    }
-    
-    // Suggested analyses
-    report += createSubSection('SUGGESTED ANALYSES FOR THIS DATA', '');
-    
-    const suggestions = generateAnalysisSuggestions(columns, columnTypes);
-    suggestions.forEach((suggestion, idx) => {
-      report += `\n${idx + 1}. ${suggestion}`;
-    });
-    
-    // Questions this data could answer
-    report += '\n' + createSubSection('QUESTIONS THIS DATA COULD ANSWER', '');
-    
-    const questions = generateDataQuestions(columns, columnTypes, dataType, records);
-    questions.forEach(question => {
-      report += `- ${question}\n`;
-    });
-    
-    // Technical notes
-    report += createSubSection('TECHNICAL NOTES FOR ANALYSIS', '');
-    
-    const technicalNotes = generateTechnicalNotes(records, columns, columnTypes);
-    technicalNotes.forEach(note => {
-      report += `- ${note}\n`;
-    });
-    
-    // Show sample data for context
-    if (records.length > 0) {
-      report += createSubSection('SAMPLE DATA', 'First 5 rows and last 5 rows:');
-      const sampleRows = [
-        ...records.slice(0, 5),
-        ...(records.length > 10 ? records.slice(-5) : [])
-      ];
-      report += formatDataTable(sampleRows, columns.slice(0, 5)); // Show first 5 columns
-      if (columns.length > 5) {
-        report += `\n(${columns.length - 5} additional columns not shown in sample)\n`;
-      }
-    }
-    
-    // Add suggested validation queries
-    report += createSubSection('VALIDATION QUERIES', 'SQL queries to verify data integrity:');
-    const validationQueries = generateValidationQueries(columns, columnTypes, records);
-    validationQueries.forEach((query, idx) => {
-      report += `\n${idx + 1}. ${query.purpose}:\n\`\`\`sql\n${query.sql}\n\`\`\`\n`;
-    });
-    
-    report += '\nEND OF CONTEXT\n\n[Paste this into your preferred LLM and ask specific questions about the data]\n';
-    
-    if (spinner) {
-      spinner.succeed('LLM context generated!');
-    }
-    console.log(report);
-    
-    outputHandler.finalize();
-    
+    return await Promise.race([analysisPromise, timeoutPromise]);
   } catch (error) {
     outputHandler.restore();
-    if (spinner) spinner.fail('Error generating LLM context');
-    console.error(error.message);
+    if (spinner) spinner.error({ text: 'LLM analysis failed or timed out' });
+    
+    if (error.message.includes('timed out')) {
+      console.error(chalk.red('🚨 LLM Analysis Timeout'));
+      console.error(chalk.yellow('💡 Suggestions:'));
+      console.error(chalk.yellow('   • Try using a smaller sample of your data'));
+      console.error(chalk.yellow('   • Check if the CSV file has formatting issues'));
+      console.error(chalk.yellow('   • Use --timeout flag to increase timeout (e.g., --timeout 120000 for 2 minutes)'));
+      console.error(chalk.yellow('   • Try the --comprehensive=false flag for faster processing'));
+    } else {
+      console.error(error.message);
+    }
+    
     if (!options.quiet) process.exit(1);
     throw error;
+  }
+  
+  async function performLLMAnalysis() {
+    try {
+      // Check if we should use comprehensive analysis
+      const useComprehensive = options.comprehensive !== false; // Default to true
+      
+      // Use preloaded data if available
+      let records, columnTypes, headers;
+      if (options.preloadedData) {
+        records = options.preloadedData.records;
+        columnTypes = options.preloadedData.columnTypes;
+        headers = Object.keys(columnTypes);
+      } else {
+        // Parse CSV with enhanced error handling
+        try {
+          const allRecords = await parseCSV(filePath, { quiet: options.quiet, header: options.header });
+          const originalSize = allRecords.length;
+          
+          // Validate parsed data
+          if (!allRecords || allRecords.length === 0) {
+            throw new Error('No data found in CSV file. Please check the file format and content.');
+          }
+          
+          // Create smart sampling strategy for large datasets
+          const samplingStrategy = createSamplingStrategy(allRecords, 'basic');
+          
+          if (samplingStrategy.method !== 'none') {
+            if (spinner) {
+              spinner.text = `Large dataset detected (${originalSize.toLocaleString()} rows). Applying smart sampling...`;
+            } else {
+              console.log(`- Large dataset detected (${originalSize.toLocaleString()} rows). Applying smart sampling...`);
+            }
+            
+            records = performSampling(allRecords, samplingStrategy);
+            console.log(`⚠️  Large dataset sampled: ${records.length.toLocaleString()} of ${originalSize.toLocaleString()} rows (${samplingStrategy.method} sampling)`);
+          } else {
+            records = allRecords;
+          }
+          
+          if (spinner) spinner.text = 'Generating LLM context...';
+          
+          try {
+            columnTypes = detectColumnTypes(records);
+            headers = Object.keys(columnTypes);
+          } catch (typeError) {
+            throw new Error(`Column type detection failed: ${typeError.message}`);
+          }
+          
+        } catch (parseError) {
+          throw new Error(`CSV parsing failed: ${parseError.message}`);
+        }
+      }
+      
+      // Add safety check for undefined values
+      if (records.length > 0) {
+        const sampleRecord = records[0];
+        const undefinedCount = Object.values(sampleRecord).filter(v => v === undefined).length;
+        if (undefinedCount > Object.keys(sampleRecord).length * 0.5) {
+          console.log(chalk.yellow('⚠️  Warning: High number of undefined values detected in data.'));
+          console.log(chalk.yellow('   This may indicate CSV parsing issues. Consider checking file encoding.'));
+          
+          // Option to continue with degraded analysis
+          if (!options.force) {
+            throw new Error('Data quality issues detected. Use --force flag to continue anyway.');
+          }
+        }
+      }
+      
+      // Use comprehensive analysis if enabled
+      if (useComprehensive && records.length > 0) {
+        try {
+          const result = await comprehensiveLLMAnalysis(records, headers, filePath, options);
+          console.log(result.output);
+          outputHandler.finalize();
+          return;
+        } catch (error) {
+          // Fall back to original implementation if comprehensive fails
+          console.error(chalk.yellow(`Comprehensive analysis failed (${error.message}), using simplified analysis...`));
+        }
+      }
+      
+      const fileName = basename(filePath);
+      const columns = Object.keys(columnTypes);
+      
+      // Handle empty dataset
+      if (records.length === 0) {
+        let report = createSection('LLM-READY CONTEXT',
+          `Dataset: ${fileName}\nGenerated: ${formatTimestamp()}\n\n⚠️  Empty dataset - no context to generate`);
+        
+        // Still include the required section header
+        report += createSubSection('DATASET SUMMARY FOR AI ANALYSIS', 'No data available for analysis');
+        
+        console.log(report);
+        outputHandler.finalize();
+        return;
+      }
+      
+      // Build report
+      let report = createSection('LLM-READY CONTEXT',
+        `Dataset: ${fileName}\nGenerated: ${formatTimestamp()}`);
+      
+      // Check for small dataset
+      const smallDatasetInfo = formatSmallDatasetWarning(records.length);
+      if (smallDatasetInfo) {
+        report += '\n' + smallDatasetInfo.warning + '\n';
+      }
+      
+      // Add parsing metadata
+      report += createSubSection('PARSING METADATA', bulletList([
+        `File encoding: ${options.encoding || 'UTF-8 (auto-detected)'}`,
+        `Delimiter: ${options.delimiter || 'comma (auto-detected)'}`,
+        `Header detection: ${options.header === false ? 'No headers (generated column names)' : 'Headers detected'}`,
+        `Rows processed: ${records.length}`,
+        `Analysis confidence: ${smallDatasetInfo ? 'Reduced due to small sample size' : 'High'}`
+      ]));
+      
+      report += createSubSection('DATASET SUMMARY FOR AI ANALYSIS', '');
+      
+      // Generate natural language summary
+      const dateColumns = columns.filter(col => columnTypes[col] && columnTypes[col].type === 'date');
+      const dateRange = getDateRange(records, dateColumns);
+      
+      report += `I have a CSV dataset with ${records.length.toLocaleString()} rows and ${columns.length} columns`;
+      
+      // Try to infer what kind of data this is
+      const dataType = inferDataType(columns, columnTypes);
+      report += ` containing ${dataType}`;
+      
+      if (dateRange) {
+        report += `. The data spans from ${dateRange.start} to ${dateRange.end}`;
+      }
+      report += '.\n';
+      
+      // Key columns and characteristics
+      report += createSubSection('KEY COLUMNS AND THEIR CHARACTERISTICS', '');
+      
+      columns.forEach((column, idx) => {
+        const type = safeGet(columnTypes, column, { type: 'unknown' });
+        const values = SafeArrayOps.safeMap(records, r => safeGet(r, column), []);
+        
+        report += `\n${idx + 1}. ${column}: `;
+        
+        if (type.type === 'identifier') {
+          const unique = new Set(values.filter(v => v !== null)).size;
+          report += `Unique identifier${unique === records.length ? '' : ` (${unique} unique values)`}`;
+        } else if (type.type === 'integer' || type.type === 'float') {
+          const stats = calculateStats(values);
+          const range = `range: ${formatValue(stats.min, column)} to ${formatValue(stats.max, column)}`;
+          report += `${inferColumnPurpose(column)} (${range})`;
+        } else if (type.type === 'categorical') {
+          const topValues = getTopCategoricalValues(values, 3);
+          const categoryCount = type.categories ? type.categories.length : 0;
+          report += `${categoryCount} categories: ${topValues}`;
+        } else if (type.type === 'date') {
+          report += 'Date field';
+          const dates = values.filter(v => v instanceof Date);
+          if (dates.length > 0) {
+            const sorted = dates.sort((a, b) => a - b);
+            report += ` (${formatDate(sorted[0])} to ${formatDate(sorted[sorted.length - 1])})`;
+          }
+        } else {
+          report += type.type.charAt(0).toUpperCase() + type.type.slice(1);
+        }
+      });
+      
+      // Important patterns and insights
+      report += '\n' + createSubSection('IMPORTANT PATTERNS AND INSIGHTS', '');
+      
+      let insightNumber = 1;
+      
+      // Seasonality analysis
+      if (dateColumns.length > 0) {
+        const seasonalPattern = analyzeSeasonality(records, dateColumns[0], columns, columnTypes);
+        if (seasonalPattern) {
+          report += `\n${insightNumber}. SEASONALITY: ${seasonalPattern}\n`;
+          insightNumber++;
+        }
+      }
+      
+      // Customer/segment analysis
+      const segmentAnalysis = analyzeSegments(records, columns, columnTypes);
+      if (segmentAnalysis) {
+        report += `\n${insightNumber}. ${segmentAnalysis.title}: ${segmentAnalysis.insight}\n`;
+        insightNumber++;
+      }
+      
+      // Category performance
+      const categoryAnalysis = analyzeCategoryPerformance(records, columns, columnTypes);
+      if (categoryAnalysis) {
+        report += `\n${insightNumber}. ${categoryAnalysis.title}: ${categoryAnalysis.insight}\n`;
+        insightNumber++;
+      }
+      
+      // Pricing insights
+      const pricingInsights = analyzePricing(records, columns, columnTypes);
+      if (pricingInsights) {
+        report += `\n${insightNumber}. PRICING INSIGHTS: ${pricingInsights}\n`;
+        insightNumber++;
+      }
+      
+      // Anomalies
+      const anomalies = detectAnomalies(records, columns, columnTypes);
+      if (anomalies.length > 0) {
+        report += `\n${insightNumber}. ANOMALIES DETECTED:\n`;
+        anomalies.forEach(anomaly => {
+          report += `   - ${anomaly}\n`;
+        });
+        insightNumber++;
+      }
+      
+      // Data quality notes
+      const qualityMetrics = calculateDataQuality(records, columns);
+      report += createSubSection('DATA QUALITY NOTES', bulletList([
+        `Missing values: ${qualityMetrics.missingDetails}`,
+        `Completeness: ${formatPercentage(qualityMetrics.completeness)} overall`,
+        qualityMetrics.duplicates > 0 ? `${qualityMetrics.duplicates} duplicate records identified` : 'No duplicate records found',
+        qualityMetrics.dateGaps ? qualityMetrics.dateGaps : 'Date range has no gaps'
+      ]));
+      
+      // Statistical summary
+      report += createSubSection('STATISTICAL SUMMARY', '');
+      
+      const summaryStats = generateSummaryStatistics(records, columns, columnTypes);
+      summaryStats.forEach(stat => {
+        report += `- ${stat}\n`;
+      });
+      
+      // Correlations discovered
+      const correlations = findSignificantCorrelations(records, columns, columnTypes);
+      if (correlations.length > 0) {
+        report += createSubSection('CORRELATIONS DISCOVERED', '');
+        correlations.forEach(corr => {
+          report += `- ${corr}\n`;
+        });
+      }
+      
+      // Suggested analyses
+      report += createSubSection('SUGGESTED ANALYSES FOR THIS DATA', '');
+      
+      const suggestions = generateAnalysisSuggestions(columns, columnTypes);
+      suggestions.forEach((suggestion, idx) => {
+        report += `\n${idx + 1}. ${suggestion}`;
+      });
+      
+      // Questions this data could answer
+      report += '\n' + createSubSection('QUESTIONS THIS DATA COULD ANSWER', '');
+      
+      const questions = generateDataQuestions(columns, columnTypes, dataType, records);
+      questions.forEach(question => {
+        report += `- ${question}\n`;
+      });
+      
+      // Technical notes
+      report += createSubSection('TECHNICAL NOTES FOR ANALYSIS', '');
+      
+      const technicalNotes = generateTechnicalNotes(records, columns, columnTypes);
+      technicalNotes.forEach(note => {
+        report += `- ${note}\n`;
+      });
+      
+      // Show sample data for context
+      if (records.length > 0) {
+        report += createSubSection('SAMPLE DATA', 'First 5 rows and last 5 rows:');
+        const sampleRows = [
+          ...records.slice(0, 5),
+          ...(records.length > 10 ? records.slice(-5) : [])
+        ];
+        report += formatDataTable(sampleRows, columns.slice(0, 5)); // Show first 5 columns
+        if (columns.length > 5) {
+          report += `\n(${columns.length - 5} additional columns not shown in sample)\n`;
+        }
+      }
+      
+      // Add suggested validation queries
+      report += createSubSection('VALIDATION QUERIES', 'SQL queries to verify data integrity:');
+      const validationQueries = generateValidationQueries(columns, columnTypes, records);
+      validationQueries.forEach((query, idx) => {
+        report += `\n${idx + 1}. ${query.purpose}:\n\`\`\`sql\n${query.sql}\n\`\`\`\n`;
+      });
+      
+      report += '\nEND OF CONTEXT\n\n[Paste this into your preferred LLM and ask specific questions about the data]\n';
+      
+      if (spinner) {
+        spinner.succeed('LLM context generated!');
+      }
+      console.log(report);
+      
+      outputHandler.finalize();
+      
+    } catch (error) {
+      outputHandler.restore();
+      if (spinner) spinner.error({ text: 'Error generating LLM context' });
+      console.error(error.message);
+      if (!options.quiet) process.exit(1);
+      throw error;
+    }
   }
 }, null, { function: 'llmContext' });
 

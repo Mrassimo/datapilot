@@ -3,6 +3,7 @@
 import { program } from 'commander';
 import { existsSync } from 'fs';
 import { resolve, basename } from 'path';
+import path from 'path';
 import chalk from 'chalk';
 import ora from 'ora';
 import os from 'os';
@@ -18,6 +19,9 @@ import { interactiveUI } from '../src/commands/ui.js';
 
 // Import enhanced parser utilities
 import { normalizePath } from '../src/utils/parser.js';
+
+// Import format utilities
+import { createError } from '../src/utils/format.js';
 
 // ASCII art banner with version
 const VERSION = '1.1.1';
@@ -99,7 +103,11 @@ async function runWithProgress(command, filePath, options) {
     return result;
   } catch (error) {
     spinner.fail(`Analysis failed: ${error.message}`);
-    throw error;
+    console.error(chalk.red('Analysis failed'));
+    if (error.stack) {
+      console.error(error.stack);
+    }
+    process.exit(1);
   }
 }
 
@@ -112,8 +120,12 @@ program
   .option('--no-header', 'CSV file has no header row')
   .option('--encoding <encoding>', 'Force specific encoding (utf8, latin1, etc.)')
   .option('--delimiter <delimiter>', 'Force specific delimiter (comma, semicolon, tab, pipe)')
+  .option('--timeout <ms>', 'Set timeout in milliseconds (default: 60000)', '60000')
+  .option('--force', 'Continue analysis despite data quality warnings')
   .action(async (file, options) => {
     const filePath = validateFile(file);
+    // Convert timeout to number
+    if (options.timeout) options.timeout = parseInt(options.timeout);
     await runWithProgress(runAll, filePath, options);
   });
 
@@ -126,8 +138,12 @@ program
   .option('--no-header', 'CSV file has no header row')
   .option('--encoding <encoding>', 'Force specific encoding (utf8, latin1, etc.)')
   .option('--delimiter <delimiter>', 'Force specific delimiter (comma, semicolon, tab, pipe)')
+  .option('--timeout <ms>', 'Set timeout in milliseconds (default: 30000)', '30000')
+  .option('--force', 'Continue analysis despite data quality warnings')
   .action(async (file, options) => {
     const filePath = validateFile(file);
+    // Convert timeout to number
+    if (options.timeout) options.timeout = parseInt(options.timeout);
     await runWithProgress(eda, filePath, options);
   });
 
@@ -139,6 +155,7 @@ program
   .option('--no-header', 'CSV file has no header row')
   .option('--encoding <encoding>', 'Force specific encoding (utf8, latin1, etc.)')
   .option('--delimiter <delimiter>', 'Force specific delimiter (comma, semicolon, tab, pipe)')
+  .option('--force', 'Continue analysis despite data quality warnings')
   .action(async (file, options) => {
     const filePath = validateFile(file);
     await runWithProgress(integrity, filePath, options);
@@ -152,6 +169,7 @@ program
   .option('--no-header', 'CSV file has no header row')
   .option('--encoding <encoding>', 'Force specific encoding (utf8, latin1, etc.)')
   .option('--delimiter <delimiter>', 'Force specific delimiter (comma, semicolon, tab, pipe)')
+  .option('--force', 'Continue analysis despite data quality warnings')
   .action(async (file, options) => {
     const filePath = validateFile(file);
     await runWithProgress(visualize, filePath, options);
@@ -168,6 +186,7 @@ eng
   .option('--no-header', 'CSV file has no header row')
   .option('--encoding <encoding>', 'Force specific encoding (utf8, latin1, etc.)')
   .option('--delimiter <delimiter>', 'Force specific delimiter (comma, semicolon, tab, pipe)')
+  .option('--force', 'Continue analysis despite data quality warnings')
   .action(async (file, options) => {
     if (file) {
       const filePath = validateFile(file);
@@ -185,6 +204,7 @@ eng
   .option('--no-header', 'CSV files have no header row')
   .option('--encoding <encoding>', 'Force specific encoding for all files')
   .option('--delimiter <delimiter>', 'Force specific delimiter for all files')
+  .option('--force', 'Continue analysis despite data quality warnings')
   .action(async (files, options) => {
     const { glob } = await import('glob');
     console.log(chalk.blue('🏛️  Starting multi-file warehouse analysis...\n'));
@@ -247,6 +267,11 @@ eng
         spinner.succeed(`Completed ${basename(filePath)}`);
       } catch (error) {
         spinner.fail(`Failed: ${error.message}`);
+        console.error(chalk.red('Analysis failed'));
+        if (error.stack) {
+          console.error(error.stack);
+        }
+        process.exit(1);
       }
     }
     
@@ -308,8 +333,13 @@ program
   .option('--no-header', 'CSV file has no header row')
   .option('--encoding <encoding>', 'Force specific encoding (utf8, latin1, etc.)')
   .option('--delimiter <delimiter>', 'Force specific delimiter (comma, semicolon, tab, pipe)')
+  .option('--timeout <ms>', 'Set timeout in milliseconds (default: 60000)', '60000')
+  .option('--force', 'Continue analysis despite data quality warnings')
+  .option('--comprehensive', 'Use comprehensive analysis (default: true)', true)
   .action(async (file, options) => {
     const filePath = validateFile(file);
+    // Convert timeout to number
+    if (options.timeout) options.timeout = parseInt(options.timeout);
     await runWithProgress(llmContext, filePath, options);
   });
 
@@ -348,12 +378,17 @@ program.on('--help', () => {
   console.log('  --no-header              CSV has no header row');
   console.log('  --encoding <type>        Force encoding (utf8, latin1, utf16le)');
   console.log('  --delimiter <char>       Force delimiter (comma, semicolon, tab, pipe)');
+  console.log('  --timeout <ms>           Set timeout in milliseconds (default: 30s for EDA, 60s for LLM)');
+  console.log('  --force                  Continue analysis despite data quality warnings');
+  console.log('  --comprehensive          Use comprehensive analysis for LLM mode (default: true)');
   console.log('');
   console.log(chalk.cyan('Troubleshooting:'));
   console.log('  • For paths with spaces, use quotes: "C:\\My Folder\\data.csv"');
   console.log('  • For encoding issues, try: --encoding latin1');
   console.log('  • For delimiter issues, try: --delimiter ";"');
   console.log('  • For large files, quick mode is recommended: --quick');
+  console.log('  • If analysis hangs, try: --timeout 120000 (2 minutes)');
+  console.log('  • For data quality issues, try: --force');
   console.log('');
   console.log(chalk.gray('Output:'));
   console.log(chalk.gray('  All commands produce verbose text output optimized for'));

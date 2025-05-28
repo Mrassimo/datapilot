@@ -107,11 +107,11 @@ export async function runAll(filePath, options = {}) {
     }
     
   } catch (error) {
-    // Restore console.log on error
-    console.log = originalLog;
-    spinner.fail('Analysis failed');
-    console.error(chalk.red('Error during analysis:'), error.message);
-    process.exit(1);
+    outputHandler.restore();
+    spinner.error({ text: 'Analysis failed' });
+    console.error('Error during analysis:', error.message);
+    if (!options.quiet) process.exit(1);
+    throw error;
   }
 }
 

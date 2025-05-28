@@ -42,7 +42,7 @@ import { generatePythonFixes } from './int/fixers/pythonGenerator.js';
 
 export async function integrity(filePath, options = {}) {
   const outputHandler = new OutputHandler(options);
-  const spinner = options.quiet ? null : createStandardSpinner('Reading CSV file...');
+  const spinner = options.quiet ? null : ora('Reading CSV file...').start();
   
   // Structured data mode for LLM consumption
   const structuredMode = options.structuredOutput || options.llmMode;

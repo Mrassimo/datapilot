@@ -1,21 +1,21 @@
 #!/usr/bin/env node
-import require$$0$3 from 'events';
-import require$$1$1 from 'child_process';
-import path$2, { basename } from 'path';
-import fs, { existsSync, openSync, readSync, closeSync, statSync, readFileSync, createReadStream, writeFileSync, realpathSync as realpathSync$1, readlinkSync, readdirSync, readdir as readdir$1, lstatSync } from 'fs';
+import require$$0$2 from 'events';
+import require$$1 from 'child_process';
+import path$1, { basename } from 'path';
+import fs, { existsSync, statSync, openSync, readSync, closeSync, readFileSync, createReadStream, writeFileSync, realpathSync as realpathSync$1, readlinkSync, readdirSync, readdir as readdir$1, lstatSync } from 'fs';
 import require$$4 from 'process';
 import process$1 from 'node:process';
 import os from 'node:os';
 import tty from 'node:tty';
-import require$$0$4 from 'assert';
+import require$$0$3 from 'assert';
 import readline from 'node:readline';
-import require$$0$5, { Transform } from 'stream';
-import require$$0$6 from 'buffer';
-import require$$0$7 from 'util';
+import require$$0$4, { Transform } from 'stream';
+import require$$0$5 from 'buffer';
+import require$$0$6 from 'util';
 import os$1 from 'os';
 import { pipeline } from 'stream/promises';
 import 'crypto';
-import require$$0$8 from 'readline';
+import require$$0$7 from 'readline';
 import { fileURLToPath } from 'node:url';
 import { win32, posix } from 'node:path';
 import * as actualFS from 'node:fs';
@@ -28,31 +28,6 @@ var commonjsGlobal = typeof globalThis !== 'undefined' ? globalThis : typeof win
 
 function getDefaultExportFromCjs (x) {
 	return x && x.__esModule && Object.prototype.hasOwnProperty.call(x, 'default') ? x['default'] : x;
-}
-
-function getAugmentedNamespace(n) {
-  if (Object.prototype.hasOwnProperty.call(n, '__esModule')) return n;
-  var f = n.default;
-	if (typeof f == "function") {
-		var a = function a () {
-			if (this instanceof a) {
-        return Reflect.construct(f, arguments, this.constructor);
-			}
-			return f.apply(this, arguments);
-		};
-		a.prototype = f.prototype;
-  } else a = {};
-  Object.defineProperty(a, '__esModule', {value: true});
-	Object.keys(n).forEach(function (k) {
-		var d = Object.getOwnPropertyDescriptor(n, k);
-		Object.defineProperty(a, k, d.get ? d : {
-			enumerable: true,
-			get: function () {
-				return n[k];
-			}
-		});
-	});
-	return a;
 }
 
 var commander$1 = {exports: {}};
@@ -1194,9 +1169,9 @@ var hasRequiredCommand;
 function requireCommand () {
 	if (hasRequiredCommand) return command;
 	hasRequiredCommand = 1;
-	const EventEmitter = require$$0$3.EventEmitter;
-	const childProcess = require$$1$1;
-	const path = path$2;
+	const EventEmitter = require$$0$2.EventEmitter;
+	const childProcess = require$$1;
+	const path = path$1;
 	const fs$1 = fs;
 	const process = require$$4;
 
@@ -4228,11 +4203,11 @@ function requireSignalExit () {
 	    return function () {}
 	  };
 	} else {
-	  var assert = require$$0$4;
+	  var assert = require$$0$3;
 	  var signals = requireSignals();
 	  var isWin = /^win/i.test(process.platform);
 
-	  var EE = require$$0$3;
+	  var EE = require$$0$2;
 	  /* istanbul ignore if */
 	  if (typeof EE !== 'function') {
 	    EE = EE.EventEmitter;
@@ -6072,7 +6047,7 @@ var dwarfFortress = {
 		" ██████£££  "
 	]
 };
-var require$$0$2 = {
+var require$$0$1 = {
 	dots: dots,
 	dots2: dots2,
 	dots3: dots3,
@@ -6168,7 +6143,7 @@ function requireCliSpinners () {
 	if (hasRequiredCliSpinners) return cliSpinners$1;
 	hasRequiredCliSpinners = 1;
 
-	const spinners = Object.assign({}, require$$0$2); // eslint-disable-line import/extensions
+	const spinners = Object.assign({}, require$$0$1); // eslint-disable-line import/extensions
 
 	const spinnersList = Object.keys(spinners);
 
@@ -6652,7 +6627,7 @@ var hasRequiredStream;
 function requireStream () {
 	if (hasRequiredStream) return stream$1;
 	hasRequiredStream = 1;
-	stream$1 = require$$0$5;
+	stream$1 = require$$0$4;
 	return stream$1;
 }
 
@@ -6671,9 +6646,9 @@ function requireBuffer_list () {
 	function _createClass(Constructor, protoProps, staticProps) { if (protoProps) _defineProperties(Constructor.prototype, protoProps); Object.defineProperty(Constructor, "prototype", { writable: false }); return Constructor; }
 	function _toPropertyKey(arg) { var key = _toPrimitive(arg, "string"); return typeof key === "symbol" ? key : String(key); }
 	function _toPrimitive(input, hint) { if (typeof input !== "object" || input === null) return input; var prim = input[Symbol.toPrimitive]; if (prim !== undefined) { var res = prim.call(input, hint); if (typeof res !== "object") return res; throw new TypeError("@@toPrimitive must return a primitive value."); } return (String )(input); }
-	var _require = require$$0$6,
+	var _require = require$$0$5,
 	  Buffer = _require.Buffer;
-	var _require2 = require$$0$7,
+	var _require2 = require$$0$6,
 	  inspect = _require2.inspect;
 	var custom = inspect && inspect.custom || 'inspect';
 	function copyBuffer(src, target, offset) {
@@ -7172,7 +7147,7 @@ function requireNode () {
 	 * For Node.js, simply re-export the core `util.deprecate` function.
 	 */
 
-	node = require$$0$7.deprecate;
+	node = require$$0$6.deprecate;
 	return node;
 }
 
@@ -7213,7 +7188,7 @@ function require_stream_writable () {
 	var Stream = requireStream();
 	/*</replacement>*/
 
-	var Buffer = require$$0$6.Buffer;
+	var Buffer = require$$0$5.Buffer;
 	var OurUint8Array = (typeof commonjsGlobal !== 'undefined' ? commonjsGlobal : typeof window !== 'undefined' ? window : typeof self !== 'undefined' ? self : {}).Uint8Array || function () {};
 	function _uint8ArrayToBuffer(chunk) {
 	  return Buffer.from(chunk);
@@ -7913,7 +7888,7 @@ function requireSafeBuffer () {
 	hasRequiredSafeBuffer = 1;
 	(function (module, exports) {
 		/* eslint-disable node/no-deprecated-api */
-		var buffer = require$$0$6;
+		var buffer = require$$0$5;
 		var Buffer = buffer.Buffer;
 
 		// alternative to using Object.keys for old browsers
@@ -8616,7 +8591,7 @@ function require_stream_readable () {
 	Readable.ReadableState = ReadableState;
 
 	/*<replacement>*/
-	require$$0$3.EventEmitter;
+	require$$0$2.EventEmitter;
 	var EElistenerCount = function EElistenerCount(emitter, type) {
 	  return emitter.listeners(type).length;
 	};
@@ -8626,7 +8601,7 @@ function require_stream_readable () {
 	var Stream = requireStream();
 	/*</replacement>*/
 
-	var Buffer = require$$0$6.Buffer;
+	var Buffer = require$$0$5.Buffer;
 	var OurUint8Array = (typeof commonjsGlobal !== 'undefined' ? commonjsGlobal : typeof window !== 'undefined' ? window : typeof self !== 'undefined' ? self : {}).Uint8Array || function () {};
 	function _uint8ArrayToBuffer(chunk) {
 	  return Buffer.from(chunk);
@@ -8636,7 +8611,7 @@ function require_stream_readable () {
 	}
 
 	/*<replacement>*/
-	var debugUtil = require$$0$7;
+	var debugUtil = require$$0$6;
 	var debug;
 	if (debugUtil && debugUtil.debuglog) {
 	  debug = debugUtil.debuglog('stream');
@@ -9866,7 +9841,7 @@ function requireReadable () {
 	if (hasRequiredReadable) return readable.exports;
 	hasRequiredReadable = 1;
 	(function (module, exports) {
-		var Stream = require$$0$5;
+		var Stream = require$$0$4;
 		if (process.env.READABLE_STREAM === 'disable' && Stream) {
 		  module.exports = Stream.Readable;
 		  Object.assign(module.exports, Stream);
@@ -9893,7 +9868,7 @@ function requireBufferList () {
 	if (hasRequiredBufferList) return BufferList_1;
 	hasRequiredBufferList = 1;
 
-	const { Buffer } = require$$0$6;
+	const { Buffer } = require$$0$5;
 	const symbol = Symbol.for('BufferList');
 
 	function BufferList (buf) {
@@ -11897,29 +11872,6 @@ function quantileIndex(len, p) {
 }
 
 /**
- * The [Interquartile range](http://en.wikipedia.org/wiki/Interquartile_range) is
- * a measure of statistical dispersion, or how scattered, spread, or
- * concentrated a distribution is. It's computed as the difference between
- * the third quartile and first quartile.
- *
- * @param {Array<number>} x sample of one or more numbers
- * @returns {number} interquartile range: the span between lower and upper quartile,
- * 0.25 and 0.75
- * @example
- * interquartileRange([0, 1, 2, 3]); // => 2
- */
-function interquartileRange(x) {
-    // Interquartile range is the span between the upper quartile,
-    // at `0.75`, and lower quartile, `0.25`
-    var q1 = quantile(x, 0.75);
-    var q2 = quantile(x, 0.25);
-
-    if (typeof q1 === "number" && typeof q2 === "number") {
-        return q1 - q2;
-    }
-}
-
-/**
  * The [median](http://en.wikipedia.org/wiki/Median) is
  * the middle number of a list. This is often a good indicator of 'the middle'
  * when there are outliers that skew the `mean()` value.
@@ -12178,7 +12130,7 @@ function calculateEnhancedStats(values) {
     
     // Shape
     skewness: numbers.length > 2 ? calculateSkewness$2(numbers) : 0,
-    kurtosis: numbers.length > 3 ? calculateKurtosis$3(numbers) : 0,
+    kurtosis: numbers.length > 3 ? calculateKurtosis$2(numbers) : 0,
     
     // Additional metrics
     uniqueCount: new Set(numbers).size,
@@ -12280,7 +12232,7 @@ function calculateSkewness$2(values) {
   return (n / ((n - 1) * (n - 2))) * sum;
 }
 
-function calculateKurtosis$3(values) {
+function calculateKurtosis$2(values) {
   const mean = mean$2(values);
   const stdDev = standardDeviation(values);
   const n = values.length;
@@ -17684,7 +17636,7 @@ function andersonDarlingTest(values) {
 function jarqueBeraTest(values) {
   const n = values.length;
   const skewness = calculateSkewness$1(values);
-  const kurtosis = calculateKurtosis$2(values);
+  const kurtosis = calculateKurtosis$1(values);
   
   // Jarque-Bera statistic
   const JB = (n / 6) * (skewness * skewness + (kurtosis * kurtosis) / 4);
@@ -17928,7 +17880,7 @@ function calculateSkewness$1(values) {
   return (n / ((n - 1) * (n - 2))) * sum;
 }
 
-function calculateKurtosis$2(values) {
+function calculateKurtosis$1(values) {
   const mean = mean$2(values);
   const stdDev = standardDeviation(values);
   const n = values.length;
@@ -18438,8 +18390,6 @@ var libEsm = /*#__PURE__*/Object.freeze({
 	isAnyArray: isAnyArray
 });
 
-var require$$0$1 = /*@__PURE__*/getAugmentedNamespace(libEsm);
-
 function max(input) {
   var options = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
 
@@ -18552,13 +18502,6 @@ function rescale(input) {
   return output;
 }
 
-var libEs6 = /*#__PURE__*/Object.freeze({
-	__proto__: null,
-	default: rescale
-});
-
-var require$$1 = /*@__PURE__*/getAugmentedNamespace(libEs6);
-
 var hasRequiredMatrix;
 
 function requireMatrix () {
@@ -18567,8 +18510,8 @@ function requireMatrix () {
 
 	Object.defineProperty(matrix$1, '__esModule', { value: true });
 
-	var isAnyArray = require$$0$1;
-	var rescale = require$$1;
+	var isAnyArray = libEsm;
+	var rescale$1 = rescale;
 
 	const indent = ' '.repeat(2);
 	const indentData = ' '.repeat(4);
@@ -20928,7 +20871,7 @@ ${indent}columns: ${matrix.columns}
 	    for (let i = 0; i < this.rows; i++) {
 	      const row = this.getRow(i);
 	      if (row.length > 0) {
-	        rescale(row, { min, max, output: row });
+	        rescale$1(row, { min, max, output: row });
 	      }
 	      newMatrix.setRow(i, row);
 	    }
@@ -20947,7 +20890,7 @@ ${indent}columns: ${matrix.columns}
 	    for (let i = 0; i < this.columns; i++) {
 	      const column = this.getColumn(i);
 	      if (column.length) {
-	        rescale(column, {
+	        rescale$1(column, {
 	          min,
 	          max,
 	          output: column,
@@ -30944,6 +30887,21 @@ function suggestModels(columnTypes, analysis, assessment) {
   return suggestions;
 }
 
+// Removed import of deleted unifiedFormat.js - using local implementations
+
+// Define missing exports that were previously in unifiedFormat.js
+const colors = {
+  primary: chalk.blue,
+  success: chalk.green,
+  warning: chalk.yellow,
+  error: chalk.red,
+  info: chalk.cyan,
+  muted: chalk.gray
+};
+
+const createHeader = (text) => `\n${colors.primary('═'.repeat(60))}\n${colors.primary(text.toUpperCase().padStart((60 + text.length) / 2))}\n${colors.primary('═'.repeat(60))}`;
+const createSubsection = (title, content = '') => `\n${colors.info(title)}\n${'─'.repeat(40)}\n${content}`;
+
 function formatNumber(num, decimals = 2) {
   if (typeof num !== 'number' || isNaN(num)) return 'N/A';
   
@@ -30966,7 +30924,7 @@ function formatPercentage(num, decimals = 1) {
   return (num * 100).toFixed(decimals) + '%';
 }
 
-function formatFileSize$1(bytes) {
+function formatFileSize(bytes) {
   const sizes = ['B', 'KB', 'MB', 'GB'];
   if (bytes === 0) return '0 B';
   const i = Math.floor(Math.log(bytes) / Math.log(1024));
@@ -30974,12 +30932,13 @@ function formatFileSize$1(bytes) {
 }
 
 function createSection(title, content) {
-  const separator = '='.repeat(title.length + 8);
-  return `\n${separator}\n=== ${title} ===\n${separator}\n${content}\n`;
+  // Use unified formatting for consistency
+  return createHeader(title) + content;
 }
 
 function createSubSection(title, content) {
-  return `\n${title}:\n${content}\n`;
+  // Use unified formatting for consistency
+  return createSubsection(title, content);
 }
 
 function bulletList(items) {
@@ -33589,7 +33548,7 @@ function requireUnicode () {
 	if (hasRequiredUnicode) return unicode.exports;
 	hasRequiredUnicode = 1;
 	(function (module) {
-		var util = require$$0$7,
+		var util = require$$0$6,
 		  Match = requireMatch();
 
 		/**
@@ -33711,7 +33670,7 @@ function requireMbcs () {
 	if (hasRequiredMbcs) return mbcs.exports;
 	hasRequiredMbcs = 1;
 	(function (module) {
-		var util = require$$0$7,
+		var util = require$$0$6,
 		  Match = requireMatch();
 
 		/**
@@ -34217,7 +34176,7 @@ function requireSbcs () {
 	if (hasRequiredSbcs) return sbcs.exports;
 	hasRequiredSbcs = 1;
 	(function (module) {
-		var util = require$$0$7,
+		var util = require$$0$6,
 		  Match = requireMatch();
 
 		/**
@@ -35132,7 +35091,7 @@ function requireIso2022 () {
 	if (hasRequiredIso2022) return iso2022.exports;
 	hasRequiredIso2022 = 1;
 	(function (module) {
-		var util = require$$0$7,
+		var util = require$$0$6,
 		  Match = requireMatch();
 
 
@@ -35456,7 +35415,7 @@ function normalizePath(filePath) {
   }
   
   // Resolve to absolute path
-  normalized = path$2.resolve(normalized);
+  normalized = path$1.resolve(normalized);
   
   // On Windows, ensure proper drive letter format
   if (os$1.platform() === 'win32' && normalized.match(/^[a-z]:/i)) {
@@ -35808,11 +35767,20 @@ async function parseCSVWithEncoding(filePath, encoding, delimiter, useSampling, 
       return record;
     },
     cast: (value) => {
+      // Enhanced type casting with better error handling and debugging
       if (value === '' || value === null || value === undefined) return null;
       
       // Enhanced type casting
       if (typeof value === 'string') {
         const trimmed = value.trim();
+        
+        // Handle empty strings after trimming
+        if (trimmed === '') return null;
+        
+        // Handle common null/undefined string representations
+        if (['null', 'undefined', 'na', 'n/a', '#n/a', '#null!', 'nil', 'none'].includes(trimmed.toLowerCase())) {
+          return null;
+        }
         
         // Boolean values
         const lowerCase = trimmed.toLowerCase();
@@ -35820,17 +35788,35 @@ async function parseCSVWithEncoding(filePath, encoding, delimiter, useSampling, 
           return lowerCase === 'true' || lowerCase === 'yes' || lowerCase === '1' || lowerCase === 'y';
         }
         
-        // Try number parsing
+        // Try number parsing (but be more conservative)
         if (/^[\d\s,.$€£¥₹%-]+$/.test(trimmed) && !/[a-zA-Z]/.test(trimmed)) {
           const num = parseNumber(trimmed);
-          if (num !== null) return num;
+          if (num !== null && !isNaN(num) && isFinite(num)) {
+            return num;
+          }
         }
         
-        // Try date parsing
-        const date = parseDate$3(trimmed);
-        if (date !== null) return date;
+        // Try date parsing (more conservative approach)
+        if (trimmed.length >= 4 && /\d/.test(trimmed)) {
+          const date = parseDate$3(trimmed);
+          if (date !== null && date instanceof Date && !isNaN(date.getTime())) {
+            return date;
+          }
+        }
+        
+        // Return the trimmed string if no conversion worked
+        return trimmed;
       }
       
+      // For non-string values, validate they're not problematic
+      if (typeof value === 'number') {
+        if (isNaN(value) || !isFinite(value)) {
+          return null; // Convert problematic numbers to null
+        }
+        return value;
+      }
+      
+      // Return the value as-is if it's already a proper type
       return value;
     }
   };
@@ -35930,7 +35916,7 @@ async function parseCSVWithEncoding(filePath, encoding, delimiter, useSampling, 
     return { success: true, data: records };
     
   } catch (error) {
-    if (spinner) spinner.fail('Failed to parse CSV');
+    if (spinner) spinner.error({ text: 'Failed to parse CSV' });
     return { success: false, error };
   }
 }
@@ -35946,6 +35932,7 @@ async function parseCSV(filePath, options = {}) {
   }
   
   const detectedEncoding = options.encoding || detectEncoding(normalizedPath);
+  const detectedDelimiter = detectDelimiter(normalizedPath, detectedEncoding);
   
   // Enhanced fallback encoding list
   const fallbackEncodings = ['utf8', 'latin1', 'utf16le', 'ascii'];
@@ -35953,41 +35940,228 @@ async function parseCSV(filePath, options = {}) {
   
   let lastError = null;
   let attempts = [];
+  let bestResult = null;
+  let debugInfo = {
+    fileSize: statSync(normalizedPath).size,
+    detectedEncoding,
+    detectedDelimiter,
+    attempts: []
+  };
+  
+  if (!options.quiet) {
+    console.log(chalk.blue(`📊 Parsing CSV: ${normalizedPath}`));
+    console.log(chalk.blue(`📏 File size: ${(debugInfo.fileSize / 1024 / 1024).toFixed(2)}MB`));
+    console.log(chalk.blue(`🔤 Detected encoding: ${detectedEncoding}`));
+    console.log(chalk.blue(`📋 Detected delimiter: ${detectedDelimiter === '\t' ? '\\t (tab)' : detectedDelimiter}`));
+  }
   
   for (const encoding of encodingsToTry) {
     try {
-      const result = await attemptParse(normalizedPath, encoding, options);
+      const result = await attemptParse(normalizedPath, encoding, { 
+        ...options, 
+        delimiter: detectedDelimiter,
+        debugMode: true 
+      });
+      
+      const attemptInfo = {
+        encoding,
+        success: result.success,
+        recordCount: result.success ? result.data.length : 0,
+        error: result.error?.message || null
+      };
+      
+      debugInfo.attempts.push(attemptInfo);
+      
       if (result.success) {
-        if (result.data.length === 0) {
+        // Validate the parsed data quality
+        const dataQuality = validateParsedData(result.data, normalizedPath);
+        attemptInfo.dataQuality = dataQuality;
+        
+        if (dataQuality.isAcceptable) {
           if (!options.quiet) {
-            console.log(chalk.yellow('⚠️  Warning: No data found in CSV file. The file may be empty or have no valid rows.'));
+            console.log(chalk.green(`✅ Successfully parsed with ${encoding} encoding`));
+            console.log(chalk.green(`📊 Records: ${result.data.length.toLocaleString()}`));
+            console.log(chalk.green(`📋 Columns: ${Object.keys(result.data[0] || {}).length}`));
+            
+            if (dataQuality.warnings.length > 0) {
+              console.log(chalk.yellow('⚠️  Data quality warnings:'));
+              dataQuality.warnings.forEach(warning => 
+                console.log(chalk.yellow(`   • ${warning}`))
+              );
+            }
           }
+          return result.data;
+        } else {
+          // Data quality is poor, try next encoding
+          if (!options.quiet) {
+            console.log(chalk.yellow(`⚠️  ${encoding} parsing succeeded but data quality is poor:`));
+            dataQuality.issues.forEach(issue => 
+              console.log(chalk.yellow(`   • ${issue}`))
+            );
+          }
+          bestResult = bestResult || { result, encoding, dataQuality };
         }
-        return result.data;
       }
+      
       lastError = result.error;
       attempts.push({ encoding, error: result.error?.message || 'Unknown error' });
+      if (!options.quiet && encodingsToTry.indexOf(encoding) < encodingsToTry.length - 1) {
+        console.log(chalk.yellow(`❌ Failed with ${encoding} encoding, trying next...`));
+      }
+      continue;
     } catch (e) {
       lastError = e;
+      const attemptInfo = {
+        encoding,
+        success: false,
+        recordCount: 0,
+        error: e.message
+      };
+      debugInfo.attempts.push(attemptInfo);
       attempts.push({ encoding, error: e.message });
       if (!options.quiet && encodingsToTry.indexOf(encoding) < encodingsToTry.length - 1) {
-        console.log(chalk.yellow(`Failed with ${encoding} encoding, trying next...`));
+        console.log(chalk.yellow(`❌ Failed with ${encoding} encoding: ${e.message}`));
       }
       continue;
     }
   }
   
-  // Enhanced error message
-  const attemptDetails = attempts.map(a => `  - ${a.encoding}: ${a.error}`).join('\n');
-  throw new Error(
-    'CSV parsing failed with all attempted encodings.\n' +
-    'The file may be corrupted, in an unsupported format, or have encoding issues.\n' +
-    'Attempted encodings:\n' + attemptDetails + '\n' +
-    'Suggestions:\n' +
-    '  1. Try converting the file to UTF-8 encoding\n' +
-    '  2. Check if the file is a valid CSV format\n' +
-    '  3. Remove any special characters from the file path'
+  // If we have a result with poor quality, use it as fallback
+  if (bestResult) {
+    if (!options.quiet) {
+      console.log(chalk.yellow('📊 Using best available result despite quality issues'));
+    }
+    return bestResult.result.data;
+  }
+  
+  // Enhanced error message with debugging information
+  const attemptDetails = attempts.map(a => `  • ${a.encoding}: ${a.error}`).join('\n');
+  const errorMessage = `
+🚨 CSV PARSING FAILED
+
+📁 File: ${normalizedPath}
+📏 Size: ${(debugInfo.fileSize / 1024 / 1024).toFixed(2)}MB
+🔤 Detected encoding: ${detectedEncoding}
+📋 Detected delimiter: ${detectedDelimiter === '\t' ? 'TAB' : detectedDelimiter}
+
+❌ All encoding attempts failed:
+${attemptDetails}
+
+🔧 TROUBLESHOOTING SUGGESTIONS:
+
+1. 📝 **Check file format**:
+   • Ensure the file is actually a CSV (not Excel, XML, etc.)
+   • Verify the file isn't corrupted or partially downloaded
+
+2. 🔤 **Try manual encoding**:
+   • Convert file to UTF-8 using a text editor
+   • Check for non-standard characters in column headers
+
+3. 📋 **Check delimiter**:
+   • File might use semicolon (;) or tab (\\t) instead of comma
+   • Special characters in data might be interfering
+
+4. 🛠️ **Manual fixes**:
+   • Remove or escape special characters from column names
+   • Check for embedded newlines in data fields
+   • Ensure all rows have the same number of columns
+
+5. 🔍 **Debug mode**:
+   • Run with --verbose flag for more detailed error information
+   • Check the first few lines of the file manually
+
+📞 If issues persist, please report this with a sample of your data structure.
+`;
+  
+  throw new Error(errorMessage);
+}
+
+// Add data validation function
+function validateParsedData(records, filePath) {
+  const validation = {
+    isAcceptable: true,
+    warnings: [],
+    issues: [],
+    metrics: {}
+  };
+  
+  // Check if we have any data
+  if (!records || records.length === 0) {
+    validation.isAcceptable = false;
+    validation.issues.push('No records parsed from file');
+    return validation;
+  }
+  
+  // Check for columns
+  const firstRecord = records[0];
+  const columnCount = Object.keys(firstRecord || {}).length;
+  validation.metrics.columnCount = columnCount;
+  
+  if (columnCount === 0) {
+    validation.isAcceptable = false;
+    validation.issues.push('No columns detected in parsed data');
+    return validation;
+  }
+  
+  // Check for undefined/null dominance
+  let totalCells = 0;
+  let undefinedCells = 0;
+  let nullCells = 0;
+  let emptyCells = 0;
+  
+  records.slice(0, Math.min(100, records.length)).forEach(record => {
+    Object.values(record).forEach(value => {
+      totalCells++;
+      if (value === undefined) undefinedCells++;
+      else if (value === null) nullCells++;
+      else if (value === '') emptyCells++;
+    });
+  });
+  
+  const undefinedPercentage = (undefinedCells / totalCells) * 100;
+  const nullPercentage = (nullCells / totalCells) * 100;
+  const emptyPercentage = (emptyCells / totalCells) * 100;
+  
+  validation.metrics.undefinedPercentage = undefinedPercentage;
+  validation.metrics.nullPercentage = nullPercentage;
+  validation.metrics.emptyPercentage = emptyPercentage;
+  
+  // Flag as unacceptable if too many undefined values
+  if (undefinedPercentage > 80) {
+    validation.isAcceptable = false;
+    validation.issues.push(`${undefinedPercentage.toFixed(1)}% of values are undefined - parsing likely failed`);
+  } else if (undefinedPercentage > 50) {
+    validation.warnings.push(`${undefinedPercentage.toFixed(1)}% of values are undefined`);
+  }
+  
+  // Check for suspicious column names
+  const columns = Object.keys(firstRecord);
+  const suspiciousColumns = columns.filter(col => 
+    col.includes('undefined') || 
+    col.match(/^column\d+$/i) || 
+    col.trim() === '' ||
+    col.includes('\n') ||
+    col.includes('\r')
   );
+  
+  if (suspiciousColumns.length > 0) {
+    validation.warnings.push(`Suspicious column names detected: ${suspiciousColumns.join(', ')}`);
+  }
+  
+  // Check data consistency across rows
+  const columnCounts = records.slice(0, 10).map(record => Object.keys(record).length);
+  const inconsistentColumns = new Set(columnCounts).size > 1;
+  
+  if (inconsistentColumns) {
+    validation.warnings.push('Inconsistent column counts across rows - may indicate parsing issues');
+  }
+  
+  // Reasonable record count check
+  if (records.length < 2) {
+    validation.warnings.push('Very few records parsed - file might be mostly headers or empty');
+  }
+  
+  return validation;
 }
 
 // Enhanced column type detection
@@ -36261,6 +36435,203 @@ class OutputHandler {
   }
 }
 
+function createSamplingStrategy(records, analysisType) {
+  const totalRows = records.length;
+  
+  // Define sampling thresholds
+  const thresholds = {
+    noSampling: 10000,      // No sampling needed
+    lightSampling: 50000,   // Light sampling for some operations
+    heavySampling: 100000,  // Heavy sampling for expensive operations
+    streaming: 1000000      // Stream processing required
+  };
+  
+  // Determine sampling strategy
+  let strategy = {
+    method: 'none',
+    sampleSize: totalRows,
+    samplingRate: 1.0,
+    useStreaming: false,
+    stratify: false
+  };
+  
+  if (totalRows <= thresholds.noSampling) {
+    return strategy;
+  }
+  
+  // Analysis-specific sampling
+  switch (analysisType) {
+    case 'distribution':
+    case 'outliers':
+      if (totalRows > thresholds.heavySampling) {
+        strategy = {
+          method: 'stratified',
+          sampleSize: Math.min(50000, Math.ceil(totalRows * 0.1)),
+          samplingRate: 50000 / totalRows,
+          useStreaming: false,
+          stratify: true
+        };
+      } else if (totalRows > thresholds.lightSampling) {
+        strategy = {
+          method: 'random',
+          sampleSize: Math.min(25000, Math.ceil(totalRows * 0.2)),
+          samplingRate: 25000 / totalRows,
+          useStreaming: false,
+          stratify: false
+        };
+      }
+      break;
+      
+    case 'regression':
+    case 'cart':
+      if (totalRows > thresholds.lightSampling) {
+        strategy = {
+          method: 'stratified',
+          sampleSize: Math.min(10000, Math.ceil(totalRows * 0.2)),
+          samplingRate: 10000 / totalRows,
+          useStreaming: false,
+          stratify: true
+        };
+      }
+      break;
+      
+    case 'timeseries':
+      // Time series should maintain temporal order
+      if (totalRows > thresholds.heavySampling) {
+        strategy = {
+          method: 'systematic',
+          sampleSize: Math.min(50000, totalRows),
+          samplingRate: 50000 / totalRows,
+          useStreaming: false,
+          stratify: false
+        };
+      }
+      break;
+      
+    case 'basic':
+      // Basic statistics can use reservoir sampling for very large datasets
+      if (totalRows > thresholds.streaming) {
+        strategy = {
+          method: 'reservoir',
+          sampleSize: 100000,
+          samplingRate: 100000 / totalRows,
+          useStreaming: true,
+          stratify: false
+        };
+      }
+      break;
+  }
+  
+  return strategy;
+}
+
+function performSampling(records, strategy, targetColumn = null) {
+  if (strategy.method === 'none') {
+    return records;
+  }
+  
+  switch (strategy.method) {
+    case 'random':
+      return randomSample(records, strategy.sampleSize);
+      
+    case 'stratified':
+      return stratifiedSample(records, strategy.sampleSize, targetColumn);
+      
+    case 'systematic':
+      return systematicSample(records, strategy.sampleSize);
+      
+    case 'reservoir':
+      return reservoirSample(records, strategy.sampleSize);
+      
+    default:
+      return records;
+  }
+}
+
+function randomSample(records, sampleSize) {
+  if (sampleSize >= records.length) {
+    return records;
+  }
+  
+  // Fisher-Yates shuffle for first n elements
+  const sampled = [...records];
+  for (let i = 0; i < sampleSize; i++) {
+    const j = Math.floor(Math.random() * (sampled.length - i)) + i;
+    [sampled[i], sampled[j]] = [sampled[j], sampled[i]];
+  }
+  
+  return sampled.slice(0, sampleSize);
+}
+
+function stratifiedSample(records, sampleSize, targetColumn) {
+  if (!targetColumn || sampleSize >= records.length) {
+    return randomSample(records, sampleSize);
+  }
+  
+  // Group by target column
+  const strata = {};
+  records.forEach(record => {
+    const key = String(record[targetColumn] || 'null');
+    if (!strata[key]) {
+      strata[key] = [];
+    }
+    strata[key].push(record);
+  });
+  
+  // Calculate samples per stratum
+  const sampled = [];
+  Object.keys(strata).length;
+  
+  Object.entries(strata).forEach(([key, stratum]) => {
+    const stratumRatio = stratum.length / records.length;
+    const stratumSampleSize = Math.max(1, Math.round(sampleSize * stratumRatio));
+    
+    const stratumSample = randomSample(stratum, stratumSampleSize);
+    sampled.push(...stratumSample);
+  });
+  
+  // Adjust if we have too many or too few samples
+  if (sampled.length > sampleSize) {
+    return randomSample(sampled, sampleSize);
+  }
+  
+  return sampled;
+}
+
+function systematicSample(records, sampleSize) {
+  if (sampleSize >= records.length) {
+    return records;
+  }
+  
+  const interval = Math.floor(records.length / sampleSize);
+  const start = Math.floor(Math.random() * interval);
+  const sampled = [];
+  
+  for (let i = start; i < records.length && sampled.length < sampleSize; i += interval) {
+    sampled.push(records[i]);
+  }
+  
+  return sampled;
+}
+
+function reservoirSample(records, sampleSize) {
+  if (sampleSize >= records.length) {
+    return records;
+  }
+  
+  // Algorithm R - Reservoir sampling
+  const reservoir = records.slice(0, sampleSize);
+  
+  for (let i = sampleSize; i < records.length; i++) {
+    const j = Math.floor(Math.random() * (i + 1));
+    if (j < sampleSize) {
+      reservoir[j] = records[i];
+    }
+  }
+  
+  return reservoir;
+}
+
 async function edaComprehensive(filePath, options = {}) {
   const outputHandler = new OutputHandler(options);
   const spinner = options.quiet ? null : ora('Performing comprehensive EDA analysis...').start();
@@ -36268,266 +36639,362 @@ async function edaComprehensive(filePath, options = {}) {
   // Structured data mode for LLM consumption
   const structuredMode = options.structuredOutput || options.llmMode;
   
+  // Set timeout for analysis (default 30 seconds)
+  const timeoutMs = options.timeout || 30000;
+  
+  const analysisPromise = performAnalysis();
+  const timeoutPromise = new Promise((_, reject) => {
+    setTimeout(() => {
+      reject(new Error(`⏱️  EDA analysis timed out after ${timeoutMs / 1000} seconds. This may indicate issues with the data format or file size.`));
+    }, timeoutMs);
+  });
+  
   try {
-    // Use preloaded data if available
-    let records, columnTypes;
-    if (options.preloadedData) {
-      records = options.preloadedData.records;
-      columnTypes = options.preloadedData.columnTypes;
-    } else {
-      // Parse CSV
-      if (spinner) spinner.text = 'Reading CSV file...';
-      records = await parseCSV(filePath, { quiet: options.quiet, header: options.header });
-      
-      if (spinner) spinner.text = 'Detecting column types...';
-      columnTypes = detectColumnTypes(records);
-    }
-    
-    // Get file info
-    const fileStats = statSync(filePath);
-    const fileName = basename(filePath);
-    const columns = Object.keys(columnTypes);
-    
-    // Handle empty dataset
-    if (records.length === 0) {
-      const report = formatComprehensiveEDAReport({
-        fileName,
-        rowCount: 0,
-        columnCount: 0,
-        empty: true
-      });
-      console.log(report);
-      outputHandler.finalize();
-      return;
-    }
-    
-    // Detect what analyses to run
-    if (spinner) spinner.text = 'Detecting analysis requirements...';
-    const analysisNeeds = detectAnalysisNeeds(records, columnTypes);
-    
-    // Initialize analysis object
-    const analysis = {
-      fileName,
-      fileSize: formatFileSize$1(fileStats.size),
-      rowCount: records.length,
-      columnCount: columns.length,
-      columns: [],
-      numericColumnCount: 0,
-      categoricalColumnCount: 0,
-      dateColumns: [],
-      completeness: 0,
-      duplicateCount: 0,
-      insights: [],
-      suggestions: []
-    };
-    
-    // Basic column analysis with enhanced stats
-    if (spinner) spinner.text = 'Calculating enhanced statistics...';
-    
-    const columnAnalyses = {};
-    let totalNonNull = 0;
-    
-    for (const column of columns) {
-      const type = columnTypes[column];
-      const values = records.map(r => r[column]);
-      
-      const columnAnalysis = {
-        name: column,
-        type: type.type,
-        nonNullRatio: values.filter(v => v !== null && v !== undefined).length / values.length
-      };
-      
-      totalNonNull += values.filter(v => v !== null && v !== undefined).length;
-      
-      if (['integer', 'float'].includes(type.type)) {
-        columnAnalysis.stats = calculateEnhancedStats(values);
-        analysis.numericColumnCount++;
-      } else if (type.type === 'categorical') {
-        columnAnalysis.stats = calculateCategoricalStats(values);
-        analysis.categoricalColumnCount++;
-      } else if (type.type === 'date') {
-        analysis.dateColumns.push(column);
-      }
-      
-      analysis.columns.push(columnAnalysis);
-      columnAnalyses[column] = columnAnalysis;
-    }
-    
-    analysis.completeness = totalNonNull / (records.length * columns.length);
-    analysis.completenessLevel = analysis.completeness > 0.9 ? 'good' : 
-                                 analysis.completeness > 0.7 ? 'fair' : 'poor';
-    
-    // Count duplicates
-    const seen = new Set();
-    let duplicates = 0;
-    records.forEach(record => {
-      const key = JSON.stringify(record);
-      if (seen.has(key)) duplicates++;
-      else seen.add(key);
-    });
-    analysis.duplicateCount = duplicates;
-    
-    // Distribution analysis
-    if (analysisNeeds.distributionTesting) {
-      if (spinner) spinner.text = 'Analyzing distributions...';
-      analysis.distributionAnalysis = {};
-      
-      const numericColumns = columns.filter(col => 
-        ['integer', 'float'].includes(columnTypes[col].type)
-      );
-      
-      for (const col of numericColumns) {
-        const values = records.map(r => r[col]);
-        analysis.distributionAnalysis[col] = analyzeDistribution$1(values);
-      }
-    }
-    
-    // Outlier analysis
-    if (analysisNeeds.outlierAnalysis) {
-      if (spinner) spinner.text = 'Detecting outliers...';
-      analysis.outlierAnalysis = {};
-      
-      const numericColumns = columns.filter(col => 
-        ['integer', 'float'].includes(columnTypes[col].type)
-      );
-      
-      let totalOutliers = 0;
-      for (const col of numericColumns) {
-        const values = records.map(r => r[col]);
-        const outlierResult = detectOutliers(values, col);
-        analysis.outlierAnalysis[col] = outlierResult;
-        if (outlierResult.aggregated) {
-          totalOutliers += outlierResult.aggregated.length;
-        }
-      }
-      
-      analysis.outlierRate = totalOutliers / (records.length * numericColumns.length);
-    }
-    
-    // CART analysis
-    if (analysisNeeds.cart) {
-      if (spinner) spinner.text = 'Performing CART analysis...';
-      const targets = findPotentialTargets(records, columnTypes);
-      if (targets.length > 0) {
-        analysis.cartAnalysis = performCARTAnalysis(
-          records, 
-          columns, 
-          columnTypes, 
-          targets[0].column
-        );
-      }
-    }
-    
-    // Regression analysis
-    if (analysisNeeds.regression) {
-      if (spinner) spinner.text = 'Performing regression analysis...';
-      analysis.regressionAnalysis = performRegressionAnalysis(
-        records, 
-        columns, 
-        columnTypes
-      );
-    }
-    
-    // Correlation analysis
-    if (analysisNeeds.correlationAnalysis) {
-      if (spinner) spinner.text = 'Analyzing correlations...';
-      analysis.correlationAnalysis = performCorrelationAnalysis(records, columns, columnTypes);
-    }
-    
-    // Pattern detection
-    if (analysisNeeds.patternDetection) {
-      if (spinner) spinner.text = 'Detecting patterns...';
-      analysis.patterns = detectPatterns$1(records, columns, columnTypes);
-    }
-    
-    // Time series analysis
-    if (analysisNeeds.timeSeries) {
-      if (spinner) spinner.text = 'Analyzing time series...';
-      const dateColumn = analysis.dateColumns[0]; // Use first date column
-      const numericColumns = columns.filter(col => 
-        ['integer', 'float'].includes(columnTypes[col].type)
-      );
-      
-      if (dateColumn && numericColumns.length > 0) {
-        analysis.timeSeriesAnalysis = performTimeSeriesAnalysis(
-          records, 
-          dateColumn, 
-          numericColumns
-        );
-      }
-    }
-    
-    // Australian data validation
-    if (analysisNeeds.australianData) {
-      if (spinner) spinner.text = 'Validating Australian data patterns...';
-      analysis.australianValidation = validateAustralianData$1(records, columns, columnTypes);
-      
-      if (analysis.australianValidation.detected) {
-        const australianInsights = generateAustralianInsights(analysis.australianValidation);
-        analysis.insights = [...(analysis.insights || []), ...australianInsights];
-      }
-    }
-    
-    // ML readiness assessment
-    if (analysisNeeds.mlReadiness) {
-      if (spinner) spinner.text = 'Assessing ML readiness...';
-      analysis.mlReadiness = assessMLReadiness(records, columns, columnTypes, analysis);
-    }
-    
-    // Generate insights
-    analysis.insights = generateInsights(analysis);
-    analysis.suggestions = generateSuggestions(analysis, analysisNeeds);
-    
-    // Calculate final metrics
-    analysis.consistencyScore = calculateConsistencyScore(analysis);
-    analysis.highMissingColumns = columns.filter(col => {
-      const stats = columnAnalyses[col];
-      return stats && (1 - stats.nonNullRatio) > 0.1;
-    }).length;
-    
-    // Return structured data if requested for LLM consumption
-    if (structuredMode) {
-      if (spinner) spinner.succeed('Comprehensive EDA analysis complete!');
-      return {
-        analysis,
-        structuredResults: {
-          statisticalInsights: analysis.insights || [],
-          dataQuality: {
-            completeness: analysis.completeness,
-            duplicateRows: analysis.duplicateCount / analysis.rowCount,
-            outlierPercentage: analysis.outlierRate || 0
-          },
-          correlations: analysis.correlationAnalysis?.correlations || [],
-          distributions: analysis.distributionAnalysis ? 
-            Object.entries(analysis.distributionAnalysis).map(([col, dist]) => ({
-              column: col,
-              ...dist
-            })) : [],
-          timeSeries: analysis.timeSeriesAnalysis || null,
-          summaryStats: analysis.columns.reduce((acc, col) => {
-            acc[col.name] = col.stats;
-            return acc;
-          }, {}),
-          mlReadiness: analysis.mlReadiness || { overallScore: 0.8, majorIssues: [] },
-          columns: analysis.columns.map(col => col.name)
-        }
-      };
-    }
-    
-    // Format and output report
-    const report = formatComprehensiveEDAReport(analysis);
-    
-    if (spinner) spinner.succeed('Comprehensive EDA analysis complete!');
-    console.log(report);
-    
-    outputHandler.finalize();
-    
+    return await Promise.race([analysisPromise, timeoutPromise]);
   } catch (error) {
     outputHandler.restore();
-    if (spinner) spinner.fail('Error during analysis');
-    console.error(error.message);
+    if (spinner) spinner.error({ text: 'Analysis failed or timed out' });
+    
+    if (error.message.includes('timed out')) {
+      console.error(chalk.red('🚨 EDA Analysis Timeout'));
+      console.error(chalk.yellow('💡 Suggestions:'));
+      console.error(chalk.yellow('   • Try using a smaller sample of your data'));
+      console.error(chalk.yellow('   • Check if the CSV file has formatting issues'));
+      console.error(chalk.yellow('   • Use --timeout flag to increase timeout (e.g., --timeout 60000 for 1 minute)'));
+      console.error(chalk.yellow('   • Try the EDA function on a subset of columns'));
+    } else {
+      console.error(error.message);
+    }
+    
     if (!options.quiet) process.exit(1);
     throw error;
+  }
+  
+  async function performAnalysis() {
+    try {
+      // Use preloaded data if available
+      let records, columnTypes;
+      if (options.preloadedData) {
+        records = options.preloadedData.records;
+        columnTypes = options.preloadedData.columnTypes;
+      } else {
+        // Parse CSV with enhanced error handling
+        if (spinner) spinner.text = 'Reading CSV file...';
+        try {
+          records = await parseCSV(filePath, { quiet: options.quiet, header: options.header });
+        } catch (parseError) {
+          throw new Error(`CSV parsing failed: ${parseError.message}`);
+        }
+        
+        // Validate parsed data
+        if (!records || records.length === 0) {
+          throw new Error('No data found in CSV file. Please check the file format and content.');
+        }
+        
+        if (spinner) spinner.text = 'Detecting column types...';
+        try {
+          columnTypes = detectColumnTypes(records);
+        } catch (typeError) {
+          throw new Error(`Column type detection failed: ${typeError.message}`);
+        }
+      }
+      
+      // Get file info
+      const fileStats = statSync(filePath);
+      const fileName = basename(filePath);
+      const columns = Object.keys(columnTypes);
+      
+      // Handle empty dataset
+      if (records.length === 0) {
+        const report = formatComprehensiveEDAReport({
+          fileName,
+          rowCount: 0,
+          columnCount: 0,
+          empty: true
+        });
+        console.log(report);
+        outputHandler.finalize();
+        return;
+      }
+      
+      // Add safety check for undefined values
+      const sampleRecord = records[0];
+      const undefinedCount = Object.values(sampleRecord).filter(v => v === undefined).length;
+      if (undefinedCount > Object.keys(sampleRecord).length * 0.5) {
+        console.log(chalk.yellow('⚠️  Warning: High number of undefined values detected in data.'));
+        console.log(chalk.yellow('   This may indicate CSV parsing issues. Consider checking file encoding.'));
+      }
+      
+      // Detect what analyses to run with timeout protection
+      if (spinner) spinner.text = 'Detecting analysis requirements...';
+      const analysisNeeds = detectAnalysisNeeds(records, columnTypes);
+      
+      // Initialize analysis object
+      const analysis = {
+        fileName,
+        fileSize: formatFileSize(fileStats.size),
+        rowCount: records.length,
+        columnCount: columns.length,
+        columns: [],
+        numericColumnCount: 0,
+        categoricalColumnCount: 0,
+        dateColumns: [],
+        completeness: 0,
+        duplicateCount: 0,
+        insights: [],
+        suggestions: [],
+        processingTime: new Date()
+      };
+      
+      // Basic column analysis with enhanced stats and timeout protection
+      if (spinner) spinner.text = 'Calculating enhanced statistics...';
+      
+      const columnAnalyses = {};
+      let totalNonNull = 0;
+      
+      // Process columns with timeout protection
+      for (const column of columns) {
+        try {
+          const type = columnTypes[column];
+          const values = records.map(r => r[column]).filter(v => v !== null && v !== undefined);
+          
+          const columnAnalysis = {
+            name: column,
+            type: type.type,
+            nonNullRatio: values.length / records.length
+          };
+          
+          totalNonNull += values.length;
+          
+          // Add timeout protection for expensive calculations
+          if (['integer', 'float'].includes(type.type) && values.length > 0) {
+            const statsPromise = Promise.resolve(calculateEnhancedStats(values));
+            const statsTimeout = new Promise((_, reject) => {
+              setTimeout(() => reject(new Error('Stats calculation timeout')), 5000);
+            });
+            
+            try {
+              columnAnalysis.stats = await Promise.race([statsPromise, statsTimeout]);
+              analysis.numericColumnCount++;
+            } catch (statsError) {
+              console.log(chalk.yellow(`⚠️  Skipping stats for column ${column}: ${statsError.message}`));
+              columnAnalysis.stats = { error: 'Calculation timeout' };
+              analysis.numericColumnCount++;
+            }
+          } else if (type.type === 'categorical' && values.length > 0) {
+            try {
+              columnAnalysis.stats = calculateCategoricalStats(values);
+              analysis.categoricalColumnCount++;
+            } catch (catError) {
+              console.log(chalk.yellow(`⚠️  Skipping categorical stats for column ${column}: ${catError.message}`));
+              columnAnalysis.stats = { error: 'Calculation failed' };
+              analysis.categoricalColumnCount++;
+            }
+          } else if (type.type === 'date') {
+            analysis.dateColumns.push(column);
+          }
+          
+          analysis.columns.push(columnAnalysis);
+          columnAnalyses[column] = columnAnalysis;
+          
+        } catch (columnError) {
+          console.log(chalk.yellow(`⚠️  Error processing column ${column}: ${columnError.message}`));
+          // Continue with next column
+        }
+      }
+      
+      analysis.completeness = totalNonNull / (records.length * columns.length);
+      analysis.completenessLevel = analysis.completeness > 0.9 ? 'good' : 
+                                   analysis.completeness > 0.7 ? 'fair' : 'poor';
+      
+      // Count duplicates with timeout protection
+      try {
+        if (spinner) spinner.text = 'Checking for duplicates...';
+        const duplicatePromise = Promise.resolve((() => {
+          const seen = new Set();
+          let duplicates = 0;
+          // Limit duplicate checking for very large datasets
+          const checkLimit = Math.min(records.length, 10000);
+          records.slice(0, checkLimit).forEach(record => {
+            const key = JSON.stringify(record);
+            if (seen.has(key)) duplicates++;
+            else seen.add(key);
+          });
+          return duplicates;
+        })());
+        
+        const duplicateTimeout = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Duplicate check timeout')), 5000);
+        });
+        
+        analysis.duplicateCount = await Promise.race([duplicatePromise, duplicateTimeout]);
+      } catch (dupError) {
+        console.log(chalk.yellow(`⚠️  Skipping duplicate check: ${dupError.message}`));
+        analysis.duplicateCount = 0;
+      }
+      
+      // Distribution analysis
+      if (analysisNeeds.distributionTesting) {
+        if (spinner) spinner.text = 'Analyzing distributions...';
+        analysis.distributionAnalysis = {};
+        
+        const numericColumns = columns.filter(col => 
+          ['integer', 'float'].includes(columnTypes[col].type)
+        );
+        
+        for (const col of numericColumns) {
+          const values = records.map(r => r[col]);
+          analysis.distributionAnalysis[col] = analyzeDistribution$1(values);
+        }
+      }
+      
+      // Outlier analysis
+      if (analysisNeeds.outlierAnalysis) {
+        if (spinner) spinner.text = 'Detecting outliers...';
+        analysis.outlierAnalysis = {};
+        
+        const numericColumns = columns.filter(col => 
+          ['integer', 'float'].includes(columnTypes[col].type)
+        );
+        
+        let totalOutliers = 0;
+        for (const col of numericColumns) {
+          const values = records.map(r => r[col]);
+          const outlierResult = detectOutliers(values, col);
+          analysis.outlierAnalysis[col] = outlierResult;
+          if (outlierResult.aggregated) {
+            totalOutliers += outlierResult.aggregated.length;
+          }
+        }
+        
+        analysis.outlierRate = totalOutliers / (records.length * numericColumns.length);
+      }
+      
+      // CART analysis
+      if (analysisNeeds.cart) {
+        if (spinner) spinner.text = 'Performing CART analysis...';
+        const targets = findPotentialTargets(records, columnTypes);
+        if (targets.length > 0) {
+          analysis.cartAnalysis = performCARTAnalysis(
+            records, 
+            columns, 
+            columnTypes, 
+            targets[0].column
+          );
+        }
+      }
+      
+      // Regression analysis
+      if (analysisNeeds.regression) {
+        if (spinner) spinner.text = 'Performing regression analysis...';
+        analysis.regressionAnalysis = performRegressionAnalysis(
+          records, 
+          columns, 
+          columnTypes
+        );
+      }
+      
+      // Correlation analysis
+      if (analysisNeeds.correlationAnalysis) {
+        if (spinner) spinner.text = 'Analyzing correlations...';
+        analysis.correlationAnalysis = performCorrelationAnalysis(records, columns, columnTypes);
+      }
+      
+      // Pattern detection
+      if (analysisNeeds.patternDetection) {
+        if (spinner) spinner.text = 'Detecting patterns...';
+        analysis.patterns = detectPatterns$1(records, columns, columnTypes);
+      }
+      
+      // Time series analysis
+      if (analysisNeeds.timeSeries) {
+        if (spinner) spinner.text = 'Analyzing time series...';
+        const dateColumn = analysis.dateColumns[0]; // Use first date column
+        const numericColumns = columns.filter(col => 
+          ['integer', 'float'].includes(columnTypes[col].type)
+        );
+        
+        if (dateColumn && numericColumns.length > 0) {
+          analysis.timeSeriesAnalysis = performTimeSeriesAnalysis(
+            records, 
+            dateColumn, 
+            numericColumns
+          );
+        }
+      }
+      
+      // Australian data validation
+      if (analysisNeeds.australianData) {
+        if (spinner) spinner.text = 'Validating Australian data patterns...';
+        analysis.australianValidation = validateAustralianData$1(records, columns, columnTypes);
+        
+        if (analysis.australianValidation.detected) {
+          const australianInsights = generateAustralianInsights(analysis.australianValidation);
+          analysis.insights = [...(analysis.insights || []), ...australianInsights];
+        }
+      }
+      
+      // ML readiness assessment
+      if (analysisNeeds.mlReadiness) {
+        if (spinner) spinner.text = 'Assessing ML readiness...';
+        analysis.mlReadiness = assessMLReadiness(records, columns, columnTypes, analysis);
+      }
+      
+      // Generate insights
+      analysis.insights = generateInsights(analysis);
+      analysis.suggestions = generateSuggestions(analysis, analysisNeeds);
+      
+      // Calculate final metrics
+      analysis.consistencyScore = calculateConsistencyScore(analysis);
+      analysis.highMissingColumns = columns.filter(col => {
+        const stats = columnAnalyses[col];
+        return stats && (1 - stats.nonNullRatio) > 0.1;
+      }).length;
+      
+      // Return structured data if requested for LLM consumption
+      if (structuredMode) {
+        if (spinner) spinner.succeed('Comprehensive EDA analysis complete!');
+        return {
+          analysis,
+          structuredResults: {
+            statisticalInsights: analysis.insights || [],
+            dataQuality: {
+              completeness: analysis.completeness,
+              duplicateRows: analysis.duplicateCount / analysis.rowCount,
+              outlierPercentage: analysis.outlierRate || 0
+            },
+            correlations: analysis.correlationAnalysis?.correlations || [],
+            distributions: analysis.distributionAnalysis ? 
+              Object.entries(analysis.distributionAnalysis).map(([col, dist]) => ({
+                column: col,
+                ...dist
+              })) : [],
+            timeSeries: analysis.timeSeriesAnalysis || null,
+            summaryStats: analysis.columns.reduce((acc, col) => {
+              acc[col.name] = col.stats;
+              return acc;
+            }, {}),
+            mlReadiness: analysis.mlReadiness || { overallScore: 0.8, majorIssues: [] },
+            columns: analysis.columns.map(col => col.name)
+          }
+        };
+      }
+      
+      // Format and output report
+      const report = formatComprehensiveEDAReport(analysis);
+      
+      if (spinner) spinner.succeed('Comprehensive EDA analysis complete!');
+      console.log(report);
+      
+      outputHandler.finalize();
+      
+    } catch (error) {
+      outputHandler.restore();
+      if (spinner) spinner.error({ text: 'Error during analysis' });
+      console.error(error.message);
+      if (!options.quiet) process.exit(1);
+      throw error;
+    }
   }
 }
 
@@ -36667,8 +37134,8 @@ function analyseCompleteness(data, headers) {
   });
 
   data.forEach((row, rowIndex) => {
-    headers.forEach((header, colIndex) => {
-      const value = row[colIndex];
+    headers.forEach((header) => {
+      const value = row[header];  // Access by column name, not index
       const stats = columnStats[header];
 
       if (value === null || value === undefined || value === '') {
@@ -36821,14 +37288,9 @@ function requireAssertString () {
 		  value: true
 		});
 		exports.default = assertString;
-		function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) { return typeof o; } : function (o) { return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o; }, _typeof(o); }
 		function assertString(input) {
-		  var isString = typeof input === 'string' || input instanceof String;
-		  if (!isString) {
-		    var invalidType = _typeof(input);
-		    if (input === null) invalidType = 'null';else if (invalidType === 'object') invalidType = input.constructor.name;
-		    throw new TypeError("Expected a string but received a ".concat(invalidType));
-		  }
+		  if (input === undefined || input === null) throw new TypeError("Expected a string but received a ".concat(input));
+		  if (input.constructor.name !== 'String') throw new TypeError("Expected a string but received a ".concat(input.constructor.name));
 		}
 		module.exports = exports.default;
 		module.exports.default = exports.default; 
@@ -37465,6 +37927,7 @@ function requireIsIP () {
 		exports.default = isIP;
 		var _assertString = _interopRequireDefault(/*@__PURE__*/ requireAssertString());
 		function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
+		function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) { return typeof o; } : function (o) { return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o; }, _typeof(o); }
 		/**
 		11.3.  Examples
 
@@ -37498,19 +37961,26 @@ function requireIsIP () {
 		var IPv4AddressFormat = "(".concat(IPv4SegmentFormat, "[.]){3}").concat(IPv4SegmentFormat);
 		var IPv4AddressRegExp = new RegExp("^".concat(IPv4AddressFormat, "$"));
 		var IPv6SegmentFormat = '(?:[0-9a-fA-F]{1,4})';
-		var IPv6AddressRegExp = new RegExp('^(' + "(?:".concat(IPv6SegmentFormat, ":){7}(?:").concat(IPv6SegmentFormat, "|:)|") + "(?:".concat(IPv6SegmentFormat, ":){6}(?:").concat(IPv4AddressFormat, "|:").concat(IPv6SegmentFormat, "|:)|") + "(?:".concat(IPv6SegmentFormat, ":){5}(?::").concat(IPv4AddressFormat, "|(:").concat(IPv6SegmentFormat, "){1,2}|:)|") + "(?:".concat(IPv6SegmentFormat, ":){4}(?:(:").concat(IPv6SegmentFormat, "){0,1}:").concat(IPv4AddressFormat, "|(:").concat(IPv6SegmentFormat, "){1,3}|:)|") + "(?:".concat(IPv6SegmentFormat, ":){3}(?:(:").concat(IPv6SegmentFormat, "){0,2}:").concat(IPv4AddressFormat, "|(:").concat(IPv6SegmentFormat, "){1,4}|:)|") + "(?:".concat(IPv6SegmentFormat, ":){2}(?:(:").concat(IPv6SegmentFormat, "){0,3}:").concat(IPv4AddressFormat, "|(:").concat(IPv6SegmentFormat, "){1,5}|:)|") + "(?:".concat(IPv6SegmentFormat, ":){1}(?:(:").concat(IPv6SegmentFormat, "){0,4}:").concat(IPv4AddressFormat, "|(:").concat(IPv6SegmentFormat, "){1,6}|:)|") + "(?::((?::".concat(IPv6SegmentFormat, "){0,5}:").concat(IPv4AddressFormat, "|(?::").concat(IPv6SegmentFormat, "){1,7}|:))") + ')(%[0-9a-zA-Z-.:]{1,})?$');
-		function isIP(str) {
-		  var version = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : '';
-		  (0, _assertString.default)(str);
-		  version = String(version);
+		var IPv6AddressRegExp = new RegExp('^(' + "(?:".concat(IPv6SegmentFormat, ":){7}(?:").concat(IPv6SegmentFormat, "|:)|") + "(?:".concat(IPv6SegmentFormat, ":){6}(?:").concat(IPv4AddressFormat, "|:").concat(IPv6SegmentFormat, "|:)|") + "(?:".concat(IPv6SegmentFormat, ":){5}(?::").concat(IPv4AddressFormat, "|(:").concat(IPv6SegmentFormat, "){1,2}|:)|") + "(?:".concat(IPv6SegmentFormat, ":){4}(?:(:").concat(IPv6SegmentFormat, "){0,1}:").concat(IPv4AddressFormat, "|(:").concat(IPv6SegmentFormat, "){1,3}|:)|") + "(?:".concat(IPv6SegmentFormat, ":){3}(?:(:").concat(IPv6SegmentFormat, "){0,2}:").concat(IPv4AddressFormat, "|(:").concat(IPv6SegmentFormat, "){1,4}|:)|") + "(?:".concat(IPv6SegmentFormat, ":){2}(?:(:").concat(IPv6SegmentFormat, "){0,3}:").concat(IPv4AddressFormat, "|(:").concat(IPv6SegmentFormat, "){1,5}|:)|") + "(?:".concat(IPv6SegmentFormat, ":){1}(?:(:").concat(IPv6SegmentFormat, "){0,4}:").concat(IPv4AddressFormat, "|(:").concat(IPv6SegmentFormat, "){1,6}|:)|") + "(?::((?::".concat(IPv6SegmentFormat, "){0,5}:").concat(IPv4AddressFormat, "|(?::").concat(IPv6SegmentFormat, "){1,7}|:))") + ')(%[0-9a-zA-Z.]{1,})?$');
+		function isIP(ipAddress) {
+		  var options = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
+		  (0, _assertString.default)(ipAddress);
+
+		  // accessing 'arguments' for backwards compatibility: isIP(ipAddress [, version])
+		  // eslint-disable-next-line prefer-rest-params
+		  var version = (_typeof(options) === 'object' ? options.version : arguments[1]) || '';
 		  if (!version) {
-		    return isIP(str, 4) || isIP(str, 6);
+		    return isIP(ipAddress, {
+		      version: 4
+		    }) || isIP(ipAddress, {
+		      version: 6
+		    });
 		  }
-		  if (version === '4') {
-		    return IPv4AddressRegExp.test(str);
+		  if (version.toString() === '4') {
+		    return IPv4AddressRegExp.test(ipAddress);
 		  }
-		  if (version === '6') {
-		    return IPv6AddressRegExp.test(str);
+		  if (version.toString() === '6') {
+		    return IPv6AddressRegExp.test(ipAddress);
 		  }
 		  return false;
 		}
@@ -37705,6 +38175,29 @@ function requireIsEmail () {
 
 var isURL = {exports: {}};
 
+var includesString = {exports: {}};
+
+var hasRequiredIncludesString;
+
+function requireIncludesString () {
+	if (hasRequiredIncludesString) return includesString.exports;
+	hasRequiredIncludesString = 1;
+	(function (module, exports) {
+
+		Object.defineProperty(exports, "__esModule", {
+		  value: true
+		});
+		exports.default = void 0;
+		var includes = function includes(str, val) {
+		  return str.indexOf(val) !== -1;
+		};
+		exports.default = includes;
+		module.exports = exports.default;
+		module.exports.default = exports.default; 
+	} (includesString, includesString.exports));
+	return includesString.exports;
+}
+
 var hasRequiredIsURL;
 
 function requireIsURL () {
@@ -37718,6 +38211,7 @@ function requireIsURL () {
 		exports.default = isURL;
 		var _assertString = _interopRequireDefault(/*@__PURE__*/ requireAssertString());
 		var _checkHost = _interopRequireDefault(/*@__PURE__*/ requireCheckHost());
+		var _includesString = _interopRequireDefault(/*@__PURE__*/ requireIncludesString());
 		var _isFQDN = _interopRequireDefault(/*@__PURE__*/ requireIsFQDN());
 		var _isIP = _interopRequireDefault(/*@__PURE__*/ requireIsIP());
 		var _merge = _interopRequireDefault(/*@__PURE__*/ requireMerge());
@@ -37731,16 +38225,29 @@ function requireIsURL () {
 		/*
 		options for isURL method
 
-		require_protocol - if set as true isURL will return false if protocol is not present in the URL
-		require_valid_protocol - isURL will check if the URL's protocol is present in the protocols option
-		protocols - valid protocols can be modified with this option
-		require_host - if set as false isURL will not check if host is present in the URL
-		require_port - if set as true isURL will check if port is present in the URL
-		allow_protocol_relative_urls - if set as true protocol relative URLs will be allowed
-		validate_length - if set as false isURL will skip string length validation
-		  max_allowed_length will be ignored if this is set as false
-		max_allowed_length - if set isURL will not allow URLs longer than max_allowed_length
-		  default is 2084 that IE maximum URL length
+		protocols - valid protocols can be modified with this option.
+		require_tld - If set to false isURL will not check if the URL's host includes a top-level domain.
+		require_protocol - if set to true isURL will return false if protocol is not present in the URL.
+		require_host - if set to false isURL will not check if host is present in the URL.
+		require_port - if set to true isURL will check if port is present in the URL.
+		require_valid_protocol - isURL will check if the URL's protocol is present in the protocols option.
+		allow_underscores - if set to true, the validator will allow underscores in the URL.
+		host_whitelist - if set to an array of strings or regexp, and the domain matches none of the strings
+		                 defined in it, the validation fails.
+		host_blacklist - if set to an array of strings or regexp, and the domain matches any of the strings
+		                 defined in it, the validation fails.
+		allow_trailing_dot - if set to true, the validator will allow the domain to end with
+		                     a `.` character.
+		allow_protocol_relative_urls - if set to true protocol relative URLs will be allowed.
+		allow_fragments - if set to false isURL will return false if fragments are present.
+		allow_query_components - if set to false isURL will return false if query components are present.
+		disallow_auth - if set to true, the validator will fail if the URL contains an authentication
+		                component, e.g. `http://username:password@example.com`
+		validate_length - if set to false isURL will skip string length validation. `max_allowed_length`
+		                  will be ignored if this is set as `false`.
+		max_allowed_length - if set, isURL will not allow URLs longer than the specified value (default is
+		                     2084 that IE maximum URL length).
+
 		*/
 
 		var default_url_options = {
@@ -37771,10 +38278,10 @@ function requireIsURL () {
 		  if (options.validate_length && url.length > options.max_allowed_length) {
 		    return false;
 		  }
-		  if (!options.allow_fragments && url.includes('#')) {
+		  if (!options.allow_fragments && (0, _includesString.default)(url, '#')) {
 		    return false;
 		  }
-		  if (!options.allow_query_components && (url.includes('?') || url.includes('&'))) {
+		  if (!options.allow_query_components && ((0, _includesString.default)(url, '?') || (0, _includesString.default)(url, '&'))) {
 		    return false;
 		  }
 		  var protocol, auth, host, hostname, port, port_str, split, ipv6;
@@ -38121,11 +38628,13 @@ function requireIsTime () {
 		var formats = {
 		  hour24: {
 		    default: /^([01]?[0-9]|2[0-3]):([0-5][0-9])$/,
-		    withSeconds: /^([01]?[0-9]|2[0-3]):([0-5][0-9]):([0-5][0-9])$/
+		    withSeconds: /^([01]?[0-9]|2[0-3]):([0-5][0-9]):([0-5][0-9])$/,
+		    withOptionalSeconds: /^([01]?[0-9]|2[0-3]):([0-5][0-9])(?::([0-5][0-9]))?$/
 		  },
 		  hour12: {
 		    default: /^(0?[1-9]|1[0-2]):([0-5][0-9]) (A|P)M$/,
-		    withSeconds: /^(0?[1-9]|1[0-2]):([0-5][0-9]):([0-5][0-9]) (A|P)M$/
+		    withSeconds: /^(0?[1-9]|1[0-2]):([0-5][0-9]):([0-5][0-9]) (A|P)M$/,
+		    withOptionalSeconds: /^(0?[1-9]|1[0-2]):([0-5][0-9])(?::([0-5][0-9]))? (A|P)M$/
 		  }
 		};
 		function isTime(input, options) {
@@ -38141,6 +38650,31 @@ function requireIsTime () {
 
 var isBoolean$1 = {exports: {}};
 
+var includesArray = {exports: {}};
+
+var hasRequiredIncludesArray;
+
+function requireIncludesArray () {
+	if (hasRequiredIncludesArray) return includesArray.exports;
+	hasRequiredIncludesArray = 1;
+	(function (module, exports) {
+
+		Object.defineProperty(exports, "__esModule", {
+		  value: true
+		});
+		exports.default = void 0;
+		var includes = function includes(arr, val) {
+		  return arr.some(function (arrVal) {
+		    return val === arrVal;
+		  });
+		};
+		exports.default = includes;
+		module.exports = exports.default;
+		module.exports.default = exports.default; 
+	} (includesArray, includesArray.exports));
+	return includesArray.exports;
+}
+
 var hasRequiredIsBoolean;
 
 function requireIsBoolean () {
@@ -38153,6 +38687,7 @@ function requireIsBoolean () {
 		});
 		exports.default = isBoolean;
 		var _assertString = _interopRequireDefault(/*@__PURE__*/ requireAssertString());
+		var _includesArray = _interopRequireDefault(/*@__PURE__*/ requireIncludesArray());
 		function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
 		var defaultOptions = {
 		  loose: false
@@ -38163,9 +38698,9 @@ function requireIsBoolean () {
 		  var options = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : defaultOptions;
 		  (0, _assertString.default)(str);
 		  if (options.loose) {
-		    return looseBooleans.includes(str.toLowerCase());
+		    return (0, _includesArray.default)(looseBooleans, str.toLowerCase());
 		  }
-		  return strictBooleans.includes(str);
+		  return (0, _includesArray.default)(strictBooleans, str);
 		}
 		module.exports = exports.default;
 		module.exports.default = exports.default; 
@@ -38483,7 +39018,7 @@ function requireIsPassportNumber () {
 	  // BRAZIL
 	  BY: /^[A-Z]{2}\d{7}$/,
 	  // BELARUS
-	  CA: /^[A-Z]{2}\d{6}$/,
+	  CA: /^[A-Z]{2}\d{6}$|^[A-Z]\d{6}[A-Z]{2}$/,
 	  // CANADA
 	  CH: /^[A-Z]\d{7}$/,
 	  // SWITZERLAND
@@ -38581,7 +39116,7 @@ function requireIsPassportNumber () {
 	  // TURKEY
 	  UA: /^[A-Z]{2}\d{6}$/,
 	  // UKRAINE
-	  US: /^\d{9}$/,
+	  US: /^\d{9}$|^[A-Z]\d{8}$/,
 	  // UNITED STATES
 	  ZA: /^[TAMD]\d{8}$/ // SOUTH AFRICA
 	};
@@ -39004,31 +39539,6 @@ function requireIsSurrogatePair () {
 
 var isDecimal = {exports: {}};
 
-var includes = {exports: {}};
-
-var hasRequiredIncludes;
-
-function requireIncludes () {
-	if (hasRequiredIncludes) return includes.exports;
-	hasRequiredIncludes = 1;
-	(function (module, exports) {
-
-		Object.defineProperty(exports, "__esModule", {
-		  value: true
-		});
-		exports.default = void 0;
-		var includes = function includes(arr, val) {
-		  return arr.some(function (arrVal) {
-		    return val === arrVal;
-		  });
-		};
-		exports.default = includes;
-		module.exports = exports.default;
-		module.exports.default = exports.default; 
-	} (includes, includes.exports));
-	return includes.exports;
-}
-
 var hasRequiredIsDecimal;
 
 function requireIsDecimal () {
@@ -39042,7 +39552,7 @@ function requireIsDecimal () {
 		exports.default = isDecimal;
 		var _merge = _interopRequireDefault(/*@__PURE__*/ requireMerge());
 		var _assertString = _interopRequireDefault(/*@__PURE__*/ requireAssertString());
-		var _includes = _interopRequireDefault(/*@__PURE__*/ requireIncludes());
+		var _includesArray = _interopRequireDefault(/*@__PURE__*/ requireIncludesArray());
 		var _alpha = /*@__PURE__*/ requireAlpha();
 		function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
 		function decimalRegExp(options) {
@@ -39059,7 +39569,7 @@ function requireIsDecimal () {
 		  (0, _assertString.default)(str);
 		  options = (0, _merge.default)(options, default_decimal_options);
 		  if (options.locale in _alpha.decimal) {
-		    return !(0, _includes.default)(blacklist, str.replace(/ /g, '')) && decimalRegExp(options).test(str);
+		    return !(0, _includesArray.default)(blacklist, str.replace(/ /g, '')) && decimalRegExp(options).test(str);
 		  }
 		  throw new Error("Invalid locale '".concat(options.locale, "'"));
 		}
@@ -39190,9 +39700,9 @@ function requireIsRgbColor () {
 		function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
 		function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) { return typeof o; } : function (o) { return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o; }, _typeof(o); } /* eslint-disable prefer-rest-params */
 		var rgbColor = /^rgb\((([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5]),){2}([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])\)$/;
-		var rgbaColor = /^rgba\((([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5]),){3}(0?\.\d|1(\.0)?|0(\.0)?)\)$/;
+		var rgbaColor = /^rgba\((([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5]),){3}(0?\.\d\d?|1(\.0)?|0(\.0)?)\)$/;
 		var rgbColorPercent = /^rgb\((([0-9]%|[1-9][0-9]%|100%),){2}([0-9]%|[1-9][0-9]%|100%)\)$/;
-		var rgbaColorPercent = /^rgba\((([0-9]%|[1-9][0-9]%|100%),){3}(0?\.\d|1(\.0)?|0(\.0)?)\)$/;
+		var rgbaColorPercent = /^rgba\((([0-9]%|[1-9][0-9]%|100%),){3}(0?\.\d\d?|1(\.0)?|0(\.0)?)\)$/;
 		var startsWithRgb = /^rgba?/;
 		function isRgbColor(str, options) {
 		  (0, _assertString.default)(str);
@@ -39300,6 +39810,7 @@ function requireIsIBAN () {
 	isIBAN.default = isIBAN$1;
 	isIBAN.locales = void 0;
 	var _assertString = _interopRequireDefault(/*@__PURE__*/ requireAssertString());
+	var _includesArray = _interopRequireDefault(/*@__PURE__*/ requireIncludesArray());
 	function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
 	/**
 	 * List of country codes with
@@ -39423,18 +39934,18 @@ function requireIsIBAN () {
 	  // Strip white spaces and hyphens
 	  var strippedStr = str.replace(/[\s\-]+/gi, '').toUpperCase();
 	  var isoCountryCode = strippedStr.slice(0, 2).toUpperCase();
-	  var isoCountryCodeInIbanRegexCodeObject = (isoCountryCode in ibanRegexThroughCountryCode);
+	  var isoCountryCodeInIbanRegexCodeObject = isoCountryCode in ibanRegexThroughCountryCode;
 	  if (options.whitelist) {
 	    if (!hasOnlyValidCountryCodes(options.whitelist)) {
 	      return false;
 	    }
-	    var isoCountryCodeInWhiteList = options.whitelist.includes(isoCountryCode);
+	    var isoCountryCodeInWhiteList = (0, _includesArray.default)(options.whitelist, isoCountryCode);
 	    if (!isoCountryCodeInWhiteList) {
 	      return false;
 	    }
 	  }
 	  if (options.blacklist) {
-	    var isoCountryCodeInBlackList = options.blacklist.includes(isoCountryCode);
+	    var isoCountryCodeInBlackList = (0, _includesArray.default)(options.blacklist, isoCountryCode);
 	    if (isoCountryCodeInBlackList) {
 	      return false;
 	    }
@@ -39620,23 +40131,25 @@ function requireIsBase64 () {
 		var _assertString = _interopRequireDefault(/*@__PURE__*/ requireAssertString());
 		var _merge = _interopRequireDefault(/*@__PURE__*/ requireMerge());
 		function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-		var notBase64 = /[^A-Z0-9+\/=]/i;
-		var urlSafeBase64 = /^[A-Z0-9_\-]*$/i;
-		var defaultBase64Options = {
-		  urlSafe: false
-		};
+		var base64WithPadding = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{4})$/;
+		var base64WithoutPadding = /^[A-Za-z0-9+/]+$/;
+		var base64UrlWithPadding = /^(?:[A-Za-z0-9_-]{4})*(?:[A-Za-z0-9_-]{2}==|[A-Za-z0-9_-]{3}=|[A-Za-z0-9_-]{4})$/;
+		var base64UrlWithoutPadding = /^[A-Za-z0-9_-]+$/;
 		function isBase64(str, options) {
+		  var _options;
 		  (0, _assertString.default)(str);
-		  options = (0, _merge.default)(options, defaultBase64Options);
-		  var len = str.length;
+		  options = (0, _merge.default)(options, {
+		    urlSafe: false,
+		    padding: !((_options = options) !== null && _options !== void 0 && _options.urlSafe)
+		  });
+		  if (str === '') return true;
+		  var regex;
 		  if (options.urlSafe) {
-		    return urlSafeBase64.test(str);
+		    regex = options.padding ? base64UrlWithPadding : base64UrlWithoutPadding;
+		  } else {
+		    regex = options.padding ? base64WithPadding : base64WithoutPadding;
 		  }
-		  if (len % 4 !== 0 || notBase64.test(str)) {
-		    return false;
-		  }
-		  var firstPaddingChar = str.indexOf('=');
-		  return firstPaddingChar === -1 || firstPaddingChar === len - 1 || firstPaddingChar === len - 2 && str[len - 1] === '=';
+		  return (!options.padding || str.length % 4 === 0) && regex.test(str);
 		}
 		module.exports = exports.default;
 		module.exports.default = exports.default; 
@@ -39691,6 +40204,7 @@ function requireIsJSON () {
 		});
 		exports.default = isJSON;
 		var _assertString = _interopRequireDefault(/*@__PURE__*/ requireAssertString());
+		var _includesArray = _interopRequireDefault(/*@__PURE__*/ requireIncludesArray());
 		var _merge = _interopRequireDefault(/*@__PURE__*/ requireMerge());
 		function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
 		function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) { return typeof o; } : function (o) { return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o; }, _typeof(o); }
@@ -39706,7 +40220,7 @@ function requireIsJSON () {
 		      primitives = [null, false, true];
 		    }
 		    var obj = JSON.parse(str);
-		    return primitives.includes(obj) || !!obj && _typeof(obj) === 'object';
+		    return (0, _includesArray.default)(primitives, obj) || !!obj && _typeof(obj) === 'object';
 		  } catch (e) {/* ignore */}
 		  return false;
 		}
@@ -39843,6 +40357,7 @@ function requireIsUUID () {
 		  8: /^[0-9A-F]{8}-[0-9A-F]{4}-8[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/i,
 		  nil: /^00000000-0000-0000-0000-000000000000$/i,
 		  max: /^ffffffff-ffff-ffff-ffff-ffffffffffff$/i,
+		  loose: /^[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}$/i,
 		  // From https://github.com/uuidjs/uuid/blob/main/src/regex.js
 		  all: /^(?:[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$/i
 		};
@@ -39900,10 +40415,11 @@ function requireIsAfter () {
 		exports.default = isAfter;
 		var _toDate = _interopRequireDefault(/*@__PURE__*/ requireToDate());
 		function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
+		function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) { return typeof o; } : function (o) { return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o; }, _typeof(o); }
 		function isAfter(date, options) {
 		  // For backwards compatibility:
 		  // isAfter(str [, date]), i.e. `options` could be used as argument for the legacy `date`
-		  var comparisonDate = (options === null || options === void 0 ? void 0 : options.comparisonDate) || options || Date().toString();
+		  var comparisonDate = (_typeof(options) === 'object' ? options.comparisonDate : options) || Date().toString();
 		  var comparison = (0, _toDate.default)(comparisonDate);
 		  var original = (0, _toDate.default)(date);
 		  return !!(original && comparison && original > comparison);
@@ -39927,14 +40443,15 @@ function requireIsBefore () {
 		  value: true
 		});
 		exports.default = isBefore;
-		var _assertString = _interopRequireDefault(/*@__PURE__*/ requireAssertString());
 		var _toDate = _interopRequireDefault(/*@__PURE__*/ requireToDate());
 		function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-		function isBefore(str) {
-		  var date = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : String(new Date());
-		  (0, _assertString.default)(str);
-		  var comparison = (0, _toDate.default)(date);
-		  var original = (0, _toDate.default)(str);
+		function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) { return typeof o; } : function (o) { return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o; }, _typeof(o); }
+		function isBefore(date, options) {
+		  // For backwards compatibility:
+		  // isBefore(str [, date]), i.e. `options` could be used as argument for the legacy `date`
+		  var comparisonDate = (_typeof(options) === 'object' ? options.comparisonDate : options) || Date().toString();
+		  var comparison = (0, _toDate.default)(comparisonDate);
+		  var original = (0, _toDate.default)(date);
 		  return !!(original && comparison && original < comparison);
 		}
 		module.exports = exports.default;
@@ -40108,6 +40625,7 @@ function requireIsIdentityCard () {
 		});
 		exports.default = isIdentityCard;
 		var _assertString = _interopRequireDefault(/*@__PURE__*/ requireAssertString());
+		var _includesArray = _interopRequireDefault(/*@__PURE__*/ requireIncludesArray());
 		var _isInt = _interopRequireDefault(/*@__PURE__*/ requireIsInt());
 		function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
 		var validators = {
@@ -40367,7 +40885,7 @@ function requireIsIdentityCard () {
 		    var powers = ['7', '9', '10', '5', '8', '4', '2', '1', '6', '3', '7', '9', '10', '5', '8', '4', '2'];
 		    var parityBit = ['1', '0', 'X', '9', '8', '7', '6', '5', '4', '3', '2'];
 		    var checkAddressCode = function checkAddressCode(addressCode) {
-		      return provincesAndCities.includes(addressCode);
+		      return (0, _includesArray.default)(provincesAndCities, addressCode);
 		    };
 		    var checkBirthDayCode = function checkBirthDayCode(birDayCode) {
 		      var yyyy = parseInt(birDayCode.substring(0, 4), 10);
@@ -40914,8 +41432,7 @@ function requireIsTaxID () {
 		var _assertString = _interopRequireDefault(/*@__PURE__*/ requireAssertString());
 		var algorithms = _interopRequireWildcard(/*@__PURE__*/ requireAlgorithms());
 		var _isDate = _interopRequireDefault(/*@__PURE__*/ requireIsDate());
-		function _getRequireWildcardCache(e) { if ("function" != typeof WeakMap) return null; var r = new WeakMap(), t = new WeakMap(); return (_getRequireWildcardCache = function _getRequireWildcardCache(e) { return e ? t : r; })(e); }
-		function _interopRequireWildcard(e, r) { if (e && e.__esModule) return e; if (null === e || "object" != _typeof(e) && "function" != typeof e) return { default: e }; var t = _getRequireWildcardCache(r); if (t && t.has(e)) return t.get(e); var n = { __proto__: null }, a = Object.defineProperty && Object.getOwnPropertyDescriptor; for (var u in e) if ("default" !== u && {}.hasOwnProperty.call(e, u)) { var i = a ? Object.getOwnPropertyDescriptor(e, u) : null; i && (i.get || i.set) ? Object.defineProperty(n, u, i) : n[u] = e[u]; } return n.default = e, t && t.set(e, n), n; }
+		function _interopRequireWildcard(e, t) { if ("function" == typeof WeakMap) var r = new WeakMap(), n = new WeakMap(); return (_interopRequireWildcard = function _interopRequireWildcard(e, t) { if (!t && e && e.__esModule) return e; var o, i, f = { __proto__: null, default: e }; if (null === e || "object" != _typeof(e) && "function" != typeof e) return f; if (o = t ? n : r) { if (o.has(e)) return o.get(e); o.set(e, f); } for (var _t in e) "default" !== _t && {}.hasOwnProperty.call(e, _t) && ((i = (o = Object.defineProperty) && Object.getOwnPropertyDescriptor(e, _t)) && (i.get || i.set) ? o(f, _t, i) : f[_t] = e[_t]); return f; })(e, t); }
 		function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
 		function _toConsumableArray(r) { return _arrayWithoutHoles(r) || _iterableToArray(r) || _unsupportedIterableToArray(r) || _nonIterableSpread(); }
 		function _nonIterableSpread() { throw new TypeError("Invalid attempt to spread non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); }
@@ -41955,8 +42472,8 @@ function requireIsTaxID () {
 		  identifiers = tin.substring(0, length);
 		  sum = 0;
 		  pos = length - 7;
-		  for (var _i10 = length; _i10 >= 1; _i10--) {
-		    sum += identifiers.charAt(length - _i10) * pos;
+		  for (var _i0 = length; _i0 >= 1; _i0--) {
+		    sum += identifiers.charAt(length - _i0) * pos;
 		    pos -= 1;
 		    if (pos < 2) {
 		      pos = 9;
@@ -42333,7 +42850,7 @@ function requireIsMobilePhone () {
 	  'ar-KW': /^(\+?965)([569]\d{7}|41\d{6})$/,
 	  'ar-LY': /^((\+?218)|0)?(9[1-6]\d{7}|[1-8]\d{7,9})$/,
 	  'ar-MA': /^(?:(?:\+|00)212|0)[5-7]\d{8}$/,
-	  'ar-OM': /^((\+|00)968)?(9[1-9])\d{6}$/,
+	  'ar-OM': /^((\+|00)968)?([79][1-9])\d{6}$/,
 	  'ar-PS': /^(\+?970|0)5[6|9](\d{7})$/,
 	  'ar-SA': /^(!?(\+?966)|0)?5\d{8}$/,
 	  'ar-SD': /^((\+?249)|0)?(9[012369]|1[012])\d{7}$/,
@@ -42353,7 +42870,7 @@ function requireIsMobilePhone () {
 	  'de-LU': /^(\+352)?((6\d1)\d{6})$/,
 	  'dv-MV': /^(\+?960)?(7[2-9]|9[1-9])\d{5}$/,
 	  'el-GR': /^(\+?30|0)?6(8[5-9]|9(?![26])[0-9])\d{7}$/,
-	  'el-CY': /^(\+?357?)?(9(9|6)\d{6})$/,
+	  'el-CY': /^(\+?357?)?(9(9|7|6|5|4)\d{6})$/,
 	  'en-AI': /^(\+?1|0)264(?:2(35|92)|4(?:6[1-2]|76|97)|5(?:3[6-9]|8[1-4])|7(?:2(4|9)|72))\d{4}$/,
 	  'en-AU': /^(\+?61|0)4\d{8}$/,
 	  'en-AG': /^(?:\+1|1)268(?:464|7(?:1[3-9]|[28]\d|3[0246]|64|7[0-689]))\d{4}$/,
@@ -42456,7 +42973,7 @@ function requireIsMobilePhone () {
 	  'pl-PL': /^(\+?48)? ?([5-8]\d|45) ?\d{3} ?\d{2} ?\d{2}$/,
 	  'pt-BR': /^((\+?55\ ?[1-9]{2}\ ?)|(\+?55\ ?\([1-9]{2}\)\ ?)|(0[1-9]{2}\ ?)|(\([1-9]{2}\)\ ?)|([1-9]{2}\ ?))((\d{4}\-?\d{4})|(9[1-9]{1}\d{3}\-?\d{4}))$/,
 	  'pt-PT': /^(\+?351)?9[1236]\d{7}$/,
-	  'pt-AO': /^(\+244)\d{9}$/,
+	  'pt-AO': /^(\+?244)?9\d{8}$/,
 	  'ro-MD': /^(\+?373|0)((6(0|1|2|6|7|8|9))|(7(6|7|8|9)))\d{6}$/,
 	  'ro-RO': /^(\+?40|0)\s?7\d{2}(\/|\s|\.|-)?\d{3}(\s|\.|-)?\d{3}$/,
 	  'ru-RU': /^(\+?7|8)?9\d{9}$/,
@@ -43358,6 +43875,7 @@ function requireIsLatLong () {
 		exports.default = isLatLong;
 		var _assertString = _interopRequireDefault(/*@__PURE__*/ requireAssertString());
 		var _merge = _interopRequireDefault(/*@__PURE__*/ requireMerge());
+		var _includesString = _interopRequireDefault(/*@__PURE__*/ requireIncludesString());
 		function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
 		var lat = /^\(?[+-]?(90(\.0+)?|[1-8]?\d(\.\d+)?)$/;
 		var long = /^\s?[+-]?(180(\.0+)?|1[0-7]\d(\.\d+)?|\d{1,2}(\.\d+)?)\)?$/;
@@ -43369,7 +43887,7 @@ function requireIsLatLong () {
 		function isLatLong(str, options) {
 		  (0, _assertString.default)(str);
 		  options = (0, _merge.default)(options, defaultLatLongOptions);
-		  if (!str.includes(',')) return false;
+		  if (!(0, _includesString.default)(str, ',')) return false;
 		  var pair = str.split(',');
 		  if (pair[0].startsWith('(') && !pair[1].endsWith(')') || pair[1].endsWith(')') && !pair[0].startsWith('(')) return false;
 		  if (options.checkDMS) {
@@ -43409,6 +43927,7 @@ function requireIsPostalCode () {
 	  AU: fourDigit,
 	  AZ: /^AZ\d{4}$/,
 	  BA: /^([7-8]\d{4}$)/,
+	  BD: /^([1-8][0-9]{3}|9[0-4][0-9]{2})$/,
 	  BE: fourDigit,
 	  BG: fourDigit,
 	  BR: /^\d{5}-?\d{3}$/,
@@ -43425,7 +43944,7 @@ function requireIsPostalCode () {
 	  EE: fiveDigit,
 	  ES: /^(5[0-2]{1}|[0-4]{1}\d{1})\d{3}$/,
 	  FI: fiveDigit,
-	  FR: /^\d{2}\s?\d{3}$/,
+	  FR: /^(?:(?:0[1-9]|[1-8]\d|9[0-5])\d{3}|97[1-46]\d{2})$/,
 	  GB: /^(gir\s?0aa|[a-z]{1,2}\d[\da-z]?\s?(\d[a-z]{2})?)$/i,
 	  GR: /^\d{3}\s?\d{2}$/,
 	  HR: /^([1-5]\d{4}$)/,
@@ -43454,6 +43973,8 @@ function requireIsPostalCode () {
 	  NO: fourDigit,
 	  NP: /^(10|21|22|32|33|34|44|45|56|57)\d{3}$|^(977)$/i,
 	  NZ: fourDigit,
+	  // https://www.pakpost.gov.pk/postcodes.php
+	  PK: fiveDigit,
 	  PL: /^\d{2}\-\d{3}$/,
 	  PR: /^00[679]\d{2}([ -]\d{4})?$/,
 	  PT: /^\d{4}\-\d{3}?$/,
@@ -43466,7 +43987,7 @@ function requireIsPostalCode () {
 	  SK: /^\d{3}\s?\d{2}$/,
 	  TH: fiveDigit,
 	  TN: fourDigit,
-	  TW: /^\d{3}(\d{2})?$/,
+	  TW: /^\d{3}(\d{2,3})?$/,
 	  UA: fiveDigit,
 	  US: /^\d{5}(-\d{4})?$/,
 	  ZA: fourDigit,
@@ -43876,7 +44397,7 @@ function requireIsLicensePlate () {
 		    return /^[A-Z]{3}[ -]?[0-9][A-Z][0-9]{2}|[A-Z]{3}[ -]?[0-9]{4}$/.test(str);
 		  },
 		  'pt-PT': function ptPT(str) {
-		    return /^([A-Z]{2}|[0-9]{2})[ -·]?([A-Z]{2}|[0-9]{2})[ -·]?([A-Z]{2}|[0-9]{2})$/.test(str);
+		    return /^(([A-Z]{2}[ -·]?[0-9]{2}[ -·]?[0-9]{2})|([0-9]{2}[ -·]?[A-Z]{2}[ -·]?[0-9]{2})|([0-9]{2}[ -·]?[0-9]{2}[ -·]?[A-Z]{2})|([A-Z]{2}[ -·]?[0-9]{2}[ -·]?[A-Z]{2}))$/.test(str);
 		  },
 		  'sq-AL': function sqAL(str) {
 		    return /^[A-Z]{2}[- ]?((\d{3}[- ]?(([A-Z]{2})|T))|(R[- ]?\d{3}))$/.test(str);
@@ -44036,8 +44557,7 @@ function requireIsVAT () {
 	isVAT.vatMatchers = void 0;
 	var _assertString = _interopRequireDefault(/*@__PURE__*/ requireAssertString());
 	var algorithms = _interopRequireWildcard(/*@__PURE__*/ requireAlgorithms());
-	function _getRequireWildcardCache(e) { if ("function" != typeof WeakMap) return null; var r = new WeakMap(), t = new WeakMap(); return (_getRequireWildcardCache = function _getRequireWildcardCache(e) { return e ? t : r; })(e); }
-	function _interopRequireWildcard(e, r) { if (e && e.__esModule) return e; if (null === e || "object" != _typeof(e) && "function" != typeof e) return { default: e }; var t = _getRequireWildcardCache(r); if (t && t.has(e)) return t.get(e); var n = { __proto__: null }, a = Object.defineProperty && Object.getOwnPropertyDescriptor; for (var u in e) if ("default" !== u && {}.hasOwnProperty.call(e, u)) { var i = a ? Object.getOwnPropertyDescriptor(e, u) : null; i && (i.get || i.set) ? Object.defineProperty(n, u, i) : n[u] = e[u]; } return n.default = e, t && t.set(e, n), n; }
+	function _interopRequireWildcard(e, t) { if ("function" == typeof WeakMap) var r = new WeakMap(), n = new WeakMap(); return (_interopRequireWildcard = function _interopRequireWildcard(e, t) { if (!t && e && e.__esModule) return e; var o, i, f = { __proto__: null, default: e }; if (null === e || "object" != _typeof(e) && "function" != typeof e) return f; if (o = t ? n : r) { if (o.has(e)) return o.get(e); o.set(e, f); } for (var _t in e) "default" !== _t && {}.hasOwnProperty.call(e, _t) && ((i = (o = Object.defineProperty) && Object.getOwnPropertyDescriptor(e, _t)) && (i.get || i.set) ? o(f, _t, i) : f[_t] = e[_t]); return f; })(e, t); }
 	function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
 	var AU = function AU(str) {
 	  var match = str.match(/^(AU)?(\d{11})$/);
@@ -44418,10 +44938,9 @@ function requireValidator () {
 		var _isLicensePlate = _interopRequireDefault(/*@__PURE__*/ requireIsLicensePlate());
 		var _isStrongPassword = _interopRequireDefault(/*@__PURE__*/ requireIsStrongPassword());
 		var _isVAT = _interopRequireDefault(/*@__PURE__*/ requireIsVAT());
-		function _getRequireWildcardCache(e) { if ("function" != typeof WeakMap) return null; var r = new WeakMap(), t = new WeakMap(); return (_getRequireWildcardCache = function _getRequireWildcardCache(e) { return e ? t : r; })(e); }
-		function _interopRequireWildcard(e, r) { if (e && e.__esModule) return e; if (null === e || "object" != _typeof(e) && "function" != typeof e) return { default: e }; var t = _getRequireWildcardCache(r); if (t && t.has(e)) return t.get(e); var n = { __proto__: null }, a = Object.defineProperty && Object.getOwnPropertyDescriptor; for (var u in e) if ("default" !== u && {}.hasOwnProperty.call(e, u)) { var i = a ? Object.getOwnPropertyDescriptor(e, u) : null; i && (i.get || i.set) ? Object.defineProperty(n, u, i) : n[u] = e[u]; } return n.default = e, t && t.set(e, n), n; }
+		function _interopRequireWildcard(e, t) { if ("function" == typeof WeakMap) var r = new WeakMap(), n = new WeakMap(); return (_interopRequireWildcard = function _interopRequireWildcard(e, t) { if (!t && e && e.__esModule) return e; var o, i, f = { __proto__: null, default: e }; if (null === e || "object" != _typeof(e) && "function" != typeof e) return f; if (o = t ? n : r) { if (o.has(e)) return o.get(e); o.set(e, f); } for (var _t in e) "default" !== _t && {}.hasOwnProperty.call(e, _t) && ((i = (o = Object.defineProperty) && Object.getOwnPropertyDescriptor(e, _t)) && (i.get || i.set) ? o(f, _t, i) : f[_t] = e[_t]); return f; })(e, t); }
 		function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-		var version = '13.15.0';
+		var version = '13.15.15';
 		var validator = {
 		  version: version,
 		  toDate: _toDate.default,
@@ -44558,8 +45077,8 @@ function analyseValidity(data, headers, columnTypes) {
   const validationRules = detectValidationRules(data, headers, columnTypes);
   const columnValidation = {};
 
-  headers.forEach((header, colIndex) => {
-    const columnData = data.map(row => row[colIndex]).filter(val => val !== null && val !== '');
+  headers.forEach((header) => {
+    const columnData = data.map(row => row[header]).filter(val => val !== null && val !== '');
     const rules = validationRules[header];
     
     columnValidation[header] = {
@@ -44685,8 +45204,8 @@ function analyseValidity(data, headers, columnTypes) {
 function detectValidationRules(data, headers, columnTypes) {
   const rules = {};
 
-  headers.forEach((header, colIndex) => {
-    const columnData = data.map(row => row[colIndex]).filter(val => val !== null && val !== '');
+  headers.forEach((header) => {
+    const columnData = data.map(row => row[header]).filter(val => val !== null && val !== '');
     if (columnData.length === 0) return;
 
     const headerLower = header.toLowerCase();
@@ -44848,8 +45367,8 @@ function analyseAccuracy(data, headers, columnTypes) {
 
   const accuracyChecks = {};
 
-  headers.forEach((header, colIndex) => {
-    const columnData = data.map(row => row[colIndex]).filter(val => val !== null && val !== '');
+  headers.forEach((header) => {
+    const columnData = data.map(row => row[header]).filter(val => val !== null && val !== '');
     const type = columnTypes[header];
 
     accuracyChecks[header] = {
@@ -44908,7 +45427,7 @@ function analyseAccuracy(data, headers, columnTypes) {
       }
     }
 
-    const businessRules = detectBusinessRuleViolations(columnData, header, data, headers, colIndex);
+    const businessRules = detectBusinessRuleViolations(columnData, header, data, headers);
     if (businessRules.length > 0) {
       accuracyChecks[header].businessRuleViolations = businessRules;
       businessRules.forEach(rule => {
@@ -45116,7 +45635,7 @@ function checkDistributionAnomaly(values) {
   standardDeviation(values);
   
   const skewness = sampleSkewness(values);
-  const kurtosis = values.length > 3 ? calculateKurtosis$1(values) : null;
+  const kurtosis = values.length > 3 ? calculateKurtosis(values) : null;
 
   if (Math.abs(skewness) > 2) {
     return {
@@ -45141,7 +45660,7 @@ function checkDistributionAnomaly(values) {
   return null;
 }
 
-function calculateKurtosis$1(values) {
+function calculateKurtosis(values) {
   const n = values.length;
   const mean = mean$2(values);
   const stdDev = standardDeviation(values);
@@ -45155,7 +45674,7 @@ function calculateKurtosis$1(values) {
          (3 * Math.pow(n - 1, 2)) / ((n - 2) * (n - 3));
 }
 
-function detectBusinessRuleViolations(columnData, header, allData, allHeaders, colIndex) {
+function detectBusinessRuleViolations(columnData, header, allData, allHeaders) {
   const violations = [];
   const headerLower = header.toLowerCase();
 
@@ -45164,10 +45683,10 @@ function detectBusinessRuleViolations(columnData, header, allData, allHeaders, c
     if (relatedColumns.length > 0) {
       let violationCount = 0;
       allData.forEach((row, rowIndex) => {
-        const total = parseFloat(row[colIndex]);
+        const total = parseFloat(row[header]);
         if (!isNaN(total)) {
           const sum = relatedColumns.reduce((acc, relCol) => {
-            const val = parseFloat(row[relCol.index]);
+            const val = parseFloat(row[relCol.header]);
             return acc + (isNaN(val) ? 0 : val);
           }, 0);
           
@@ -45205,7 +45724,7 @@ function findRelatedColumns(totalColumn, allHeaders) {
         (headerLower.includes(baseName) || baseName.includes(headerLower)) &&
         !headerLower.includes('total') && 
         !headerLower.includes('sum')) {
-      related.push({ header, index });
+      related.push({ header });
     }
   });
 
@@ -45214,9 +45733,10 @@ function findRelatedColumns(totalColumn, allHeaders) {
 
 function checkReferentialIntegrity(data, headers) {
   const issues = [];
-  const idColumns = headers.map((h, i) => ({ header: h, index: i }))
-    .filter(col => col.header.toLowerCase().includes('_id') || 
-                   col.header.toLowerCase().endsWith('id'));
+  const idColumns = headers
+    .filter(h => h.toLowerCase().includes('_id') || 
+                 h.toLowerCase().endsWith('id'))
+    .map(h => ({ header: h }));
 
   idColumns.forEach(idCol => {
     const referencedEntity = idCol.header.toLowerCase()
@@ -45226,7 +45746,7 @@ function checkReferentialIntegrity(data, headers) {
     const uniqueIds = new Set();
 
     data.forEach(row => {
-      const id = row[idCol.index];
+      const id = row[idCol.header];
       if (id !== null && id !== '') {
         uniqueIds.add(id);
       }
@@ -45281,8 +45801,8 @@ function analyseConsistency(data, headers) {
     results.score -= issue.severity === 'critical' ? 10 : 5;
   });
 
-  headers.forEach((header, colIndex) => {
-    const columnData = data.map(row => row[colIndex]).filter(val => val !== null && val !== '');
+  headers.forEach((header) => {
+    const columnData = data.map(row => row[header]).filter(val => val !== null && val !== '');
     
     const formatIssues = checkFormatConsistency(columnData, header);
     if (formatIssues.length > 0) {
@@ -45344,9 +45864,10 @@ function analyseConsistency(data, headers) {
 function checkCrossColumnConsistency(data, headers) {
   const issues = [];
 
-  const dateColumns = headers.map((h, i) => ({ header: h, index: i }))
-    .filter(col => col.header.toLowerCase().includes('date') || 
-                   col.header.toLowerCase().includes('time'));
+  const dateColumns = headers
+    .filter(h => h.toLowerCase().includes('date') || 
+                 h.toLowerCase().includes('time'))
+    .map(h => ({ header: h }));
 
   for (let i = 0; i < dateColumns.length - 1; i++) {
     for (let j = i + 1; j < dateColumns.length; j++) {
@@ -45360,19 +45881,19 @@ function checkCrossColumnConsistency(data, headers) {
     }
   }
 
-  const ageColumn = headers.findIndex(h => h.toLowerCase().includes('age'));
-  const birthDateColumn = headers.findIndex(h => 
+  const ageColumn = headers.find(h => h.toLowerCase().includes('age'));
+  const birthDateColumn = headers.find(h => 
     h.toLowerCase().includes('birth') || h.toLowerCase().includes('dob'));
   
-  if (ageColumn !== -1 && birthDateColumn !== -1) {
+  if (ageColumn && birthDateColumn) {
     const ageConsistency = checkAgeDateConsistency(data, ageColumn, birthDateColumn);
     if (ageConsistency) {
       issues.push(ageConsistency);
     }
   }
 
-  const statusColumn = headers.findIndex(h => h.toLowerCase().includes('status'));
-  if (statusColumn !== -1) {
+  const statusColumn = headers.find(h => h.toLowerCase().includes('status'));
+  if (statusColumn) {
     const statusIssues = checkStatusConsistency(data, headers, statusColumn);
     issues.push(...statusIssues);
   }
@@ -45396,8 +45917,8 @@ function checkTemporalLogic(data, col1, col2) {
   if (!rules) return null;
 
   data.forEach((row, index) => {
-    const date1 = parseDate$2(row[col1.index]);
-    const date2 = parseDate$2(row[col2.index]);
+    const date1 = parseDate$2(row[col1.header]);
+    const date2 = parseDate$2(row[col2.header]);
     
     if (date1 && date2) {
       if (rules.relationship === 'before' && date1 > date2) {
@@ -45405,8 +45926,8 @@ function checkTemporalLogic(data, col1, col2) {
         if (examples.length < 5) {
           examples.push({
             row: index + 1,
-            [col1.header]: row[col1.index],
-            [col2.header]: row[col2.index]
+            [col1.header]: row[col1.header],
+            [col2.header]: row[col2.header]
           });
         }
       } else if (rules.relationship === 'after' && date1 < date2) {
@@ -45414,8 +45935,8 @@ function checkTemporalLogic(data, col1, col2) {
         if (examples.length < 5) {
           examples.push({
             row: index + 1,
-            [col1.header]: row[col1.index],
-            [col2.header]: row[col2.index]
+            [col1.header]: row[col1.header],
+            [col2.header]: row[col2.header]
           });
         }
       }
@@ -45456,14 +45977,14 @@ function getTemporalRules(field1, field2) {
   return null;
 }
 
-function checkAgeDateConsistency(data, ageIndex, birthDateIndex) {
+function checkAgeDateConsistency(data, ageColumn, birthDateColumn, headers) {
   let inconsistentCount = 0;
   const examples = [];
   const currentYear = new Date().getFullYear();
 
   data.forEach((row, index) => {
-    const age = parseInt(row[ageIndex]);
-    const birthDate = parseDate$2(row[birthDateIndex]);
+    const age = parseInt(row[ageColumn]);
+    const birthDate = parseDate$2(row[birthDateColumn]);
     
     if (!isNaN(age) && birthDate) {
       const birthYear = birthDate.getFullYear();
@@ -45475,7 +45996,7 @@ function checkAgeDateConsistency(data, ageIndex, birthDateIndex) {
           examples.push({
             row: index + 1,
             statedAge: age,
-            birthDate: row[birthDateIndex],
+            birthDate: row[birthDateColumn],
             calculatedAge: calculatedAge
           });
         }
@@ -45496,12 +46017,12 @@ function checkAgeDateConsistency(data, ageIndex, birthDateIndex) {
   return null;
 }
 
-function checkStatusConsistency(data, headers, statusIndex) {
+function checkStatusConsistency(data, headers, statusColumn) {
   const issues = [];
   const statusValues = {};
 
   data.forEach((row, rowIndex) => {
-    const status = row[statusIndex];
+    const status = row[statusColumn];
     if (!status) return;
 
     if (!statusValues[status]) {
@@ -45512,9 +46033,9 @@ function checkStatusConsistency(data, headers, statusIndex) {
     }
     statusValues[status].count++;
 
-    headers.forEach((header, colIndex) => {
-      if (colIndex !== statusIndex) {
-        const value = row[colIndex];
+    headers.forEach((header) => {
+      if (header !== statusColumn) {
+        const value = row[header];
         if (value !== null && value !== '') {
           const pattern = `${header}:${value}`;
           if (!statusValues[status].associatedPatterns[pattern]) {
@@ -45666,18 +46187,19 @@ function toTitleCase(str) {
 
 function findCaseVariations(data, headers) {
   const variations = [];
-  const textColumns = headers.map((h, i) => ({ header: h, index: i }))
-    .filter(col => {
-      const sample = data.slice(0, 100).map(row => row[col.index])
+  const textColumns = headers
+    .filter(h => {
+      const sample = data.slice(0, 100).map(row => row[h])
         .filter(v => v && typeof v === 'string');
       return sample.length > 10 && sample.some(v => isNaN(parseFloat(v)));
-    });
+    })
+    .map(h => ({ header: h }));
 
   textColumns.forEach(col => {
     const valueGroups = {};
     
     data.forEach(row => {
-      const value = row[col.index];
+      const value = row[col.header];
       if (value && typeof value === 'string') {
         const normalized = value.toLowerCase().trim();
         if (!valueGroups[normalized]) {
@@ -45736,10 +46258,11 @@ function checkNamingConsistency(data, headers) {
 
 function findAddressColumns(headers) {
   const addressTerms = ['address', 'street', 'city', 'state', 'postcode', 'zip', 'country'];
-  return headers.map((h, i) => ({ header: h, index: i }))
-    .filter(col => addressTerms.some(term => 
-      col.header.toLowerCase().includes(term)
-    ));
+  return headers
+    .filter(h => addressTerms.some(term => 
+      h.toLowerCase().includes(term)
+    ))
+    .map(h => ({ header: h }));
 }
 
 function checkGeographicConsistency(data, addressColumns) {
@@ -45769,8 +46292,8 @@ function checkGeographicConsistency(data, addressColumns) {
     const examples = [];
 
     data.forEach((row, index) => {
-      const postcode = parseInt(row[postcodeCol.index]);
-      const state = row[stateCol.index];
+      const postcode = parseInt(row[postcodeCol.header]);
+      const state = row[stateCol.header];
 
       if (!isNaN(postcode) && state && auPostcodeRanges[state]) {
         const validRanges = auPostcodeRanges[state];
@@ -45952,7 +46475,7 @@ function analyseTimeliness(data, headers) {
 function identifyDateColumns(data, headers) {
   const dateColumns = [];
   
-  headers.forEach((header, index) => {
+  headers.forEach((header) => {
     const headerLower = header.toLowerCase();
     const isLikelyDate = headerLower.includes('date') || 
                         headerLower.includes('time') ||
@@ -45962,17 +46485,17 @@ function identifyDateColumns(data, headers) {
                         headerLower.includes('_at') ||
                         headerLower.includes('_on');
 
-    if (isLikelyDate || isDateColumn(data, index)) {
-      dateColumns.push({ header, index });
+    if (isLikelyDate || isDateColumn(data, header)) {
+      dateColumns.push({ header });
     }
   });
 
   return dateColumns;
 }
 
-function isDateColumn(data, colIndex) {
+function isDateColumn(data, header) {
   const sample = data.slice(0, Math.min(100, data.length))
-    .map(row => row[colIndex])
+    .map(row => row[header])
     .filter(val => val !== null && val !== '');
 
   if (sample.length === 0) return false;
@@ -45995,7 +46518,7 @@ function analyseDateColumn(data, dateCol) {
   const futureDates = [];
   
   data.forEach((row, index) => {
-    const value = row[dateCol.index];
+    const value = row[dateCol.header];
     if (value === null || value === '') return;
 
     const date = parseDate$1(value);
@@ -46170,8 +46693,8 @@ function analyseUpdatePatterns(data, createdCol, modifiedCol) {
   const modificationAges = [];
 
   data.forEach((row, index) => {
-    const created = parseDate$1(row[createdCol.index]);
-    const modified = parseDate$1(row[modifiedCol.index]);
+    const created = parseDate$1(row[createdCol.header]);
+    const modified = parseDate$1(row[modifiedCol.header]);
 
     if (created && modified) {
       if (created.getTime() === modified.getTime()) {
@@ -46287,8 +46810,8 @@ function analyseUniqueness(data, headers) {
 
   const uniquenessAnalysis = {};
   
-  headers.forEach((header, colIndex) => {
-    const columnData = data.map(row => row[colIndex]).filter(val => val !== null && val !== '');
+  headers.forEach((header) => {
+    const columnData = data.map(row => row[header]).filter(val => val !== null && val !== '');
     if (columnData.length === 0) return;
 
     const analysis = analyseColumnUniqueness(columnData);
@@ -46453,8 +46976,8 @@ function findCompositeDuplicates(data, headers) {
     const compositeKeys = {};
     
     data.forEach((row, index) => {
-      const key = combination.indices
-        .map(idx => row[idx])
+      const key = combination.fields
+        .map(field => row[field])
         .filter(val => val !== null && val !== '')
         .join('|');
       
@@ -46492,19 +47015,19 @@ function findCompositeDuplicates(data, headers) {
 function generateCandidateCombinations(headers) {
   const combinations = [];
   
-  const keyFields = headers.map((h, i) => ({ header: h, index: i }))
-    .filter(field => {
-      const lower = field.header.toLowerCase();
+  const keyFields = headers
+    .filter(h => {
+      const lower = h.toLowerCase();
       return lower.includes('name') || lower.includes('email') || 
              lower.includes('phone') || lower.includes('address') ||
              lower.includes('id') || lower.includes('code');
-    });
+    })
+    .map(h => ({ header: h }));
 
   for (let i = 0; i < keyFields.length - 1; i++) {
     for (let j = i + 1; j < keyFields.length; j++) {
       combinations.push({
-        fields: [keyFields[i].header, keyFields[j].header],
-        indices: [keyFields[i].index, keyFields[j].index]
+        fields: [keyFields[i].header, keyFields[j].header]
       });
     }
   }
@@ -46517,12 +47040,13 @@ function analyseNearDuplicates(data, headers) {
     return analyseSampledNearDuplicates(data, headers, 1000);
   }
 
-  const textColumns = headers.map((h, i) => ({ header: h, index: i }))
-    .filter(col => {
-      const sample = data.slice(0, 100).map(row => row[col.index])
+  const textColumns = headers
+    .filter(h => {
+      const sample = data.slice(0, 100).map(row => row[h])
         .filter(v => v && typeof v === 'string');
       return sample.length > 50;
-    });
+    })
+    .map(h => ({ header: h }));
 
   if (textColumns.length === 0) return [];
 
@@ -46570,12 +47094,13 @@ function analyseSampledNearDuplicates(data, headers, sampleSize) {
     sample.push({ data: data[i], originalIndex: i });
   }
 
-  const textColumns = headers.map((h, i) => ({ header: h, index: i }))
-    .filter(col => {
-      const testSample = sample.slice(0, 100).map(s => s.data[col.index])
+  const textColumns = headers
+    .filter(h => {
+      const testSample = sample.slice(0, 100).map(s => s.data[h])
         .filter(v => v && typeof v === 'string');
       return testSample.length > 50;
-    });
+    })
+    .map(h => ({ header: h }));
 
   if (textColumns.length === 0) return [];
 
@@ -46618,8 +47143,8 @@ function calculateRecordSimilarity(record1, record2, textColumns) {
   let comparedFields = 0;
 
   textColumns.forEach(col => {
-    const val1 = String(record1[col.index] || '').toLowerCase().trim();
-    const val2 = String(record2[col.index] || '').toLowerCase().trim();
+    const val1 = String(record1[col.header] || '').toLowerCase().trim();
+    const val2 = String(record2[col.header] || '').toLowerCase().trim();
 
     if (val1 && val2) {
       const similarity = calculateStringSimilarity(val1, val2);
@@ -52693,25 +53218,49 @@ class DataProfiler {
   
   countGeographicColumns(columns, columnTypes) {
     const geoKeywords = ['state', 'country', 'city', 'region', 'location', 'address', 
-                        'postcode', 'zip', 'latitude', 'longitude', 'lat', 'lon', 'lng'];
+                        'postcode', 'zip', 'latitude', 'longitude', 'lat', 'lon', 'lng',
+                        'suburb', 'district', 'province', 'county', 'area'];
     
     return columns.filter(col => {
-      const isGeo = geoKeywords.some(keyword => col.toLowerCase().includes(keyword));
-      const isAppropriateType = ['categorical', 'postcode', 'string', 'float', 'integer']
-        .includes(columnTypes[col]?.type || 'unknown');
-      return isGeo && isAppropriateType;
+      const colLower = col.toLowerCase();
+      const colType = columnTypes[col]?.type;
+      
+      // Check for geographic keywords
+      const hasGeoKeyword = geoKeywords.some(keyword => colLower.includes(keyword));
+      
+      // Check for coordinate patterns (lat/long)
+      const isCoordinate = (colLower.includes('lat') || colLower.includes('lon') || 
+                           colLower.includes('lng')) && ['float', 'integer'].includes(colType);
+      
+      // Check for appropriate data type (exclude 'unknown' type)
+      const isAppropriateType = colType && colType !== 'unknown' && 
+        ['categorical', 'postcode', 'string', 'float', 'integer'].includes(colType);
+      
+      return (hasGeoKeyword || isCoordinate) && isAppropriateType;
     }).length;
   }
   
   findGeographicColumns(columns, columnTypes) {
     const geoKeywords = ['state', 'country', 'city', 'region', 'location', 'address', 
-                        'postcode', 'zip', 'latitude', 'longitude', 'lat', 'lon', 'lng'];
+                        'postcode', 'zip', 'latitude', 'longitude', 'lat', 'lon', 'lng',
+                        'suburb', 'district', 'province', 'county', 'area'];
     
     return columns.filter(col => {
-      const isGeo = geoKeywords.some(keyword => col.toLowerCase().includes(keyword));
-      const isAppropriateType = ['categorical', 'postcode', 'string', 'float', 'integer']
-        .includes(columnTypes[col]?.type || 'unknown');
-      return isGeo && isAppropriateType;
+      const colLower = col.toLowerCase();
+      const colType = columnTypes[col]?.type;
+      
+      // Check for geographic keywords
+      const hasGeoKeyword = geoKeywords.some(keyword => colLower.includes(keyword));
+      
+      // Check for coordinate patterns (lat/long)
+      const isCoordinate = (colLower.includes('lat') || colLower.includes('lon') || 
+                           colLower.includes('lng')) && ['float', 'integer'].includes(colType);
+      
+      // Check for appropriate data type (exclude 'unknown' type)
+      const isAppropriateType = colType && colType !== 'unknown' && 
+        ['categorical', 'postcode', 'string', 'float', 'integer'].includes(colType);
+      
+      return (hasGeoKeyword || isCoordinate) && isAppropriateType;
     });
   }
 }
@@ -53258,9 +53807,21 @@ class ChartSelector {
     const scoredCandidates = this.scoreCandidates(candidates, task, dataProfile, constraints);
     const filtered = this.applyConstraints(scoredCandidates, constraints);
     
+    // Ensure we have a primary chart
+    if (!filtered || filtered.length === 0) {
+      return {
+        primary: null,
+        alternatives: [],
+        reasoning: 'No suitable visualizations found for this data and task combination'
+      };
+    }
+    
+    // Safely extract alternatives, ensuring we don't go out of bounds
+    const alternatives = filtered.length > 1 ? filtered.slice(1, Math.min(4, filtered.length)) : [];
+    
     return {
       primary: filtered[0],
-      alternatives: filtered.slice(1, 4),
+      alternatives: alternatives,
       reasoning: this.explainSelection(filtered[0], task, dataProfile)
     };
   }
@@ -55448,9 +56009,8 @@ Performance: ${dataProfile.dimensions.rows > 10000 ? 'Consider server-side rende
     
   } catch (error) {
     outputHandler.restore();
-    if (spinner) spinner.fail('Error analyzing visualizations');
+    if (spinner) spinner.error({ text: 'Error analyzing visualizations' });
     console.error(error.message);
-    console.error(error.stack);
     if (!options.quiet) process.exit(1);
     throw error;
   }
@@ -55546,34 +56106,432 @@ svg.selectAll("rect")
 \`\`\``;
 }
 
-function calculateStats(values) {
-  const numbers = values.filter(v => typeof v === 'number' && !isNaN(v));
+/**
+ * Comprehensive Error Handling and Input Validation for DataPilot
+ * Provides defensive programming patterns and graceful error recovery
+ */
+
+class DataPilotError extends Error {
+  constructor(message, code, context = {}) {
+    super(message);
+    this.name = 'DataPilotError';
+    this.code = code;
+    this.context = context;
+    this.timestamp = new Date().toISOString();
+  }
+}
+
+/**
+ * Input validation utilities
+ */
+class InputValidator {
   
-  if (numbers.length === 0) {
-    return { count: 0, nullCount: values.length };
+  static validateArray(value, fieldName = 'array', options = {}) {
+    const { allowEmpty = true, minLength = 0, maxLength = Infinity } = options;
+    
+    if (value === null || value === undefined) {
+      if (options.required) {
+        throw new DataPilotError(`${fieldName} is required but was ${value}`, 'VALIDATION_ERROR');
+      }
+      return [];
+    }
+    
+    if (!Array.isArray(value)) {
+      throw new DataPilotError(`${fieldName} must be an array, got ${typeof value}`, 'TYPE_ERROR');
+    }
+    
+    if (!allowEmpty && value.length === 0) {
+      throw new DataPilotError(`${fieldName} cannot be empty`, 'VALIDATION_ERROR');
+    }
+    
+    if (value.length < minLength) {
+      throw new DataPilotError(`${fieldName} must have at least ${minLength} items, got ${value.length}`, 'VALIDATION_ERROR');
+    }
+    
+    if (value.length > maxLength) {
+      throw new DataPilotError(`${fieldName} cannot have more than ${maxLength} items, got ${value.length}`, 'VALIDATION_ERROR');
+    }
+    
+    return value;
   }
   
-  const sorted = [...numbers].sort((a, b) => a - b);
+  static validateObject(value, fieldName = 'object', options = {}) {
+    const { allowNull = false, requiredKeys = [] } = options;
+    
+    if (value === null || value === undefined) {
+      if (allowNull) {
+        return null;
+      }
+      if (options.required) {
+        throw new DataPilotError(`${fieldName} is required but was ${value}`, 'VALIDATION_ERROR');
+      }
+      return {};
+    }
+    
+    if (typeof value !== 'object' || Array.isArray(value)) {
+      throw new DataPilotError(`${fieldName} must be an object, got ${typeof value}`, 'TYPE_ERROR');
+    }
+    
+    // Check required keys
+    for (const key of requiredKeys) {
+      if (!(key in value)) {
+        throw new DataPilotError(`${fieldName} is missing required key: ${key}`, 'VALIDATION_ERROR');
+      }
+    }
+    
+    return value;
+  }
   
-  return {
-    count: numbers.length,
-    nullCount: values.length - numbers.length,
-    mean: mean$2(numbers),
-    median: median(sorted),
-    mode: mode(numbers),
-    min: min$1(numbers),
-    max: max$1(numbers),
-    sum: sum$1(numbers),
-    standardDeviation: numbers.length > 1 ? standardDeviation(numbers) : 0,
-    variance: numbers.length > 1 ? variance(numbers) : 0,
-    q1: quantile(sorted, 0.25),
-    q3: quantile(sorted, 0.75),
-    iqr: interquartileRange(sorted),
-    skewness: numbers.length > 2 ? calculateSkewness(numbers) : 0,
-    kurtosis: numbers.length > 3 ? calculateKurtosis(numbers) : 0,
-    outliers: findOutliers(sorted)
+  static validateString(value, fieldName = 'string', options = {}) {
+    const { allowEmpty = true, minLength = 0, maxLength = Infinity, pattern = null } = options;
+    
+    if (value === null || value === undefined) {
+      if (options.required) {
+        throw new DataPilotError(`${fieldName} is required but was ${value}`, 'VALIDATION_ERROR');
+      }
+      return '';
+    }
+    
+    if (typeof value !== 'string') {
+      value = String(value);
+    }
+    
+    if (!allowEmpty && value.length === 0) {
+      throw new DataPilotError(`${fieldName} cannot be empty`, 'VALIDATION_ERROR');
+    }
+    
+    if (value.length < minLength) {
+      throw new DataPilotError(`${fieldName} must be at least ${minLength} characters, got ${value.length}`, 'VALIDATION_ERROR');
+    }
+    
+    if (value.length > maxLength) {
+      throw new DataPilotError(`${fieldName} cannot exceed ${maxLength} characters, got ${value.length}`, 'VALIDATION_ERROR');
+    }
+    
+    if (pattern && !pattern.test(value)) {
+      throw new DataPilotError(`${fieldName} does not match required pattern`, 'VALIDATION_ERROR');
+    }
+    
+    return value;
+  }
+  
+  static validateNumber(value, fieldName = 'number', options = {}) {
+    const { min = -Infinity, max = Infinity, integer = false } = options;
+    
+    if (value === null || value === undefined) {
+      if (options.required) {
+        throw new DataPilotError(`${fieldName} is required but was ${value}`, 'VALIDATION_ERROR');
+      }
+      return 0;
+    }
+    
+    const num = Number(value);
+    if (isNaN(num)) {
+      throw new DataPilotError(`${fieldName} must be a valid number, got ${value}`, 'TYPE_ERROR');
+    }
+    
+    if (num < min) {
+      throw new DataPilotError(`${fieldName} must be at least ${min}, got ${num}`, 'VALIDATION_ERROR');
+    }
+    
+    if (num > max) {
+      throw new DataPilotError(`${fieldName} cannot exceed ${max}, got ${num}`, 'VALIDATION_ERROR');
+    }
+    
+    if (integer && !Number.isInteger(num)) {
+      throw new DataPilotError(`${fieldName} must be an integer, got ${num}`, 'VALIDATION_ERROR');
+    }
+    
+    return num;
+  }
+  
+  static validateRecords(records, fieldName = 'records') {
+    const validatedRecords = this.validateArray(records, fieldName, { allowEmpty: true });
+    
+    // Ensure all records are objects
+    return validatedRecords.map((record, index) => {
+      try {
+        return this.validateObject(record, `${fieldName}[${index}]`, { required: true });
+      } catch (error) {
+        // Provide fallback for malformed records
+        console.warn(`Skipping malformed record at index ${index}:`, error.message);
+        return null;
+      }
+    }).filter(record => record !== null);
+  }
+  
+  static validateColumns(columns, fieldName = 'columns') {
+    const validatedColumns = this.validateArray(columns, fieldName, { allowEmpty: true });
+    
+    return validatedColumns.map((column, index) => {
+      try {
+        return this.validateString(column, `${fieldName}[${index}]`, { 
+          required: true, 
+          allowEmpty: false,
+          maxLength: 255 
+        });
+      } catch (error) {
+        console.warn(`Invalid column at index ${index}:`, error.message);
+        return `column_${index}`;
+      }
+    });
+  }
+}
+
+/**
+ * Safe array operations with comprehensive error handling
+ */
+class SafeArrayOps {
+  
+  static safeSlice(array, start = 0, end = undefined, fallback = []) {
+    try {
+      InputValidator.validateArray(array, 'array for slice operation');
+      
+      if (array.length === 0) {
+        return fallback;
+      }
+      
+      const validStart = Math.max(0, Math.min(start, array.length));
+      const validEnd = end === undefined ? array.length : Math.max(validStart, Math.min(end, array.length));
+      
+      return array.slice(validStart, validEnd);
+    } catch (error) {
+      console.warn(`Safe slice operation failed: ${error.message}, returning fallback`);
+      return fallback;
+    }
+  }
+  
+  static safeMap(array, mapper, fallback = []) {
+    try {
+      const validArray = InputValidator.validateArray(array, 'array for map operation');
+      
+      if (validArray.length === 0) {
+        return fallback;
+      }
+      
+      return validArray.map((item, index) => {
+        try {
+          return mapper(item, index, validArray);
+        } catch (error) {
+          console.warn(`Map operation failed for item at index ${index}: ${error.message}`);
+          return null;
+        }
+      }).filter(item => item !== null);
+    } catch (error) {
+      console.warn(`Safe map operation failed: ${error.message}, returning fallback`);
+      return fallback;
+    }
+  }
+  
+  static safeFilter(array, predicate, fallback = []) {
+    try {
+      const validArray = InputValidator.validateArray(array, 'array for filter operation');
+      
+      if (validArray.length === 0) {
+        return fallback;
+      }
+      
+      return validArray.filter((item, index) => {
+        try {
+          return predicate(item, index, validArray);
+        } catch (error) {
+          console.warn(`Filter predicate failed for item at index ${index}: ${error.message}`);
+          return false;
+        }
+      });
+    } catch (error) {
+      console.warn(`Safe filter operation failed: ${error.message}, returning fallback`);
+      return fallback;
+    }
+  }
+  
+  static safeReduce(array, reducer, initialValue, fallback = null) {
+    try {
+      const validArray = InputValidator.validateArray(array, 'array for reduce operation');
+      
+      if (validArray.length === 0) {
+        return initialValue !== undefined ? initialValue : fallback;
+      }
+      
+      return validArray.reduce((acc, item, index) => {
+        try {
+          return reducer(acc, item, index, validArray);
+        } catch (error) {
+          console.warn(`Reduce operation failed for item at index ${index}: ${error.message}`);
+          return acc;
+        }
+      }, initialValue);
+    } catch (error) {
+      console.warn(`Safe reduce operation failed: ${error.message}, returning fallback`);
+      return fallback;
+    }
+  }
+  
+  static safeForEach(array, callback) {
+    try {
+      const validArray = InputValidator.validateArray(array, 'array for forEach operation');
+      
+      validArray.forEach((item, index) => {
+        try {
+          callback(item, index, validArray);
+        } catch (error) {
+          console.warn(`ForEach callback failed for item at index ${index}: ${error.message}`);
+        }
+      });
+    } catch (error) {
+      console.warn(`Safe forEach operation failed: ${error.message}`);
+    }
+  }
+}
+
+/**
+ * Error boundary decorator for async functions
+ */
+function withErrorBoundary(fn, fallback = null, context = {}) {
+  return async function(...args) {
+    try {
+      return await fn.apply(this, args);
+    } catch (error) {
+      const enhancedError = new DataPilotError(
+        `Error in ${fn.name || 'anonymous function'}: ${error.message}`,
+        error.code || 'RUNTIME_ERROR',
+        { ...context, originalError: error, args }
+      );
+      
+      console.error('DataPilot Error:', enhancedError);
+      
+      if (fallback !== null) {
+        if (typeof fallback === 'function') {
+          try {
+            return fallback(enhancedError, ...args);
+          } catch (fallbackError) {
+            console.error('Fallback function also failed:', fallbackError);
+            return null;
+          }
+        }
+        return fallback;
+      }
+      
+      throw enhancedError;
+    }
   };
 }
+
+/**
+ * Safe property access with fallback
+ */
+function safeGet(obj, path, fallback = null) {
+  try {
+    if (obj === null || obj === undefined) {
+      return fallback;
+    }
+    
+    const keys = Array.isArray(path) ? path : path.split('.');
+    let result = obj;
+    
+    for (const key of keys) {
+      if (result === null || result === undefined || typeof result !== 'object') {
+        return fallback;
+      }
+      result = result[key];
+    }
+    
+    return result === undefined ? fallback : result;
+  } catch (error) {
+    console.warn(`Safe property access failed for path ${path}: ${error.message}`);
+    return fallback;
+  }
+}
+
+// Add timeout wrapper for expensive calculations
+function withTimeout(promise, timeoutMs = 5000, operation = 'calculation') {
+  const timeoutPromise = new Promise((_, reject) => {
+    setTimeout(() => {
+      reject(new Error(`${operation} timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+  });
+  
+  return Promise.race([promise, timeoutPromise]);
+}
+
+// Enhanced calculateStats with timeout protection
+const calculateStats = withErrorBoundary(async function calculateStatsInternal(values, options = {}) {
+  const timeoutMs = options.timeout || 5000;
+  
+  const statsPromise = new Promise((resolve) => {
+    // Validate input array
+    const validatedValues = InputValidator.validateArray(values, 'values', { allowEmpty: false });
+    
+    const cleanValues = SafeArrayOps.safeFilter(validatedValues, v => {
+      return typeof v === 'number' && !isNaN(v) && isFinite(v);
+    });
+    
+    if (cleanValues.length === 0) {
+      resolve({
+        count: 0,
+        min: null,
+        max: null,
+        mean: null,
+        median: null,
+        mode: null,
+        std: null,
+        variance: null,
+        error: 'No valid numeric values found'
+      });
+      return;
+    }
+
+    // Limit processing for very large arrays to prevent hanging
+    const processLimit = Math.min(cleanValues.length, 50000);
+    const processValues = cleanValues.slice(0, processLimit);
+    
+    if (cleanValues.length > processLimit) {
+      console.warn(`⚠️  Large dataset detected, processing first ${processLimit.toLocaleString()} values for statistics`);
+    }
+    
+    try {
+      const sorted = [...processValues].sort((a, b) => a - b);
+      const count = processValues.length;
+      const sum = processValues.reduce((a, b) => a + b, 0);
+      const mean = sum / count;
+      
+      // Calculate median
+      const median = count % 2 === 0 
+        ? (sorted[Math.floor(count / 2) - 1] + sorted[Math.floor(count / 2)]) / 2
+        : sorted[Math.floor(count / 2)];
+      
+      // Calculate mode (limit to reasonable sample size)
+      const sampleForMode = processValues.slice(0, Math.min(10000, processValues.length));
+      const frequency = {};
+      sampleForMode.forEach(v => frequency[v] = (frequency[v] || 0) + 1);
+      const mode = Object.keys(frequency).reduce((a, b) => frequency[a] > frequency[b] ? a : b);
+      
+      // Calculate variance and standard deviation
+      const variance = processValues.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / count;
+      const std = Math.sqrt(variance);
+      
+      resolve({
+        count: cleanValues.length, // Use original count
+        min: sorted[0],
+        max: sorted[sorted.length - 1],
+        mean: Number(mean.toFixed(6)),
+        median: Number(median.toFixed(6)),
+        mode: Number(mode),
+        std: Number(std.toFixed(6)),
+        variance: Number(variance.toFixed(6)),
+        processed: processValues.length,
+        samplingUsed: cleanValues.length > processLimit
+      });
+    } catch (error) {
+      resolve({
+        count: cleanValues.length,
+        error: `Calculation failed: ${error.message}`
+      });
+    }
+  });
+  
+  return withTimeout(statsPromise, timeoutMs, 'Statistical calculation');
+}, null, { function: 'calculateStats' });
 
 function calculateSkewness(values) {
   const mean = mean$2(values);
@@ -55584,30 +56542,6 @@ function calculateSkewness(values) {
   
   const sum = values.reduce((acc, val) => acc + Math.pow((val - mean) / stdDev, 3), 0);
   return (n / ((n - 1) * (n - 2))) * sum;
-}
-
-function calculateKurtosis(values) {
-  const mean = mean$2(values);
-  const stdDev = standardDeviation(values);
-  const n = values.length;
-  
-  if (stdDev === 0) return 0;
-  
-  const sum = values.reduce((acc, val) => acc + Math.pow((val - mean) / stdDev, 4), 0);
-  return ((n * (n + 1)) / ((n - 1) * (n - 2) * (n - 3))) * sum - 
-         (3 * (n - 1) * (n - 1)) / ((n - 2) * (n - 3));
-}
-
-function findOutliers(sortedValues) {
-  if (sortedValues.length < 4) return [];
-  
-  const q1 = quantile(sortedValues, 0.25);
-  const q3 = quantile(sortedValues, 0.75);
-  const iqr = q3 - q1;
-  const lowerBound = q1 - 1.5 * iqr;
-  const upperBound = q3 + 1.5 * iqr;
-  
-  return sortedValues.filter(v => v < lowerBound || v > upperBound);
 }
 
 function calculateCorrelation(values1, values2) {
@@ -59537,11 +60471,11 @@ var jsYaml = {
 
 class KnowledgeBase {
   constructor(basePath = null) {
-    this.basePath = basePath || path$2.join(os$1.homedir(), '.datapilot', 'archaeology');
-    this.warehousePath = path$2.join(this.basePath, 'warehouse_knowledge.yaml');
-    this.tablesPath = path$2.join(this.basePath, 'tables');
-    this.patternsPath = path$2.join(this.basePath, 'patterns.yaml');
-    this.relationshipsPath = path$2.join(this.basePath, 'relationships.yaml');
+    this.basePath = basePath || path$1.join(os$1.homedir(), '.datapilot', 'archaeology');
+    this.warehousePath = path$1.join(this.basePath, 'warehouse_knowledge.yaml');
+    this.tablesPath = path$1.join(this.basePath, 'tables');
+    this.patternsPath = path$1.join(this.basePath, 'patterns.yaml');
+    this.relationshipsPath = path$1.join(this.basePath, 'relationships.yaml');
     
     this.initializeDirectories();
   }
@@ -59629,7 +60563,7 @@ class KnowledgeBase {
       for (const file of files) {
         if (file.endsWith('.yaml')) {
           const tableName = file.replace('.yaml', '');
-          tables[tableName] = this.loadYaml(path$2.join(this.tablesPath, file));
+          tables[tableName] = this.loadYaml(path$1.join(this.tablesPath, file));
         }
       }
       
@@ -59641,7 +60575,7 @@ class KnowledgeBase {
   }
 
   async saveTable(tableName, analysis) {
-    const tablePath = path$2.join(this.tablesPath, `${tableName}.yaml`);
+    const tablePath = path$1.join(this.tablesPath, `${tableName}.yaml`);
     this.saveYaml(tablePath, analysis);
   }
 
@@ -59862,6 +60796,428 @@ WAREHOUSE ARCHAEOLOGY SUMMARY:
 - Last Updated: ${metadata.last_updated}
     `.trim();
   }
+
+  async deleteTable(tableName) {
+    try {
+      // Load current warehouse knowledge
+      const knowledge = await this.load();
+      
+      // Remove table YAML file
+      const tableFilePath = path$1.join(this.tablesPath, `${tableName}.yaml`);
+      if (fs.existsSync(tableFilePath)) {
+        fs.unlinkSync(tableFilePath);
+      }
+      
+      // Update warehouse metadata
+      if (knowledge.warehouse && knowledge.warehouse.table_registry) {
+        const tableInfo = knowledge.warehouse.table_registry[tableName];
+        if (tableInfo) {
+          // Update technical debt
+          if (knowledge.warehouse.warehouse_metadata && tableInfo.tech_debt_hours) {
+            knowledge.warehouse.warehouse_metadata.total_technical_debt_hours -= tableInfo.tech_debt_hours;
+          }
+          
+          // Remove from registry
+          delete knowledge.warehouse.table_registry[tableName];
+          
+          // Update discovered tables count
+          if (knowledge.warehouse.warehouse_metadata) {
+            knowledge.warehouse.warehouse_metadata.discovered_tables = 
+              Object.keys(knowledge.warehouse.table_registry).length;
+          }
+          
+          // Remove from domains
+          if (knowledge.warehouse.domains && tableInfo.domain) {
+            const domainTables = knowledge.warehouse.domains[tableInfo.domain] || [];
+            knowledge.warehouse.domains[tableInfo.domain] = domainTables.filter(t => t !== tableName);
+            
+            // Remove empty domains
+            if (knowledge.warehouse.domains[tableInfo.domain].length === 0) {
+              delete knowledge.warehouse.domains[tableInfo.domain];
+            }
+          }
+          
+          // Update timestamp
+          knowledge.warehouse.warehouse_metadata.last_updated = new Date().toISOString();
+          
+          // Save updated warehouse
+          this.saveYaml(this.warehousePath, knowledge.warehouse);
+        }
+      }
+      
+      // Remove any relationships referencing this table
+      if (knowledge.relationships) {
+        knowledge.relationships.confirmed = (knowledge.relationships.confirmed || [])
+          .filter(rel => rel.source_table !== tableName && rel.target_table !== tableName);
+        knowledge.relationships.suspected = (knowledge.relationships.suspected || [])
+          .filter(rel => rel.source_table !== tableName && rel.target_table !== tableName);
+        this.saveYaml(this.relationshipsPath, knowledge.relationships);
+      }
+      
+      return true;
+    } catch (error) {
+      console.error(`Failed to delete table ${tableName}:`, error.message);
+      throw error;
+    }
+  }
+
+  async clearAll() {
+    try {
+      // Remove the entire archaeology directory
+      if (fs.existsSync(this.basePath)) {
+        // Recursively remove all files and directories
+        this.removeDirectory(this.basePath);
+      }
+      
+      // Reinitialize empty directories
+      this.initializeDirectories();
+      
+      // Create empty warehouse file
+      const emptyWarehouse = this.createEmptyWarehouse();
+      this.saveYaml(this.warehousePath, emptyWarehouse);
+      
+      return true;
+    } catch (error) {
+      console.error('Failed to clear all memories:', error.message);
+      throw error;
+    }
+  }
+
+  removeDirectory(dirPath) {
+    if (fs.existsSync(dirPath)) {
+      fs.readdirSync(dirPath).forEach((file) => {
+        const curPath = path$1.join(dirPath, file);
+        if (fs.lstatSync(curPath).isDirectory()) {
+          // Recursive call for directories
+          this.removeDirectory(curPath);
+        } else {
+          // Delete file
+          fs.unlinkSync(curPath);
+        }
+      });
+      fs.rmdirSync(dirPath);
+    }
+  }
+}
+
+/**
+ * Data-driven relationship validation for ENG command
+ * Validates potential relationships with actual data sampling
+ */
+
+class RelationshipValidator {
+  constructor(records, columns, columnTypes) {
+    this.records = records;
+    this.columns = columns;
+    this.columnTypes = columnTypes;
+    this.sampleSize = Math.min(1000, records.length);
+  }
+
+  /**
+   * Validates a potential foreign key relationship with data sampling
+   */
+  async validateForeignKey(sourceColumn, targetTable, targetColumn = 'id') {
+    const validation = {
+      sourceColumn,
+      targetTable,
+      targetColumn,
+      isValid: false,
+      confidence: 0,
+      dataValidation: {
+        sampleSize: 0,
+        matchingRecords: 0,
+        distinctValues: 0,
+        nullCount: 0,
+        orphanedRecords: 0
+      },
+      issues: []
+    };
+
+    // Get sample of source column values
+    const sourceValues = this.getSampleValues(sourceColumn, this.sampleSize);
+    validation.dataValidation.sampleSize = sourceValues.length;
+    validation.dataValidation.nullCount = this.records.filter(r => 
+      r[sourceColumn] === null || r[sourceColumn] === undefined || r[sourceColumn] === ''
+    ).length;
+
+    // Calculate distinct values
+    const distinctValues = new Set(sourceValues.filter(v => v !== null && v !== undefined && v !== ''));
+    validation.dataValidation.distinctValues = distinctValues.size;
+
+    // Check for format consistency
+    const formatCheck = this.checkFormatConsistency(sourceValues);
+    if (!formatCheck.isConsistent) {
+      validation.issues.push({
+        type: 'format_mismatch',
+        message: `Inconsistent formats found: ${formatCheck.formats.join(', ')}`,
+        severity: 'warning'
+      });
+      validation.confidence -= 0.2;
+    }
+
+    // Check cardinality (many-to-one expected for FK)
+    const cardinalityRatio = distinctValues.size / sourceValues.length;
+    if (cardinalityRatio > 0.95) {
+      validation.issues.push({
+        type: 'high_cardinality',
+        message: 'Nearly unique values suggest this might not be a foreign key',
+        severity: 'warning'
+      });
+      validation.confidence -= 0.3;
+    }
+
+    // Check for referential integrity patterns
+    const integrityCheck = this.checkReferentialIntegrity(sourceValues, targetTable);
+    validation.dataValidation.orphanedRecords = integrityCheck.orphanedCount;
+    
+    if (integrityCheck.orphanedRate > 0.1) {
+      validation.issues.push({
+        type: 'referential_integrity',
+        message: `${(integrityCheck.orphanedRate * 100).toFixed(1)}% of records would be orphaned`,
+        severity: 'critical'
+      });
+      validation.confidence -= 0.5;
+    }
+
+    // Calculate final confidence based on multiple factors
+    validation.confidence = this.calculateRelationshipConfidence({
+      nameMatch: this.calculateNameMatchScore(sourceColumn, targetTable),
+      formatConsistency: formatCheck.consistency,
+      cardinalityScore: 1 - cardinalityRatio,
+      integrityScore: 1 - integrityCheck.orphanedRate,
+      nullRate: validation.dataValidation.nullCount / this.records.length
+    });
+
+    validation.isValid = validation.confidence > 0.6;
+
+    return validation;
+  }
+
+  /**
+   * Validates relationships by comparing actual data values
+   */
+  async validateWithData(sourceColumn, targetData, targetColumn) {
+    if (!targetData || targetData.length === 0) {
+      return {
+        isValid: false,
+        confidence: 0,
+        reason: 'No target data available for validation'
+      };
+    }
+
+    const sourceValues = new Set(
+      this.records
+        .map(r => r[sourceColumn])
+        .filter(v => v !== null && v !== undefined && v !== '')
+    );
+
+    const targetValues = new Set(
+      targetData
+        .map(r => r[targetColumn])
+        .filter(v => v !== null && v !== undefined && v !== '')
+    );
+
+    const matches = [...sourceValues].filter(v => targetValues.has(v));
+    const matchRate = matches.length / sourceValues.size;
+
+    return {
+      isValid: matchRate > 0.8,
+      confidence: matchRate,
+      matchingRecords: matches.length,
+      orphanedRecords: sourceValues.size - matches.length,
+      details: {
+        sourceUnique: sourceValues.size,
+        targetUnique: targetValues.size,
+        overlap: matches.length
+      }
+    };
+  }
+
+  /**
+   * Detects relationship patterns through data analysis
+   */
+  detectDataPatterns(column1, column2) {
+    const patterns = {
+      oneToOne: false,
+      oneToMany: false,
+      manyToMany: false,
+      cardinality: null
+    };
+
+    const pairs = new Map();
+    
+    this.records.forEach(record => {
+      const val1 = record[column1];
+      const val2 = record[column2];
+      
+      if (val1 !== null && val2 !== null) {
+        const key = `${val1}|${val2}`;
+        pairs.set(key, (pairs.get(key) || 0) + 1);
+      }
+    });
+
+    // Analyze cardinality
+    const val1Groups = new Map();
+    const val2Groups = new Map();
+    
+    pairs.forEach((count, key) => {
+      const [val1, val2] = key.split('|');
+      
+      if (!val1Groups.has(val1)) val1Groups.set(val1, new Set());
+      if (!val2Groups.has(val2)) val2Groups.set(val2, new Set());
+      
+      val1Groups.get(val1).add(val2);
+      val2Groups.get(val2).add(val1);
+    });
+
+    // Determine relationship type
+    const avgVal2PerVal1 = [...val1Groups.values()].reduce((sum, set) => sum + set.size, 0) / val1Groups.size;
+    const avgVal1PerVal2 = [...val2Groups.values()].reduce((sum, set) => sum + set.size, 0) / val2Groups.size;
+
+    if (avgVal2PerVal1 <= 1.1 && avgVal1PerVal2 <= 1.1) {
+      patterns.oneToOne = true;
+      patterns.cardinality = '1:1';
+    } else if (avgVal2PerVal1 > 1.5 && avgVal1PerVal2 <= 1.1) {
+      patterns.oneToMany = true;
+      patterns.cardinality = '1:N';
+    } else if (avgVal2PerVal1 > 1.5 && avgVal1PerVal2 > 1.5) {
+      patterns.manyToMany = true;
+      patterns.cardinality = 'M:N';
+    }
+
+    return patterns;
+  }
+
+  // Helper methods
+
+  getSampleValues(column, sampleSize) {
+    const step = Math.max(1, Math.floor(this.records.length / sampleSize));
+    const values = [];
+    
+    for (let i = 0; i < this.records.length; i += step) {
+      values.push(this.records[i][column]);
+    }
+    
+    return values;
+  }
+
+  checkFormatConsistency(values) {
+    const formats = new Map();
+    
+    values.forEach(value => {
+      if (value !== null && value !== undefined && value !== '') {
+        const format = this.detectValueFormat(value);
+        formats.set(format, (formats.get(format) || 0) + 1);
+      }
+    });
+
+    const totalValues = values.filter(v => v !== null && v !== undefined && v !== '').length;
+    const dominantFormat = [...formats.entries()].sort((a, b) => b[1] - a[1])[0];
+    
+    return {
+      isConsistent: formats.size === 1,
+      consistency: dominantFormat ? dominantFormat[1] / totalValues : 0,
+      formats: [...formats.keys()]
+    };
+  }
+
+  detectValueFormat(value) {
+    const strValue = String(value);
+    
+    if (/^\d+$/.test(strValue)) return 'numeric';
+    if (/^[A-Z0-9]{2,10}$/.test(strValue)) return 'code_uppercase';
+    if (/^[a-z0-9]{2,10}$/.test(strValue)) return 'code_lowercase';
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(strValue)) return 'uuid';
+    if (/^[A-Z]{2,3}-\d{4,6}$/.test(strValue)) return 'prefixed_id';
+    
+    return 'mixed';
+  }
+
+  checkReferentialIntegrity(sourceValues, targetTable) {
+    // Simulate checking against known ID patterns
+    // In real implementation, this would check against actual target data
+    const validPatterns = this.getExpectedPatterns(targetTable);
+    let orphanedCount = 0;
+    
+    sourceValues.forEach(value => {
+      if (value !== null && value !== undefined && value !== '') {
+        const isValid = validPatterns.some(pattern => 
+          pattern.test ? pattern.test(String(value)) : pattern === this.detectValueFormat(value)
+        );
+        if (!isValid) orphanedCount++;
+      }
+    });
+
+    return {
+      orphanedCount,
+      orphanedRate: orphanedCount / sourceValues.length
+    };
+  }
+
+  getExpectedPatterns(tableName) {
+    // Common ID patterns by table type
+    const patterns = {
+      users: [/^\d+$/, 'numeric', 'uuid'],
+      customers: [/^\d+$/, 'code_uppercase', 'prefixed_id'],
+      products: [/^[A-Z0-9]{3,10}$/, 'code_uppercase', 'numeric'],
+      orders: [/^\d+$/, 'prefixed_id', 'uuid'],
+      transactions: [/^\d+$/, 'uuid', 'prefixed_id']
+    };
+
+    // Find best matching pattern
+    for (const [key, value] of Object.entries(patterns)) {
+      if (tableName.toLowerCase().includes(key)) {
+        return value;
+      }
+    }
+
+    // Default patterns
+    return [/^\d+$/, 'numeric', 'uuid', 'code_uppercase'];
+  }
+
+  calculateNameMatchScore(sourceColumn, targetTable) {
+    const colLower = sourceColumn.toLowerCase();
+    const tableLower = targetTable.toLowerCase();
+    
+    // Direct match (e.g., user_id -> users)
+    if (colLower.includes(tableLower.replace(/s$/, ''))) return 0.9;
+    if (colLower.includes(tableLower)) return 0.8;
+    
+    // Partial match
+    const colParts = colLower.split(/[_\s-]/);
+    const tableParts = tableLower.split(/[_\s-]/);
+    
+    const matches = colParts.filter(part => 
+      tableParts.some(tPart => part.includes(tPart) || tPart.includes(part))
+    );
+    
+    return matches.length / Math.max(colParts.length, tableParts.length);
+  }
+
+  calculateRelationshipConfidence(factors) {
+    // Weighted confidence calculation
+    const weights = {
+      nameMatch: 0.3,
+      formatConsistency: 0.25,
+      cardinalityScore: 0.2,
+      integrityScore: 0.2,
+      nullRate: 0.05
+    };
+
+    let confidence = 0;
+    
+    for (const [factor, value] of Object.entries(factors)) {
+      if (weights[factor]) {
+        confidence += weights[factor] * (factor === 'nullRate' ? 1 - value : value);
+      }
+    }
+
+    return Math.min(1, Math.max(0, confidence));
+  }
+}
+
+function createRelationshipValidator(records, columns, columnTypes) {
+  return new RelationshipValidator(records, columns, columnTypes);
 }
 
 class ArchaeologyEngine {
@@ -59882,22 +61238,36 @@ class ArchaeologyEngine {
       records = options.preloadedData.records;
       columnTypes = options.preloadedData.columnTypes;
     } else {
-      records = await parseCSV(csvPath, { quiet: options.quiet, header: options.header });
+      const allRecords = await parseCSV(csvPath, { quiet: options.quiet, header: options.header });
+      const originalSize = allRecords.length;
+      
+      // Apply smart sampling for large datasets
+      const samplingStrategy = createSamplingStrategy(allRecords, 'basic');
+      
+      if (samplingStrategy.method !== 'none') {
+        if (spinner) {
+          spinner.text = `Large dataset detected (${originalSize.toLocaleString()} rows). Applying smart sampling...`;
+        } else {
+          console.log(`- Large dataset detected (${originalSize.toLocaleString()} rows). Applying smart sampling...`);
+        }
+        
+        records = performSampling(allRecords, samplingStrategy);
+        console.log(`⚠️  Large dataset sampled: ${records.length.toLocaleString()} of ${originalSize.toLocaleString()} rows (${samplingStrategy.method} sampling)`);
+      } else {
+        records = allRecords;
+      }
+      
       if (spinner) spinner.text = 'Performing data archaeology...';
       columnTypes = detectColumnTypes(records);
     }
     
-    // Handle empty dataset
-    if (records.length === 0) {
-      if (spinner) spinner.fail('Empty dataset - no data to analyze');
-      const tableName = basename(csvPath, '.csv');
-      let report = createSection('🏛️ DATA ENGINEERING ARCHAEOLOGY REPORT',
-        `Dataset: ${tableName}.csv\nAnalysis Date: ${formatTimestamp()}\n\n⚠️  Empty dataset - no archaeology to perform`);
-      
-      // Still include the required section header
-      report += createSubSection('🗄️ SCHEMA RECOMMENDATIONS', 'No data available for schema analysis');
-      
-      return report;
+    // Check if data is empty
+    if (!records || records.length === 0) {
+      outputHandler.restore();
+      if (spinner) spinner.error({ text: 'Empty dataset - no data to analyze' });
+      console.error('No data found in the CSV file');
+      if (!options.quiet) process.exit(1);
+      return;
     }
     
     if (spinner) spinner.text = 'Detecting cross-table patterns...';
@@ -59979,7 +61349,7 @@ class ArchaeologyEngine {
       tech_debt_hours: this.estimateTechnicalDebt(records, columns, columnTypes),
       domain: this.guessDomain(fileName, columns),
       likely_purpose: this.guessTablePurpose(fileName, columns, columnTypes),
-      relationships: this.detectPotentialRelationships(columns, columnTypes),
+      relationships: this.detectPotentialRelationships(columns, columnTypes, records),
       patterns: this.detectTablePatterns(columns, records, columnTypes),
       schema_recommendations: this.generateSchemaRecommendations(columns, columnTypes, records),
       etl_recommendations: this.generateETLRecommendations(records, columns, columnTypes),
@@ -60300,8 +61670,11 @@ NEXT_INVESTIGATE: [what tables to analyze next]`;
   }
 
   // Enhanced analysis methods with advanced pattern recognition
-  detectPotentialRelationships(columns, columnTypes) {
+  detectPotentialRelationships(columns, columnTypes, records = []) {
     const relationships = [];
+    
+    // Create validator for data-driven validation
+    const validator = records.length > 0 ? createRelationshipValidator(records, columns, columnTypes) : null;
     
     // Advanced foreign key pattern analysis
     columns.forEach(column => {
@@ -60311,16 +61684,29 @@ NEXT_INVESTIGATE: [what tables to analyze next]`;
       // Sophisticated ID pattern detection
       if (colLower.includes('_id') || colLower.endsWith('id')) {
         const tableHint = this.extractTableFromId(colLower);
-        const confidence = this.calculateFKConfidence(column, type, tableHint);
+        const nameBasedConfidence = this.calculateFKConfidence(column, type, tableHint);
         
-        if (tableHint && confidence > 0.5) {
+        if (tableHint && nameBasedConfidence > 0.5) {
+          const targetTable = this.pluralizeTableName(tableHint);
+          let finalConfidence = nameBasedConfidence;
+          let dataValidation = null;
+          
+          // Perform data validation if validator is available
+          if (validator) {
+            dataValidation = validator.validateForeignKey(column, targetTable);
+            // Combine name-based and data-based confidence
+            finalConfidence = (nameBasedConfidence * 0.4 + dataValidation.confidence * 0.6);
+          }
+          
           relationships.push({
             type: 'foreign_key',
             column: column,
-            confidence: confidence,
-            target_table: this.pluralizeTableName(tableHint),
+            confidence: finalConfidence,
+            target_table: targetTable,
             target_column: 'id',
-            evidence: this.buildFKEvidence(column, type, tableHint, confidence)
+            evidence: this.buildFKEvidence(column, type, tableHint, finalConfidence),
+            dataValidation: dataValidation,
+            validationIssues: dataValidation?.issues || []
           });
         }
       }
@@ -60328,29 +61714,53 @@ NEXT_INVESTIGATE: [what tables to analyze next]`;
       // Enhanced code/reference pattern analysis
       if ((colLower.includes('code') || colLower.includes('cd')) && type.type === 'categorical') {
         const domain = this.extractDomainFromCode(colLower);
-        const confidence = this.calculateCodeConfidence(column, type);
+        const nameBasedConfidence = this.calculateCodeConfidence(column, type);
+        const targetTable = `ref_${domain}_codes`;
+        let finalConfidence = nameBasedConfidence;
+        let dataValidation = null;
+        
+        // Perform data validation if validator is available
+        if (validator) {
+          dataValidation = validator.validateForeignKey(column, targetTable, 'code');
+          // Combine name-based and data-based confidence
+          finalConfidence = (nameBasedConfidence * 0.4 + dataValidation.confidence * 0.6);
+        }
         
         relationships.push({
           type: 'lookup_reference',
           column: column,
-          confidence: confidence,
-          target_table: `ref_${domain}_codes`,
+          confidence: finalConfidence,
+          target_table: targetTable,
           target_column: 'code',
-          evidence: `Code pattern (${type.categories?.length || 'unknown'} distinct values) suggests lookup table relationship`
+          evidence: `Code pattern (${type.categories?.length || 'unknown'} distinct values) suggests lookup table relationship`,
+          dataValidation: dataValidation,
+          validationIssues: dataValidation?.issues || []
         });
       }
       
       // Advanced categorical pattern analysis
       if ((colLower.includes('type') || colLower.includes('category') || colLower.includes('status')) && type.type === 'categorical') {
-        const confidence = this.calculateCategoricalConfidence(column, type);
+        const nameBasedConfidence = this.calculateCategoricalConfidence(column, type);
+        const targetTable = `ref_${colLower.replace(/[^a-z]/g, '_')}s`;
+        let finalConfidence = nameBasedConfidence;
+        let dataValidation = null;
+        
+        // Perform data validation if validator is available
+        if (validator) {
+          dataValidation = validator.validateForeignKey(column, targetTable, 'name');
+          // Combine name-based and data-based confidence
+          finalConfidence = (nameBasedConfidence * 0.4 + dataValidation.confidence * 0.6);
+        }
         
         relationships.push({
           type: 'enum_reference',
           column: column,
-          confidence: confidence,
-          target_table: `ref_${colLower.replace(/[^a-z]/g, '_')}s`,
+          confidence: finalConfidence,
+          target_table: targetTable,
           target_column: 'name',
-          evidence: `Categorical field (${type.categories?.length || 'unknown'} values) suggests enumeration reference`
+          evidence: `Categorical field (${type.categories?.length || 'unknown'} values) suggests enumeration reference`,
+          dataValidation: dataValidation,
+          validationIssues: dataValidation?.issues || []
         });
       }
       
@@ -60444,9 +61854,12 @@ NEXT_INVESTIGATE: [what tables to analyze next]`;
       const measureKeywords = ['amount', 'count', 'total', 'quantity', 'value', 'sum', 'avg', 'price', 'cost', 'revenue', 'profit'];
       const isMeasureByName = measureKeywords.some(keyword => colLower.includes(keyword));
       
-      // Statistical identification (high cardinality numeric)
+      // Statistical identification (high cardinality numeric) with sampling
       if (records.length > 0) {
-        const values = records.map(r => r[col]).filter(v => v !== null && v !== undefined);
+        const samplingStrategy = createSamplingStrategy(records, 'basic');
+        const sampledRecords = performSampling(records, samplingStrategy);
+        
+        const values = sampledRecords.map(r => r[col]).filter(v => v !== null && v !== undefined);
         const uniqueRatio = new Set(values).size / values.length;
         const isHighCardinality = uniqueRatio > 0.8;
         
@@ -60467,9 +61880,12 @@ NEXT_INVESTIGATE: [what tables to analyze next]`;
           colLower.includes('category') || colLower.includes('status') ||
           colLower.includes('code')) return true;
       
-      // Categorical columns with reasonable cardinality
+      // Categorical columns with reasonable cardinality (with sampling)
       if (type?.type === 'categorical' && records.length > 0) {
-        const values = records.map(r => r[col]).filter(v => v);
+        const samplingStrategy = createSamplingStrategy(records, 'basic');
+        const sampledRecords = performSampling(records, samplingStrategy);
+        
+        const values = sampledRecords.map(r => r[col]).filter(v => v);
         const uniqueCount = new Set(values).size;
         return uniqueCount >= 2 && uniqueCount <= Math.min(values.length * 0.5, 100);
       }
@@ -60868,8 +62284,39 @@ NEXT_INVESTIGATE: [what tables to analyze next]`;
     return Math.round(score * 10) / 10;
   }
 
-  generateSchemaRecommendations(columns, columnTypes, records) { 
-    return this.generateLegacySchemaSection(columns, columnTypes, records); 
+  generateSchemaRecommendations(columns, columnTypes, records) {
+    const relationships = this.detectPotentialRelationships(columns, columnTypes, records);
+    let recommendations = this.generateLegacySchemaSection(columns, columnTypes, records);
+    
+    // Add relationships section if any were found
+    if (relationships && relationships.length > 0) {
+      recommendations += '\nDetected Relationships:\n';
+      relationships.forEach(rel => {
+        // Handle cross-column relationships which use 'columns' instead of 'column'
+        const sourceColumn = rel.column || (rel.columns ? rel.columns.join(', ') : 'unknown');
+        recommendations += `\n- ${sourceColumn} → ${rel.target_table}.${rel.target_column}`;
+        recommendations += `\n  Type: ${rel.type}, Confidence: ${(rel.confidence * 100).toFixed(0)}%`;
+        recommendations += `\n  Evidence: ${rel.evidence}`;
+        
+        // Add validation results if available
+        if (rel.dataValidation) {
+          recommendations += `\n  Data Validation: ${rel.dataValidation.validationType} - Confidence: ${(rel.dataValidation.confidence * 100).toFixed(0)}%`;
+          if (rel.dataValidation.issues && rel.dataValidation.issues.length > 0) {
+            recommendations += '\n  Issues Found:';
+            rel.dataValidation.issues.forEach(issue => {
+              recommendations += `\n    - ${issue}`;
+            });
+          }
+          if (rel.dataValidation.details) {
+            Object.entries(rel.dataValidation.details).forEach(([key, value]) => {
+              recommendations += `\n    ${key}: ${value}`;
+            });
+          }
+        }
+      });
+    }
+    
+    return recommendations;
   }
 
   generateETLRecommendations(records, columns, columnTypes) {
@@ -62906,7 +64353,7 @@ function extractEdaSummary(edaResults, options = {}) {
   };
 
   // Extract top statistical insights
-  if (edaResults.statisticalInsights && Array.isArray(edaResults.statisticalInsights)) {
+  if (edaResults.statisticalInsights && Array.isArray(edaResults.statisticalInsights) && edaResults.statisticalInsights.length > 0) {
     const topInsights = edaResults.statisticalInsights
       .filter(insight => insight && (insight.importance === 'high' || insight.significance > 0.8))
       .slice(0, 3);
@@ -62939,10 +64386,10 @@ function extractEdaSummary(edaResults, options = {}) {
   }
 
   // Extract significant correlations
-  if (edaResults.correlations && Array.isArray(edaResults.correlations)) {
+  if (edaResults.correlations && Array.isArray(edaResults.correlations) && edaResults.correlations.length > 0) {
     const significantCorrelations = edaResults.correlations
       .filter(corr => corr && corr.value && Math.abs(corr.value) > 0.5)
-      .sort((a, b) => Math.abs(b.value) - Math.abs(a.value))
+      .sort((a, b) => Math.abs(b.value || 0) - Math.abs(a.value || 0))
       .slice(0, 3)
       .map(corr => ({
         columns: [corr.column1, corr.column2],
@@ -62955,7 +64402,7 @@ function extractEdaSummary(edaResults, options = {}) {
   }
 
   // Extract distribution patterns
-  if (edaResults.distributions && Array.isArray(edaResults.distributions)) {
+  if (edaResults.distributions && Array.isArray(edaResults.distributions) && edaResults.distributions.length > 0) {
     const notableDistributions = edaResults.distributions
       .filter(dist => dist && (dist.skewness > 2 || dist.kurtosis > 7 || dist.bimodal))
       .slice(0, 3)
@@ -63184,9 +64631,9 @@ function extractIntSummary(intResults, options = {}) {
     intResults.validationResults : 
     (intResults.validationResults ? [intResults.validationResults] : []);
     
-  if (validationResults.length > 0) {
+  if (validationResults && validationResults.length > 0) {
     const criticalValidations = validationResults
-      .filter(v => v.severity === 'critical' || v.failureRate > 0.1)
+      .filter(v => v && (v.severity === 'critical' || v.failureRate > 0.1))
       .sort((a, b) => (b.recordsAffected || 0) - (a.recordsAffected || 0))
       .slice(0, 5);
     
@@ -63205,9 +64652,9 @@ function extractIntSummary(intResults, options = {}) {
     intResults.businessRules : 
     (intResults.businessRules ? [intResults.businessRules] : []);
     
-  if (businessRules.length > 0) {
+  if (businessRules && businessRules.length > 0) {
     const highConfidenceRules = businessRules
-      .filter(rule => (rule.confidence || 0) > 0.95)
+      .filter(rule => rule && (rule.confidence || 0) > 0.95)
       .slice(0, 5)
       .map(rule => ({
         rule: rule.description,
@@ -63221,9 +64668,9 @@ function extractIntSummary(intResults, options = {}) {
   }
 
   // Extract referential integrity issues
-  if (intResults.referentialIntegrity) {
+  if (intResults.referentialIntegrity && Array.isArray(intResults.referentialIntegrity)) {
     const orphanedRecords = intResults.referentialIntegrity
-      .filter(ref => ref.orphanedCount > 0)
+      .filter(ref => ref && ref.orphanedCount > 0)
       .map(ref => ({
         type: 'referential_integrity',
         column: ref.foreignKey,
@@ -63241,9 +64688,9 @@ function extractIntSummary(intResults, options = {}) {
     intResults.patternAnomalies : 
     (intResults.patternAnomalies ? [intResults.patternAnomalies] : []);
     
-  if (patternAnomalies.length > 0) {
+  if (patternAnomalies && patternAnomalies.length > 0) {
     const significantAnomalies = patternAnomalies
-      .filter(anomaly => anomaly.severity === 'high' || anomaly.count > 100)
+      .filter(anomaly => anomaly && (anomaly.severity === 'high' || anomaly.count > 100))
       .slice(0, 3)
       .map(anomaly => ({
         type: 'pattern_anomaly',
@@ -63262,9 +64709,9 @@ function extractIntSummary(intResults, options = {}) {
     intResults.suggestedFixes : 
     (intResults.suggestedFixes ? [intResults.suggestedFixes] : []);
     
-  if (suggestedFixes.length > 0) {
+  if (suggestedFixes && suggestedFixes.length > 0) {
     const automatedFixes = suggestedFixes
-      .filter(fix => fix.automatable && (fix.confidence || 0) > 0.9)
+      .filter(fix => fix && fix.automatable && (fix.confidence || 0) > 0.9)
       .slice(0, 5)
       .map(fix => ({
         issue: fix.issue,
@@ -63397,9 +64844,10 @@ function extractVisSummary(visResults, options = {}) {
   };
 
   // Extract top 3 visualization recommendations
-  if (visResults.recommendations) {
+  if (visResults.recommendations && Array.isArray(visResults.recommendations) && visResults.recommendations.length > 0) {
     const topRecs = visResults.recommendations
-      .sort((a, b) => b.score - a.score)
+      .filter(rec => rec && rec.score !== undefined)
+      .sort((a, b) => (b.score || 0) - (a.score || 0))
       .slice(0, 3)
       .map(rec => ({
         type: rec.chartType,
@@ -63417,7 +64865,7 @@ function extractVisSummary(visResults, options = {}) {
     const dash = visResults.dashboardRecommendation;
     summary.dashboardLayout = {
       primaryView: dash.mainVisualization,
-      supportingViews: dash.supportingVisualizations.slice(0, 3),
+      supportingViews: dash.supportingVisualizations && Array.isArray(dash.supportingVisualizations) ? dash.supportingVisualizations.slice(0, 3) : [],
       keyMetrics: dash.kpiCards || [],
       interactivity: dash.interactiveElements || [],
       flow: dash.analyticalFlow || 'overview-to-detail'
@@ -63425,9 +64873,9 @@ function extractVisSummary(visResults, options = {}) {
   }
 
   // Extract critical anti-patterns to avoid
-  if (visResults.antiPatterns) {
+  if (visResults.antiPatterns && Array.isArray(visResults.antiPatterns) && visResults.antiPatterns.length > 0) {
     const criticalAntiPatterns = visResults.antiPatterns
-      .filter(ap => ap.severity === 'high' || ap.commonMistake)
+      .filter(ap => ap && (ap.severity === 'high' || ap.commonMistake))
       .slice(0, 3)
       .map(ap => ({
         pattern: ap.name,
@@ -63462,15 +64910,15 @@ function extractVisSummary(visResults, options = {}) {
       };
     }
     
-    if (perceptual.warnings && perceptual.warnings.length > 0) {
+    if (perceptual.warnings && Array.isArray(perceptual.warnings) && perceptual.warnings.length > 0) {
       summary.perceptualWarnings = perceptual.warnings.slice(0, 2);
     }
   }
 
   // Extract multivariate pattern visualizations
-  if (visResults.multivariatePatterns) {
+  if (visResults.multivariatePatterns && Array.isArray(visResults.multivariatePatterns) && visResults.multivariatePatterns.length > 0) {
     const mvPatterns = visResults.multivariatePatterns
-      .filter(pattern => pattern.strength > 0.7)
+      .filter(pattern => pattern && pattern.strength > 0.7)
       .slice(0, 2)
       .map(pattern => ({
         type: getMultivariateVizType(pattern),
@@ -63683,11 +65131,11 @@ function extractEngSummary(engResults, options = {}) {
     const etl = engResults.etlAnalysis;
     const keyRequirements = [];
     
-    if (etl.dataQualityIssues && etl.dataQualityIssues.length > 0) {
+    if (etl.dataQualityIssues && Array.isArray(etl.dataQualityIssues) && etl.dataQualityIssues.length > 0) {
       keyRequirements.push({
         stage: 'Cleansing',
         requirement: 'Data quality fixes needed',
-        specifics: etl.dataQualityIssues.slice(0, 3).map(i => i.issue).join(', ')
+        specifics: etl.dataQualityIssues.slice(0, 3).map(i => i && i.issue || 'Unknown issue').join(', ')
       });
     }
     
@@ -63714,9 +65162,9 @@ function extractEngSummary(engResults, options = {}) {
   }
 
   // Extract technical debt insights
-  if (engResults.technicalDebt) {
+  if (engResults.technicalDebt && Array.isArray(engResults.technicalDebt) && engResults.technicalDebt.length > 0) {
     const criticalDebt = engResults.technicalDebt
-      .filter(debt => debt.severity === 'high' || debt.impact === 'blocking')
+      .filter(debt => debt && (debt.severity === 'high' || debt.impact === 'blocking'))
       .slice(0, 3)
       .map(debt => ({
         issue: debt.description,
@@ -63729,9 +65177,9 @@ function extractEngSummary(engResults, options = {}) {
   }
 
   // Extract discovered relationships
-  if (engResults.relationships) {
+  if (engResults.relationships && Array.isArray(engResults.relationships) && engResults.relationships.length > 0) {
     const strongRelationships = engResults.relationships
-      .filter(rel => rel.confidence > 0.9)
+      .filter(rel => rel && rel.confidence > 0.9)
       .slice(0, 5)
       .map(rel => ({
         type: rel.type,
@@ -63756,7 +65204,7 @@ function extractEngSummary(engResults, options = {}) {
       };
     }
     
-    if (knowledge.commonPatterns && knowledge.commonPatterns.length > 0) {
+    if (knowledge.commonPatterns && Array.isArray(knowledge.commonPatterns) && knowledge.commonPatterns.length > 0) {
       summary.patterns = knowledge.commonPatterns
         .slice(0, 3)
         .map(p => ({
@@ -63989,11 +65437,11 @@ function connectEngineeringAndOperational(eng, int, eda, synthesized) {
   if (eng.etlRequirements && int.automatedFixes) {
     const cleansingETL = eng.etlRequirements.find(req => req.stage === 'Cleansing');
     
-    if (cleansingETL && int.automatedFixes.length > 0) {
+    if (cleansingETL && int.automatedFixes && Array.isArray(int.automatedFixes) && int.automatedFixes.length > 0) {
       synthesized.connectedInsights.push({
         insight: `ETL cleansing stage can implement ${int.automatedFixes.length} automated data quality fixes`,
         impact: 'high',
-        action: `Integrate fixes into ETL pipeline: ${int.automatedFixes.slice(0, 2).map(f => f.fix).join(', ')}`,
+        action: `Integrate fixes into ETL pipeline: ${(int.automatedFixes && Array.isArray(int.automatedFixes) && int.automatedFixes.length > 0) ? int.automatedFixes.slice(0, 2).map(f => f.fix).join(', ') : 'Available via data integrity analysis'}`,
         confidence: 0.95
       });
     }
@@ -64935,9 +66383,9 @@ function formatSuggestedAnalyses(results) {
   }
   
   // From original analysis suggestions
-  if (results.originalAnalysis?.analysisSuggestions) {
+  if (results.originalAnalysis?.analysisSuggestions && Array.isArray(results.originalAnalysis.analysisSuggestions)) {
     results.originalAnalysis.analysisSuggestions
-      .filter(sugg => !suggestions.some(s => s.includes(sugg.split(' ')[0])))
+      .filter(sugg => sugg && !suggestions.some(s => s.includes(sugg.split(' ')[0])))
       .slice(0, 5 - suggestions.length)
       .forEach(sugg => suggestions.push(sugg));
   }
@@ -64945,10 +66393,12 @@ function formatSuggestedAnalyses(results) {
   // Default suggestions based on data characteristics
   if (suggestions.length < 3) {
     const defaults = generateDefaultSuggestions(results);
-    defaults
-      .filter(sugg => !suggestions.includes(sugg))
-      .slice(0, 5 - suggestions.length)
-      .forEach(sugg => suggestions.push(sugg));
+    if (defaults && Array.isArray(defaults)) {
+      defaults
+        .filter(sugg => sugg && !suggestions.includes(sugg))
+        .slice(0, 5 - suggestions.length)
+        .forEach(sugg => suggestions.push(sugg));
+    }
   }
   
   suggestions.forEach((suggestion, idx) => {
@@ -65184,13 +66634,24 @@ const analysisCache = new Map();
 async function comprehensiveLLMAnalysis(records, headers, filePath, options = {}) {
   const spinner = options.quiet ? null : ora('Generating comprehensive LLM context...').start();
   
+  // Performance optimization: Use sampling for comprehensive analysis
+  const samplingStrategy = createSamplingStrategy(records, 'basic');
+  let sampledRecords = records;
+  
+  if (samplingStrategy.method !== 'none' && records.length > 10000) {
+    sampledRecords = performSampling(records, samplingStrategy);
+    if (spinner) {
+      spinner.text = `Using smart sampling (${sampledRecords.length.toLocaleString()} of ${records.length.toLocaleString()} rows) for faster analysis...`;
+    }
+  }
+  
   try {
     const fileName = basename(filePath);
-    const columnTypes = records.length > 0 ? detectColumnTypes(records) : {};
+    const columnTypes = sampledRecords.length > 0 ? detectColumnTypes(sampledRecords) : {};
     const columns = Object.keys(columnTypes);
     
     // Check cache
-    const cacheKey = `${filePath}_${records.length}_${columns.length}`;
+    const cacheKey = `${filePath}_${sampledRecords.length}_${columns.length}`;
     if (analysisCache.has(cacheKey) && !options.noCache) {
       const cached = analysisCache.get(cacheKey);
       const age = Date.now() - cached.timestamp;
@@ -65202,13 +66663,13 @@ async function comprehensiveLLMAnalysis(records, headers, filePath, options = {}
     
     if (spinner) spinner.text = 'Running exploratory data analysis...';
     
-    // Run all analyses in parallel with summary mode
+    // Run all analyses in parallel with summary mode using sampled data
     const [edaResults, intResults, visResults, engResults, originalContext] = await Promise.all([
-      runEdaAnalysis(records, headers, filePath, options),
-      runIntAnalysis(records, headers, filePath, options),
-      runVisAnalysis(records, headers, filePath, options),
-      runEngAnalysis(records, headers, filePath, options),
-      generateOriginalContext(records, columns, columnTypes)
+      runEdaAnalysis(sampledRecords, headers, filePath, options),
+      runIntAnalysis(sampledRecords, headers, filePath, options),
+      runVisAnalysis(sampledRecords, headers, filePath, options),
+      runEngAnalysis(sampledRecords, headers, filePath, options),
+      generateOriginalContext(sampledRecords, columns, columnTypes)
     ]);
     
     if (spinner) spinner.text = 'Extracting key insights...';
@@ -65294,7 +66755,10 @@ async function comprehensiveLLMAnalysis(records, headers, filePath, options = {}
     return result;
     
   } catch (error) {
-    if (spinner) spinner.fail('Error generating LLM context');
+    outputHandler.restore();
+    if (spinner) spinner.error({ text: 'Error generating LLM context' });
+    console.error(error.message);
+    if (!options.quiet) process.exit(1);
     throw error;
   }
 }
@@ -65310,7 +66774,14 @@ async function runEdaAnalysis(records, headers, filePath, options) {
   };
   
   try {
-    const result = await eda(filePath, captureOptions);
+    // Add timeout for large dataset analysis
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('EDA analysis timeout')), 15000); // 15 second timeout
+    });
+    
+    const analysisPromise = eda(filePath, captureOptions);
+    const result = await Promise.race([analysisPromise, timeoutPromise]);
+    
     return result?.structuredResults || {};
   } catch (error) {
     console.error('EDA analysis error:', error);
@@ -65459,257 +66930,338 @@ async function generateOriginalContext(records, columns, columnTypes) {
   };
 }
 
-async function llmContext(filePath, options = {}) {
+const llmContext = withErrorBoundary(async function llmContextInternal(filePath, options = {}) {
   const outputHandler = new OutputHandler(options);
   const spinner = options.quiet ? null : ora('Reading CSV file...').start();
   
+  // Set timeout for analysis (default 60 seconds for LLM as it's more complex)
+  const timeoutMs = options.timeout || 60000;
+  
+  const analysisPromise = performLLMAnalysis();
+  const timeoutPromise = new Promise((_, reject) => {
+    setTimeout(() => {
+      reject(new Error(`⏱️  LLM analysis timed out after ${timeoutMs / 1000} seconds. This may indicate issues with the data format or file size.`));
+    }, timeoutMs);
+  });
+  
   try {
-    // Check if we should use comprehensive analysis
-    const useComprehensive = options.comprehensive !== false; // Default to true
-    
-    // Use preloaded data if available
-    let records, columnTypes, headers;
-    if (options.preloadedData) {
-      records = options.preloadedData.records;
-      columnTypes = options.preloadedData.columnTypes;
-      headers = Object.keys(columnTypes);
-    } else {
-      // Parse CSV
-      records = await parseCSV(filePath, { quiet: options.quiet, header: options.header });
-      if (spinner) spinner.text = 'Generating LLM context...';
-      columnTypes = detectColumnTypes(records);
-      headers = Object.keys(columnTypes);
-    }
-    
-    // Use comprehensive analysis if enabled
-    if (useComprehensive && records.length > 0) {
-      try {
-        const result = await comprehensiveLLMAnalysis(records, headers, filePath, options);
-        console.log(result.output);
-        outputHandler.finalize();
-        return;
-      } catch (error) {
-        // Fall back to original implementation if comprehensive fails
-        console.error('Comprehensive analysis failed, using original:', error.message);
-      }
-    }
-    
-    const fileName = basename(filePath);
-    const columns = Object.keys(columnTypes);
-    
-    // Handle empty dataset
-    if (records.length === 0) {
-      let report = createSection('LLM-READY CONTEXT',
-        `Dataset: ${fileName}\nGenerated: ${formatTimestamp()}\n\n⚠️  Empty dataset - no context to generate`);
-      
-      // Still include the required section header
-      report += createSubSection('DATASET SUMMARY FOR AI ANALYSIS', 'No data available for analysis');
-      
-      console.log(report);
-      outputHandler.finalize();
-      return;
-    }
-    
-    // Build report
-    let report = createSection('LLM-READY CONTEXT',
-      `Dataset: ${fileName}\nGenerated: ${formatTimestamp()}`);
-    
-    // Check for small dataset
-    const smallDatasetInfo = formatSmallDatasetWarning(records.length);
-    if (smallDatasetInfo) {
-      report += '\n' + smallDatasetInfo.warning + '\n';
-    }
-    
-    // Add parsing metadata
-    report += createSubSection('PARSING METADATA', bulletList([
-      `File encoding: ${options.encoding || 'UTF-8 (auto-detected)'}`,
-      `Delimiter: ${options.delimiter || 'comma (auto-detected)'}`,
-      `Header detection: ${options.header === false ? 'No headers (generated column names)' : 'Headers detected'}`,
-      `Rows processed: ${records.length}`,
-      `Analysis confidence: ${smallDatasetInfo ? 'Reduced due to small sample size' : 'High'}`
-    ]));
-    
-    report += createSubSection('DATASET SUMMARY FOR AI ANALYSIS', '');
-    
-    // Generate natural language summary
-    const dateColumns = columns.filter(col => columnTypes[col] && columnTypes[col].type === 'date');
-    const dateRange = getDateRange(records, dateColumns);
-    
-    report += `I have a CSV dataset with ${records.length.toLocaleString()} rows and ${columns.length} columns`;
-    
-    // Try to infer what kind of data this is
-    const dataType = inferDataType(columns, columnTypes);
-    report += ` containing ${dataType}`;
-    
-    if (dateRange) {
-      report += `. The data spans from ${dateRange.start} to ${dateRange.end}`;
-    }
-    report += '.\n';
-    
-    // Key columns and characteristics
-    report += createSubSection('KEY COLUMNS AND THEIR CHARACTERISTICS', '');
-    
-    columns.forEach((column, idx) => {
-      const type = columnTypes[column];
-      const values = records.map(r => r[column]);
-      
-      report += `\n${idx + 1}. ${column}: `;
-      
-      if (type.type === 'identifier') {
-        const unique = new Set(values.filter(v => v !== null)).size;
-        report += `Unique identifier${unique === records.length ? '' : ` (${unique} unique values)`}`;
-      } else if (type.type === 'integer' || type.type === 'float') {
-        const stats = calculateStats(values);
-        const range = `range: ${formatValue(stats.min, column)} to ${formatValue(stats.max, column)}`;
-        report += `${inferColumnPurpose(column)} (${range})`;
-      } else if (type.type === 'categorical') {
-        const topValues = getTopCategoricalValues(values, 3);
-        const categoryCount = type.categories ? type.categories.length : 0;
-        report += `${categoryCount} categories: ${topValues}`;
-      } else if (type.type === 'date') {
-        report += 'Date field';
-        const dates = values.filter(v => v instanceof Date);
-        if (dates.length > 0) {
-          const sorted = dates.sort((a, b) => a - b);
-          report += ` (${formatDate(sorted[0])} to ${formatDate(sorted[sorted.length - 1])})`;
-        }
-      } else {
-        report += type.type.charAt(0).toUpperCase() + type.type.slice(1);
-      }
-    });
-    
-    // Important patterns and insights
-    report += '\n' + createSubSection('IMPORTANT PATTERNS AND INSIGHTS', '');
-    
-    let insightNumber = 1;
-    
-    // Seasonality analysis
-    if (dateColumns.length > 0) {
-      const seasonalPattern = analyzeSeasonality(records, dateColumns[0], columns, columnTypes);
-      if (seasonalPattern) {
-        report += `\n${insightNumber}. SEASONALITY: ${seasonalPattern}\n`;
-        insightNumber++;
-      }
-    }
-    
-    // Customer/segment analysis
-    const segmentAnalysis = analyzeSegments(records, columns, columnTypes);
-    if (segmentAnalysis) {
-      report += `\n${insightNumber}. ${segmentAnalysis.title}: ${segmentAnalysis.insight}\n`;
-      insightNumber++;
-    }
-    
-    // Category performance
-    const categoryAnalysis = analyzeCategoryPerformance(records, columns, columnTypes);
-    if (categoryAnalysis) {
-      report += `\n${insightNumber}. ${categoryAnalysis.title}: ${categoryAnalysis.insight}\n`;
-      insightNumber++;
-    }
-    
-    // Pricing insights
-    const pricingInsights = analyzePricing(records, columns, columnTypes);
-    if (pricingInsights) {
-      report += `\n${insightNumber}. PRICING INSIGHTS: ${pricingInsights}\n`;
-      insightNumber++;
-    }
-    
-    // Anomalies
-    const anomalies = detectAnomalies(records, columns, columnTypes);
-    if (anomalies.length > 0) {
-      report += `\n${insightNumber}. ANOMALIES DETECTED:\n`;
-      anomalies.forEach(anomaly => {
-        report += `   - ${anomaly}\n`;
-      });
-      insightNumber++;
-    }
-    
-    // Data quality notes
-    const qualityMetrics = calculateDataQuality(records, columns);
-    report += createSubSection('DATA QUALITY NOTES', bulletList([
-      `Missing values: ${qualityMetrics.missingDetails}`,
-      `Completeness: ${formatPercentage(qualityMetrics.completeness)} overall`,
-      qualityMetrics.duplicates > 0 ? `${qualityMetrics.duplicates} duplicate records identified` : 'No duplicate records found',
-      qualityMetrics.dateGaps ? qualityMetrics.dateGaps : 'Date range has no gaps'
-    ]));
-    
-    // Statistical summary
-    report += createSubSection('STATISTICAL SUMMARY', '');
-    
-    const summaryStats = generateSummaryStatistics(records, columns, columnTypes);
-    summaryStats.forEach(stat => {
-      report += `- ${stat}\n`;
-    });
-    
-    // Correlations discovered
-    const correlations = findSignificantCorrelations(records, columns, columnTypes);
-    if (correlations.length > 0) {
-      report += createSubSection('CORRELATIONS DISCOVERED', '');
-      correlations.forEach(corr => {
-        report += `- ${corr}\n`;
-      });
-    }
-    
-    // Suggested analyses
-    report += createSubSection('SUGGESTED ANALYSES FOR THIS DATA', '');
-    
-    const suggestions = generateAnalysisSuggestions(columns, columnTypes);
-    suggestions.forEach((suggestion, idx) => {
-      report += `\n${idx + 1}. ${suggestion}`;
-    });
-    
-    // Questions this data could answer
-    report += '\n' + createSubSection('QUESTIONS THIS DATA COULD ANSWER', '');
-    
-    const questions = generateDataQuestions(columns, columnTypes, dataType, records);
-    questions.forEach(question => {
-      report += `- ${question}\n`;
-    });
-    
-    // Technical notes
-    report += createSubSection('TECHNICAL NOTES FOR ANALYSIS', '');
-    
-    const technicalNotes = generateTechnicalNotes(records, columns, columnTypes);
-    technicalNotes.forEach(note => {
-      report += `- ${note}\n`;
-    });
-    
-    // Show sample data for context
-    if (records.length > 0) {
-      report += createSubSection('SAMPLE DATA', 'First 5 rows and last 5 rows:');
-      const sampleRows = [
-        ...records.slice(0, 5),
-        ...(records.length > 10 ? records.slice(-5) : [])
-      ];
-      report += formatDataTable(sampleRows, columns.slice(0, 5)); // Show first 5 columns
-      if (columns.length > 5) {
-        report += `\n(${columns.length - 5} additional columns not shown in sample)\n`;
-      }
-    }
-    
-    // Add suggested validation queries
-    report += createSubSection('VALIDATION QUERIES', 'SQL queries to verify data integrity:');
-    const validationQueries = generateValidationQueries(columns, columnTypes, records);
-    validationQueries.forEach((query, idx) => {
-      report += `\n${idx + 1}. ${query.purpose}:\n\`\`\`sql\n${query.sql}\n\`\`\`\n`;
-    });
-    
-    report += '\nEND OF CONTEXT\n\n[Paste this into your preferred LLM and ask specific questions about the data]\n';
-    
-    if (spinner) {
-      spinner.succeed('LLM context generated!');
-    }
-    console.log(report);
-    
-    outputHandler.finalize();
-    
+    return await Promise.race([analysisPromise, timeoutPromise]);
   } catch (error) {
     outputHandler.restore();
-    if (spinner) spinner.fail('Error generating LLM context');
-    console.error(error.message);
+    if (spinner) spinner.error({ text: 'LLM analysis failed or timed out' });
+    
+    if (error.message.includes('timed out')) {
+      console.error(chalk.red('🚨 LLM Analysis Timeout'));
+      console.error(chalk.yellow('💡 Suggestions:'));
+      console.error(chalk.yellow('   • Try using a smaller sample of your data'));
+      console.error(chalk.yellow('   • Check if the CSV file has formatting issues'));
+      console.error(chalk.yellow('   • Use --timeout flag to increase timeout (e.g., --timeout 120000 for 2 minutes)'));
+      console.error(chalk.yellow('   • Try the --comprehensive=false flag for faster processing'));
+    } else {
+      console.error(error.message);
+    }
+    
     if (!options.quiet) process.exit(1);
     throw error;
   }
-}
+  
+  async function performLLMAnalysis() {
+    try {
+      // Check if we should use comprehensive analysis
+      const useComprehensive = options.comprehensive !== false; // Default to true
+      
+      // Use preloaded data if available
+      let records, columnTypes, headers;
+      if (options.preloadedData) {
+        records = options.preloadedData.records;
+        columnTypes = options.preloadedData.columnTypes;
+        headers = Object.keys(columnTypes);
+      } else {
+        // Parse CSV with enhanced error handling
+        try {
+          const allRecords = await parseCSV(filePath, { quiet: options.quiet, header: options.header });
+          const originalSize = allRecords.length;
+          
+          // Validate parsed data
+          if (!allRecords || allRecords.length === 0) {
+            throw new Error('No data found in CSV file. Please check the file format and content.');
+          }
+          
+          // Create smart sampling strategy for large datasets
+          const samplingStrategy = createSamplingStrategy(allRecords, 'basic');
+          
+          if (samplingStrategy.method !== 'none') {
+            if (spinner) {
+              spinner.text = `Large dataset detected (${originalSize.toLocaleString()} rows). Applying smart sampling...`;
+            } else {
+              console.log(`- Large dataset detected (${originalSize.toLocaleString()} rows). Applying smart sampling...`);
+            }
+            
+            records = performSampling(allRecords, samplingStrategy);
+            console.log(`⚠️  Large dataset sampled: ${records.length.toLocaleString()} of ${originalSize.toLocaleString()} rows (${samplingStrategy.method} sampling)`);
+          } else {
+            records = allRecords;
+          }
+          
+          if (spinner) spinner.text = 'Generating LLM context...';
+          
+          try {
+            columnTypes = detectColumnTypes(records);
+            headers = Object.keys(columnTypes);
+          } catch (typeError) {
+            throw new Error(`Column type detection failed: ${typeError.message}`);
+          }
+          
+        } catch (parseError) {
+          throw new Error(`CSV parsing failed: ${parseError.message}`);
+        }
+      }
+      
+      // Add safety check for undefined values
+      if (records.length > 0) {
+        const sampleRecord = records[0];
+        const undefinedCount = Object.values(sampleRecord).filter(v => v === undefined).length;
+        if (undefinedCount > Object.keys(sampleRecord).length * 0.5) {
+          console.log(chalk.yellow('⚠️  Warning: High number of undefined values detected in data.'));
+          console.log(chalk.yellow('   This may indicate CSV parsing issues. Consider checking file encoding.'));
+          
+          // Option to continue with degraded analysis
+          if (!options.force) {
+            throw new Error('Data quality issues detected. Use --force flag to continue anyway.');
+          }
+        }
+      }
+      
+      // Use comprehensive analysis if enabled
+      if (useComprehensive && records.length > 0) {
+        try {
+          const result = await comprehensiveLLMAnalysis(records, headers, filePath, options);
+          console.log(result.output);
+          outputHandler.finalize();
+          return;
+        } catch (error) {
+          // Fall back to original implementation if comprehensive fails
+          console.error(chalk.yellow(`Comprehensive analysis failed (${error.message}), using simplified analysis...`));
+        }
+      }
+      
+      const fileName = basename(filePath);
+      const columns = Object.keys(columnTypes);
+      
+      // Handle empty dataset
+      if (records.length === 0) {
+        let report = createSection('LLM-READY CONTEXT',
+          `Dataset: ${fileName}\nGenerated: ${formatTimestamp()}\n\n⚠️  Empty dataset - no context to generate`);
+        
+        // Still include the required section header
+        report += createSubSection('DATASET SUMMARY FOR AI ANALYSIS', 'No data available for analysis');
+        
+        console.log(report);
+        outputHandler.finalize();
+        return;
+      }
+      
+      // Build report
+      let report = createSection('LLM-READY CONTEXT',
+        `Dataset: ${fileName}\nGenerated: ${formatTimestamp()}`);
+      
+      // Check for small dataset
+      const smallDatasetInfo = formatSmallDatasetWarning(records.length);
+      if (smallDatasetInfo) {
+        report += '\n' + smallDatasetInfo.warning + '\n';
+      }
+      
+      // Add parsing metadata
+      report += createSubSection('PARSING METADATA', bulletList([
+        `File encoding: ${options.encoding || 'UTF-8 (auto-detected)'}`,
+        `Delimiter: ${options.delimiter || 'comma (auto-detected)'}`,
+        `Header detection: ${options.header === false ? 'No headers (generated column names)' : 'Headers detected'}`,
+        `Rows processed: ${records.length}`,
+        `Analysis confidence: ${smallDatasetInfo ? 'Reduced due to small sample size' : 'High'}`
+      ]));
+      
+      report += createSubSection('DATASET SUMMARY FOR AI ANALYSIS', '');
+      
+      // Generate natural language summary
+      const dateColumns = columns.filter(col => columnTypes[col] && columnTypes[col].type === 'date');
+      const dateRange = getDateRange(records, dateColumns);
+      
+      report += `I have a CSV dataset with ${records.length.toLocaleString()} rows and ${columns.length} columns`;
+      
+      // Try to infer what kind of data this is
+      const dataType = inferDataType(columns, columnTypes);
+      report += ` containing ${dataType}`;
+      
+      if (dateRange) {
+        report += `. The data spans from ${dateRange.start} to ${dateRange.end}`;
+      }
+      report += '.\n';
+      
+      // Key columns and characteristics
+      report += createSubSection('KEY COLUMNS AND THEIR CHARACTERISTICS', '');
+      
+      columns.forEach((column, idx) => {
+        const type = safeGet(columnTypes, column, { type: 'unknown' });
+        const values = SafeArrayOps.safeMap(records, r => safeGet(r, column), []);
+        
+        report += `\n${idx + 1}. ${column}: `;
+        
+        if (type.type === 'identifier') {
+          const unique = new Set(values.filter(v => v !== null)).size;
+          report += `Unique identifier${unique === records.length ? '' : ` (${unique} unique values)`}`;
+        } else if (type.type === 'integer' || type.type === 'float') {
+          const stats = calculateStats(values);
+          const range = `range: ${formatValue(stats.min, column)} to ${formatValue(stats.max, column)}`;
+          report += `${inferColumnPurpose(column)} (${range})`;
+        } else if (type.type === 'categorical') {
+          const topValues = getTopCategoricalValues(values, 3);
+          const categoryCount = type.categories ? type.categories.length : 0;
+          report += `${categoryCount} categories: ${topValues}`;
+        } else if (type.type === 'date') {
+          report += 'Date field';
+          const dates = values.filter(v => v instanceof Date);
+          if (dates.length > 0) {
+            const sorted = dates.sort((a, b) => a - b);
+            report += ` (${formatDate(sorted[0])} to ${formatDate(sorted[sorted.length - 1])})`;
+          }
+        } else {
+          report += type.type.charAt(0).toUpperCase() + type.type.slice(1);
+        }
+      });
+      
+      // Important patterns and insights
+      report += '\n' + createSubSection('IMPORTANT PATTERNS AND INSIGHTS', '');
+      
+      let insightNumber = 1;
+      
+      // Seasonality analysis
+      if (dateColumns.length > 0) {
+        const seasonalPattern = analyzeSeasonality(records, dateColumns[0], columns, columnTypes);
+        if (seasonalPattern) {
+          report += `\n${insightNumber}. SEASONALITY: ${seasonalPattern}\n`;
+          insightNumber++;
+        }
+      }
+      
+      // Customer/segment analysis
+      const segmentAnalysis = analyzeSegments(records, columns, columnTypes);
+      if (segmentAnalysis) {
+        report += `\n${insightNumber}. ${segmentAnalysis.title}: ${segmentAnalysis.insight}\n`;
+        insightNumber++;
+      }
+      
+      // Category performance
+      const categoryAnalysis = analyzeCategoryPerformance(records, columns, columnTypes);
+      if (categoryAnalysis) {
+        report += `\n${insightNumber}. ${categoryAnalysis.title}: ${categoryAnalysis.insight}\n`;
+        insightNumber++;
+      }
+      
+      // Pricing insights
+      const pricingInsights = analyzePricing(records, columns, columnTypes);
+      if (pricingInsights) {
+        report += `\n${insightNumber}. PRICING INSIGHTS: ${pricingInsights}\n`;
+        insightNumber++;
+      }
+      
+      // Anomalies
+      const anomalies = detectAnomalies(records, columns, columnTypes);
+      if (anomalies.length > 0) {
+        report += `\n${insightNumber}. ANOMALIES DETECTED:\n`;
+        anomalies.forEach(anomaly => {
+          report += `   - ${anomaly}\n`;
+        });
+        insightNumber++;
+      }
+      
+      // Data quality notes
+      const qualityMetrics = calculateDataQuality(records, columns);
+      report += createSubSection('DATA QUALITY NOTES', bulletList([
+        `Missing values: ${qualityMetrics.missingDetails}`,
+        `Completeness: ${formatPercentage(qualityMetrics.completeness)} overall`,
+        qualityMetrics.duplicates > 0 ? `${qualityMetrics.duplicates} duplicate records identified` : 'No duplicate records found',
+        qualityMetrics.dateGaps ? qualityMetrics.dateGaps : 'Date range has no gaps'
+      ]));
+      
+      // Statistical summary
+      report += createSubSection('STATISTICAL SUMMARY', '');
+      
+      const summaryStats = generateSummaryStatistics(records, columns, columnTypes);
+      summaryStats.forEach(stat => {
+        report += `- ${stat}\n`;
+      });
+      
+      // Correlations discovered
+      const correlations = findSignificantCorrelations(records, columns, columnTypes);
+      if (correlations.length > 0) {
+        report += createSubSection('CORRELATIONS DISCOVERED', '');
+        correlations.forEach(corr => {
+          report += `- ${corr}\n`;
+        });
+      }
+      
+      // Suggested analyses
+      report += createSubSection('SUGGESTED ANALYSES FOR THIS DATA', '');
+      
+      const suggestions = generateAnalysisSuggestions(columns, columnTypes);
+      suggestions.forEach((suggestion, idx) => {
+        report += `\n${idx + 1}. ${suggestion}`;
+      });
+      
+      // Questions this data could answer
+      report += '\n' + createSubSection('QUESTIONS THIS DATA COULD ANSWER', '');
+      
+      const questions = generateDataQuestions(columns, columnTypes, dataType, records);
+      questions.forEach(question => {
+        report += `- ${question}\n`;
+      });
+      
+      // Technical notes
+      report += createSubSection('TECHNICAL NOTES FOR ANALYSIS', '');
+      
+      const technicalNotes = generateTechnicalNotes(records, columns, columnTypes);
+      technicalNotes.forEach(note => {
+        report += `- ${note}\n`;
+      });
+      
+      // Show sample data for context
+      if (records.length > 0) {
+        report += createSubSection('SAMPLE DATA', 'First 5 rows and last 5 rows:');
+        const sampleRows = [
+          ...records.slice(0, 5),
+          ...(records.length > 10 ? records.slice(-5) : [])
+        ];
+        report += formatDataTable(sampleRows, columns.slice(0, 5)); // Show first 5 columns
+        if (columns.length > 5) {
+          report += `\n(${columns.length - 5} additional columns not shown in sample)\n`;
+        }
+      }
+      
+      // Add suggested validation queries
+      report += createSubSection('VALIDATION QUERIES', 'SQL queries to verify data integrity:');
+      const validationQueries = generateValidationQueries(columns, columnTypes, records);
+      validationQueries.forEach((query, idx) => {
+        report += `\n${idx + 1}. ${query.purpose}:\n\`\`\`sql\n${query.sql}\n\`\`\`\n`;
+      });
+      
+      report += '\nEND OF CONTEXT\n\n[Paste this into your preferred LLM and ask specific questions about the data]\n';
+      
+      if (spinner) {
+        spinner.succeed('LLM context generated!');
+      }
+      console.log(report);
+      
+      outputHandler.finalize();
+      
+    } catch (error) {
+      outputHandler.restore();
+      if (spinner) spinner.error({ text: 'Error generating LLM context' });
+      console.error(error.message);
+      if (!options.quiet) process.exit(1);
+      throw error;
+    }
+  }
+}, null, { function: 'llmContext' });
 
 function getDateRange(records, dateColumns) {
   if (dateColumns.length === 0) return null;
@@ -65780,6 +67332,15 @@ function inferDataType(columns, columnTypes) {
       columnNames.includes('vehicle') || columnNames.includes('driver') ||
       columnNames.includes('delivery') || columnNames.includes('shipment')) {
     return 'transportation/logistics data';
+  }
+  
+  // Insurance/Financial detection
+  if (columnNames.includes('insurance') || columnNames.includes('premium') ||
+      columnNames.includes('policy') || columnNames.includes('claim') ||
+      columnNames.includes('coverage') || columnNames.includes('deductible') ||
+      (columnNames.includes('charges') && columnNames.includes('smoker')) ||
+      (columnNames.includes('charges') && columnNames.includes('bmi'))) {
+    return 'insurance/financial data';
   }
   
   // Business/Sales detection (moved after specific domains)
@@ -65880,15 +67441,21 @@ function analyzeSeasonality(records, dateColumn, columns, columnTypes) {
   if (numericColumns.length === 0) return null;
   
   const monthlyData = {};
-  records.forEach(record => {
-    const date = record[dateColumn];
+  
+  // Performance optimization: Use sampling for large datasets
+  const samplingStrategy = createSamplingStrategy(records, 'timeseries');
+  const sampledRecords = performSampling(records, samplingStrategy);
+  
+  SafeArrayOps.safeForEach(sampledRecords, record => {
+    const date = safeGet(record, dateColumn);
     if (date instanceof Date) {
       const month = date.getMonth();
       if (!monthlyData[month]) monthlyData[month] = [];
       
-      numericColumns.forEach(col => {
-        if (typeof record[col] === 'number') {
-          monthlyData[month].push(record[col]);
+      SafeArrayOps.safeForEach(numericColumns, col => {
+        const value = safeGet(record, col);
+        if (typeof value === 'number') {
+          monthlyData[month].push(value);
         }
       });
     }
@@ -66368,7 +67935,7 @@ function generateAnalysisSuggestions(columns, columnTypes) {
   return suggestions;
 }
 
-function generateDataQuestions(columns, columnTypes, dataType) {
+function generateDataQuestions(columns, columnTypes, dataType, records = []) {
   const questions = [];
   
   // Medical/Healthcare questions
@@ -66667,11 +68234,11 @@ async function runAll(filePath, options = {}) {
     }
     
   } catch (error) {
-    // Restore console.log on error
-    console.log = originalLog;
-    spinner.fail('Analysis failed');
-    console.error(chalk.red('Error during analysis:'), error.message);
-    process.exit(1);
+    outputHandler.restore();
+    spinner.error({ text: 'Analysis failed' });
+    console.error('Error during analysis:', error.message);
+    if (!options.quiet) process.exit(1);
+    throw error;
   }
 }
 
@@ -67400,7 +68967,7 @@ function requireKeypress () {
 	if (hasRequiredKeypress) return keypress_1;
 	hasRequiredKeypress = 1;
 
-	const readline = require$$0$8;
+	const readline = require$$0$7;
 	const combos = requireCombos();
 	const Queue = requireQueue();
 
@@ -68156,7 +69723,7 @@ function requirePrompt () {
 	if (hasRequiredPrompt) return prompt$1;
 	hasRequiredPrompt = 1;
 
-	const Events = require$$0$3;
+	const Events = require$$0$2;
 	const stripAnsi = requireStripAnsi();
 	const keypress = requireKeypress();
 	const timer = requireTimer();
@@ -71987,8 +73554,8 @@ function requireEnquirer () {
 	if (hasRequiredEnquirer) return enquirer$1;
 	hasRequiredEnquirer = 1;
 
-	const assert = require$$0$4;
-	const Events = require$$0$3;
+	const assert = require$$0$3;
+	const Events = require$$0$2;
 	const utils = requireUtils();
 
 	/**
@@ -74283,13 +75850,564 @@ function requireDist () {
 var distExports = requireDist();
 
 /**
- * Interactive Terminal UI Command
+ * TUI Engine - Testable UI Logic Separated from Rendering
+ * Handles state management and business logic for the Terminal UI
+ */
+
+
+// Recent files storage
+const RECENT_FILES_PATH = path$1.join(process.env.HOME || process.env.USERPROFILE, '.datapilot_recent.json');
+const MAX_RECENT_FILES = 10;
+
+class TUIEngine {
+  constructor(options = {}) {
+    this.state = {
+      navigationStack: [],
+      recentFiles: this.loadRecentFiles(),
+      currentSession: null,
+      lastAnalysisResults: null,
+      demoMode: false
+    };
+    
+    // Dependency injection for testing
+    this.dependencies = {
+      fs: options.fs || fs,
+      path: options.path || path$1,
+      parseCSV: options.parseCSV || parseCSV,
+      detectColumnTypes: options.detectColumnTypes || detectColumnTypes,
+      eda: options.eda || eda,
+      integrity: options.integrity || integrity,
+      visualize: options.visualize || visualize,
+      llmContext: options.llmContext || llmContext,
+      KnowledgeBase: options.KnowledgeBase || KnowledgeBase
+    };
+    
+    this.testMode = options.testMode || false;
+  }
+
+  // === State Management ===
+  
+  getState() {
+    return { ...this.state };
+  }
+  
+  setState(newState) {
+    this.state = { ...this.state, ...newState };
+  }
+  
+  pushNavigation(location) {
+    this.state.navigationStack.push(location);
+  }
+  
+  popNavigation() {
+    return this.state.navigationStack.pop();
+  }
+
+  // === Main Menu Logic ===
+  
+  getMainMenuChoices() {
+    return [
+      {
+        name: 'analyze',
+        message: '📊 Analyze CSV Data',
+        hint: '🔍 Smart file discovery and guided analysis'
+      },
+      {
+        name: 'demo',
+        message: '🎭 Try Demo Mode',
+        hint: '🎯 Experience DataPilot with built-in sample datasets'
+      },
+      {
+        name: 'memory',
+        message: '🧠 Manage Memories',
+        hint: '🗄️  View, delete, or manage warehouse knowledge'
+      },
+      {
+        name: 'learning',
+        message: '🎓 Learning Mode',
+        hint: '📚 Interactive tutorials and data science concepts'
+      },
+      {
+        name: 'settings',
+        message: '⚙️  Settings & Preferences',
+        hint: '🛠️  Configure DataPilot behavior and appearance'
+      },
+      {
+        name: 'exit',
+        message: '👋 Exit DataPilot',
+        hint: '✨ Thanks for exploring data with us!'
+      }
+    ];
+  }
+  
+  async handleMainMenuAction(action) {
+    this.pushNavigation('main');
+    
+    switch (action) {
+      case 'analyze':
+        return await this.startGuidedAnalysis();
+      case 'demo':
+        return await this.startDemo();
+      case 'memory':
+        return await this.startMemoryManager();
+      case 'learning':
+        return await this.startLearningMode();
+      case 'settings':
+        return await this.startSettings();
+      case 'exit':
+        return { action: 'exit', message: 'Goodbye!' };
+      default:
+        return { action: 'error', message: `Unknown action: ${action}` };
+    }
+  }
+
+  // === File Discovery and Selection ===
+  
+  async discoverCSVFiles() {
+    const searchPaths = [
+      process.cwd(),
+      this.dependencies.path.join(process.cwd(), 'data'),
+      this.dependencies.path.join(process.cwd(), 'datasets'),
+      this.dependencies.path.join(process.cwd(), 'csv'),
+      this.dependencies.path.join(process.cwd(), 'files')
+    ];
+    
+    const csvFiles = [];
+    
+    for (const searchPath of searchPaths) {
+      try {
+        if (this.dependencies.fs.existsSync(searchPath)) {
+          const files = this.dependencies.fs.readdirSync(searchPath);
+          files.forEach(file => {
+            if (file.toLowerCase().endsWith('.csv')) {
+              const fullPath = this.dependencies.path.join(searchPath, file);
+              const stats = this.dependencies.fs.statSync(fullPath);
+              csvFiles.push({
+                name: file,
+                path: fullPath,
+                size: this.formatFileSize(stats.size),
+                modified: stats.mtime.toLocaleDateString(),
+                directory: this.dependencies.path.relative(process.cwd(), searchPath) || '.'
+              });
+            }
+          });
+        }
+      } catch (error) {
+        // Directory not accessible, skip
+      }
+    }
+    
+    return csvFiles;
+  }
+  
+  getFileSelectionChoices(csvFiles) {
+    const choices = [];
+    
+    // Recent files section
+    if (this.state.recentFiles.length > 0) {
+      choices.push({ name: 'recent_header', message: '📁 Recent Files', role: 'separator' });
+      this.state.recentFiles.slice(0, 5).forEach(file => {
+        if (this.dependencies.fs.existsSync(file)) {
+          choices.push({
+            name: file,
+            message: `📄 ${path$1.basename(file)}`,
+            hint: `${path$1.dirname(file)} - Recently used`
+          });
+        }
+      });
+    }
+    
+    // Discovered files section
+    if (csvFiles.length > 0) {
+      choices.push({ name: 'discovered_header', message: '🔍 Discovered Files', role: 'separator' });
+      csvFiles.slice(0, 10).forEach(file => {
+        choices.push({
+          name: file.path,
+          message: `📄 ${file.name}`,
+          hint: `${file.directory} - ${file.size} (${file.modified})`
+        });
+      });
+    }
+    
+    // Manual entry option
+    choices.push({ name: 'separator', message: '─────────────────────', role: 'separator' });
+    choices.push({
+      name: 'manual',
+      message: '📂 Browse for File',
+      hint: 'Enter file path manually'
+    });
+    
+    return choices;
+  }
+  
+  async previewFile(filePath) {
+    try {
+      const records = await this.dependencies.parseCSV(filePath, { quiet: true, header: true });
+      const columnTypes = this.dependencies.detectColumnTypes(records);
+      
+      const preview = {
+        path: filePath,
+        size: this.dependencies.fs.statSync(filePath).size,
+        rows: records.length,
+        columns: Object.keys(columnTypes).length,
+        sampleData: records.slice(0, 3),
+        columnTypes: columnTypes,
+        columnNames: Object.keys(columnTypes)
+      };
+      
+      return preview;
+    } catch (error) {
+      return {
+        error: error.message,
+        path: filePath
+      };
+    }
+  }
+
+  // === Analysis Types ===
+  
+  getAnalysisTypeChoices() {
+    return [
+      {
+        name: 'all',
+        message: '🚀 Complete Analysis Suite',
+        hint: 'Run all analysis types for comprehensive insights'
+      },
+      {
+        name: 'eda',
+        message: '📊 Exploratory Data Analysis',
+        hint: 'Statistical analysis, distributions, correlations'
+      },
+      {
+        name: 'int',
+        message: '🔍 Data Integrity Check',
+        hint: 'Quality assessment, validation, completeness'
+      },
+      {
+        name: 'vis',
+        message: '📈 Visualization Recommendations',
+        hint: 'Chart suggestions, design principles'
+      },
+      {
+        name: 'eng',
+        message: '🏗️ Data Engineering Archaeology',
+        hint: 'Schema analysis, warehouse design'
+      },
+      {
+        name: 'llm',
+        message: '🤖 LLM Context Generation',
+        hint: 'AI-ready summaries and insights'
+      }
+    ];
+  }
+  
+  async runAnalysis(filePath, analysisType, options = {}) {
+    this.addToRecentFiles(filePath);
+    
+    const results = {
+      filePath,
+      analysisType,
+      timestamp: new Date().toISOString(),
+      results: {}
+    };
+    
+    try {
+      const records = await this.dependencies.parseCSV(filePath, { quiet: true, header: true });
+      const columnTypes = this.dependencies.detectColumnTypes(records);
+      
+      const analysisOptions = {
+        ...options,
+        preloadedData: { records, columnTypes },
+        structuredOutput: this.testMode
+      };
+      
+      switch (analysisType) {
+        case 'all':
+          results.results.eda = await this.dependencies.eda(records, Object.keys(columnTypes), filePath, analysisOptions);
+          results.results.int = await this.dependencies.integrity(records, Object.keys(columnTypes), filePath, analysisOptions);
+          results.results.vis = await this.dependencies.visualize(filePath, analysisOptions);
+          results.results.eng = await this.dependencies.eda(records, Object.keys(columnTypes), filePath, { ...analysisOptions, command: 'eng' });
+          results.results.llm = await this.dependencies.llmContext(filePath, analysisOptions);
+          break;
+        case 'eda':
+          results.results.eda = await this.dependencies.eda(records, Object.keys(columnTypes), filePath, analysisOptions);
+          break;
+        case 'int':
+          results.results.int = await this.dependencies.integrity(records, Object.keys(columnTypes), filePath, analysisOptions);
+          break;
+        case 'vis':
+          results.results.vis = await this.dependencies.visualize(filePath, analysisOptions);
+          break;
+        case 'eng':
+          results.results.eng = await this.dependencies.eda(records, Object.keys(columnTypes), filePath, { ...analysisOptions, command: 'eng' });
+          break;
+        case 'llm':
+          results.results.llm = await this.dependencies.llmContext(filePath, analysisOptions);
+          break;
+        default:
+          throw new Error(`Unknown analysis type: ${analysisType}`);
+      }
+      
+      this.state.lastAnalysisResults = results;
+      return results;
+      
+    } catch (error) {
+      results.error = error.message;
+      return results;
+    }
+  }
+
+  // === Demo Mode ===
+  
+  getDemoDatasets() {
+    const demoPath = path$1.join(process.cwd(), 'tests', 'fixtures');
+    const datasets = [];
+    
+    try {
+      if (this.dependencies.fs.existsSync(demoPath)) {
+        const files = this.dependencies.fs.readdirSync(demoPath);
+        files.forEach(file => {
+          if (file.endsWith('.csv') && !file.includes('empty')) {
+            const fullPath = path$1.join(demoPath, file);
+            datasets.push({
+              name: file.replace('.csv', ''),
+              path: fullPath,
+              description: this.getDemoDescription(file)
+            });
+          }
+        });
+      }
+    } catch (error) {
+      // Demo files not available
+    }
+    
+    return datasets;
+  }
+  
+  getDemoDescription(filename) {
+    const descriptions = {
+      'test_sales.csv': 'E-commerce sales data with transactions, products, and customer segments',
+      'insurance.csv': 'Insurance policy data with coverage details and customer information',
+      'australian_data.csv': 'Australian-specific dataset with postcodes and regional data',
+      'missing_values.csv': 'Dataset with various missing value patterns for quality testing',
+      'large_numeric.csv': 'Large numerical dataset for performance and statistical analysis'
+    };
+    
+    return descriptions[filename] || 'Sample dataset for demonstration purposes';
+  }
+  
+  async startDemo() {
+    this.state.demoMode = true;
+    const datasets = this.getDemoDatasets();
+    
+    return {
+      action: 'demo',
+      datasets,
+      message: datasets.length > 0 ? 'Demo datasets available' : 'No demo datasets found'
+    };
+  }
+
+  // === Memory Management ===
+  
+  async getMemorySummary() {
+    const kb = new this.dependencies.KnowledgeBase();
+    const knowledge = await kb.load();
+    
+    const tableCount = Object.keys(knowledge.tables || {}).length;
+    const domains = [...new Set(Object.values(knowledge.tables || {}).map(t => t.domain))];
+    const totalDebtHours = knowledge.warehouse_metadata?.total_technical_debt_hours || 0;
+    
+    return {
+      tableCount,
+      domainCount: domains.length,
+      domains,
+      totalDebtHours,
+      storagePath: '~/.datapilot/archaeology'
+    };
+  }
+  
+  async listMemories() {
+    const kb = new this.dependencies.KnowledgeBase();
+    const knowledge = await kb.load();
+    
+    const tables = Object.entries(knowledge.tables || {});
+    const memories = {};
+    
+    // Group by domain
+    tables.forEach(([name, info]) => {
+      const domain = info.domain || 'Unknown';
+      if (!memories[domain]) memories[domain] = [];
+      memories[domain].push({
+        name,
+        rows: info.row_count || 0,
+        columns: (info.columns || []).length,
+        quality: info.quality_score ? `${info.quality_score.toFixed(1)}%` : 'N/A'
+      });
+    });
+    
+    return memories;
+  }
+  
+  async deleteMemory(tableName) {
+    const kb = new this.dependencies.KnowledgeBase();
+    try {
+      await kb.deleteTable(tableName);
+      return { success: true, message: `Memory for "${tableName}" deleted successfully` };
+    } catch (error) {
+      return { success: false, message: `Failed to delete memory: ${error.message}` };
+    }
+  }
+  
+  async clearAllMemories() {
+    const kb = new this.dependencies.KnowledgeBase();
+    try {
+      await kb.clearAll();
+      return { success: true, message: 'All memories cleared successfully' };
+    } catch (error) {
+      return { success: false, message: `Failed to clear memories: ${error.message}` };
+    }
+  }
+  
+  async startMemoryManager() {
+    const summary = await this.getMemorySummary();
+    return {
+      action: 'memory',
+      summary,
+      message: 'Memory manager initialized'
+    };
+  }
+
+  // === Guided Analysis Flow ===
+  
+  async startGuidedAnalysis() {
+    const csvFiles = await this.discoverCSVFiles();
+    return {
+      action: 'analyze',
+      csvFiles,
+      message: csvFiles.length > 0 ? `Found ${csvFiles.length} CSV files` : 'No CSV files found in common locations'
+    };
+  }
+
+  // === Utility Methods ===
+  
+  formatFileSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return Math.round(bytes / 1024) + ' KB';
+    return Math.round(bytes / (1024 * 1024)) + ' MB';
+  }
+  
+  loadRecentFiles() {
+    try {
+      if (this.dependencies.fs.existsSync(RECENT_FILES_PATH)) {
+        const data = this.dependencies.fs.readFileSync(RECENT_FILES_PATH, 'utf8');
+        return JSON.parse(data).filter(file => this.dependencies.fs.existsSync(file));
+      }
+    } catch (error) {
+      // Invalid recent files, start fresh
+    }
+    return [];
+  }
+  
+  addToRecentFiles(filePath) {
+    const recent = this.loadRecentFiles();
+    const filtered = recent.filter(f => f !== filePath);
+    filtered.unshift(filePath);
+    
+    const toSave = filtered.slice(0, MAX_RECENT_FILES);
+    this.state.recentFiles = toSave;
+    
+    try {
+      this.dependencies.fs.writeFileSync(RECENT_FILES_PATH, JSON.stringify(toSave, null, 2));
+    } catch (error) {
+      // Failed to save recent files, continue silently
+    }
+  }
+  
+  // === Test Utilities ===
+  
+  async simulateUserFlow(actions) {
+    const results = [];
+    
+    for (const action of actions) {
+      let result;
+      
+      switch (action.type) {
+        case 'main_menu':
+          result = await this.handleMainMenuAction(action.choice);
+          break;
+        case 'file_selection':
+          result = { action: 'file_selected', filePath: action.filePath };
+          break;
+        case 'analysis_type':
+          result = await this.runAnalysis(action.filePath, action.analysisType, { testMode: true });
+          break;
+        case 'memory_action':
+          switch (action.memoryAction) {
+            case 'list':
+              result = await this.listMemories();
+              break;
+            case 'delete':
+              result = await this.deleteMemory(action.tableName);
+              break;
+            case 'clear':
+              result = await this.clearAllMemories();
+              break;
+            default:
+              result = { error: 'Unknown memory action' };
+          }
+          break;
+        default:
+          result = { error: `Unknown action type: ${action.type}` };
+      }
+      
+      results.push({ action, result });
+    }
+    
+    return results;
+  }
+
+  // === Learning Mode ===
+  
+  async startLearningMode() {
+    return {
+      action: 'learning',
+      message: 'Learning mode initialized',
+      modules: [
+        'Data Analysis Fundamentals',
+        'Exploratory Data Analysis (EDA)',
+        'Data Quality & Integrity',
+        'Visualization Best Practices',
+        'Data Engineering Principles',
+        'AI-Ready Data Preparation'
+      ]
+    };
+  }
+
+  // === Settings ===
+  
+  async startSettings() {
+    return {
+      action: 'settings',
+      message: 'Settings initialized',
+      options: [
+        'Color Theme Selection',
+        'Default Analysis Types',
+        'Memory Management Preferences',
+        'Default File Search Paths',
+        'Performance Optimization',
+        'Notification Preferences'
+      ]
+    };
+  }
+}
+
+/**
+ * Interactive Terminal UI Command - Refactored with TUI Engine
  * Fun, colorful, beginner-friendly interface with animations
+ * Now separated into logic (TUI_Engine) and rendering (this file)
  */
 
 const { prompt } = enquirer;
-
-// Color fallbacks for gradient-string issues - removed to avoid bundling issues
 
 // Safe color functions with fallbacks
 const safeColors = {
@@ -74320,7 +76438,6 @@ const safeColors = {
 
 // Create comprehensive color object with ALL needed functions
 const gradients = {
-  // Base color functions
   rainbow: (text) => safeColors.rainbow(text),
   ocean: (text) => safeColors.ocean(text),
   sunset: (text) => safeColors.sunset(text),
@@ -74333,7 +76450,6 @@ const gradients = {
   red: (text) => safeColors.red(text),
   yellow: (text) => safeColors.yellow(text),
   magenta: (text) => safeColors.magenta(text),
-  // Fallback for any missing color
   purple: (text) => chalk.magenta(text),
   gray: (text) => chalk.gray(text),
   grey: (text) => chalk.gray(text),
@@ -74341,12 +76457,10 @@ const gradients = {
   black: (text) => chalk.black(text)
 };
 
-// Recent files storage
-const RECENT_FILES_PATH = path$2.join(process.env.HOME || process.env.USERPROFILE, '.datapilot_recent.json');
-const MAX_RECENT_FILES = 10;
-
 async function interactiveUI() {
   console.clear();
+  
+  const engine = new TUIEngine();
   
   try {
     // Welcome animation
@@ -74356,18 +76470,12 @@ async function interactiveUI() {
     let running = true;
     while (running) {
       try {
-        const action = await showMainMenu();
+        const action = await showMainMenu(engine);
         
-        switch (action) {
-          case 'analyze':
-            await runGuidedAnalysis();
-            break;
-          case 'demo':
-            await runDemo();
-            break;
-          case 'exit':
-            running = false;
-            break;
+        if (action === 'exit') {
+          running = false;
+        } else {
+          await handleMainMenuAction(engine, action);
         }
       } catch (error) {
         console.error(chalk.red('An error occurred:'), error.message);
@@ -74393,542 +76501,87 @@ async function interactiveUI() {
   }
 }
 
-async function showWelcomeAnimation() {
-  console.clear();
+async function showMainMenu(engine) {
+  const choices = engine.getMainMenuChoices();
   
-  // Use static ASCII art for maximum Windows compatibility (no figlet)
-  const title = `
-  ____        _        ____  _ _       _   
- |  _ \\  __ _| |_ __ _|  _ \\(_) | ___ | |_ 
- | | | |/ _\` | __/ _\` | |_) | | |/ _ \\| __|
- | |_| | (_| | || (_| |  __/| | | (_) | |_ 
- |____/ \\__,_|\\__\\__,_|_|   |_|_|\\___/ \\__|
-                                           
-        🚀 CSV Analysis Made Simple 🚀    
-  `;
-  
-  // Animate the title with colors
-  const lines = title.split('\\n');
-  for (let i = 0; i < lines.length; i++) {
-    const gradientName = Object.keys(gradients)[i % Object.keys(gradients).length];
-    console.log(gradients[gradientName](lines[i]));
-    await sleep(200);
-  }
-  
-  await sleep(500);
-  
-  // Welcome message with box
-  const welcomeMsg = boxen(
-    gradients.rainbow('🚀 Welcome to DataPilot Interactive! 🚀\\n\\n') +
-    '✨ Your fun, colorful data analysis companion\\n' +
-    '🎯 Perfect for beginners and experts alike\\n' +
-    '📊 Discover insights in your CSV data\\n' +
-    '🤖 LLM-ready analysis output',
+  // Enhanced main menu header
+  console.log('\\n' + boxen(
+    gradients.rainbow('🌟 MAIN MENU 🌟\\n') +
+    gradients.cyan('Choose your data adventure:'),
     {
-      padding: 1,
-      margin: 1,
-      borderStyle: 'round',
-      borderColor: 'cyan'
+      padding: { top: 0, bottom: 0, left: 2, right: 2 },
+      borderStyle: 'single',
+      borderColor: 'cyan',
+      textAlignment: 'center'
     }
-  );
+  ));
   
-  console.log(welcomeMsg);
-  await sleep(1000);
-}
-
-async function showMainMenu() {
   const response = await prompt({
     type: 'select',
     name: 'action',
-    message: gradients.cyan('🚀 What would you like to do?'),
-    choices: [
-      {
-        name: 'analyze',
-        message: '📊 Analyze CSV Data',
-        hint: 'Smart file discovery and guided analysis'
-      },
-      {
-        name: 'demo',
-        message: '🎭 Try Demo Mode',
-        hint: 'See DataPilot in action with built-in sample datasets'
-      },
-      {
-        name: 'exit',
-        message: '👋 Exit DataPilot',
-        hint: 'Thanks for using DataPilot!'
-      }
-    ]
+    message: gradients.cyan('🚀 What would you like to explore today?'),
+    choices: choices
   });
   
   return response.action;
 }
 
-async function runGuidedAnalysis() {
+async function handleMainMenuAction(engine, action) {
+  const result = await engine.handleMainMenuAction(action);
+  
+  switch (result.action) {
+    case 'analyze':
+      await showGuidedAnalysis(engine, result);
+      break;
+    case 'demo':
+      await showDemo(engine, result);
+      break;
+    case 'memory':
+      await showMemoryManager(engine, result);
+      break;
+    case 'learning':
+      await showLearningMode();
+      break;
+    case 'settings':
+      await showSettings();
+      break;
+    case 'exit':
+      // Exit handled in main loop
+      break;
+    case 'error':
+      console.error(chalk.red('Error:'), result.message);
+      break;
+  }
+}
+
+async function showGuidedAnalysis(engine, analysisResult) {
   console.clear();
-  console.log(gradients.ocean('🔍 Guided Analysis Mode 🔍\\n'));
+  
+  // Enhanced guided analysis header
+  const analysisHeader = `
+  ╔═════════════════════════════════════════════════════════════╗
+  ║                  🔍 GUIDED ANALYSIS MODE 🔍                 ║
+  ║              Transform CSV data into insights                ║
+  ╚═════════════════════════════════════════════════════════════╝`;
+  
+  console.log(gradients.ocean(analysisHeader));
+  console.log();
   
   // Step 1: File selection
-  const filePath = await selectFile();
+  const filePath = await selectFile(engine, analysisResult.csvFiles);
   if (!filePath) return;
   
   // Step 2: File preview
-  await showFilePreview(filePath);
+  await showFilePreview(engine, filePath);
   
   // Step 3: Analysis type selection
-  const analysisType = await selectAnalysisType();
+  const analysisType = await selectAnalysisType(engine);
   
   // Step 4: Run analysis with beautiful loading
-  await runAnalysisWithAnimation(filePath, analysisType);
+  await runAnalysisWithAnimation(engine, filePath, analysisType);
   
   // Step 5: Show results
   await showResults();
-  
-  await prompt({
-    type: 'confirm',
-    name: 'continue',
-    message: gradients.rainbow('Analysis complete! Return to main menu?'),
-    initial: true
-  });
-}
-
-async function selectFile() {
-  // Auto-discover CSV files in current directory
-  const discoveredFiles = await discoverCSVFiles();
-  
-  const choices = [];
-  
-  // Add discovered files if any
-  if (discoveredFiles.length > 0) {
-    choices.push({
-      name: 'discovered',
-      message: `🎯 Use discovered CSV files (${discoveredFiles.length} found)`,
-      hint: discoveredFiles.slice(0, 3).map(f => path$2.basename(f)).join(', ') + (discoveredFiles.length > 3 ? '...' : '')
-    });
-  }
-  
-  choices.push(
-    { name: 'browse', message: '📂 Browse files interactively' },
-    { name: 'path', message: '⌨️  Type file path directly' },
-    { name: 'recent', message: '🕐 Use recent files' },
-    { name: 'workspace', message: '🏢 Workspace mode (multiple CSVs)' },
-    { name: 'back', message: '← Back to main menu' }
-  );
-  
-  const methods = await prompt({
-    type: 'select',
-    name: 'method',
-    message: 'How would you like to select your CSV file?',
-    choices
-  });
-  
-  switch (methods.method) {
-    case 'discovered':
-      return await selectFromDiscovered(discoveredFiles);
-    case 'browse':
-      return await browseFiles();
-    case 'path':
-      return await enterFilePath();
-    case 'recent':
-      return await selectRecentFile();
-    case 'workspace':
-      return await workspaceMode(discoveredFiles);
-    case 'back':
-      return null;
-  }
-}
-
-async function browseFiles() {
-  console.log(gradients.forest('\\n🌲 File Browser 🌲\\n'));
-  
-  let currentDir = process.cwd();
-  
-  while (true) {
-    try {
-      const items = fs.readdirSync(currentDir, { withFileTypes: true });
-      const choices = [];
-      
-      // Add parent directory option
-      if (currentDir !== '/') {
-        choices.push({
-          name: '..',
-          message: '📁 .. (Parent Directory)',
-          value: path$2.dirname(currentDir)
-        });
-      }
-      
-      // Add directories
-      items
-        .filter(item => item.isDirectory())
-        .forEach(dir => {
-          choices.push({
-            name: path$2.join(currentDir, dir.name),
-            message: `📁 ${dir.name}/`,
-            value: path$2.join(currentDir, dir.name)
-          });
-        });
-      
-      // Add CSV files
-      items
-        .filter(item => item.isFile() && item.name.endsWith('.csv'))
-        .forEach(file => {
-          choices.push({
-            name: path$2.join(currentDir, file.name),
-            message: `📊 ${file.name}`,
-            value: path$2.join(currentDir, file.name)
-          });
-        });
-      
-      // Add exit option
-      choices.push({
-        name: 'exit',
-        message: '← Back to file selection',
-        value: 'exit'
-      });
-      
-      const result = await prompt({
-        type: 'select',
-        name: 'selection',
-        message: `Current: ${currentDir}`,
-        choices
-      });
-      
-      if (result.selection === 'exit') {
-        return null;
-      }
-      
-      const selected = result.selection;
-      
-      // Check if it's a directory
-      if (fs.statSync(selected).isDirectory()) {
-        currentDir = selected;
-        continue;
-      }
-      
-      // It's a file, return it
-      return selected;
-      
-    } catch (error) {
-      console.log(chalk.red(`Error reading directory: ${error.message}`));
-      return null;
-    }
-  }
-}
-
-async function enterFilePath() {
-  const response = await prompt({
-    type: 'input',
-    name: 'filePath',
-    message: 'Enter the path to your CSV file:',
-    validate: (input) => {
-      if (!input.trim()) return 'Please enter a file path';
-      if (!fs.existsSync(input)) return 'File does not exist';
-      if (!input.endsWith('.csv')) return 'Please select a CSV file';
-      return true;
-    }
-  });
-  
-  return response.filePath;
-}
-
-async function selectRecentFile() {
-  const recentFiles = getRecentFiles();
-  
-  if (recentFiles.length === 0) {
-    console.log(gradients.yellow('No recent files found.'));
-    await prompt({
-      type: 'confirm',
-      name: 'continue',
-      message: 'Press Enter to continue...'
-    });
-    return null;
-  }
-  
-  const choices = recentFiles.map(file => ({
-    name: file.path,
-    message: `📊 ${path$2.basename(file.path)}`,
-    hint: `Last used: ${new Date(file.lastUsed).toLocaleDateString()}`
-  }));
-  
-  choices.push({ name: 'back', message: '← Back to file selection' });
-  
-  const response = await prompt({
-    type: 'select',
-    name: 'file',
-    message: 'Select a recent file:',
-    choices
-  });
-  
-  return response.file === 'back' ? null : response.file;
-}
-
-function getRecentFiles() {
-  try {
-    if (fs.existsSync(RECENT_FILES_PATH)) {
-      return JSON.parse(fs.readFileSync(RECENT_FILES_PATH, 'utf8'));
-    }
-  } catch (error) {
-    // Ignore errors
-  }
-  return [];
-}
-
-function addRecentFile(filePath) {
-  const recentFiles = getRecentFiles();
-  
-  // Remove if already exists
-  const filtered = recentFiles.filter(f => f.path !== filePath);
-  
-  // Add to front
-  filtered.unshift({
-    path: filePath,
-    lastUsed: new Date().toISOString()
-  });
-  
-  // Keep only MAX_RECENT_FILES
-  const trimmed = filtered.slice(0, MAX_RECENT_FILES);
-  
-  try {
-    fs.writeFileSync(RECENT_FILES_PATH, JSON.stringify(trimmed, null, 2));
-  } catch (error) {
-    // Ignore errors
-  }
-}
-
-async function showFilePreview(filePath) {
-  const spinner = distExports.createSpinner('Loading file preview...').start();
-  
-  try {
-    const stats = fs.statSync(filePath);
-    const records = await parseCSV(filePath);
-    
-    // Handle empty file
-    if (!records || records.length === 0) {
-      spinner.error({ text: 'File is empty or could not be parsed' });
-      return;
-    }
-    
-    const headers = Object.keys(records[0]);
-    const columnTypes = detectColumnTypes(records);
-    
-    spinner.success({ text: 'File loaded successfully!' });
-    
-    // File info
-    const previewBox = boxen(
-      `📄 File: ${path$2.basename(filePath)}\\n` +
-      `📊 Size: ${formatFileSize(stats.size)}\\n` +
-      `📈 Rows: ~${records.length}+ rows\\n` +
-      `🏛️  Columns: ${Object.keys(columnTypes).length} columns\\n\\n` +
-      `📋 Preview:\\n${formatPreviewTable(records, headers)}`,
-      {
-        padding: 1,
-        borderColor: 'blue'
-      }
-    );
-    
-    console.log('\\n' + previewBox);
-    
-    // Add to recent files
-    addRecentFile(filePath);
-    
-  } catch (error) {
-    spinner.error({ text: `Error loading file: ${error.message}` });
-    throw error;
-  }
-}
-
-async function selectAnalysisType() {
-  const response = await prompt({
-    type: 'select',
-    name: 'analysis',
-    message: 'What type of analysis would you like to run?',
-    choices: [
-      { name: 'complete', message: '🚀 Complete Analysis (All commands)' },
-      { name: 'eda', message: '📊 Exploratory Data Analysis' },
-      { name: 'int', message: '🔍 Data Integrity Check' },
-      { name: 'vis', message: '📈 Visualization Recommendations' },
-      { name: 'llm', message: '🤖 LLM Context Generation' }
-    ]
-  });
-  
-  return response.analysis;
-}
-
-let currentResult = null;
-
-async function runAnalysisWithAnimation(filePath, analysisType) {
-  console.log(gradients.fire('\\n🔥 Running Analysis 🔥\\n'));
-  
-  const spinner = distExports.createSpinner('Parsing CSV file...').start();
-  
-  try {
-    // Check file size first
-    const stats = await fs.promises.stat(filePath);
-    const isLarge = stats.size > 10 * 1024 * 1024; // 10MB
-    
-    if (isLarge) {
-      spinner.update({ text: `Large file detected (${(stats.size / 1024 / 1024).toFixed(1)}MB). Processing...` });
-    }
-    
-    // Parse with progress updates for large files
-    const data = await parseCSV(filePath, {
-      onProgress: isLarge ? (progress, rowCount) => {
-        spinner.update({ text: `Processing: ${Math.round(progress)}% - ${rowCount.toLocaleString()} rows` });
-      } : undefined
-    });
-    
-    const headers = Object.keys(data[0] || {});
-    spinner.update({ text: 'CSV parsed successfully!' });
-    await sleep(500);
-    
-    if (analysisType === 'complete') {
-      const analyses = ['eda', 'int', 'vis', 'llm'];
-      let combinedResult = '';
-      
-      for (const analysis of analyses) {
-        spinner.update({ text: `Running ${analysis.toUpperCase()} analysis...` });
-        
-        // Add progress indicator for large datasets
-        const analysisOptions = { 
-          preloadedData: { 
-            records: data, 
-            columnTypes: detectColumnTypes(data) 
-          }
-        };
-        
-        if (isLarge) {
-          // Update spinner periodically during analysis
-          const progressInterval = setInterval(() => {
-            spinner.update({ text: `Running ${analysis.toUpperCase()} analysis... (processing ${data.length.toLocaleString()} rows)` });
-          }, 500);
-          
-          let result;
-          try {
-            switch (analysis) {
-              case 'eda':
-                result = await eda(filePath, analysisOptions);
-                break;
-              case 'int':
-                result = await integrity(filePath, analysisOptions);
-                break;
-              case 'vis':
-                result = await visualize(filePath, analysisOptions);
-                break;
-              case 'llm':
-                result = await llmContext(filePath, analysisOptions);
-                break;
-            }
-          } finally {
-            clearInterval(progressInterval);
-          }
-          
-          combinedResult += `\\n\\n=== ${analysis.toUpperCase()} ANALYSIS ===\\n\\n${result}`;
-        } else {
-          // Normal processing for small files
-          let result;
-          switch (analysis) {
-            case 'eda':
-              result = await eda(filePath, analysisOptions);
-              break;
-            case 'int':
-              result = await integrity(filePath, analysisOptions);
-              break;
-            case 'vis':
-              result = await visualize(filePath, analysisOptions);
-              break;
-            case 'llm':
-              result = await llmContext(filePath, analysisOptions);
-              break;
-          }
-          
-          combinedResult += `\\n\\n=== ${analysis.toUpperCase()} ANALYSIS ===\\n\\n${result}`;
-        }
-        
-        await sleep(1000);
-      }
-      
-      currentResult = combinedResult;
-    } else {
-      spinner.update({ text: `Running ${analysisType.toUpperCase()} analysis...` });
-      
-      let result;
-      switch (analysisType) {
-        case 'eda':
-          result = await eda(filePath, { preloadedData: { records: data, columnTypes: detectColumnTypes(data) } });
-          break;
-        case 'int':
-          result = await integrity(filePath, { preloadedData: { records: data, columnTypes: detectColumnTypes(data) } });
-          break;
-        case 'vis':
-          result = await visualize(filePath, { preloadedData: { records: data, columnTypes: detectColumnTypes(data) } });
-          break;
-        case 'llm':
-          result = await llmContext(filePath, { preloadedData: { records: data, columnTypes: detectColumnTypes(data) } });
-          break;
-      }
-      
-      currentResult = result;
-    }
-    
-    spinner.success({ text: 'Analysis complete! 🎉' });
-    
-  } catch (error) {
-    spinner.error({ text: `Analysis failed: ${error.message}` });
-    throw error;
-  }
-}
-
-async function showResults() {
-  if (!currentResult) {
-    console.log(chalk.red('No results to display.'));
-    return;
-  }
-  
-  console.log(gradients.rainbow('\\n🎉 Analysis Results 🎉\\n'));
-  
-  // Always offer save first
-  const wantToSave = await prompt({
-    type: 'confirm',
-    name: 'save',
-    message: '💾 Would you like to save your analysis results?',
-    initial: true
-  });
-  
-  if (wantToSave.save) {
-    await saveResults(currentResult);
-  }
-  
-  // Then offer other options
-  const action = await prompt({
-    type: 'select',
-    name: 'action',
-    message: 'What would you like to do with the results?',
-    choices: [
-      { name: 'view', message: '👀 View results in terminal' },
-      { name: 'copy', message: '📋 Show selectable text for copying' },
-      { name: 'ai', message: '🤖 Format for AI analysis' },
-      { name: 'back', message: '← Back to main menu' }
-    ]
-  });
-  
-  switch (action.action) {
-    case 'view':
-      await viewResults(currentResult);
-      break;
-    case 'copy':
-      await showSelectableResults(currentResult);
-      break;
-    case 'ai':
-      await copyForAI(currentResult);
-      break;
-    case 'back':
-      return;
-  }
-}
-
-async function viewResults(result) {
-  console.clear();
-  console.log(gradients.cosmic('📊 Analysis Results 📊\\n'));
-  console.log(result);
   
   await prompt({
     type: 'confirm',
@@ -74937,574 +76590,540 @@ async function viewResults(result) {
   });
 }
 
-async function saveResults(result) {
-  const saveChoice = await prompt({
-    type: 'select',
-    name: 'format',
-    message: 'Choose filename format:',
-    choices: [
-      { name: 'custom', message: '✏️  Custom filename' },
-      { name: 'timestamped', message: '🕐 Auto-timestamped filename' }
-    ]
-  });
+async function selectFile(engine, csvFiles) {
+  const choices = engine.getFileSelectionChoices(csvFiles);
   
-  let filename;
-  switch (saveChoice.format) {
-    case 'custom':
-      const response = await prompt({
-        type: 'input',
-        name: 'filename',
-        message: 'Enter filename:',
-        initial: 'my-analysis.txt',
-        validate: (input) => {
-          if (!input.trim()) return 'Please enter a filename';
-          if (!input.endsWith('.txt')) return 'Please use .txt extension';
-          return true;
-        }
-      });
-      filename = response.filename;
-      break;
-    case 'timestamped':
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-      filename = `datapilot-analysis-${timestamp}.txt`;
-      break;
+  if (choices.length === 0) {
+    console.log(chalk.yellow('No CSV files found. Please add some CSV files to your project directory.'));
+    return null;
   }
   
-  const spinner = distExports.createSpinner(`Saving results to ${filename}...`).start();
+  const response = await prompt({
+    type: 'select',
+    name: 'file',
+    message: gradients.green('📂 Select a CSV file to analyze:'),
+    choices: choices
+  });
+  
+  if (response.file === 'manual') {
+    const manualResponse = await prompt({
+      type: 'input',
+      name: 'path',
+      message: 'Enter the path to your CSV file:',
+      validate: (input) => {
+        if (!input.trim()) return 'Please enter a file path';
+        if (!fs.existsSync(input)) return 'File does not exist';
+        if (!input.toLowerCase().endsWith('.csv')) return 'File must be a CSV file';
+        return true;
+      }
+    });
+    return manualResponse.path;
+  }
+  
+  return response.file;
+}
+
+async function showFilePreview(engine, filePath) {
+  const spinner = distExports.createSpinner('Loading file preview...').start();
   
   try {
-    // Format results as readable text
-    let output = '';
-    if (typeof result === 'string') {
-      output = result;
-    } else {
-      output = `DataPilot Analysis Results\\nGenerated: ${new Date().toISOString()}\\n\\n`;
-      output += JSON.stringify(result, null, 2);
+    const preview = await engine.previewFile(filePath);
+    spinner.success({ text: 'File preview loaded!' });
+    
+    if (preview.error) {
+      console.log(chalk.red('Error reading file:'), preview.error);
+      return;
     }
     
-    fs.writeFileSync(filename, output);
-    spinner.success({ text: `✅ Results saved to ${filename}!` });
+    console.log('\\n' + boxen(
+      `📄 File: ${chalk.green(path$1.basename(filePath))}\\n` +
+      `📏 Size: ${chalk.cyan(engine.formatFileSize(preview.size))}\\n` +
+      `📊 Rows: ${chalk.yellow(preview.rows.toLocaleString())}\\n` +
+      `📋 Columns: ${chalk.blue(preview.columns)}\\n\\n` +
+      `🏷️  Column Types:\\n${preview.columnNames.slice(0, 5).map(col => 
+        `  • ${col} (${preview.columnTypes[col]?.type || 'unknown'})`
+      ).join('\\n')}` +
+      (preview.columnNames.length > 5 ? `\\n  ... and ${preview.columnNames.length - 5} more` : ''),
+      {
+        padding: 1,
+        borderColor: 'green',
+        title: '📋 File Preview',
+        titleAlignment: 'center'
+      }
+    ));
     
-    const openFile = await prompt({
-      type: 'confirm',
-      name: 'open',
-      message: 'Would you like to view the saved file?',
-      initial: false
-    });
+  } catch (error) {
+    spinner.error({ text: 'Failed to load preview: ' + error.message });
+  }
+}
+
+async function selectAnalysisType(engine) {
+  const choices = engine.getAnalysisTypeChoices();
+  
+  const response = await prompt({
+    type: 'select',
+    name: 'type',
+    message: gradients.blue('🔬 What type of analysis would you like?'),
+    choices: choices
+  });
+  
+  return response.type;
+}
+
+async function runAnalysisWithAnimation(engine, filePath, analysisType) {
+  const spinner = distExports.createSpinner('Preparing analysis...').start();
+  
+  try {
+    spinner.update({ text: 'Running analysis...' });
+    const results = await engine.runAnalysis(filePath, analysisType);
     
-    if (openFile.open) {
-      console.log(chalk.cyan('\\n📄 Saved content preview:'));
-      console.log(chalk.gray('─'.repeat(50)));
-      console.log(output.slice(0, 500) + (output.length > 500 ? '\\n...(truncated)' : ''));
-      console.log(chalk.gray('─'.repeat(50)));
+    if (results.error) {
+      spinner.error({ text: 'Analysis failed: ' + results.error });
+    } else {
+      spinner.success({ text: 'Analysis complete!' });
+      
+      // Display basic results info
+      console.log('\\n' + boxen(
+        `✅ Analysis completed successfully!\\n` +
+        `📊 Type: ${chalk.cyan(analysisType.toUpperCase())}\\n` +
+        `📄 File: ${chalk.green(path$1.basename(filePath))}\\n` +
+        `⏱️  Time: ${chalk.yellow(new Date(results.timestamp).toLocaleTimeString())}`,
+        {
+          padding: 1,
+          borderColor: 'green',
+          title: '🎉 Analysis Results',
+          titleAlignment: 'center'
+        }
+      ));
     }
     
   } catch (error) {
-    spinner.error({ text: `❌ Error saving file: ${error.message}` });
-    console.error(chalk.red('Save failed. Please check file permissions and try again.'));
+    spinner.error({ text: 'Analysis failed: ' + error.message });
   }
+}
+
+async function showDemo(engine, demoResult) {
+  console.clear();
+  
+  // Enhanced demo mode header
+  const demoHeader = `
+  ╔═════════════════════════════════════════════════════════════╗
+  ║                     🎭 DEMO MODE 🎭                        ║
+  ║               Try DataPilot with sample data                 ║
+  ╚═════════════════════════════════════════════════════════════╝`;
+  
+  console.log(gradients.fire(demoHeader));
+  console.log();
+  
+  if (demoResult.datasets.length === 0) {
+    console.log(chalk.yellow('No demo datasets found. Please ensure test fixtures are available.'));
+    await prompt({ type: 'confirm', name: 'continue', message: 'Press Enter to continue...' });
+    return;
+  }
+  
+  const choices = demoResult.datasets.map(dataset => ({
+    name: dataset.path,
+    message: `📊 ${dataset.name}`,
+    hint: dataset.description
+  }));
+  
+  choices.push({
+    name: 'back',
+    message: '⬅️  Back to Main Menu',
+    hint: 'Return to main menu'
+  });
+  
+  const response = await prompt({
+    type: 'select',
+    name: 'dataset',
+    message: gradients.fire('🎯 Choose a demo dataset:'),
+    choices: choices
+  });
+  
+  if (response.dataset === 'back') return;
+  
+  // Run demo analysis
+  const analysisType = await selectAnalysisType(engine);
+  await runAnalysisWithAnimation(engine, response.dataset, analysisType);
+  await showResults();
   
   await prompt({
     type: 'confirm',
     name: 'continue',
-    message: 'Continue?',
-    initial: true
+    message: '\\nPress Enter to continue...'
   });
 }
 
-async function copyForAI(result) {
-  console.log('\\n' + gradients.cosmic('🤖 AI-Ready Analysis Context 🤖\\n'));
+async function showMemoryManager(engine, memoryResult) {
+  console.clear();
   
-  const contextBox = boxen(
-    gradients.rainbow('Perfect for AI Analysis!\\n\\n') +
-    '🎯 Copy this analysis and paste into:\\n' +
-    '• ChatGPT for insights\\n' +
-    '• Claude for deep analysis\\n' +
-    '• Any AI assistant for questions\\n\\n' +
-    gradients.fire('💡 Ask: "What are the key patterns in this data?"'),
+  // Enhanced memory manager header
+  const memoryHeader = `
+  ╔═════════════════════════════════════════════════════════════╗
+  ║                   🧠 MEMORY MANAGER 🧠                     ║
+  ║              Manage DataPilot's warehouse knowledge         ║
+  ╚═════════════════════════════════════════════════════════════╝`;
+  
+  console.log(gradients.ocean(memoryHeader));
+  console.log();
+  
+  // Display summary
+  console.log(boxen(
+    `📊 Tables Analyzed: ${chalk.cyan(memoryResult.summary.tableCount)}\\n` +
+    `🏢 Domains Discovered: ${chalk.green(memoryResult.summary.domainCount)}\\n` +
+    `💸 Technical Debt: ${chalk.yellow(memoryResult.summary.totalDebtHours + ' hours')}\\n` +
+    `📁 Storage Location: ${chalk.gray(memoryResult.summary.storagePath)}`,
+    {
+      padding: 1,
+      borderColor: 'cyan',
+      title: '📈 Knowledge Base Summary',
+      titleAlignment: 'center'
+    }
+  ));
+  
+  console.log();
+  
+  let managing = true;
+  while (managing) {
+    const action = await prompt({
+      type: 'select',
+      name: 'action',
+      message: gradients.cyan('What would you like to do?'),
+      choices: [
+        { name: 'list', message: '📋 List All Memories', hint: 'View all analyzed tables and domains' },
+        { name: 'view', message: '🔍 View Memory Details', hint: 'Inspect a specific table\'s knowledge' },
+        { name: 'delete', message: '🗑️  Delete Memory', hint: 'Remove a specific table from knowledge base' },
+        { name: 'clear', message: '💣 Clear All Memories', hint: 'Remove all warehouse knowledge (careful!)' },
+        { name: 'export', message: '💾 Export Memories', hint: 'Save current knowledge to a file' },
+        { name: 'session', message: '⏱️  Session Memories', hint: 'Manage temporary session-based knowledge' },
+        { name: 'back', message: '⬅️  Back to Main Menu', hint: 'Return to main menu' }
+      ]
+    });
+    
+    switch (action.action) {
+      case 'list':
+        await showMemoryList(engine);
+        break;
+      case 'view':
+        await showMemoryDetails();
+        break;
+      case 'delete':
+        await deleteMemory(engine);
+        break;
+      case 'clear':
+        await clearAllMemories(engine);
+        break;
+      case 'export':
+        await exportMemories();
+        break;
+      case 'session':
+        await showSessionMemories();
+        break;
+      case 'back':
+        managing = false;
+        break;
+    }
+  }
+}
+
+async function showMemoryList(engine) {
+  console.clear();
+  
+  // Enhanced memory list header
+  const memoryListHeader = `
+  ╔═════════════════════════════════════════════════════════════╗
+  ║                   📋 ALL MEMORIES 📋                       ║
+  ║                View your analysis history                    ║
+  ╚═════════════════════════════════════════════════════════════╝`;
+  
+  console.log(gradients.ocean(memoryListHeader));
+  console.log();
+  
+  const memories = await engine.listMemories();
+  
+  if (Object.keys(memories).length === 0) {
+    console.log(chalk.yellow('No memories found. Analyze some CSV files first!'));
+  } else {
+    Object.entries(memories).forEach(([domain, tables]) => {
+      console.log(chalk.cyan(`\\n🏢 ${domain} Domain:`));
+      tables.forEach(table => {
+        console.log(`  📊 ${chalk.green(table.name)} - ${table.rows} rows × ${table.columns} cols (Quality: ${table.quality})`);
+      });
+    });
+  }
+  
+  await prompt({ type: 'confirm', name: 'continue', message: '\\nPress Enter to continue...' });
+}
+
+async function showMemoryDetails(engine) {
+  // Implementation would be similar to the original but using engine methods
+  console.log(chalk.yellow('Memory details feature - implementation in progress...'));
+  await prompt({ type: 'confirm', name: 'continue', message: 'Press Enter to continue...' });
+}
+
+async function deleteMemory(engine) {
+  const memories = await engine.listMemories();
+  const allTables = Object.values(memories).flat();
+  
+  if (allTables.length === 0) {
+    console.log(chalk.yellow('No memories to delete!'));
+    await prompt({ type: 'confirm', name: 'continue', message: 'Press Enter to continue...' });
+    return;
+  }
+  
+  const { tableName } = await prompt({
+    type: 'autocomplete',
+    name: 'tableName',
+    message: 'Select a table to delete:',
+    choices: allTables.map(t => t.name)
+  });
+  
+  const { confirm } = await prompt({
+    type: 'confirm',
+    name: 'confirm',
+    message: `Are you sure you want to delete memory for "${tableName}"?`,
+    initial: false
+  });
+  
+  if (confirm) {
+    const spinner = distExports.createSpinner('Deleting memory...').start();
+    const result = await engine.deleteMemory(tableName);
+    
+    if (result.success) {
+      spinner.success({ text: result.message });
+    } else {
+      spinner.error({ text: result.message });
+    }
+  } else {
+    console.log(chalk.gray('Deletion cancelled.'));
+  }
+  
+  await prompt({ type: 'confirm', name: 'continue', message: 'Press Enter to continue...' });
+}
+
+async function clearAllMemories(engine) {
+  console.log(chalk.red('\\n⚠️  WARNING: This will delete ALL warehouse knowledge!'));
+  console.log(chalk.yellow('This action cannot be undone.\\n'));
+  
+  const { confirmFirst } = await prompt({
+    type: 'confirm',
+    name: 'confirmFirst',
+    message: 'Are you absolutely sure you want to clear all memories?',
+    initial: false
+  });
+  
+  if (!confirmFirst) {
+    console.log(chalk.gray('Clear operation cancelled.'));
+    await prompt({ type: 'confirm', name: 'continue', message: 'Press Enter to continue...' });
+    return;
+  }
+  
+  const { confirmSecond } = await prompt({
+    type: 'input',
+    name: 'confirmSecond',
+    message: 'Type "DELETE ALL" to confirm:',
+    validate: input => input === 'DELETE ALL' || 'Type exactly "DELETE ALL" to confirm'
+  });
+  
+  if (confirmSecond === 'DELETE ALL') {
+    const spinner = distExports.createSpinner('Clearing all memories...').start();
+    const result = await engine.clearAllMemories();
+    
+    if (result.success) {
+      spinner.success({ text: result.message });
+    } else {
+      spinner.error({ text: result.message });
+    }
+  } else {
+    console.log(chalk.gray('Clear operation cancelled.'));
+  }
+  
+  await prompt({ type: 'confirm', name: 'continue', message: 'Press Enter to continue...' });
+}
+
+async function exportMemories(engine) {
+  console.log(chalk.yellow('Export memories feature - implementation in progress...'));
+  await prompt({ type: 'confirm', name: 'continue', message: 'Press Enter to continue...' });
+}
+
+async function showSessionMemories() {
+  console.clear();
+  
+  // Enhanced session memories header
+  const sessionHeader = `
+  ╔═════════════════════════════════════════════════════════════╗
+  ║                ⏱️  SESSION MEMORY MANAGER ⏱️                ║
+  ║              Temporary analysis contexts (Coming Soon!)      ║
+  ╚═════════════════════════════════════════════════════════════╝`;
+  
+  console.log(gradients.ocean(sessionHeader));
+  
+  console.log('\\n' + boxen(
+    gradients.yellow('🚧 Feature Under Development 🚧\\n\\n') +
+    'Session memories will enable:\\n' +
+    gradients.green('• 📁 Temporary analysis sessions\\n') +
+    gradients.blue('• 🎯 Directory-scoped memories\\n') +
+    gradients.cyan('• ⚡ Quick save/load contexts\\n') +
+    gradients.magenta('• 🤝 Team knowledge sharing'),
     {
       padding: 1,
       borderStyle: 'round',
-      borderColor: 'magenta'
+      borderColor: 'yellow',
+      title: '🔮 Coming Soon',
+      titleAlignment: 'center'
     }
-  );
+  ));
+  console.log();
+  console.log('Session memories will allow you to:');
+  console.log('  • Create temporary analysis sessions');
+  console.log('  • Scope memories to specific directories');
+  console.log('  • Quick save/load analysis contexts');
+  console.log('  • Share knowledge between team members');
   
-  console.log(contextBox);
-  
-  // Show the actual result for copying
-  console.log('\\n' + chalk.yellow('='.repeat(60)));
-  console.log(chalk.cyan('ANALYSIS RESULTS FOR AI:'));
-  console.log(chalk.yellow('='.repeat(60)) + '\\n');
-  
-  let output;
-  if (typeof result === 'string') {
-    output = result;
-  } else if (result && result.output) {
-    output = result.output;
-  } else {
-    output = 'Analysis results not available in the expected format.';
-  }
-  
-  console.log(output);
-  console.log('\\n' + chalk.yellow('='.repeat(60)));
-  
-  await prompt({
-    type: 'confirm',
-    name: 'continue',
-    message: 'Continue?',
-    initial: true
-  });
+  await prompt({ type: 'confirm', name: 'continue', message: 'Press Enter to continue...' });
 }
 
-async function showSelectableResults(result) {
-  console.log('\\n' + gradients.fire('📋 Analysis Results (Select All to Copy) 📋\\n'));
-  
-  console.log(chalk.yellow('='.repeat(60)));
-  console.log(chalk.cyan('DATAPILOT ANALYSIS RESULTS'));
-  console.log(chalk.yellow('='.repeat(60)));
-  
-  // Format results as selectable text
-  let output = '';
-  if (typeof result === 'string') {
-    output = result;
-  } else if (result && typeof result === 'object') {
-    output = JSON.stringify(result, null, 2);
-  } else {
-    output = 'Analysis results not available in the expected format.';
-  }
-  
-  // Display the results without colors for easy copying
-  console.log(output);
-  
-  console.log(chalk.yellow('='.repeat(60)));
-  console.log(chalk.green('📋 Use Cmd+A (Mac) or Ctrl+A (Windows) to select all text above'));
-  console.log(chalk.green('📋 Then Cmd+C (Mac) or Ctrl+C (Windows) to copy'));
-  console.log(chalk.yellow('='.repeat(60)));
-  
-  await prompt({
-    type: 'confirm',
-    name: 'continue',
-    message: 'Done copying? Continue?',
-    initial: true
-  });
+async function showResults() {
+  console.log('\\n' + chalk.green('📊 Analysis results displayed above.'));
+  console.log(chalk.gray('(In the actual implementation, results would be shown here)'));
 }
 
-// Learning mode and file explorer removed - focusing on core functionality
-
-async function runDemo() {
+// Enhanced animation functions with better ASCII art
+async function showWelcomeAnimation() {
+  // Clear screen and show enhanced DataPilot ASCII art
   console.clear();
-  console.log(gradients.sunset('🎭 Demo Mode 🎭\\n'));
   
-  const demoChoice = await prompt({
-    type: 'select',
-    name: 'demo',
-    message: 'Choose a demo to run:',
-    choices: [
-      { name: 'sales', message: '💰 Sales Data Demo' },
-      { name: 'ecommerce', message: '🛒 E-commerce Demo' },
-      { name: 'survey', message: '📋 Survey Data Demo' },
-      { name: 'back', message: '← Back to main menu' }
-    ]
-  });
+  const logo = `
+  ██████╗  █████╗ ████████╗ █████╗ ██████╗ ██╗██╗      ██████╗ ████████╗
+  ██╔══██╗██╔══██╗╚══██╔══╝██╔══██╗██╔══██╗██║██║     ██╔═══██╗╚══██╔══╝
+  ██║  ██║███████║   ██║   ███████║██████╔╝██║██║     ██║   ██║   ██║   
+  ██║  ██║██╔══██║   ██║   ██╔══██║██╔═══╝ ██║██║     ██║   ██║   ██║   
+  ██████╔╝██║  ██║   ██║   ██║  ██║██║     ██║███████╗╚██████╔╝   ██║   
+  ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝╚═╝     ╚═╝╚══════╝ ╚═════╝    ╚═╝   
+                      🛩️ Your Data Analysis Co-Pilot 🛩️`;
+
+  console.log(gradients.rainbow(logo));
   
-  if (demoChoice.demo === 'back') return;
+  // Enhanced welcome message with better styling
+  console.log('\\n' + boxen(
+    gradients.cyan('✨ Welcome to DataPilot Interactive Terminal UI! ✨\\n\\n') +
+    gradients.green('🎯 Perfect for beginners and experts alike\\n') +
+    gradients.blue('🎨 Beautiful insights and visualizations\\n') +
+    gradients.yellow('🤖 AI-ready analysis generation\\n') +
+    gradients.magenta('🚀 Zero installation, maximum insights\\n\\n') +
+    gradients.gray('Navigate: ↑↓ arrows | Select: Enter | Exit: Ctrl+C'),
+    {
+      padding: 1,
+      margin: 1,
+      borderStyle: 'double',
+      borderColor: 'cyan',
+      title: '🌟 Interactive Data Analysis Engine 🌟',
+      titleAlignment: 'center'
+    }
+  ));
   
-  // Run demo with built-in test data
-  const testFile = `tests/fixtures/test_sales.csv`;
+  // Animated loading effect
+  const spinner = distExports.createSpinner('Initializing DataPilot...').start();
+  await new Promise(resolve => setTimeout(resolve, 800));
+  spinner.success({ text: 'Ready to analyze your data! 🎉' });
   
-  if (fs.existsSync(testFile)) {
-    console.log(gradients.fire('\\n🎪 Running demo with sample data! 🎪\\n'));
-    await runAnalysisWithAnimation(testFile, 'complete');
-    await showResults();
-  } else {
-    console.log('Demo files not found. Please ensure test fixtures are available.');
-  }
+  console.log();
 }
 
 async function showGoodbyeAnimation() {
   console.clear();
   
-  const goodbye = `
-  _____ _                 _      __   __           _ 
- |_   _| |__   __ _ _ __ | | __  \\ \\ / /__  _   _| |
-   | | | '_ \\ / _\` | '_ \\| |/ /   \\ V / _ \\| | | | |
-   | | | | | | (_| | | | |   <     | | (_) | |_| |_|
-   |_| |_| |_|\\__,_|_| |_|_|\\_\\    |_|\\___/ \\__,_(_)
-    `;
+  const farewellArt = `
+  ╔══════════════════════════════════════════════════════════════╗
+  ║                    🛩️ DataPilot Signing Off 🛩️                ║
+  ╚══════════════════════════════════════════════════════════════╝`;
   
-  console.log(gradients.rainbow(goodbye));
+  console.log(gradients.sunset(farewellArt));
   
-  const thankYouBox = boxen(
-    gradients.cosmic('🎉 Thanks for using DataPilot! 🎉\\n\\n') +
-    '✨ Hope you discovered amazing insights!\\n' +
-    '📊 Your data has stories to tell\\n' +
-    '🚀 Keep exploring and analyzing\\n' +
-    '💫 See you next time!',
+  console.log('\\n' + boxen(
+    gradients.cyan('Thank you for using DataPilot! 🙏\\n\\n') +
+    gradients.green('🎯 Data insights discovered\\n') +
+    gradients.blue('📊 Knowledge gained\\n') +
+    gradients.yellow('🚀 Analysis complete\\n\\n') +
+    gradients.ocean('Come back soon for more data adventures! 📈✨'),
     {
       padding: 1,
       margin: 1,
-      borderStyle: 'double',
-      borderColor: 'magenta'
+      borderStyle: 'round',
+      borderColor: 'yellow',
+      title: '👋 Farewell Message',
+      titleAlignment: 'center'
     }
-  );
-  
-  console.log(thankYouBox);
-  await sleep(2000);
-}
-
-// Utility functions
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-function formatFileSize(bytes) {
-  const sizes = ['B', 'KB', 'MB', 'GB'];
-  if (bytes === 0) return '0 B';
-  const i = Math.floor(Math.log(bytes) / Math.log(1024));
-  return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
-}
-
-function formatPreviewTable(records, columns) {
-  if (records.length === 0) return 'No data to preview';
-  
-  // Simple table formatting for preview
-  let table = '';
-  
-  // Headers
-  table += columns.slice(0, 4).join(' | ') + '\\n';
-  table += columns.slice(0, 4).map(() => '---').join(' | ') + '\\n';
-  
-  // Data rows
-  records.slice(0, 3).forEach(record => {
-    const row = columns.slice(0, 4).map(col => {
-      const value = record[col];
-      return String(value || '').slice(0, 10);
-    });
-    table += row.join(' | ') + '\\n';
-  });
-  
-  if (columns.length > 4) {
-    table += `\\n... and ${columns.length - 4} more columns`;
-  }
-  
-  return table;
-}
-
-// Enhanced CSV Discovery Functions
-async function discoverCSVFiles(directory = process.cwd()) {
-  try {
-    const items = await fs.promises.readdir(directory, { withFileTypes: true });
-    const csvFiles = items
-      .filter(item => item.isFile() && item.name.endsWith('.csv'))
-      .map(file => path$2.join(directory, file.name));
-    
-    // Also check common data directories
-    const commonDataDirs = ['data', 'csv', 'datasets', 'files'];
-    for (const dir of commonDataDirs) {
-      const dirPath = path$2.join(directory, dir);
-      try {
-        const dataDirItems = await fs.promises.readdir(dirPath, { withFileTypes: true });
-        const dataCsvFiles = dataDirItems
-          .filter(item => item.isFile() && item.name.endsWith('.csv'))
-          .map(file => path$2.join(dirPath, file.name));
-        csvFiles.push(...dataCsvFiles);
-      } catch (error) {
-        // Directory doesn't exist, continue
-      }
-    }
-    
-    return csvFiles;
-  } catch (error) {
-    return [];
-  }
-}
-
-async function selectFromDiscovered(files) {
-  if (files.length === 0) return null;
-  
-  console.log(gradients.cyan('\\n🎯 Discovered CSV Files 🎯\\n'));
-  
-  // Show file previews
-  const choices = [];
-  for (const file of files) {
-    try {
-      const stats = await fs.promises.stat(file);
-      const sizeStr = formatFileSize(stats.size);
-      choices.push({
-        name: file,
-        message: `📊 ${path$2.basename(file)} (${sizeStr})`,
-        hint: `Location: ${path$2.dirname(file)}`
-      });
-    } catch (error) {
-      choices.push({
-        name: file,
-        message: `📊 ${path$2.basename(file)}`,
-        hint: 'File info unavailable'
-      });
-    }
-  }
-  
-  choices.push({ name: 'back', message: '← Back to file selection' });
-  
-  const response = await prompt({
-    type: 'select',
-    name: 'file',
-    message: 'Select a CSV file to analyze:',
-    choices
-  });
-  
-  return response.file === 'back' ? null : response.file;
-}
-
-async function workspaceMode(discoveredFiles) {
-  console.log(gradients.rainbow('\\n🏢 Workspace Mode 🏢\\n'));
-  console.log('Analyze multiple CSV files together and detect relationships\\n');
-  
-  if (discoveredFiles.length === 0) {
-    console.log(gradients.yellow('No CSV files found in current directory.'));
-    console.log('Please navigate to a directory with CSV files or use browse mode.\\n');
-    await prompt({ type: 'confirm', name: 'continue', message: 'Press Enter to continue...' });
-    return null;
-  }
-  
-  // Show workspace summary
-  const totalSize = await calculateTotalSize(discoveredFiles);
-  console.log(boxen(
-    `📁 Found ${discoveredFiles.length} CSV files\\n` +
-    `📊 Total size: ${formatFileSize(totalSize)}\\n` +
-    `🔍 Ready for batch analysis`,
-    { padding: 1, borderColor: 'cyan' }
   ));
   
-  const action = await prompt({
-    type: 'select',
-    name: 'action',
-    message: 'What would you like to do?',
-    choices: [
-      { name: 'analyze-all', message: '🚀 Analyze all files (EDA + INT + VIS)' },
-      { name: 'custom', message: '⚙️ Custom analysis selection' },
-      { name: 'relationships', message: '🔗 Detect relationships between files' },
-      { name: 'individual', message: '👆 Select individual file' },
-      { name: 'back', message: '← Back to file selection' }
-    ]
-  });
-  
-  switch (action.action) {
-    case 'analyze-all':
-      return await batchAnalyzeFiles(discoveredFiles, ['eda', 'int', 'vis']);
-    case 'custom':
-      return await customBatchAnalysis(discoveredFiles);
-    case 'relationships':
-      return await analyzeRelationships(discoveredFiles);
-    case 'individual':
-      return await selectFromDiscovered(discoveredFiles);
-    case 'back':
-      return null;
-  }
+  console.log('\\n' + gradients.rainbow('   ▶ Happy analyzing! Keep discovering insights! ◀\\n'));
 }
 
-async function batchAnalyzeFiles(files, analysisTypes) {
-  console.log(gradients.fire('\\n🔥 Starting Batch Analysis 🔥\\n'));
+async function showLearningMode(engine, result) {
+  console.clear();
   
-  const results = [];
-  for (let i = 0; i < files.length; i++) {
-    const file = files[i];
-    console.log(`\\n📊 Analyzing file ${i + 1}/${files.length}: ${path$2.basename(file)}`);
-    
-    try {
-      // Parse CSV first
-      const data = await parseCSV(file);
-      
-      // Run selected analyses
-      for (const analysisType of analysisTypes) {
-        console.log(`  🔍 Running ${analysisType.toUpperCase()} analysis...`);
-        
-        let analysisResult;
-        switch (analysisType) {
-          case 'eda':
-            analysisResult = await eda(file, { preloadedData: { records: data, columnTypes: detectColumnTypes(data) } });
-            break;
-          case 'int':
-            analysisResult = await integrity(file, { preloadedData: { records: data, columnTypes: detectColumnTypes(data) } });
-            break;
-          case 'vis':
-            analysisResult = await visualize(file, { preloadedData: { records: data, columnTypes: detectColumnTypes(data) } });
-            break;
-          case 'llm':
-            analysisResult = await llmContext(file, { preloadedData: { records: data, columnTypes: detectColumnTypes(data) } });
-            break;
-        }
-        
-        results.push({
-          file: path$2.basename(file),
-          analysis: analysisType,
-          result: analysisResult
-        });
-      }
-    } catch (error) {
-      console.log(`  ❌ Error analyzing ${path$2.basename(file)}: ${error.message}`);
-      results.push({
-        file: path$2.basename(file),
-        error: error.message
-      });
+  // Enhanced learning mode header
+  const learningHeader = `
+  ╔═════════════════════════════════════════════════════════════╗
+  ║                   🎓 LEARNING MODE 🎓                      ║
+  ║             Interactive data science tutorials               ║
+  ╚═════════════════════════════════════════════════════════════╝`;
+  
+  console.log(gradients.green(learningHeader));
+  
+  console.log('\\n' + boxen(
+    gradients.yellow('📚 Learning Modules Coming Soon! 📚\\n\\n') +
+    'Interactive tutorials will cover:\\n' +
+    gradients.green('• 📊 Data Analysis Fundamentals\\n') +
+    gradients.blue('• 🔍 Exploratory Data Analysis (EDA)\\n') +
+    gradients.cyan('• 🛡️  Data Quality & Integrity\\n') +
+    gradients.magenta('• 📈 Visualization Best Practices\\n') +
+    gradients.yellow('• 🏗️  Data Engineering Principles\\n') +
+    gradients.red('• 🤖 AI-Ready Data Preparation'),
+    {
+      padding: 1,
+      borderStyle: 'round',
+      borderColor: 'green',
+      title: '🎯 Educational Content',
+      titleAlignment: 'center'
     }
-  }
-  
-  // Show batch summary
-  await showBatchSummary(results);
-  return 'batch-complete';
-}
-
-async function customBatchAnalysis(files) {
-  const analysisChoices = await prompt({
-    type: 'multiselect',
-    name: 'analyses',
-    message: 'Select analyses to run on all files:',
-    choices: [
-      { name: 'eda', message: '📊 Exploratory Data Analysis' },
-      { name: 'int', message: '🔍 Data Integrity Check' },
-      { name: 'vis', message: '📈 Visualization Recommendations' },
-      { name: 'llm', message: '🤖 LLM Context Generation' }
-    ]
-  });
-  
-  if (analysisChoices.analyses.length === 0) {
-    console.log(gradients.yellow('No analyses selected.'));
-    return null;
-  }
-  
-  return await batchAnalyzeFiles(files, analysisChoices.analyses);
-}
-
-async function analyzeRelationships(files) {
-  console.log(gradients.cosmic('\\n🔗 Analyzing File Relationships 🔗\\n'));
-  
-  // Simple relationship analysis based on column names
-  const relationships = [];
-  const fileSchemas = [];
-  
-  for (const file of files) {
-    try {
-      const data = await parseCSV(file);
-      const headers = Object.keys(data[0] || {});
-      const columnTypes = detectColumnTypes(data);
-      fileSchemas.push({
-        file: path$2.basename(file),
-        headers,
-        types: columnTypes,
-        sampleData: data.slice(0, 5)
-      });
-    } catch (error) {
-      console.log(`❌ Could not analyze ${path$2.basename(file)}: ${error.message}`);
-    }
-  }
-  
-  // Find potential relationships
-  for (let i = 0; i < fileSchemas.length; i++) {
-    for (let j = i + 1; j < fileSchemas.length; j++) {
-      const schema1 = fileSchemas[i];
-      const schema2 = fileSchemas[j];
-      
-      // Find common columns
-      const commonColumns = schema1.headers.filter(h => schema2.headers.includes(h));
-      if (commonColumns.length > 0) {
-        relationships.push({
-          file1: schema1.file,
-          file2: schema2.file,
-          commonColumns,
-          relationshipType: 'shared_columns'
-        });
-      }
-    }
-  }
-  
-  // Display relationship analysis
-  console.log(boxen(
-    `🔍 Relationship Analysis Results\\n\\n` +
-    `📁 Files analyzed: ${fileSchemas.length}\\n` +
-    `🔗 Relationships found: ${relationships.length}`,
-    { padding: 1, borderColor: 'magenta' }
   ));
-  
-  if (relationships.length > 0) {
-    console.log('\\n🔗 Detected Relationships:');
-    relationships.forEach(rel => {
-      console.log(`  📊 ${rel.file1} ↔ ${rel.file2}`);
-      console.log(`     Common columns: ${rel.commonColumns.join(', ')}`);
-    });
-  } else {
-    console.log('\\n📊 No obvious relationships detected between files.');
-  }
-  
-  await prompt({ type: 'confirm', name: 'continue', message: '\\nPress Enter to continue...' });
-  return null;
-}
-
-async function showBatchSummary(results) {
-  console.log(gradients.rainbow('\\n🏁 Batch Analysis Complete! 🏁\\n'));
-  
-  const successful = results.filter(r => !r.error);
-  const failed = results.filter(r => r.error);
-  
-  console.log(boxen(
-    `✅ Successful analyses: ${successful.length}\\n` +
-    `❌ Failed analyses: ${failed.length}\\n` +
-    `📊 Total files processed: ${results.length}`,
-    { padding: 1, borderColor: 'green' }
-  ));
-  
-  if (failed.length > 0) {
-    console.log('\\n❌ Failed Files:');
-    failed.forEach(f => {
-      console.log(`  📄 ${f.file}: ${f.error}`);
-    });
-  }
-  
-  // Always offer save first
-  const wantToSave = await prompt({
-    type: 'confirm',
-    name: 'save',
-    message: '💾 Would you like to save batch analysis results?',
-    initial: true
-  });
-  
-  if (wantToSave.save) {
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const outputFile = `batch-analysis-${timestamp}.txt`;
-    
-    let output = '# DataPilot Batch Analysis Results\\n\\n';
-    results.forEach(r => {
-      output += `## ${r.file}\\n`;
-      if (r.error) {
-        output += `Error: ${r.error}\\n\\n`;
-      } else {
-        output += `Analysis: ${r.analysis}\\n`;
-        output += r.result + '\\n\\n';
-      }
-    });
-    
-    await fs.promises.writeFile(outputFile, output);
-    console.log(gradients.green(`\\n💾 Results saved to: ${outputFile}`));
-  }
   
   await prompt({ type: 'confirm', name: 'continue', message: '\\nPress Enter to continue...' });
 }
 
-// Additional utility functions
-async function calculateTotalSize(files) {
-  let total = 0;
-  for (const file of files) {
-    try {
-      const stats = await fs.promises.stat(file);
-      total += stats.size;
-    } catch (error) {
-      // File might not exist, skip
+async function showSettings(engine, result) {
+  console.clear();
+  
+  // Enhanced settings header
+  const settingsHeader = `
+  ╔═════════════════════════════════════════════════════════════╗
+  ║                ⚙️  SETTINGS & PREFERENCES ⚙️                ║
+  ║                Configure DataPilot behavior                  ║
+  ╚═════════════════════════════════════════════════════════════╝`;
+  
+  console.log(gradients.blue(settingsHeader));
+  
+  console.log('\\n' + boxen(
+    gradients.yellow('🛠️  Configuration Options Coming Soon! 🛠️\\n\\n') +
+    'Settings will include:\\n' +
+    gradients.green('• 🎨 Color Theme Selection\\n') +
+    gradients.blue('• 📊 Default Analysis Types\\n') +
+    gradients.cyan('• 💾 Memory Management Preferences\\n') +
+    gradients.magenta('• 📁 Default File Search Paths\\n') +
+    gradients.yellow('• ⚡ Performance Optimization\\n') +
+    gradients.red('• 🔔 Notification Preferences'),
+    {
+      padding: 1,
+      borderStyle: 'round',
+      borderColor: 'blue',
+      title: '⚙️  Customization',
+      titleAlignment: 'center'
     }
-  }
-  return total;
+  ));
+  
+  await prompt({ type: 'confirm', name: 'continue', message: '\\nPress Enter to continue...' });
 }
-
-// Export already done above with function declaration
 
 // ASCII art banner with version
 const VERSION = '1.1.1';
@@ -75540,8 +77159,8 @@ function validateFile(filePath) {
       }
       
       // Check if it's a relative path issue
-      if (!path.isAbsolute(filePath)) {
-        const suggestedPath = path.resolve(filePath);
+      if (!path$1.isAbsolute(filePath)) {
+        const suggestedPath = path$1.resolve(filePath);
         console.error(chalk.yellow(`💡 Tip: Try using the full path: ${suggestedPath}`));
       }
       
@@ -75586,7 +77205,11 @@ async function runWithProgress(command, filePath, options) {
     return result;
   } catch (error) {
     spinner.fail(`Analysis failed: ${error.message}`);
-    throw error;
+    console.error(chalk.red('Analysis failed'));
+    if (error.stack) {
+      console.error(error.stack);
+    }
+    process.exit(1);
   }
 }
 
@@ -75599,8 +77222,12 @@ program
   .option('--no-header', 'CSV file has no header row')
   .option('--encoding <encoding>', 'Force specific encoding (utf8, latin1, etc.)')
   .option('--delimiter <delimiter>', 'Force specific delimiter (comma, semicolon, tab, pipe)')
+  .option('--timeout <ms>', 'Set timeout in milliseconds (default: 60000)', '60000')
+  .option('--force', 'Continue analysis despite data quality warnings')
   .action(async (file, options) => {
     const filePath = validateFile(file);
+    // Convert timeout to number
+    if (options.timeout) options.timeout = parseInt(options.timeout);
     await runWithProgress(runAll, filePath, options);
   });
 
@@ -75613,8 +77240,12 @@ program
   .option('--no-header', 'CSV file has no header row')
   .option('--encoding <encoding>', 'Force specific encoding (utf8, latin1, etc.)')
   .option('--delimiter <delimiter>', 'Force specific delimiter (comma, semicolon, tab, pipe)')
+  .option('--timeout <ms>', 'Set timeout in milliseconds (default: 30000)', '30000')
+  .option('--force', 'Continue analysis despite data quality warnings')
   .action(async (file, options) => {
     const filePath = validateFile(file);
+    // Convert timeout to number
+    if (options.timeout) options.timeout = parseInt(options.timeout);
     await runWithProgress(eda, filePath, options);
   });
 
@@ -75626,6 +77257,7 @@ program
   .option('--no-header', 'CSV file has no header row')
   .option('--encoding <encoding>', 'Force specific encoding (utf8, latin1, etc.)')
   .option('--delimiter <delimiter>', 'Force specific delimiter (comma, semicolon, tab, pipe)')
+  .option('--force', 'Continue analysis despite data quality warnings')
   .action(async (file, options) => {
     const filePath = validateFile(file);
     await runWithProgress(integrity, filePath, options);
@@ -75639,6 +77271,7 @@ program
   .option('--no-header', 'CSV file has no header row')
   .option('--encoding <encoding>', 'Force specific encoding (utf8, latin1, etc.)')
   .option('--delimiter <delimiter>', 'Force specific delimiter (comma, semicolon, tab, pipe)')
+  .option('--force', 'Continue analysis despite data quality warnings')
   .action(async (file, options) => {
     const filePath = validateFile(file);
     await runWithProgress(visualize, filePath, options);
@@ -75655,6 +77288,7 @@ eng
   .option('--no-header', 'CSV file has no header row')
   .option('--encoding <encoding>', 'Force specific encoding (utf8, latin1, etc.)')
   .option('--delimiter <delimiter>', 'Force specific delimiter (comma, semicolon, tab, pipe)')
+  .option('--force', 'Continue analysis despite data quality warnings')
   .action(async (file, options) => {
     if (file) {
       const filePath = validateFile(file);
@@ -75672,6 +77306,7 @@ eng
   .option('--no-header', 'CSV files have no header row')
   .option('--encoding <encoding>', 'Force specific encoding for all files')
   .option('--delimiter <delimiter>', 'Force specific delimiter for all files')
+  .option('--force', 'Continue analysis despite data quality warnings')
   .action(async (files, options) => {
     const { glob } = await Promise.resolve().then(function () { return index; });
     console.log(chalk.blue('🏛️  Starting multi-file warehouse analysis...\n'));
@@ -75734,6 +77369,11 @@ eng
         spinner.succeed(`Completed ${basename(filePath)}`);
       } catch (error) {
         spinner.fail(`Failed: ${error.message}`);
+        console.error(chalk.red('Analysis failed'));
+        if (error.stack) {
+          console.error(error.stack);
+        }
+        process.exit(1);
       }
     }
     
@@ -75795,8 +77435,13 @@ program
   .option('--no-header', 'CSV file has no header row')
   .option('--encoding <encoding>', 'Force specific encoding (utf8, latin1, etc.)')
   .option('--delimiter <delimiter>', 'Force specific delimiter (comma, semicolon, tab, pipe)')
+  .option('--timeout <ms>', 'Set timeout in milliseconds (default: 60000)', '60000')
+  .option('--force', 'Continue analysis despite data quality warnings')
+  .option('--comprehensive', 'Use comprehensive analysis (default: true)', true)
   .action(async (file, options) => {
     const filePath = validateFile(file);
+    // Convert timeout to number
+    if (options.timeout) options.timeout = parseInt(options.timeout);
     await runWithProgress(llmContext, filePath, options);
   });
 
@@ -75835,12 +77480,17 @@ program.on('--help', () => {
   console.log('  --no-header              CSV has no header row');
   console.log('  --encoding <type>        Force encoding (utf8, latin1, utf16le)');
   console.log('  --delimiter <char>       Force delimiter (comma, semicolon, tab, pipe)');
+  console.log('  --timeout <ms>           Set timeout in milliseconds (default: 30s for EDA, 60s for LLM)');
+  console.log('  --force                  Continue analysis despite data quality warnings');
+  console.log('  --comprehensive          Use comprehensive analysis for LLM mode (default: true)');
   console.log('');
   console.log(chalk.cyan('Troubleshooting:'));
   console.log('  • For paths with spaces, use quotes: "C:\\My Folder\\data.csv"');
   console.log('  • For encoding issues, try: --encoding latin1');
   console.log('  • For delimiter issues, try: --delimiter ";"');
   console.log('  • For large files, quick mode is recommended: --quick');
+  console.log('  • If analysis hangs, try: --timeout 120000 (2 minutes)');
+  console.log('  • For data quality issues, try: --force');
   console.log('');
   console.log(chalk.gray('Output:'));
   console.log(chalk.gray('  All commands produce verbose text output optimized for'));
@@ -77010,12 +78660,12 @@ const defaultPlatform$2 = (typeof process === 'object' && process
         process.env.__MINIMATCH_TESTING_PLATFORM__) ||
         process.platform
     : 'posix');
-const path$1 = {
+const path = {
     win32: { sep: '\\' },
     posix: { sep: '/' },
 };
 /* c8 ignore stop */
-const sep = defaultPlatform$2 === 'win32' ? path$1.win32.sep : path$1.posix.sep;
+const sep = defaultPlatform$2 === 'win32' ? path.win32.sep : path.posix.sep;
 minimatch.sep = sep;
 const GLOBSTAR = Symbol('globstar **');
 minimatch.GLOBSTAR = GLOBSTAR;

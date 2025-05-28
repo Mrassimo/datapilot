@@ -1,6 +1,7 @@
 import { statSync } from 'fs';
 import { basename } from 'path';
 import ora from 'ora';
+import chalk from 'chalk';
 
 // Import detectors
 import { detectAnalysisNeeds, findPotentialTargets } from './detectors/dataTypeDetector.js';
@@ -33,266 +34,362 @@ export async function edaComprehensive(filePath, options = {}) {
   // Structured data mode for LLM consumption
   const structuredMode = options.structuredOutput || options.llmMode;
   
+  // Set timeout for analysis (default 30 seconds)
+  const timeoutMs = options.timeout || 30000;
+  
+  const analysisPromise = performAnalysis();
+  const timeoutPromise = new Promise((_, reject) => {
+    setTimeout(() => {
+      reject(new Error(`⏱️  EDA analysis timed out after ${timeoutMs / 1000} seconds. This may indicate issues with the data format or file size.`));
+    }, timeoutMs);
+  });
+  
   try {
-    // Use preloaded data if available
-    let records, columnTypes;
-    if (options.preloadedData) {
-      records = options.preloadedData.records;
-      columnTypes = options.preloadedData.columnTypes;
-    } else {
-      // Parse CSV
-      if (spinner) spinner.text = 'Reading CSV file...';
-      records = await parseCSV(filePath, { quiet: options.quiet, header: options.header });
-      
-      if (spinner) spinner.text = 'Detecting column types...';
-      columnTypes = detectColumnTypes(records);
-    }
-    
-    // Get file info
-    const fileStats = statSync(filePath);
-    const fileName = basename(filePath);
-    const columns = Object.keys(columnTypes);
-    
-    // Handle empty dataset
-    if (records.length === 0) {
-      const report = formatComprehensiveEDAReport({
-        fileName,
-        rowCount: 0,
-        columnCount: 0,
-        empty: true
-      });
-      console.log(report);
-      outputHandler.finalize();
-      return;
-    }
-    
-    // Detect what analyses to run
-    if (spinner) spinner.text = 'Detecting analysis requirements...';
-    const analysisNeeds = detectAnalysisNeeds(records, columnTypes);
-    
-    // Initialize analysis object
-    const analysis = {
-      fileName,
-      fileSize: formatFileSize(fileStats.size),
-      rowCount: records.length,
-      columnCount: columns.length,
-      columns: [],
-      numericColumnCount: 0,
-      categoricalColumnCount: 0,
-      dateColumns: [],
-      completeness: 0,
-      duplicateCount: 0,
-      insights: [],
-      suggestions: []
-    };
-    
-    // Basic column analysis with enhanced stats
-    if (spinner) spinner.text = 'Calculating enhanced statistics...';
-    
-    const columnAnalyses = {};
-    let totalNonNull = 0;
-    
-    for (const column of columns) {
-      const type = columnTypes[column];
-      const values = records.map(r => r[column]);
-      
-      const columnAnalysis = {
-        name: column,
-        type: type.type,
-        nonNullRatio: values.filter(v => v !== null && v !== undefined).length / values.length
-      };
-      
-      totalNonNull += values.filter(v => v !== null && v !== undefined).length;
-      
-      if (['integer', 'float'].includes(type.type)) {
-        columnAnalysis.stats = calculateEnhancedStats(values);
-        analysis.numericColumnCount++;
-      } else if (type.type === 'categorical') {
-        columnAnalysis.stats = calculateCategoricalStats(values);
-        analysis.categoricalColumnCount++;
-      } else if (type.type === 'date') {
-        analysis.dateColumns.push(column);
-      }
-      
-      analysis.columns.push(columnAnalysis);
-      columnAnalyses[column] = columnAnalysis;
-    }
-    
-    analysis.completeness = totalNonNull / (records.length * columns.length);
-    analysis.completenessLevel = analysis.completeness > 0.9 ? 'good' : 
-                                 analysis.completeness > 0.7 ? 'fair' : 'poor';
-    
-    // Count duplicates
-    const seen = new Set();
-    let duplicates = 0;
-    records.forEach(record => {
-      const key = JSON.stringify(record);
-      if (seen.has(key)) duplicates++;
-      else seen.add(key);
-    });
-    analysis.duplicateCount = duplicates;
-    
-    // Distribution analysis
-    if (analysisNeeds.distributionTesting) {
-      if (spinner) spinner.text = 'Analyzing distributions...';
-      analysis.distributionAnalysis = {};
-      
-      const numericColumns = columns.filter(col => 
-        ['integer', 'float'].includes(columnTypes[col].type)
-      );
-      
-      for (const col of numericColumns) {
-        const values = records.map(r => r[col]);
-        analysis.distributionAnalysis[col] = analyzeDistribution(values);
-      }
-    }
-    
-    // Outlier analysis
-    if (analysisNeeds.outlierAnalysis) {
-      if (spinner) spinner.text = 'Detecting outliers...';
-      analysis.outlierAnalysis = {};
-      
-      const numericColumns = columns.filter(col => 
-        ['integer', 'float'].includes(columnTypes[col].type)
-      );
-      
-      let totalOutliers = 0;
-      for (const col of numericColumns) {
-        const values = records.map(r => r[col]);
-        const outlierResult = detectOutliers(values, col);
-        analysis.outlierAnalysis[col] = outlierResult;
-        if (outlierResult.aggregated) {
-          totalOutliers += outlierResult.aggregated.length;
-        }
-      }
-      
-      analysis.outlierRate = totalOutliers / (records.length * numericColumns.length);
-    }
-    
-    // CART analysis
-    if (analysisNeeds.cart) {
-      if (spinner) spinner.text = 'Performing CART analysis...';
-      const targets = findPotentialTargets(records, columnTypes);
-      if (targets.length > 0) {
-        analysis.cartAnalysis = performCARTAnalysis(
-          records, 
-          columns, 
-          columnTypes, 
-          targets[0].column
-        );
-      }
-    }
-    
-    // Regression analysis
-    if (analysisNeeds.regression) {
-      if (spinner) spinner.text = 'Performing regression analysis...';
-      analysis.regressionAnalysis = performRegressionAnalysis(
-        records, 
-        columns, 
-        columnTypes
-      );
-    }
-    
-    // Correlation analysis
-    if (analysisNeeds.correlationAnalysis) {
-      if (spinner) spinner.text = 'Analyzing correlations...';
-      analysis.correlationAnalysis = performCorrelationAnalysis(records, columns, columnTypes);
-    }
-    
-    // Pattern detection
-    if (analysisNeeds.patternDetection) {
-      if (spinner) spinner.text = 'Detecting patterns...';
-      analysis.patterns = detectPatterns(records, columns, columnTypes);
-    }
-    
-    // Time series analysis
-    if (analysisNeeds.timeSeries) {
-      if (spinner) spinner.text = 'Analyzing time series...';
-      const dateColumn = analysis.dateColumns[0]; // Use first date column
-      const numericColumns = columns.filter(col => 
-        ['integer', 'float'].includes(columnTypes[col].type)
-      );
-      
-      if (dateColumn && numericColumns.length > 0) {
-        analysis.timeSeriesAnalysis = performTimeSeriesAnalysis(
-          records, 
-          dateColumn, 
-          numericColumns
-        );
-      }
-    }
-    
-    // Australian data validation
-    if (analysisNeeds.australianData) {
-      if (spinner) spinner.text = 'Validating Australian data patterns...';
-      analysis.australianValidation = validateAustralianData(records, columns, columnTypes);
-      
-      if (analysis.australianValidation.detected) {
-        const australianInsights = generateAustralianInsights(analysis.australianValidation);
-        analysis.insights = [...(analysis.insights || []), ...australianInsights];
-      }
-    }
-    
-    // ML readiness assessment
-    if (analysisNeeds.mlReadiness) {
-      if (spinner) spinner.text = 'Assessing ML readiness...';
-      analysis.mlReadiness = assessMLReadiness(records, columns, columnTypes, analysis);
-    }
-    
-    // Generate insights
-    analysis.insights = generateInsights(analysis);
-    analysis.suggestions = generateSuggestions(analysis, analysisNeeds);
-    
-    // Calculate final metrics
-    analysis.consistencyScore = calculateConsistencyScore(analysis);
-    analysis.highMissingColumns = columns.filter(col => {
-      const stats = columnAnalyses[col];
-      return stats && (1 - stats.nonNullRatio) > 0.1;
-    }).length;
-    
-    // Return structured data if requested for LLM consumption
-    if (structuredMode) {
-      if (spinner) spinner.succeed('Comprehensive EDA analysis complete!');
-      return {
-        analysis,
-        structuredResults: {
-          statisticalInsights: analysis.insights || [],
-          dataQuality: {
-            completeness: analysis.completeness,
-            duplicateRows: analysis.duplicateCount / analysis.rowCount,
-            outlierPercentage: analysis.outlierRate || 0
-          },
-          correlations: analysis.correlationAnalysis?.correlations || [],
-          distributions: analysis.distributionAnalysis ? 
-            Object.entries(analysis.distributionAnalysis).map(([col, dist]) => ({
-              column: col,
-              ...dist
-            })) : [],
-          timeSeries: analysis.timeSeriesAnalysis || null,
-          summaryStats: analysis.columns.reduce((acc, col) => {
-            acc[col.name] = col.stats;
-            return acc;
-          }, {}),
-          mlReadiness: analysis.mlReadiness || { overallScore: 0.8, majorIssues: [] },
-          columns: analysis.columns.map(col => col.name)
-        }
-      };
-    }
-    
-    // Format and output report
-    const report = formatComprehensiveEDAReport(analysis);
-    
-    if (spinner) spinner.succeed('Comprehensive EDA analysis complete!');
-    console.log(report);
-    
-    outputHandler.finalize();
-    
+    return await Promise.race([analysisPromise, timeoutPromise]);
   } catch (error) {
     outputHandler.restore();
-    if (spinner) spinner.fail('Error during analysis');
-    console.error(error.message);
+    if (spinner) spinner.error({ text: 'Analysis failed or timed out' });
+    
+    if (error.message.includes('timed out')) {
+      console.error(chalk.red('🚨 EDA Analysis Timeout'));
+      console.error(chalk.yellow('💡 Suggestions:'));
+      console.error(chalk.yellow('   • Try using a smaller sample of your data'));
+      console.error(chalk.yellow('   • Check if the CSV file has formatting issues'));
+      console.error(chalk.yellow('   • Use --timeout flag to increase timeout (e.g., --timeout 60000 for 1 minute)'));
+      console.error(chalk.yellow('   • Try the EDA function on a subset of columns'));
+    } else {
+      console.error(error.message);
+    }
+    
     if (!options.quiet) process.exit(1);
     throw error;
+  }
+  
+  async function performAnalysis() {
+    try {
+      // Use preloaded data if available
+      let records, columnTypes;
+      if (options.preloadedData) {
+        records = options.preloadedData.records;
+        columnTypes = options.preloadedData.columnTypes;
+      } else {
+        // Parse CSV with enhanced error handling
+        if (spinner) spinner.text = 'Reading CSV file...';
+        try {
+          records = await parseCSV(filePath, { quiet: options.quiet, header: options.header });
+        } catch (parseError) {
+          throw new Error(`CSV parsing failed: ${parseError.message}`);
+        }
+        
+        // Validate parsed data
+        if (!records || records.length === 0) {
+          throw new Error('No data found in CSV file. Please check the file format and content.');
+        }
+        
+        if (spinner) spinner.text = 'Detecting column types...';
+        try {
+          columnTypes = detectColumnTypes(records);
+        } catch (typeError) {
+          throw new Error(`Column type detection failed: ${typeError.message}`);
+        }
+      }
+      
+      // Get file info
+      const fileStats = statSync(filePath);
+      const fileName = basename(filePath);
+      const columns = Object.keys(columnTypes);
+      
+      // Handle empty dataset
+      if (records.length === 0) {
+        const report = formatComprehensiveEDAReport({
+          fileName,
+          rowCount: 0,
+          columnCount: 0,
+          empty: true
+        });
+        console.log(report);
+        outputHandler.finalize();
+        return;
+      }
+      
+      // Add safety check for undefined values
+      const sampleRecord = records[0];
+      const undefinedCount = Object.values(sampleRecord).filter(v => v === undefined).length;
+      if (undefinedCount > Object.keys(sampleRecord).length * 0.5) {
+        console.log(chalk.yellow('⚠️  Warning: High number of undefined values detected in data.'));
+        console.log(chalk.yellow('   This may indicate CSV parsing issues. Consider checking file encoding.'));
+      }
+      
+      // Detect what analyses to run with timeout protection
+      if (spinner) spinner.text = 'Detecting analysis requirements...';
+      const analysisNeeds = detectAnalysisNeeds(records, columnTypes);
+      
+      // Initialize analysis object
+      const analysis = {
+        fileName,
+        fileSize: formatFileSize(fileStats.size),
+        rowCount: records.length,
+        columnCount: columns.length,
+        columns: [],
+        numericColumnCount: 0,
+        categoricalColumnCount: 0,
+        dateColumns: [],
+        completeness: 0,
+        duplicateCount: 0,
+        insights: [],
+        suggestions: [],
+        processingTime: new Date()
+      };
+      
+      // Basic column analysis with enhanced stats and timeout protection
+      if (spinner) spinner.text = 'Calculating enhanced statistics...';
+      
+      const columnAnalyses = {};
+      let totalNonNull = 0;
+      
+      // Process columns with timeout protection
+      for (const column of columns) {
+        try {
+          const type = columnTypes[column];
+          const values = records.map(r => r[column]).filter(v => v !== null && v !== undefined);
+          
+          const columnAnalysis = {
+            name: column,
+            type: type.type,
+            nonNullRatio: values.length / records.length
+          };
+          
+          totalNonNull += values.length;
+          
+          // Add timeout protection for expensive calculations
+          if (['integer', 'float'].includes(type.type) && values.length > 0) {
+            const statsPromise = Promise.resolve(calculateEnhancedStats(values));
+            const statsTimeout = new Promise((_, reject) => {
+              setTimeout(() => reject(new Error('Stats calculation timeout')), 5000);
+            });
+            
+            try {
+              columnAnalysis.stats = await Promise.race([statsPromise, statsTimeout]);
+              analysis.numericColumnCount++;
+            } catch (statsError) {
+              console.log(chalk.yellow(`⚠️  Skipping stats for column ${column}: ${statsError.message}`));
+              columnAnalysis.stats = { error: 'Calculation timeout' };
+              analysis.numericColumnCount++;
+            }
+          } else if (type.type === 'categorical' && values.length > 0) {
+            try {
+              columnAnalysis.stats = calculateCategoricalStats(values);
+              analysis.categoricalColumnCount++;
+            } catch (catError) {
+              console.log(chalk.yellow(`⚠️  Skipping categorical stats for column ${column}: ${catError.message}`));
+              columnAnalysis.stats = { error: 'Calculation failed' };
+              analysis.categoricalColumnCount++;
+            }
+          } else if (type.type === 'date') {
+            analysis.dateColumns.push(column);
+          }
+          
+          analysis.columns.push(columnAnalysis);
+          columnAnalyses[column] = columnAnalysis;
+          
+        } catch (columnError) {
+          console.log(chalk.yellow(`⚠️  Error processing column ${column}: ${columnError.message}`));
+          // Continue with next column
+        }
+      }
+      
+      analysis.completeness = totalNonNull / (records.length * columns.length);
+      analysis.completenessLevel = analysis.completeness > 0.9 ? 'good' : 
+                                   analysis.completeness > 0.7 ? 'fair' : 'poor';
+      
+      // Count duplicates with timeout protection
+      try {
+        if (spinner) spinner.text = 'Checking for duplicates...';
+        const duplicatePromise = Promise.resolve((() => {
+          const seen = new Set();
+          let duplicates = 0;
+          // Limit duplicate checking for very large datasets
+          const checkLimit = Math.min(records.length, 10000);
+          records.slice(0, checkLimit).forEach(record => {
+            const key = JSON.stringify(record);
+            if (seen.has(key)) duplicates++;
+            else seen.add(key);
+          });
+          return duplicates;
+        })());
+        
+        const duplicateTimeout = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Duplicate check timeout')), 5000);
+        });
+        
+        analysis.duplicateCount = await Promise.race([duplicatePromise, duplicateTimeout]);
+      } catch (dupError) {
+        console.log(chalk.yellow(`⚠️  Skipping duplicate check: ${dupError.message}`));
+        analysis.duplicateCount = 0;
+      }
+      
+      // Distribution analysis
+      if (analysisNeeds.distributionTesting) {
+        if (spinner) spinner.text = 'Analyzing distributions...';
+        analysis.distributionAnalysis = {};
+        
+        const numericColumns = columns.filter(col => 
+          ['integer', 'float'].includes(columnTypes[col].type)
+        );
+        
+        for (const col of numericColumns) {
+          const values = records.map(r => r[col]);
+          analysis.distributionAnalysis[col] = analyzeDistribution(values);
+        }
+      }
+      
+      // Outlier analysis
+      if (analysisNeeds.outlierAnalysis) {
+        if (spinner) spinner.text = 'Detecting outliers...';
+        analysis.outlierAnalysis = {};
+        
+        const numericColumns = columns.filter(col => 
+          ['integer', 'float'].includes(columnTypes[col].type)
+        );
+        
+        let totalOutliers = 0;
+        for (const col of numericColumns) {
+          const values = records.map(r => r[col]);
+          const outlierResult = detectOutliers(values, col);
+          analysis.outlierAnalysis[col] = outlierResult;
+          if (outlierResult.aggregated) {
+            totalOutliers += outlierResult.aggregated.length;
+          }
+        }
+        
+        analysis.outlierRate = totalOutliers / (records.length * numericColumns.length);
+      }
+      
+      // CART analysis
+      if (analysisNeeds.cart) {
+        if (spinner) spinner.text = 'Performing CART analysis...';
+        const targets = findPotentialTargets(records, columnTypes);
+        if (targets.length > 0) {
+          analysis.cartAnalysis = performCARTAnalysis(
+            records, 
+            columns, 
+            columnTypes, 
+            targets[0].column
+          );
+        }
+      }
+      
+      // Regression analysis
+      if (analysisNeeds.regression) {
+        if (spinner) spinner.text = 'Performing regression analysis...';
+        analysis.regressionAnalysis = performRegressionAnalysis(
+          records, 
+          columns, 
+          columnTypes
+        );
+      }
+      
+      // Correlation analysis
+      if (analysisNeeds.correlationAnalysis) {
+        if (spinner) spinner.text = 'Analyzing correlations...';
+        analysis.correlationAnalysis = performCorrelationAnalysis(records, columns, columnTypes);
+      }
+      
+      // Pattern detection
+      if (analysisNeeds.patternDetection) {
+        if (spinner) spinner.text = 'Detecting patterns...';
+        analysis.patterns = detectPatterns(records, columns, columnTypes);
+      }
+      
+      // Time series analysis
+      if (analysisNeeds.timeSeries) {
+        if (spinner) spinner.text = 'Analyzing time series...';
+        const dateColumn = analysis.dateColumns[0]; // Use first date column
+        const numericColumns = columns.filter(col => 
+          ['integer', 'float'].includes(columnTypes[col].type)
+        );
+        
+        if (dateColumn && numericColumns.length > 0) {
+          analysis.timeSeriesAnalysis = performTimeSeriesAnalysis(
+            records, 
+            dateColumn, 
+            numericColumns
+          );
+        }
+      }
+      
+      // Australian data validation
+      if (analysisNeeds.australianData) {
+        if (spinner) spinner.text = 'Validating Australian data patterns...';
+        analysis.australianValidation = validateAustralianData(records, columns, columnTypes);
+        
+        if (analysis.australianValidation.detected) {
+          const australianInsights = generateAustralianInsights(analysis.australianValidation);
+          analysis.insights = [...(analysis.insights || []), ...australianInsights];
+        }
+      }
+      
+      // ML readiness assessment
+      if (analysisNeeds.mlReadiness) {
+        if (spinner) spinner.text = 'Assessing ML readiness...';
+        analysis.mlReadiness = assessMLReadiness(records, columns, columnTypes, analysis);
+      }
+      
+      // Generate insights
+      analysis.insights = generateInsights(analysis);
+      analysis.suggestions = generateSuggestions(analysis, analysisNeeds);
+      
+      // Calculate final metrics
+      analysis.consistencyScore = calculateConsistencyScore(analysis);
+      analysis.highMissingColumns = columns.filter(col => {
+        const stats = columnAnalyses[col];
+        return stats && (1 - stats.nonNullRatio) > 0.1;
+      }).length;
+      
+      // Return structured data if requested for LLM consumption
+      if (structuredMode) {
+        if (spinner) spinner.succeed('Comprehensive EDA analysis complete!');
+        return {
+          analysis,
+          structuredResults: {
+            statisticalInsights: analysis.insights || [],
+            dataQuality: {
+              completeness: analysis.completeness,
+              duplicateRows: analysis.duplicateCount / analysis.rowCount,
+              outlierPercentage: analysis.outlierRate || 0
+            },
+            correlations: analysis.correlationAnalysis?.correlations || [],
+            distributions: analysis.distributionAnalysis ? 
+              Object.entries(analysis.distributionAnalysis).map(([col, dist]) => ({
+                column: col,
+                ...dist
+              })) : [],
+            timeSeries: analysis.timeSeriesAnalysis || null,
+            summaryStats: analysis.columns.reduce((acc, col) => {
+              acc[col.name] = col.stats;
+              return acc;
+            }, {}),
+            mlReadiness: analysis.mlReadiness || { overallScore: 0.8, majorIssues: [] },
+            columns: analysis.columns.map(col => col.name)
+          }
+        };
+      }
+      
+      // Format and output report
+      const report = formatComprehensiveEDAReport(analysis);
+      
+      if (spinner) spinner.succeed('Comprehensive EDA analysis complete!');
+      console.log(report);
+      
+      outputHandler.finalize();
+      
+    } catch (error) {
+      outputHandler.restore();
+      if (spinner) spinner.error({ text: 'Error during analysis' });
+      console.error(error.message);
+      if (!options.quiet) process.exit(1);
+      throw error;
+    }
   }
 }
 

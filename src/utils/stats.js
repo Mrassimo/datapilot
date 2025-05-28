@@ -1,33 +1,95 @@
 import * as ss from 'simple-statistics';
+import { InputValidator, SafeArrayOps, withErrorBoundary } from './errorHandler.js';
 
-export function calculateStats(values) {
-  const numbers = values.filter(v => typeof v === 'number' && !isNaN(v));
+// Add timeout wrapper for expensive calculations
+function withTimeout(promise, timeoutMs = 5000, operation = 'calculation') {
+  const timeoutPromise = new Promise((_, reject) => {
+    setTimeout(() => {
+      reject(new Error(`${operation} timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+  });
   
-  if (numbers.length === 0) {
-    return { count: 0, nullCount: values.length };
-  }
-  
-  const sorted = [...numbers].sort((a, b) => a - b);
-  
-  return {
-    count: numbers.length,
-    nullCount: values.length - numbers.length,
-    mean: ss.mean(numbers),
-    median: ss.median(sorted),
-    mode: ss.mode(numbers),
-    min: ss.min(numbers),
-    max: ss.max(numbers),
-    sum: ss.sum(numbers),
-    standardDeviation: numbers.length > 1 ? ss.standardDeviation(numbers) : 0,
-    variance: numbers.length > 1 ? ss.variance(numbers) : 0,
-    q1: ss.quantile(sorted, 0.25),
-    q3: ss.quantile(sorted, 0.75),
-    iqr: ss.interquartileRange(sorted),
-    skewness: numbers.length > 2 ? calculateSkewness(numbers) : 0,
-    kurtosis: numbers.length > 3 ? calculateKurtosis(numbers) : 0,
-    outliers: findOutliers(sorted)
-  };
+  return Promise.race([promise, timeoutPromise]);
 }
+
+// Enhanced calculateStats with timeout protection
+export const calculateStats = withErrorBoundary(async function calculateStatsInternal(values, options = {}) {
+  const timeoutMs = options.timeout || 5000;
+  
+  const statsPromise = new Promise((resolve) => {
+    // Validate input array
+    const validatedValues = InputValidator.validateArray(values, 'values', { allowEmpty: false });
+    
+    const cleanValues = SafeArrayOps.safeFilter(validatedValues, v => {
+      return typeof v === 'number' && !isNaN(v) && isFinite(v);
+    });
+    
+    if (cleanValues.length === 0) {
+      resolve({
+        count: 0,
+        min: null,
+        max: null,
+        mean: null,
+        median: null,
+        mode: null,
+        std: null,
+        variance: null,
+        error: 'No valid numeric values found'
+      });
+      return;
+    }
+
+    // Limit processing for very large arrays to prevent hanging
+    const processLimit = Math.min(cleanValues.length, 50000);
+    const processValues = cleanValues.slice(0, processLimit);
+    
+    if (cleanValues.length > processLimit) {
+      console.warn(`⚠️  Large dataset detected, processing first ${processLimit.toLocaleString()} values for statistics`);
+    }
+    
+    try {
+      const sorted = [...processValues].sort((a, b) => a - b);
+      const count = processValues.length;
+      const sum = processValues.reduce((a, b) => a + b, 0);
+      const mean = sum / count;
+      
+      // Calculate median
+      const median = count % 2 === 0 
+        ? (sorted[Math.floor(count / 2) - 1] + sorted[Math.floor(count / 2)]) / 2
+        : sorted[Math.floor(count / 2)];
+      
+      // Calculate mode (limit to reasonable sample size)
+      const sampleForMode = processValues.slice(0, Math.min(10000, processValues.length));
+      const frequency = {};
+      sampleForMode.forEach(v => frequency[v] = (frequency[v] || 0) + 1);
+      const mode = Object.keys(frequency).reduce((a, b) => frequency[a] > frequency[b] ? a : b);
+      
+      // Calculate variance and standard deviation
+      const variance = processValues.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / count;
+      const std = Math.sqrt(variance);
+      
+      resolve({
+        count: cleanValues.length, // Use original count
+        min: sorted[0],
+        max: sorted[sorted.length - 1],
+        mean: Number(mean.toFixed(6)),
+        median: Number(median.toFixed(6)),
+        mode: Number(mode),
+        std: Number(std.toFixed(6)),
+        variance: Number(variance.toFixed(6)),
+        processed: processValues.length,
+        samplingUsed: cleanValues.length > processLimit
+      });
+    } catch (error) {
+      resolve({
+        count: cleanValues.length,
+        error: `Calculation failed: ${error.message}`
+      });
+    }
+  });
+  
+  return withTimeout(statsPromise, timeoutMs, 'Statistical calculation');
+}, null, { function: 'calculateStats' });
 
 function calculateSkewness(values) {
   const mean = ss.mean(values);
