@@ -698,21 +698,21 @@ export function generateDataQuestions(columns, columnTypes, dataType) {
   return questions.slice(0, 8);
 }
 
-export function generateTechnicalNotes(records, columns, columnTypes) {
+export async function generateTechnicalNotes(records, columns, columnTypes) {
   const notes = [];
   
   // Check for skewed distributions
   const numericColumns = columns.filter(c => columnTypes[c] && ['integer', 'float'].includes(columnTypes[c].type));
   
-  numericColumns.forEach(col => {
+  for (const col of numericColumns) {
     const values = records.map(r => r[col]).filter(v => typeof v === 'number');
     if (values.length > 0) {
-      const dist = analyzeDistribution(values);
+      const dist = await analyzeDistribution(values);
       if (Math.abs(dist.skewness) > 2) {
         notes.push(`Log transformation recommended for ${col} (heavy ${dist.skewness > 0 ? 'right' : 'left'} skew)`);
       }
     }
-  });
+  }
   
   return notes;
 }
