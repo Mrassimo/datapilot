@@ -1,0 +1,327 @@
+Detected windows-1252 encoding (will handle automatically)
+
+================================================================================
+
+1. EXPLORATORY DATA ANALYSIS (EDA)
+
+================================================================================
+
+
+========================================
+=== EXPLORATORY DATA ANALYSIS REPORT ===
+========================================
+Dataset: iris.csv
+Generated: 2025-05-25 09:20:39
+
+DATASET OVERVIEW:
+- Total rows: 150
+- Total columns: 5
+- File size: 3.77 KB
+- No date column detected
+
+COLUMN ANALYSIS:
+
+
+[Column 1/5] sepal_length
+- Data type: categorical
+- Unique values: 0
+- Top values:
+  * "5": 10 (6.7%)
+  * "5.1": 9 (6.0%)
+  * "6.3": 9 (6.0%)
+  * "5.7": 8 (5.3%)
+  * "6.7": 8 (5.3%)
+
+[Column 2/5] sepal_width
+- Data type: categorical
+- Unique values: 0
+- Top values:
+  * "3": 26 (17.3%)
+  * "2.8": 14 (9.3%)
+  * "3.2": 13 (8.7%)
+  * "3.4": 12 (8.0%)
+  * "3.1": 11 (7.3%)
+
+[Column 3/5] petal_length
+- Data type: categorical
+- Unique values: 0
+- Top values:
+  * "1.4": 13 (8.7%)
+  * "1.5": 13 (8.7%)
+  * "4.5": 8 (5.3%)
+  * "5.1": 8 (5.3%)
+  * "1.3": 7 (4.7%)
+
+[Column 4/5] petal_width
+- Data type: categorical
+- Unique values: 0
+- Top values:
+  * "0.2": 29 (19.3%)
+  * "1.3": 13 (8.7%)
+  * "1.5": 12 (8.0%)
+  * "1.8": 12 (8.0%)
+  * "1.4": 8 (5.3%)
+
+[Column 5/5] species
+- Data type: categorical
+- Unique values: 3
+- Top values:
+  * "setosa": 50 (33.3%)
+  * "versicolor": 50 (33.3%)
+  * "virginica": 50 (33.3%)
+
+KEY PATTERNS DETECTED:
+
+
+DATA QUALITY SUMMARY:
+- Completeness: 100.0% (good)
+- Duplicate rows: 1 (consider deduplication)
+- Columns with >10% missing: 0
+- Date consistency: No date columns found
+
+RECOMMENDATIONS FOR ANALYSIS:
+
+
+
+================================================================================
+
+2. DATA INTEGRITY CHECK
+
+================================================================================
+
+
+=============================
+=== DATA INTEGRITY REPORT ===
+=============================
+Dataset: iris.csv
+Generated: 2025-05-25 09:20:39
+
+CRITICAL ISSUES FOUND: 1
+
+[ISSUE 1] Duplicate Records
+- Severity: HIGH
+- Description: Found 1 exact duplicate rows
+- Details: Row numbers: 143
+- Impact: May cause double-counting in analyses
+- Suggested fix: Remove duplicates keeping first occurrence
+
+DATA QUALITY METRICS:
+- Overall Quality Score: 93.8%
+- Completeness: 100.0% (missing 0.0% of expected values)
+- Consistency: 80.0% (1 issues detected)
+- Validity: 99.3% (1 duplicate rows)
+
+VALIDATION DETAILS BY COLUMN:
+
+
+[sepal_length]
+- Type: categorical
+- Completeness: 100.0%
+- Unique values: 0
+- Values: 
+
+[sepal_width]
+- Type: categorical
+- Completeness: 100.0%
+- Unique values: 0
+- Values: 
+
+[petal_length]
+- Type: categorical
+- Completeness: 100.0%
+- Unique values: 0
+- Values: 
+
+[petal_width]
+- Type: categorical
+- Completeness: 100.0%
+- Unique values: 0
+- Values: 
+
+[species]
+- Type: categorical
+- Completeness: 100.0%
+- Unique values: 3
+- Values: setosa, versicolor, virginica
+
+
+================================================================================
+
+3. VISUALIZATION RECOMMENDATIONS
+
+================================================================================
+
+
+==============================
+=== VISUALISATION ANALYSIS ===
+==============================
+Dataset: iris.csv
+Generated: 2025-05-25 09:20:39
+
+RECOMMENDED VISUALISATIONS:
+
+
+[1] Donut Chart: Category Distribution
+- Category: species
+- Values: Count or sum of values
+- Purpose: Show proportion of species
+- KeyInsight: setosa accounts for 33.3% of total
+
+DASHBOARD LAYOUT SUGGESTION:
+Top row: Time series showing overall trend
+Middle row: Customer segment comparison | Geographic heat map
+Bottom row: Transaction distribution | Correlation matrix
+
+INTERACTIVE FEATURES TO INCLUDE:
+1. Date range selector for time series
+2. Drill-down capability on customer segments
+3. Hover tooltips showing exact values
+4. Export functionality for each chart
+5. Filter controls for categorical variables
+6. Zoom and pan for scatter plots
+7. Click-to-filter across all charts
+
+COLOR PALETTE RECOMMENDATION:
+- Primary: #2E86AB (blue) for main metrics
+- Secondary: #F24236 (red) for negative/warning values
+- Accent: #F6AE2D (yellow) for highlights
+- Neutral: #2F3E46 (dark gray) for text and axes
+- Background: #FFFFFF (white) or #F8F9FA (light gray)
+- Ensure colorblind-friendly options
+- Use consistent colors across all visualizations
+
+TECHNICAL IMPLEMENTATION NOTES:
+- Dataset size: 150 rows - suitable for client-side rendering
+- Recommended libraries: D3.js for custom visualizations, Chart.js for simple charts, Plotly for interactive dashboards
+- Add loading states for data processing
+- Implement responsive design for mobile viewing
+
+
+================================================================================
+
+4. DATA ENGINEERING ANALYSIS
+
+================================================================================
+
+
+===============================================
+=== 🏛️ DATA ENGINEERING ARCHAEOLOGY REPORT ===
+===============================================
+Dataset: iris.csv
+Analysis Date: 2025-05-25 09:20:39
+Table 1 in warehouse discovery
+
+🗄️ SCHEMA RECOMMENDATIONS:
+
+Suggested Table Structure:
+```sql
+-- Recommended data types based on analysis
+CREATE TABLE sepal_length (
+    sepal_length              VARCHAR(20) NOT NULL,
+    sepal_width              VARCHAR(20) NOT NULL,
+    petal_length              VARCHAR(20) NOT NULL,
+    petal_width              VARCHAR(20) NOT NULL,
+    species              VARCHAR(20) NOT NULL
+);
+```
+
+
+💸 ACCUMULATED TECHNICAL DEBT:
+- This table: 4 hours estimated cleanup
+- Total warehouse debt: 4 hours (across 1 tables analyzed)
+- Debt velocity: 4.0 hours per table average
+
+════════════════════════════════════════════════════════════════════════════════
+LLM ANALYSIS PROMPT:
+[Copy everything below to your LLM, then paste response back]
+════════════════════════════════════════════════════════════════════════════════
+
+Based on this analysis of iris and the context that this is table 1 of a data warehouse (0 domains discovered), please provide:
+
+1. What is the likely business purpose of this table?
+2. What upstream systems likely feed this table?
+3. What downstream reports/processes likely consume it?
+4. What are the critical columns vs ones that could be deprecated?
+5. How does this fit into the larger data model we're discovering?
+
+
+Please structure your response as:
+PURPOSE: [concise explanation]
+UPSTREAM: [likely sources]
+DOWNSTREAM: [likely consumers]
+CRITICAL_COLUMNS: [list]
+DEPRECATE_COLUMNS: [list]
+DATA_MODEL_POSITION: [how it fits]
+NEXT_INVESTIGATE: [what tables to analyze next]
+
+════════════════════════════════════════════════════════════════════════════════
+TO SAVE LLM INSIGHTS:
+datapilot eng --save-insights iris "paste LLM response here"
+════════════════════════════════════════════════════════════════════════════════
+
+================================================================================
+
+5. LLM CONTEXT GENERATION
+
+================================================================================
+
+
+=========================
+=== LLM-READY CONTEXT ===
+=========================
+Dataset: iris.csv
+Generated: 2025-05-25 09:20:39
+
+DATASET SUMMARY FOR AI ANALYSIS:
+
+I have a CSV dataset with 150 rows and 5 columns containing structured business data.
+
+KEY COLUMNS AND THEIR CHARACTERISTICS:
+
+
+1. sepal_length: 0 categories: 5 (6.7%), 5.1 (6.0%), 6.3 (6.0%), ...
+2. sepal_width: 0 categories: 3 (17.3%), 2.8 (9.3%), 3.2 (8.7%), ...
+3. petal_length: 0 categories: 1.4 (8.7%), 1.5 (8.7%), 4.5 (5.3%), ...
+4. petal_width: 0 categories: 0.2 (19.3%), 1.3 (8.7%), 1.5 (8.0%), ...
+5. species: 3 categories: setosa (33.3%), versicolor (33.3%), virginica (33.3%)
+
+IMPORTANT PATTERNS AND INSIGHTS:
+
+
+DATA QUALITY NOTES:
+- Missing values: No missing values
+- Completeness: 100.0% overall
+- 1 duplicate records identified
+- Date range has no gaps
+
+STATISTICAL SUMMARY:
+
+
+SUGGESTED ANALYSES FOR THIS DATA:
+
+
+
+QUESTIONS THIS DATA COULD ANSWER:
+
+
+TECHNICAL NOTES FOR ANALYSIS:
+
+
+END OF CONTEXT
+
+[Paste this into your preferred LLM and ask specific questions about the data]
+
+
+================================================================================
+
+ANALYSIS COMPLETE
+
+================================================================================
+
+
+Summary:
+
+
+- Total rows analyzed: 150
+- Total columns: 5
+- Analysis timestamp: 2025-05-25T09:20:39.627Z

@@ -1,0 +1,11 @@
+order_id,customer_email,customer_phone,order_date,total_amount,delivery_postcode
+10001,john.smith@example.com.au,+61 412 345 678,2024-01-15,$1,250.50,2000
+10002,sarah.jones@bigpond.com,0423 456 789,2024-01-16,"$2,500.75",2010
+10003,mike.brown@gmail.com,(02) 9876 5432,2024-01-17,$850.25,3000
+10004,emma.wilson@outlook.com,+61 4 1234 5678,2024-01-18,"$1,750.00",4000
+10005,david.taylor@yahoo.com.au,04 2345 6789,2024-01-19,$3250.50,5000
+10006,lisa.anderson@hotmail.com,+614 123 456 78,2024-01-20,$1500.75,6000
+10007,peter.thomas@example.org,02-9876-5432,2024-01-21,"$4,000.00",7000
+10008,jane.martin@company.com.au,(03) 9876 5432,2024-01-22,$2250.25,2600
+10009,robert.jackson@email.net.au,+61412345678,2024-01-23,"$1,850.50",2900
+10010,mary.white@domain.com.au,0412-345-678,2024-01-24,$975.75,2150

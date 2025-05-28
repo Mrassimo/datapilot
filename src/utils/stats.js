@@ -144,14 +144,14 @@ export function calculateCorrelation(values1, values2) {
   return ss.sampleCorrelation(x, y);
 }
 
-export function analyzeDistribution(values) {
+export async function analyzeDistribution(values) {
   const numbers = values.filter(v => typeof v === 'number' && !isNaN(v));
   
   if (numbers.length === 0) {
     return { type: 'empty' };
   }
   
-  const stats = calculateStats(values);
+  const stats = await calculateStats(values);
   const skewness = stats.skewness;
   const kurtosis = stats.kurtosis;
   

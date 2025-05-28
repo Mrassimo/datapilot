@@ -14,13 +14,17 @@ export function detectAnalysisNeeds(records, columnTypes) {
 
   const columns = Object.keys(columnTypes);
   
+  // Sample records for analysis detection on large datasets
+  const sampleSize = Math.min(1000, records.length);
+  const sampledRecords = records.length > 1000 ? records.slice(0, sampleSize) : records;
+  
   // Check for regression analysis (continuous variable with high uniqueness)
   const numericColumns = columns.filter(col => 
     ['integer', 'float'].includes(columnTypes[col].type)
   );
   
   numericColumns.forEach(col => {
-    const values = records.map(r => r[col]).filter(v => v !== null && v !== undefined);
+    const values = sampledRecords.map(r => r[col]).filter(v => v !== null && v !== undefined);
     const uniqueRatio = new Set(values).size / values.length;
     if (uniqueRatio > 0.7 && values.length > 30) {
       analyses.regression = true;
@@ -29,10 +33,10 @@ export function detectAnalysisNeeds(records, columnTypes) {
 
   // Check for time series analysis
   const dateColumns = columns.filter(col => columnTypes[col].type === 'date');
-  if (dateColumns.length > 0 && records.length > 30) {
+  if (dateColumns.length > 0 && sampledRecords.length > 30) {
     // Check for regular intervals
     const dateCol = dateColumns[0];
-    const dates = records
+    const dates = sampledRecords
       .map(r => r[dateCol])
       .filter(d => d instanceof Date)
       .sort((a, b) => a - b);
@@ -102,10 +106,14 @@ export function detectAnalysisNeeds(records, columnTypes) {
 export function findPotentialTargets(records, columnTypes) {
   const columns = Object.keys(columnTypes);
   const targets = [];
+  
+  // Sample for large datasets
+  const sampleSize = Math.min(1000, records.length);
+  const sampledRecords = records.length > 1000 ? records.slice(0, sampleSize) : records;
 
   columns.forEach(col => {
     const type = columnTypes[col];
-    const values = records.map(r => r[col]).filter(v => v !== null && v !== undefined);
+    const values = sampledRecords.map(r => r[col]).filter(v => v !== null && v !== undefined);
     const uniqueRatio = new Set(values).size / values.length;
 
     // Good regression target: continuous with high variance

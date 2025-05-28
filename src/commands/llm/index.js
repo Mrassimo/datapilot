@@ -54,8 +54,14 @@ export async function comprehensiveLLMAnalysis(records, headers, filePath, optio
   const samplingStrategy = createSamplingStrategy(records, 'basic');
   let sampledRecords = records;
   
-  if (samplingStrategy.method !== 'none' && records.length > 10000) {
-    sampledRecords = performSampling(records, samplingStrategy);
+  // More aggressive sampling for comprehensive analysis
+  if (samplingStrategy.method !== 'none' && records.length > 5000) {
+    // For comprehensive analysis, use even more aggressive sampling
+    const maxSampleSize = 2000; // Limit to 2000 rows for sub-analyses
+    if (sampledRecords.length > maxSampleSize) {
+      const sampleRate = maxSampleSize / records.length;
+      sampledRecords = performSampling(records, { ...samplingStrategy, targetSize: maxSampleSize, sampleRate });
+    }
     if (spinner) {
       spinner.text = `Using smart sampling (${sampledRecords.length.toLocaleString()} of ${records.length.toLocaleString()} rows) for faster analysis...`;
     }
@@ -80,13 +86,31 @@ export async function comprehensiveLLMAnalysis(records, headers, filePath, optio
     if (spinner) spinner.text = 'Running exploratory data analysis...';
     
     // Run all analyses in parallel with summary mode using sampled data
-    const [edaResults, intResults, visResults, engResults, originalContext] = await Promise.all([
-      runEdaAnalysis(sampledRecords, headers, filePath, options),
-      runIntAnalysis(sampledRecords, headers, filePath, options),
-      runVisAnalysis(sampledRecords, headers, filePath, options),
-      runEngAnalysis(sampledRecords, headers, filePath, options),
-      generateOriginalContext(sampledRecords, columns, columnTypes)
-    ]);
+    // Add individual error handling to prevent one failure from blocking all
+    const analysisPromises = [
+      runEdaAnalysis(sampledRecords, headers, filePath, options, columnTypes).catch(e => {
+        console.error('EDA analysis failed:', e.message);
+        return {};
+      }),
+      runIntAnalysis(sampledRecords, headers, filePath, options, columnTypes).catch(e => {
+        console.error('INT analysis failed:', e.message);
+        return {};
+      }),
+      runVisAnalysis(sampledRecords, headers, filePath, options, columnTypes).catch(e => {
+        console.error('VIS analysis failed:', e.message);
+        return {};
+      }),
+      runEngAnalysis(sampledRecords, headers, filePath, options, columnTypes).catch(e => {
+        console.error('ENG analysis failed:', e.message);
+        return {};
+      }),
+      generateOriginalContext(sampledRecords, columns, columnTypes).catch(e => {
+        console.error('Original context generation failed:', e.message);
+        return {};
+      })
+    ];
+    
+    const [edaResults, intResults, visResults, engResults, originalContext] = await Promise.all(analysisPromises);
     
     if (spinner) spinner.text = 'Extracting key insights...';
     
@@ -181,18 +205,18 @@ export async function comprehensiveLLMAnalysis(records, headers, filePath, optio
 
 // Analysis runners - now use real command outputs
 
-async function runEdaAnalysis(records, headers, filePath, options) {
+async function runEdaAnalysis(records, headers, filePath, options, columnTypes) {
   const captureOptions = {
     ...options,
     structuredOutput: true,
     quiet: true,
-    preloadedData: { records, columnTypes: detectColumnTypes(records) }
+    preloadedData: { records, columnTypes }
   };
   
   try {
     // Add timeout for large dataset analysis
     const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('EDA analysis timeout')), 15000); // 15 second timeout
+      setTimeout(() => reject(new Error('EDA analysis timeout')), 10000); // 10 second timeout
     });
     
     const analysisPromise = edaCommand(filePath, captureOptions);
@@ -200,7 +224,7 @@ async function runEdaAnalysis(records, headers, filePath, options) {
     
     return result?.structuredResults || {};
   } catch (error) {
-    console.error('EDA analysis error:', error);
+    console.error('EDA analysis error:', error.message);
     // Fallback to minimal structure
     return {
       statisticalInsights: [],
@@ -215,12 +239,12 @@ async function runEdaAnalysis(records, headers, filePath, options) {
   }
 }
 
-async function runIntAnalysis(records, _headers, filePath, options) {
+async function runIntAnalysis(records, _headers, filePath, options, columnTypes) {
   const captureOptions = {
     ...options,
     structuredOutput: true,
     quiet: true,
-    preloadedData: { records, columnTypes: detectColumnTypes(records) }
+    preloadedData: { records, columnTypes }
   };
   
   try {
@@ -248,12 +272,12 @@ async function runIntAnalysis(records, _headers, filePath, options) {
   }
 }
 
-async function runVisAnalysis(records, _headers, filePath, options) {
+async function runVisAnalysis(records, _headers, filePath, options, columnTypes) {
   const captureOptions = {
     ...options,
     structuredOutput: true,
     quiet: true,
-    preloadedData: { records, columnTypes: detectColumnTypes(records) }
+    preloadedData: { records, columnTypes }
   };
   
   try {
@@ -274,12 +298,12 @@ async function runVisAnalysis(records, _headers, filePath, options) {
   }
 }
 
-async function runEngAnalysis(records, _headers, filePath, options) {
+async function runEngAnalysis(records, _headers, filePath, options, columnTypes) {
   const captureOptions = {
     ...options,
     structuredOutput: true,
     quiet: true,
-    preloadedData: { records, columnTypes: detectColumnTypes(records) }
+    preloadedData: { records, columnTypes }
   };
   
   try {
@@ -305,25 +329,28 @@ async function runEngAnalysis(records, _headers, filePath, options) {
 
 // Generate original context data for compatibility
 async function generateOriginalContext(records, columns, columnTypes) {
-  // This maintains compatibility with the original LLM format
-  const dateColumns = columns.filter(col => columnTypes[col] && columnTypes[col].type === 'date');
-  const dateRange = getDateRange(records, dateColumns);
-  const dataType = inferDataType(columns, columnTypes);
-  
-  // Run original analysis functions
-  const seasonalPattern = dateColumns.length > 0 ? 
-    analyzeSeasonality(records, dateColumns[0], columns, columnTypes) : null;
-  
-  const segmentAnalysis = analyzeSegments(records, columns, columnTypes);
-  const categoryAnalysis = analyzeCategoryPerformance(records, columns, columnTypes);
-  const pricingInsights = analyzePricing(records, columns, columnTypes);
-  const anomalies = detectAnomalies(records, columns, columnTypes);
-  const qualityMetrics = calculateDataQuality(records, columns);
-  const summaryStats = generateSummaryStatistics(records, columns, columnTypes);
-  const correlations = findSignificantCorrelations(records, columns, columnTypes);
-  const analysisSuggestions = generateAnalysisSuggestions(columns, columnTypes);
-  const dataQuestions = generateDataQuestions(columns, columnTypes, dataType);
-  const technicalNotes = generateTechnicalNotes(records, columns, columnTypes);
+  try {
+    // This maintains compatibility with the original LLM format
+    const dateColumns = columns.filter(col => columnTypes[col] && columnTypes[col].type === 'date');
+    const dateRange = getDateRange(records, dateColumns);
+    const dataType = inferDataType(columns, columnTypes);
+    
+    // Run only essential analysis functions for large datasets
+    const isLargeDataset = records.length > 5000;
+    
+    const seasonalPattern = !isLargeDataset && dateColumns.length > 0 ? 
+      analyzeSeasonality(records, dateColumns[0], columns, columnTypes) : null;
+    
+    const segmentAnalysis = !isLargeDataset ? analyzeSegments(records, columns, columnTypes) : null;
+    const categoryAnalysis = !isLargeDataset ? analyzeCategoryPerformance(records, columns, columnTypes) : null;
+    const pricingInsights = !isLargeDataset ? analyzePricing(records, columns, columnTypes) : null;
+    const anomalies = !isLargeDataset ? detectAnomalies(records, columns, columnTypes) : [];
+    const qualityMetrics = calculateDataQuality(records, columns);
+    const summaryStats = generateSummaryStatistics(records, columns, columnTypes);
+    const correlations = !isLargeDataset ? findSignificantCorrelations(records, columns, columnTypes) : [];
+    const analysisSuggestions = generateAnalysisSuggestions(columns, columnTypes);
+    const dataQuestions = generateDataQuestions(columns, columnTypes, dataType);
+    const technicalNotes = !isLargeDataset ? await generateTechnicalNotes(records, columns, columnTypes) : [];
   
   return {
     recordCount: records.length,
@@ -344,4 +371,17 @@ async function generateOriginalContext(records, columns, columnTypes) {
     dataQuestions,
     technicalNotes
   };
+  } catch (error) {
+    console.error('Original context generation error:', error.message);
+    // Return minimal context on error
+    return {
+      recordCount: records.length,
+      columnCount: columns.length,
+      columns,
+      columnTypes,
+      dateRange: null,
+      dataType: 'unknown',
+      qualityMetrics: { overallQuality: 0.8 }
+    };
+  }
 }

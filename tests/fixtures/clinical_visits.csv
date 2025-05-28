@@ -1,0 +1,16 @@
+visit_id,patient_id,visit_date,provider_id,visit_type,systolic_bp,diastolic_bp,heart_rate,respiratory_rate,temperature,chief_complaint,diagnosis_codes,treatment_plan
+V001,P001,2024-01-15,DR001,Routine,122,78,68,16,98.2,Annual checkup,Z00.00,Continue current medications
+V002,P002,2024-01-16,DR002,Follow-up,138,88,72,18,98.4,Elevated glucose,R73.09,Lifestyle modification counseling
+V003,P003,2024-01-17,DR001,Urgent,152,95,84,20,98.6,Hyperglycemia,E11.65 I10,Adjust insulin regimen
+V004,P004,2024-01-18,DR003,Routine,115,72,64,16,98.1,Wellness visit,Z00.00,No changes needed
+V005,P005,2024-01-19,DR002,Follow-up,158,98,88,22,98.8,Poor glycemic control,E11.65 E78.5,Intensify diabetes management
+V006,P006,2024-01-20,DR001,Routine,128,82,70,17,98.3,Check-up,Z00.00,Continue monitoring
+V007,P007,2024-01-21,DR003,Urgent,165,102,92,24,99.1,Chest pain,E11.9 I50.9 R07.9,Cardiac workup ordered
+V008,P008,2024-01-22,DR002,Routine,118,75,66,16,98.2,Annual exam,Z00.00,Maintain current health status
+V009,P009,2024-01-23,DR001,Follow-up,142,90,76,19,98.5,Prediabetes monitoring,R73.03,Metformin consideration
+V010,P010,2024-01-24,DR003,Follow-up,148,92,80,20,98.7,Diabetes management,E11.9,Add GLP-1 agonist
+V011,P011,2024-01-25,DR002,Routine,135,85,72,18,98.4,BP check,R73.03 I10,Increase ACE inhibitor
+V012,P012,2024-01-26,DR001,Urgent,155,95,86,22,98.9,Hypoglycemia episodes,E11.649,Adjust medication timing
+V013,P013,2024-01-27,DR003,Routine,120,76,62,15,98.0,Sports physical,Z00.00,Cleared for activity
+V014,P014,2024-01-28,DR002,Follow-up,150,94,82,21,98.6,Medication review,E11.9 I10,Simplify regimen
+V015,P015,2024-01-29,DR001,Follow-up,138,86,74,18,98.5,Weight management,R73.03 E66.9,Refer to dietitian

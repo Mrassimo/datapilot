@@ -1,0 +1,11 @@
+supplier_id,supplier_name,contact_email,country,rating
+S001,TechSupply Co,contact@techsupply.com,Australia,4.5
+S002,Global Parts Ltd,info@globalparts.com,USA,4.2
+S003,Sydney Components,sales@sydneycomp.com.au,Australia,4.8
+S004,Melbourne Wholesale,orders@melbwholesale.com.au,Australia,4.6
+S005,Asia Pacific Trading,contact@aptrading.com,Singapore,4.0
+S006,Brisbane Supplies,admin@brissupplies.com.au,Australia,4.7
+S007,Perth Distributors,info@perthdist.com.au,Australia,4.4
+S008,NZ Tech Imports,sales@nztech.co.nz,New Zealand,4.3
+S009,Adelaide Electronics,contact@adel-elec.com.au,Australia,4.5
+S010,Canberra Trade Co,info@cantrade.com.au,Australia,4.1

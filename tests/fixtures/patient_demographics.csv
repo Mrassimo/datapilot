@@ -1,0 +1,16 @@
+patient_id,name,dob,gender,ethnicity,enrollment_date,medical_history,medications,family_history,smoking_status,alcohol_use,physical_activity_level
+P001,John Smith,1979-03-15,M,Caucasian,2024-01-01,Hypertension,Lisinopril 10mg,Father T2DM,Never,Moderate,Active
+P002,Jane Johnson,1972-06-22,F,African American,2024-01-02,None,None,Mother CVD,Former,Light,Sedentary
+P003,Robert Brown,1963-11-08,M,Hispanic,2024-01-03,T2DM HTN,Metformin 1000mg Amlodipine 5mg,Both parents T2DM,Current,Heavy,Sedentary
+P004,Emily Davis,1986-09-17,F,Asian,2024-01-04,None,None,None,Never,None,Very Active
+P005,Michael Wilson,1969-02-28,M,Caucasian,2024-01-05,T2DM Dyslipidemia,Metformin 2000mg Atorvastatin 40mg,Father MI at 55,Former,Moderate,Light Active
+P006,Sarah Miller,1975-07-14,F,African American,2024-01-06,None,None,Mother T2DM,Never,Light,Moderate
+P007,William Garcia,1957-12-03,M,Hispanic,2024-01-07,T2DM HTN CHF,Multiple,Extensive CVD,Former,None,Sedentary
+P008,Jessica Martinez,1983-05-19,F,Caucasian,2024-01-08,None,None,None,Never,Light,Active
+P009,David Rodriguez,1966-10-25,M,Asian,2024-01-09,Prediabetes,None,Father stroke,Current,Moderate,Light Active
+P010,Lisa Anderson,1977-04-11,F,Hispanic,2024-01-10,T2DM,Metformin 1500mg,Mother T2DM,Never,None,Sedentary
+P011,Charles Taylor,1971-08-30,M,African American,2024-01-11,Prediabetes HTN,Losartan 50mg,Both parents HTN,Former,Moderate,Moderate
+P012,Patricia Thomas,1980-01-24,F,Caucasian,2024-01-12,T2DM Obesity,Metformin 2000mg Ozempic 1mg,Sister T2DM,Never,None,Sedentary
+P013,Christopher Lee,1985-12-07,M,Asian,2024-01-13,None,None,None,Never,Light,Very Active
+P014,Nancy White,1962-03-18,F,African American,2024-01-14,T2DM HTN,Multiple,Mother stroke Father T2DM,Never,None,Light Active
+P015,Daniel Harris,1974-09-02,M,Caucasian,2024-01-15,Prediabetes,None,Father T2DM at 60,Former,Heavy,Moderate

@@ -1,0 +1,9 @@
+location_id,city,state,zipcode,median_income,unemployment_rate,population,crime_index
+L1,San Francisco,CA,94102,125000,3.2,45000,85
+L2,Oakland,CA,94612,65000,5.8,38000,110
+L3,Palo Alto,CA,94301,180000,2.5,25000,45
+L4,Berkeley,CA,94704,85000,4.1,32000,65
+L5,Boston,MA,02108,95000,3.8,28000,70
+L6,Cambridge,MA,02139,110000,3.0,35000,55
+L7,Melbourne,VIC,3000,78000,4.5,42000,75
+L8,Sydney,NSW,2000,105000,3.9,51000,80

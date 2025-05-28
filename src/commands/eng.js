@@ -17,6 +17,7 @@ class ArchaeologyEngine {
   }
 
   async analyzeTable(csvPath, options = {}) {
+    const outputHandler = new OutputHandler(options);
     const knowledge = await this.knowledgeBase.load();
     
     const spinner = options.quiet ? null : ora('Reading CSV file...').start();
@@ -55,7 +56,7 @@ class ArchaeologyEngine {
     // Check if data is empty
     if (!records || records.length === 0) {
       outputHandler.restore();
-      if (spinner) spinner.error({ text: 'Empty dataset - no data to analyze' });
+      if (spinner) spinner.fail('Empty dataset - no data to analyze');
       console.error('No data found in the CSV file');
       if (!options.quiet) process.exit(1);
       return;

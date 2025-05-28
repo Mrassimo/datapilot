@@ -34,8 +34,8 @@ export async function edaComprehensive(filePath, options = {}) {
   // Structured data mode for LLM consumption
   const structuredMode = options.structuredOutput || options.llmMode;
   
-  // Set timeout for analysis (default 30 seconds)
-  const timeoutMs = options.timeout || 30000;
+  // Set timeout for analysis (default 60 seconds for large datasets)
+  const timeoutMs = options.timeout || 60000;
   
   const analysisPromise = performAnalysis();
   const timeoutPromise = new Promise((_, reject) => {
@@ -48,7 +48,7 @@ export async function edaComprehensive(filePath, options = {}) {
     return await Promise.race([analysisPromise, timeoutPromise]);
   } catch (error) {
     outputHandler.restore();
-    if (spinner) spinner.error({ text: 'Analysis failed or timed out' });
+    if (spinner) spinner.fail('Analysis failed or timed out');
     
     if (error.message.includes('timed out')) {
       console.error(chalk.red('🚨 EDA Analysis Timeout'));
@@ -87,8 +87,10 @@ export async function edaComprehensive(filePath, options = {}) {
         }
         
         if (spinner) spinner.text = 'Detecting column types...';
+        const typeStart = Date.now();
         try {
           columnTypes = detectColumnTypes(records);
+          console.log(`Column type detection took ${Date.now() - typeStart}ms`);
         } catch (typeError) {
           throw new Error(`Column type detection failed: ${typeError.message}`);
         }
@@ -98,6 +100,17 @@ export async function edaComprehensive(filePath, options = {}) {
       const fileStats = statSync(filePath);
       const fileName = basename(filePath);
       const columns = Object.keys(columnTypes);
+      
+      // Apply sampling for large datasets
+      const originalRecordCount = records.length;
+      if (records.length > 10000) {
+        if (spinner) spinner.text = `Sampling large dataset (${records.length} rows)...`;
+        const samplingStrategy = createSamplingStrategy(records, 'basic');
+        // For EDA, use max 5000 rows for analysis
+        samplingStrategy.sampleSize = Math.min(5000, samplingStrategy.sampleSize);
+        records = performSampling(records, samplingStrategy);
+        if (spinner) spinner.text = `Analyzing sample of ${records.length} rows from ${originalRecordCount} total rows...`;
+      }
       
       // Handle empty dataset
       if (records.length === 0) {
@@ -124,12 +137,22 @@ export async function edaComprehensive(filePath, options = {}) {
       if (spinner) spinner.text = 'Detecting analysis requirements...';
       const analysisNeeds = detectAnalysisNeeds(records, columnTypes);
       
+      // For very large datasets, disable expensive analyses
+      if (records.length > 10000) {
+        analysisNeeds.regression = false;
+        analysisNeeds.cart = false;
+        analysisNeeds.correlationAnalysis = false;
+        analysisNeeds.timeSeries = false;
+        analysisNeeds.mlReadiness = false;
+      }
+      
       // Initialize analysis object
       const analysis = {
         fileName,
         fileSize: formatFileSize(fileStats.size),
-        rowCount: records.length,
+        rowCount: originalRecordCount,
         columnCount: columns.length,
+        sampledRows: records.length < originalRecordCount ? records.length : undefined,
         columns: [],
         numericColumnCount: 0,
         categoricalColumnCount: 0,
@@ -147,19 +170,28 @@ export async function edaComprehensive(filePath, options = {}) {
       const columnAnalyses = {};
       let totalNonNull = 0;
       
-      // Process columns with timeout protection
+      // Process columns with timeout protection  
+      const sampleForStats = records.slice(0, Math.min(5000, records.length));
+      
       for (const column of columns) {
         try {
           const type = columnTypes[column];
-          const values = records.map(r => r[column]).filter(v => v !== null && v !== undefined);
+          // For large datasets, estimate non-null ratio from sample
+          const sampleValues = sampleForStats.map(r => r[column]);
+          const nonNullInSample = sampleValues.filter(v => v !== null && v !== undefined).length;
+          const nonNullRatio = nonNullInSample / sampleForStats.length;
+          const estimatedNonNullCount = Math.round(nonNullRatio * records.length);
+          
+          // Use sampled values for stats
+          const values = sampleValues.filter(v => v !== null && v !== undefined);
           
           const columnAnalysis = {
             name: column,
             type: type.type,
-            nonNullRatio: values.length / records.length
+            nonNullRatio: nonNullRatio
           };
           
-          totalNonNull += values.length;
+          totalNonNull += estimatedNonNullCount;
           
           // Add timeout protection for expensive calculations
           if (['integer', 'float'].includes(type.type) && values.length > 0) {
@@ -239,7 +271,7 @@ export async function edaComprehensive(filePath, options = {}) {
         
         for (const col of numericColumns) {
           const values = records.map(r => r[col]);
-          analysis.distributionAnalysis[col] = analyzeDistribution(values);
+          analysis.distributionAnalysis[col] = await analyzeDistribution(values);
         }
       }
       
@@ -265,8 +297,8 @@ export async function edaComprehensive(filePath, options = {}) {
         analysis.outlierRate = totalOutliers / (records.length * numericColumns.length);
       }
       
-      // CART analysis
-      if (analysisNeeds.cart) {
+      // CART analysis (skip for large datasets)
+      if (analysisNeeds.cart && records.length < 5000) {
         if (spinner) spinner.text = 'Performing CART analysis...';
         const targets = findPotentialTargets(records, columnTypes);
         if (targets.length > 0) {
@@ -277,32 +309,43 @@ export async function edaComprehensive(filePath, options = {}) {
             targets[0].column
           );
         }
+      } else if (analysisNeeds.cart) {
+        analysis.cartAnalysis = { skipped: true, reason: 'Dataset too large' };
       }
       
-      // Regression analysis
-      if (analysisNeeds.regression) {
+      // Regression analysis (skip for large datasets)
+      if (analysisNeeds.regression && records.length < 5000) {
         if (spinner) spinner.text = 'Performing regression analysis...';
         analysis.regressionAnalysis = performRegressionAnalysis(
           records, 
           columns, 
           columnTypes
         );
+      } else if (analysisNeeds.regression) {
+        analysis.regressionAnalysis = { skipped: true, reason: 'Dataset too large' };
       }
       
-      // Correlation analysis
-      if (analysisNeeds.correlationAnalysis) {
+      // Correlation analysis (skip for large datasets)
+      if (analysisNeeds.correlationAnalysis && records.length < 5000) {
         if (spinner) spinner.text = 'Analyzing correlations...';
         analysis.correlationAnalysis = performCorrelationAnalysis(records, columns, columnTypes);
+      } else if (analysisNeeds.correlationAnalysis) {
+        if (spinner) spinner.text = 'Skipping correlation analysis for large dataset...';
+        analysis.correlationAnalysis = { skipped: true, reason: 'Dataset too large' };
       }
       
-      // Pattern detection
+      // Pattern detection (limit for large datasets)
       if (analysisNeeds.patternDetection) {
         if (spinner) spinner.text = 'Detecting patterns...';
-        analysis.patterns = detectPatterns(records, columns, columnTypes);
+        const patternRecords = records.length > 5000 ? records.slice(0, 5000) : records;
+        analysis.patterns = detectPatterns(patternRecords, columns, columnTypes);
+        if (records.length > 5000) {
+          analysis.patterns.note = 'Analyzed first 5000 rows for patterns';
+        }
       }
       
-      // Time series analysis
-      if (analysisNeeds.timeSeries) {
+      // Time series analysis (limit for large datasets)
+      if (analysisNeeds.timeSeries && records.length < 10000) {
         if (spinner) spinner.text = 'Analyzing time series...';
         const dateColumn = analysis.dateColumns[0]; // Use first date column
         const numericColumns = columns.filter(col => 
@@ -316,6 +359,8 @@ export async function edaComprehensive(filePath, options = {}) {
             numericColumns
           );
         }
+      } else if (analysisNeeds.timeSeries) {
+        analysis.timeSeriesAnalysis = { skipped: true, reason: 'Dataset too large for time series analysis' };
       }
       
       // Australian data validation
@@ -385,7 +430,7 @@ export async function edaComprehensive(filePath, options = {}) {
       
     } catch (error) {
       outputHandler.restore();
-      if (spinner) spinner.error({ text: 'Error during analysis' });
+      if (spinner) spinner.fail('Error during analysis');
       console.error(error.message);
       if (!options.quiet) process.exit(1);
       throw error;

@@ -27,7 +27,7 @@ export const llmContext = withErrorBoundary(async function llmContextInternal(fi
     return await Promise.race([analysisPromise, timeoutPromise]);
   } catch (error) {
     outputHandler.restore();
-    if (spinner) spinner.error({ text: 'LLM analysis failed or timed out' });
+    if (spinner) spinner.fail('LLM analysis failed or timed out');
     
     if (error.message.includes('timed out')) {
       console.error(chalk.red('🚨 LLM Analysis Timeout'));
@@ -69,15 +69,33 @@ export const llmContext = withErrorBoundary(async function llmContextInternal(fi
           // Create smart sampling strategy for large datasets
           const samplingStrategy = createSamplingStrategy(allRecords, 'basic');
           
-          if (samplingStrategy.method !== 'none') {
+          // For LLM, be more aggressive with sampling for performance
+          const maxRowsForLLM = 5000;
+          if (originalSize > maxRowsForLLM) {
             if (spinner) {
-              spinner.text = `Large dataset detected (${originalSize.toLocaleString()} rows). Applying smart sampling...`;
+              spinner.text = `Large dataset detected (${originalSize.toLocaleString()} rows). Sampling ${maxRowsForLLM.toLocaleString()} rows for analysis...`;
             } else {
-              console.log(`- Large dataset detected (${originalSize.toLocaleString()} rows). Applying smart sampling...`);
+              console.log(`- Large dataset detected (${originalSize.toLocaleString()} rows). Sampling ${maxRowsForLLM.toLocaleString()} rows for analysis...`);
             }
             
+            const customStrategy = {
+              method: 'systematic',
+              sampleSize: maxRowsForLLM,
+              targetSize: maxRowsForLLM,
+              sampleRate: maxRowsForLLM / originalSize
+            };
+            records = performSampling(allRecords, customStrategy);
+            if (records.length === 0) {
+              console.error('❌ Sampling returned 0 records! Falling back to first 5000 rows');
+              records = allRecords.slice(0, maxRowsForLLM);
+            }
+            console.log(`⚠️  Large dataset sampled: ${records.length.toLocaleString()} of ${originalSize.toLocaleString()} rows`);
+          } else if (samplingStrategy.method !== 'none') {
+            if (spinner) {
+              spinner.text = `Dataset detected (${originalSize.toLocaleString()} rows). Applying smart sampling...`;
+            }
             records = performSampling(allRecords, samplingStrategy);
-            console.log(`⚠️  Large dataset sampled: ${records.length.toLocaleString()} of ${originalSize.toLocaleString()} rows (${samplingStrategy.method} sampling)`);
+            console.log(`⚠️  Dataset sampled: ${records.length.toLocaleString()} of ${originalSize.toLocaleString()} rows (${samplingStrategy.method} sampling)`);
           } else {
             records = allRecords;
           }
@@ -179,34 +197,45 @@ export const llmContext = withErrorBoundary(async function llmContextInternal(fi
       // Key columns and characteristics
       report += createSubSection('KEY COLUMNS AND THEIR CHARACTERISTICS', '');
       
-      columns.forEach((column, idx) => {
+      // For large datasets, use simpler column descriptions
+      const isLargeDataset = records.length > 5000;
+      
+      for (let idx = 0; idx < columns.length; idx++) {
+        const column = columns[idx];
         const type = safeGet(columnTypes, column, { type: 'unknown' });
-        const values = SafeArrayOps.safeMap(records, r => safeGet(r, column), []);
         
         report += `\n${idx + 1}. ${column}: `;
         
         if (type.type === 'identifier') {
-          const unique = new Set(values.filter(v => v !== null)).size;
-          report += `Unique identifier${unique === records.length ? '' : ` (${unique} unique values)`}`;
+          report += `Unique identifier`;
         } else if (type.type === 'integer' || type.type === 'float') {
-          const stats = calculateStats(values);
-          const range = `range: ${formatValue(stats.min, column)} to ${formatValue(stats.max, column)}`;
-          report += `${inferColumnPurpose(column)} (${range})`;
+          if (isLargeDataset) {
+            // For large datasets, just show the type without calculating stats
+            report += `${inferColumnPurpose(column)} (numeric)`;
+          } else {
+            const values = SafeArrayOps.safeMap(records, r => safeGet(r, column), []);
+            const stats = await calculateStats(values);
+            const range = `range: ${formatValue(stats.min, column)} to ${formatValue(stats.max, column)}`;
+            report += `${inferColumnPurpose(column)} (${range})`;
+          }
         } else if (type.type === 'categorical') {
-          const topValues = getTopCategoricalValues(values, 3);
+          const topValues = isLargeDataset ? 'multiple categories' : getTopCategoricalValues(SafeArrayOps.safeMap(records, r => safeGet(r, column), []), 3);
           const categoryCount = type.categories ? type.categories.length : 0;
-          report += `${categoryCount} categories: ${topValues}`;
+          report += `${categoryCount} categories${isLargeDataset ? '' : `: ${topValues}`}`;
         } else if (type.type === 'date') {
           report += 'Date field';
-          const dates = values.filter(v => v instanceof Date);
-          if (dates.length > 0) {
-            const sorted = dates.sort((a, b) => a - b);
-            report += ` (${formatDate(sorted[0])} to ${formatDate(sorted[sorted.length - 1])})`;
+          if (!isLargeDataset) {
+            const values = SafeArrayOps.safeMap(records, r => safeGet(r, column), []);
+            const dates = values.filter(v => v instanceof Date);
+            if (dates.length > 0) {
+              const sorted = dates.sort((a, b) => a - b);
+              report += ` (${formatDate(sorted[0])} to ${formatDate(sorted[sorted.length - 1])})`;
+            }
           }
         } else {
           report += type.type.charAt(0).toUpperCase() + type.type.slice(1);
         }
-      });
+      }
       
       // Important patterns and insights
       report += '\n' + createSubSection('IMPORTANT PATTERNS AND INSIGHTS', '');
@@ -270,13 +299,15 @@ export const llmContext = withErrorBoundary(async function llmContextInternal(fi
         report += `- ${stat}\n`;
       });
       
-      // Correlations discovered
-      const correlations = findSignificantCorrelations(records, columns, columnTypes);
-      if (correlations.length > 0) {
-        report += createSubSection('CORRELATIONS DISCOVERED', '');
-        correlations.forEach(corr => {
-          report += `- ${corr}\n`;
-        });
+      // Correlations discovered - skip for large datasets to improve performance
+      if (records.length < 10000) {
+        const correlations = findSignificantCorrelations(records, columns, columnTypes);
+        if (correlations.length > 0) {
+          report += createSubSection('CORRELATIONS DISCOVERED', '');
+          correlations.forEach(corr => {
+            report += `- ${corr}\n`;
+          });
+        }
       }
       
       // Suggested analyses
@@ -295,13 +326,15 @@ export const llmContext = withErrorBoundary(async function llmContextInternal(fi
         report += `- ${question}\n`;
       });
       
-      // Technical notes
-      report += createSubSection('TECHNICAL NOTES FOR ANALYSIS', '');
-      
-      const technicalNotes = generateTechnicalNotes(records, columns, columnTypes);
-      technicalNotes.forEach(note => {
-        report += `- ${note}\n`;
-      });
+      // Technical notes - skip for large datasets to improve performance
+      if (records.length < 10000) {
+        report += createSubSection('TECHNICAL NOTES FOR ANALYSIS', '');
+        
+        const technicalNotes = await generateTechnicalNotes(records, columns, columnTypes);
+        technicalNotes.forEach(note => {
+          report += `- ${note}\n`;
+        });
+      }
       
       // Show sample data for context
       if (records.length > 0) {
@@ -334,7 +367,7 @@ export const llmContext = withErrorBoundary(async function llmContextInternal(fi
       
     } catch (error) {
       outputHandler.restore();
-      if (spinner) spinner.error({ text: 'Error generating LLM context' });
+      if (spinner) spinner.fail('Error generating LLM context');
       console.error(error.message);
       if (!options.quiet) process.exit(1);
       throw error;
@@ -1099,21 +1132,21 @@ export function generateDataQuestions(columns, columnTypes, dataType, records = 
   return questions.slice(0, 8);
 }
 
-export function generateTechnicalNotes(records, columns, columnTypes) {
+export async function generateTechnicalNotes(records, columns, columnTypes) {
   const notes = [];
   
   // Check for skewed distributions
   const numericColumns = columns.filter(c => columnTypes[c] && ['integer', 'float'].includes(columnTypes[c].type));
   
-  numericColumns.forEach(col => {
+  for (const col of numericColumns) {
     const values = records.map(r => r[col]).filter(v => typeof v === 'number');
     if (values.length > 0) {
-      const dist = analyzeDistribution(values);
+      const dist = await analyzeDistribution(values);
       if (Math.abs(dist.skewness) > 2) {
         notes.push(`Log transformation recommended for ${col} (heavy ${dist.skewness > 0 ? 'right' : 'left'} skew)`);
       }
     }
-  });
+  }
   
   // Check for cyclical features
   const dateColumns = columns.filter(c => columnTypes[c] && columnTypes[c].type === 'date');

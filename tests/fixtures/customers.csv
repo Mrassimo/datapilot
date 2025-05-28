@@ -1,0 +1,6 @@
+customer_id,name,email,country
+1,John Smith,john@example.com,USA
+2,Jane Doe,jane@example.com,UK
+3,Bob Johnson,bob@example.com,Canada
+4,Alice Brown,alice@example.com,Australia
+5,Charlie Wilson,charlie@example.com,USA

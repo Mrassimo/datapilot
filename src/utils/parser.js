@@ -475,12 +475,15 @@ async function parseCSVWithEncoding(filePath, encoding, delimiter, useSampling, 
             });
           }
           
-          // Memory management
+          // Memory management - check less frequently to avoid spam
           let aggressiveSampling = false;
-          if (rowCount % 5000 === 0) {
+          if (rowCount % 50000 === 0) {  // Check every 50k rows instead of 5k
             const memoryStatus = checkMemoryUsage();
-            if (memoryStatus.shouldUseAggressiveSampling && !options.quiet) {
-              console.warn(chalk.red(`\nHigh memory usage detected (${memoryStatus.heapUsedGB.toFixed(1)}GB), enabling aggressive sampling`));
+            if (memoryStatus.shouldUseAggressiveSampling && !aggressiveSampling) {
+              if (!options.quiet && !records._memoryWarningShown) {
+                console.warn(chalk.red(`\nHigh memory usage detected (${memoryStatus.heapUsedGB.toFixed(1)}GB), enabling aggressive sampling`));
+                records._memoryWarningShown = true;  // Flag to avoid repeating message
+              }
               aggressiveSampling = true;
             }
           }
@@ -785,12 +788,18 @@ export function detectColumnTypes(records) {
   
   const columns = Object.keys(records[0]);
   const columnTypes = {};
-  const spinner = ora('Analyzing column types...').start();
+  const spinner = null; // Disable spinner in detectColumnTypes to avoid conflicts
+  
+  // Sample records for type detection on large datasets
+  const sampleSize = Math.min(1000, records.length);
+  const sampledRecords = records.length > 1000 
+    ? records.slice(0, sampleSize) 
+    : records;
   
   for (const [index, column] of columns.entries()) {
-    spinner.text = `Analyzing column types... (${index + 1}/${columns.length})`;
+    if (spinner) spinner.text = `Analyzing column types... (${index + 1}/${columns.length})`;
     
-    const values = records.map(r => r[column]).filter(v => v !== null);
+    const values = sampledRecords.map(r => r[column]).filter(v => v !== null);
     
     if (values.length === 0) {
       columnTypes[column] = { 
@@ -810,7 +819,7 @@ export function detectColumnTypes(records) {
     };
   }
   
-  spinner.succeed('Column analysis complete');
+  if (spinner) spinner.succeed('Column analysis complete');
   return columnTypes;
 }
 
@@ -1026,7 +1035,7 @@ export function checkMemoryUsage() {
     freeMemoryGB,
     memoryPercentage: (memoryUsageGB / totalMemoryGB) * 100,
     isHighMemory: memoryUsageGB > 1, // 1GB threshold
-    shouldUseAggressiveSampling: memoryUsageGB > 1.5 || freeMemoryGB < 0.5
+    shouldUseAggressiveSampling: memoryUsageGB > 1.5 // Don't use freeMemoryGB as it might be unreliable
   };
 }
 

@@ -100,6 +100,8 @@ async function runWithProgress(command, filePath, options) {
     
     spinner.stop();
     const result = await command(filePath, enhancedOptions);
+    // Ensure process exits cleanly after successful completion
+    process.exit(0);
     return result;
   } catch (error) {
     spinner.fail(`Analysis failed: ${error.message}`);
@@ -335,11 +337,13 @@ program
   .option('--delimiter <delimiter>', 'Force specific delimiter (comma, semicolon, tab, pipe)')
   .option('--timeout <ms>', 'Set timeout in milliseconds (default: 60000)', '60000')
   .option('--force', 'Continue analysis despite data quality warnings')
-  .option('--comprehensive', 'Use comprehensive analysis (default: true)', true)
+  .option('--comprehensive <bool>', 'Use comprehensive analysis (default: true)', 'true')
   .action(async (file, options) => {
     const filePath = validateFile(file);
     // Convert timeout to number
     if (options.timeout) options.timeout = parseInt(options.timeout);
+    // Convert comprehensive to boolean
+    if (options.comprehensive) options.comprehensive = options.comprehensive === 'true';
     await runWithProgress(llmContext, filePath, options);
   });
 
