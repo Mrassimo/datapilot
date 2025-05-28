@@ -27,23 +27,36 @@ jobs:
     - name: Install dependencies
       run: npm ci
 
+    - name: Verify test files exist
+      run: |
+        echo "Checking test files..."
+        ls -la tests/unit/
+        ls -la tests/tui/
+        ls -la tests/fixtures/
+
     - name: Run unit tests
       run: |
+        echo "Running parser tests..."
         node tests/unit/test_parser.js
+        echo "Running format tests..."
         node tests/unit/test_format.js
+        echo "Running stats tests..."
         node tests/unit/test_stats.js
 
     - name: Run TUI engine tests
-      run: node tests/tui_engine_test.js
+      run: node tests/tui/engine.test.js
 
     - name: Run TUI flow tests
-      run: node tests/tui_flow_test.js
+      run: node tests/tui/flow.test.js
 
     - name: Test core commands with sample data
       run: |
-        node bin/datapilot.js eda tests/fixtures/test_sales.csv --output /tmp/eda_test.txt
-        node bin/datapilot.js int tests/fixtures/test_sales.csv --output /tmp/int_test.txt
-        node bin/datapilot.js vis tests/fixtures/test_sales.csv --output /tmp/vis_test.txt
+        echo "Testing EDA command..."
+        node bin/datapilot.js eda tests/fixtures/test_sales.csv --output /tmp/eda_test.txt --timeout 30000
+        echo "Testing INT command..."
+        node bin/datapilot.js int tests/fixtures/test_sales.csv --output /tmp/int_test.txt --timeout 30000
+        echo "Testing VIS command..."
+        node bin/datapilot.js vis tests/fixtures/test_sales.csv --output /tmp/vis_test.txt --timeout 30000
 
     - name: Verify CLI help functionality
       run: |

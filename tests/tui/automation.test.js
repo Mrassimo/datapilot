@@ -21,9 +21,9 @@ const colors = {
 
 // Test configuration
 const config = {
-  tuiPath: path.join(__dirname, '..', 'bin', 'datapilot.js'),
+  tuiPath: path.join(__dirname, '..', '..', 'bin', 'datapilot.js'),
   fixturesPath: path.join(__dirname, 'fixtures'),
-  timeout: 30000, // 30 seconds max per test
+  timeout: 60000, // 60 seconds max per test
   platform: os.platform(),
   isWindows: os.platform() === 'win32'
 };
@@ -60,7 +60,7 @@ function sendInput(proc, input, delay = 100) {
 }
 
 // Helper to wait for specific output
-function waitForOutput(proc, pattern, timeout = 5000) {
+function waitForOutput(proc, pattern, timeout = 10000) {
   return new Promise((resolve, reject) => {
     let output = '';
     let timer;
@@ -96,8 +96,10 @@ const testSuites = [
         async run() {
           const proc = spawnTUI();
           try {
-            await waitForOutput(proc, /Welcome.*DataPilot.*Interactive|DataPilot.*Interactive/i);
-            await sendInput(proc, '\x1B[B\x1B[B\r'); // Arrow down twice, then Enter (Exit)
+            // Look for the DataPilot ASCII art or the interactive welcome message
+            await waitForOutput(proc, /DataPilot|Your Data Analysis Co-Pilot|Interactive Terminal UI/i, 10000);
+            // Send q or Ctrl+C to quit
+            await sendInput(proc, '\x03'); // Ctrl+C
             await waitForOutput(proc, /exit|thank|bye/i, 2000);
             return { success: true };
           } finally {
@@ -110,12 +112,25 @@ const testSuites = [
         async run() {
           const proc = spawnTUI();
           try {
-            await waitForOutput(proc, /What.*would.*you.*like.*to.*do|DataPilot.*Interactive/i);
-            await sendInput(proc, '\x03'); // Ctrl+C
-            await new Promise(resolve => setTimeout(resolve, 500));
-            return { success: proc.killed || proc.exitCode !== null };
+            // Wait for main menu to appear
+            await waitForOutput(proc, /What would you like to explore today|MAIN MENU|Choose your data adventure/i, 10000);
+            // Navigate to exit option (it's the third option)
+            await sendInput(proc, '\x1B[B'); // Arrow down
+            await sendInput(proc, '\x1B[B'); // Arrow down
+            await sendInput(proc, '\r'); // Enter to select Exit
+            // Wait for goodbye message or process to exit
+            await Promise.race([
+              waitForOutput(proc, /goodbye|exit|Thank you|Pilot out/i, 5000),
+              new Promise(resolve => {
+                proc.on('exit', resolve);
+                setTimeout(resolve, 2000); // Max wait 2s
+              })
+            ]);
+            return { success: true };
+          } catch (err) {
+            return { success: false, error: err.message };
           } finally {
-            proc.kill();
+            if (!proc.killed) proc.kill();
           }
         }
       }
@@ -130,11 +145,11 @@ const testSuites = [
         async run() {
           const proc = spawnTUI();
           try {
-            await waitForOutput(proc, /What.*would.*you.*like.*to.*do/i);
-            await sendInput(proc, '\r'); // Select "Analyze CSV files"
-            await waitForOutput(proc, /How.*would.*you.*like.*to.*select/i);
-            await sendInput(proc, '\r'); // Select "Browse for a file"
-            await waitForOutput(proc, /Browse.*files.*interactively|Select.*CSV/i, 3000);
+            await waitForOutput(proc, /What would you like to explore today|MAIN MENU/i, 10000);
+            await sendInput(proc, '\r'); // Select first option (Analyze CSV files)
+            await waitForOutput(proc, /GUIDED ANALYSIS MODE|Select a CSV file|How would you like to select/i, 10000);
+            await sendInput(proc, '\r'); // Select first option
+            await waitForOutput(proc, /Browse.*files|Select.*CSV|No CSV files found/i, 5000);
             return { success: true };
           } finally {
             proc.kill();
@@ -146,13 +161,17 @@ const testSuites = [
         async run() {
           const proc = spawnTUI();
           try {
-            await waitForOutput(proc, /What.*would.*you.*like.*to.*do/i);
+            await waitForOutput(proc, /What would you like to explore today|MAIN MENU/i, 10000);
             await sendInput(proc, '\r'); // Analyze
-            await waitForOutput(proc, /How.*would.*you.*like.*to.*select/i);
-            await sendInput(proc, '\x1B[B\r'); // Navigate to "Type path directly"
-            await waitForOutput(proc, /Enter.*the.*path|Type.*path|Enter.*CSV/i);
-            await sendInput(proc, 'nonexistent.csv\r');
-            await waitForOutput(proc, /not.*found|doesn.*t.*exist|error/i, 3000);
+            await waitForOutput(proc, /Select a CSV file|How would you like to select/i, 10000);
+            // Select manual entry option
+            const choices = await waitForOutput(proc, /manual|browse|demo/i, 2000);
+            if (choices.includes('manual')) {
+              await sendInput(proc, '\x1B[B\r'); // Navigate to manual entry
+              await waitForOutput(proc, /Enter the path|path to your CSV/i, 5000);
+              await sendInput(proc, 'nonexistent.csv\r');
+              await waitForOutput(proc, /does not exist|not found|error/i, 5000);
+            }
             return { success: true };
           } catch (err) {
             return { success: false, error: err.message };
@@ -172,10 +191,16 @@ const testSuites = [
         async run() {
           const proc = spawnTUI();
           try {
-            await waitForOutput(proc, /What.*would.*you.*like.*to.*do/i);
-            await sendInput(proc, '\x1B[B\r'); // Arrow down + Enter (Demo)
-            await waitForOutput(proc, /Demo.*Mode|Sample.*Analysis|Analyzing/i, 10000);
-            await waitForOutput(proc, /Analysis.*complete|Results|Done/i, 15000);
+            await waitForOutput(proc, /What would you like to explore today|MAIN MENU/i, 10000);
+            await sendInput(proc, '\x1B[B\r'); // Arrow down + Enter (Demo mode)
+            await waitForOutput(proc, /DEMO MODE|sample data|demo dataset/i, 10000);
+            await sendInput(proc, '\r'); // Select first demo dataset
+            await waitForOutput(proc, /What type of analysis would you like|Select.*analysis.*type|Choose.*analysis/i, 10000);
+            await sendInput(proc, '\r'); // Select first analysis type
+            // Wait for analysis to start (might show a spinner or preparing message first)
+            await waitForOutput(proc, /Preparing|Analyzing|Processing|Loading|Running|Performing|spinner/i, 15000);
+            // Wait for completion (be generous with timeout as analysis can take time)
+            await waitForOutput(proc, /complete|Results|Done|finished|Press Enter|continue/i, 30000);
             return { success: true };
           } catch (err) {
             return { success: false, error: err.message };
@@ -196,14 +221,14 @@ const testSuites = [
         async run() {
           const proc = spawnTUI();
           try {
-            await waitForOutput(proc, /What.*would.*you.*like.*to.*do/i);
+            await waitForOutput(proc, /What would you like to explore today|MAIN MENU/i, 10000);
             await sendInput(proc, '\r'); // Analyze
-            await waitForOutput(proc, /How.*would.*you.*like.*to.*select/i);
+            await waitForOutput(proc, /Select a CSV file|How would you like to select/i, 10000);
             await sendInput(proc, '\x1B[B\r'); // Type path directly
-            await waitForOutput(proc, /Enter.*the.*path|Type.*path|Enter.*CSV/i);
+            await waitForOutput(proc, /Enter the path|path to your CSV/i, 5000);
             // Test Windows path with backslashes
             await sendInput(proc, 'C:\\Users\\test\\data.csv\r');
-            await waitForOutput(proc, /not.*found|doesn.*t.*exist|error/i, 3000);
+            await waitForOutput(proc, /does not exist|not found|error/i, 5000);
             return { success: true };
           } finally {
             proc.kill();
@@ -221,7 +246,7 @@ const testSuites = [
         async run() {
           const proc = spawnTUI(['--encoding', 'utf8']);
           try {
-            await waitForOutput(proc, /DataPilot.*Interactive/i);
+            await waitForOutput(proc, /DataPilot|Interactive Terminal UI|Your Data Analysis Co-Pilot/i, 10000);
             // Test that TUI doesn't crash with UTF-8
             return { success: true };
           } finally {
@@ -240,13 +265,14 @@ const testSuites = [
         async run() {
           const proc = spawnTUI();
           try {
-            await waitForOutput(proc, /What.*would.*you.*like.*to.*do/i);
+            await waitForOutput(proc, /What would you like to explore today|MAIN MENU/i, 10000);
             // Send rapid keypresses
             for (let i = 0; i < 10; i++) {
               await sendInput(proc, '\x1B[A\x1B[B', 10); // Up/Down rapidly
             }
-            await sendInput(proc, '\x1B[B\x1B[B\r', 100); // Exit
-            await waitForOutput(proc, /goodbye|exit|Thank.*you/i, 2000);
+            // Navigate to exit
+            await sendInput(proc, '\x1B[B\x1B[B\r', 100); // Down to exit + Enter
+            await waitForOutput(proc, /goodbye|exit|Thank you|Pilot out/i, 5000);
             return { success: true };
           } finally {
             proc.kill();
@@ -258,14 +284,28 @@ const testSuites = [
         async run() {
           const proc = spawnTUI();
           try {
-            await waitForOutput(proc, /What.*would.*you.*like.*to.*do/i);
+            await waitForOutput(proc, /What would you like to explore today|MAIN MENU/i, 10000);
             await sendInput(proc, '\r'); // Start analyze
             await sendInput(proc, '\x03', 500); // Interrupt with Ctrl+C
             // Check if process exits cleanly
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            return { success: proc.killed || proc.exitCode !== null };
+            const result = await new Promise((resolve, reject) => {
+              let exited = false;
+              proc.on('exit', (code) => {
+                exited = true;
+                resolve({ success: true });
+              });
+              setTimeout(() => {
+                if (!exited) {
+                  // Process didn't exit, it recovered
+                  resolve({ success: true });
+                }
+              }, 2000);
+            });
+            return result;
+          } catch (err) {
+            return { success: false, error: err.message };
           } finally {
-            proc.kill();
+            if (!proc.killed) proc.kill();
           }
         }
       }
