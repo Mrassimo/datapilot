@@ -65,6 +65,8 @@ DataPilot is a comprehensive CSV analysis toolkit that provides instant insights
    - Key insights extraction
    - Analysis questions
 
+📚 **[Deep Dive: Command Theory & Implementation →](docs/COMMAND_DEEP_DIVE.md)**
+
 ## Usage Examples
 
 ```bash
