@@ -284,7 +284,7 @@ Dimensional Breakdown:
 │ Dimension       │ Score  │ Key Issues             │
 ├─────────────────┼────────┼────────────────────────┤
 ${score.scoreBreakdown.map(dim => 
-  `│ ${dim.dimension.padEnd(15)} │ ${String(dim.score).padEnd(6)} │ ${(dim.performance + ' issues').padEnd(22)} │`
+  `│ ${dim.dimension.padEnd(15)} │ ${String(dim.score).padEnd(6)} │ ${dim.performance.padEnd(22)} │`
 ).join('\n')}
 └─────────────────┴────────┴────────────────────────┘`
   );

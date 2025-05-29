@@ -224,24 +224,28 @@ The optimal approach combines both:
 
 An interesting case emerged when running DataPilot's integrity check on clinical_visits.csv:
 
-### DataPilot's Assessment
-- Overall Quality Score: 0/100 (F)
+### DataPilot's Assessment (After Fixes)
+- Overall Quality Score: 83/100 (B)
 - Completeness: 100/100 (Excellent)
 - Accuracy: 100/100 (Excellent)  
 - Consistency: 99/100 (Excellent)
 - Validity: 85/100 (Good)
-- Uniqueness: 35/100 (Critical issues)
-- Timeliness: 0/100 (Critical issues)
+- Timeliness: 52/100 (Needs improvement)
+- Uniqueness: 35/100 (Critical issues - duplicate provider IDs)
 
-### The Paradox
-DataPilot flagged the data as having "critical timeliness issues" because all visits occurred in January 2024. However, this is likely a **test dataset** or **study cohort** where sequential enrollment is expected and correct.
+### The Evolution
+Initially, the integrity scoring was broken, showing 0/100 despite excellent dimension scores. After fixing:
+1. **Scoring Algorithm**: Fixed weight normalization issue
+2. **Timeliness Logic**: Added medical data thresholds (2 years for visits)
+3. **Cohort Detection**: Now recognizes test/study data patterns
+4. **Display Format**: Removed confusing "issues" suffix
 
 ### Human vs DataPilot Interpretation
-- **DataPilot**: Sees dates clustered in one month as a data quality issue
-- **Human**: Recognizes this as a cohort study or test data pattern
-- **Impact**: Automated scoring can be misleading without context
+- **DataPilot (Fixed)**: Now reasonably scores timeliness at 52/100, recognizing the data is somewhat stale but not critical
+- **Human**: Still provides context that this is likely test data
+- **Impact**: Shows the importance of domain-specific rules in automated scoring
 
-This perfectly illustrates why human oversight remains essential - DataPilot's statistical rules, while generally sound, can misinterpret legitimate data patterns as quality issues.
+This demonstrates how DataPilot can be improved with domain knowledge while maintaining its systematic approach.
 
 ## Conclusion
 

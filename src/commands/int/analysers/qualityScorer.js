@@ -1,30 +1,38 @@
 export function calculateQualityScore(dimensionResults) {
   const weights = {
-    Completeness: 0.20,
-    Validity: 0.20,
-    Accuracy: 0.20,
-    Consistency: 0.15,
-    Timeliness: 0.15,
-    Uniqueness: 0.10
+    completeness: 0.20,
+    validity: 0.20,
+    accuracy: 0.20,
+    consistency: 0.15,
+    timeliness: 0.15,
+    uniqueness: 0.10
   };
 
   let totalScore = 0;
   let totalWeight = 0;
   const dimensionScores = {};
 
+  // Debug: Check what dimensions we're receiving
+  const receivedDimensions = Object.keys(dimensionResults).filter(d => dimensionResults[d]?.score !== undefined);
+  
   Object.entries(dimensionResults).forEach(([dimension, result]) => {
     if (result && result.score !== undefined) {
       const weight = weights[dimension] || 0;
+      // Ensure dimension key matches our weights (case-sensitive)
+      const normalizedDimension = dimension.toLowerCase();
+      const actualWeight = weights[normalizedDimension] || 0;
+      
       dimensionScores[dimension] = {
         score: result.score,
-        weight: weight,
-        weightedScore: result.score * weight
+        weight: actualWeight,
+        weightedScore: result.score * actualWeight
       };
-      totalScore += result.score * weight;
-      totalWeight += weight;
+      totalScore += result.score * actualWeight;
+      totalWeight += actualWeight;
     }
   });
 
+  // If we didn't get all dimensions, calculate based on what we have
   const overallScore = totalWeight > 0 ? totalScore / totalWeight : 0;
   const grade = getGrade(overallScore);
   const trend = calculateTrend(overallScore);
@@ -112,7 +120,7 @@ function generateScoreBreakdown(dimensionScores) {
     .sort((a, b) => b[1].score - a[1].score)
     .forEach(([dimension, scores]) => {
       breakdown.push({
-        dimension: dimension,
+        dimension: dimension.charAt(0).toUpperCase() + dimension.slice(1),
         score: scores.score,
         weight: `${(scores.weight * 100).toFixed(0)}%`,
         contribution: scores.weightedScore.toFixed(1),
@@ -260,12 +268,12 @@ function generateRecommendations(dimensionResults) {
 function calculateImpact(issue, dimension) {
   const baseImpact = issue.type === 'critical' ? 8 : 5;
   const dimensionWeight = {
-    'Completeness': 1.2,
-    'Validity': 1.1,
-    'Accuracy': 1.3,
-    'Consistency': 1.0,
-    'Timeliness': 0.9,
-    'Uniqueness': 1.1
+    'completeness': 1.2,
+    'validity': 1.1,
+    'accuracy': 1.3,
+    'consistency': 1.0,
+    'timeliness': 0.9,
+    'uniqueness': 1.1
   };
   
   return Math.min(10, baseImpact * (dimensionWeight[dimension] || 1));
@@ -284,27 +292,27 @@ function calculatePriority(impact, effort) {
 
 function generateSpecificRecommendation(issue, dimension) {
   const templates = {
-    'Completeness': {
+    'completeness': {
       critical: 'Implement data collection process for {field}',
       warning: 'Review and fill missing values in {field}'
     },
-    'Validity': {
+    'validity': {
       critical: 'Add validation rules for {field}',
       warning: 'Standardize format for {field}'
     },
-    'Accuracy': {
+    'accuracy': {
       critical: 'Investigate and correct outliers in {field}',
       warning: 'Review business rules for {field}'
     },
-    'Consistency': {
+    'consistency': {
       critical: 'Implement referential integrity for {field}',
       warning: 'Standardize data entry for {field}'
     },
-    'Timeliness': {
+    'timeliness': {
       critical: 'Update stale records in {field}',
       warning: 'Implement regular update schedule for {field}'
     },
-    'Uniqueness': {
+    'uniqueness': {
       critical: 'Remove duplicates and add unique constraint on {field}',
       warning: 'Review and merge near-duplicates'
     }

@@ -1,0 +1,104 @@
+Detected windows-1252 encoding (will handle automatically)
+📊 Parsing CSV: /Users/massimoraso/Code/jseda/datapilot/tests/fixtures/clinical_visits.csv
+📏 File size: 0.00MB
+🔤 Detected encoding: latin1
+📋 Detected delimiter: ,
+✅ Successfully parsed with latin1 encoding
+📊 Records: 15
+📋 Columns: 13
+
+════════════════════════════════════════════════════════════
+                   DATA INTEGRITY REPORT
+════════════════════════════════════════════════════════════Dataset: clinical_visits.csv
+Generated: 2025-05-29 15:02:43
+Quality Framework: ISO 8000 / DAMA-DMBOK Aligned
+OVERALL DATA QUALITY SCORE: 83/100 (B)
+Good
+→ Quality is stable
+7.1 points above industry average
+
+CRITICAL ISSUES (immediate action required)
+────────────────────────────────────────
+1. visit_date: 100.0% invalid values (15/15) [critical]
+2. provider_id: 12 duplicate values in supposedly unique field [critical]
+3. diagnosis_codes: 4 duplicate values in supposedly unique field [critical]
+WARNINGS (should be addressed)
+────────────────────────────────────────
+1. visit_date: 15 records predate reasonable business start
+2. systolic_bp: 15 records predate reasonable business start
+3. diastolic_bp: 15 records predate reasonable business start
+4. heart_rate: 15 records predate reasonable business start
+5. respiratory_rate: 15 records predate reasonable business start
+6. temperature: 15 records predate reasonable business start
+7. visit_date: High duplication rate: 93.3%
+8. visit_type: High duplication rate: 80.0%
+9. respiratory_rate: High duplication rate: 40.0%
+10. temperature: High duplication rate: 26.7%
+... and 1 more warnings
+
+BUSINESS RULE DISCOVERY
+────────────────────────────────────────
+Automatically Detected Rules (Confidence >95%):
+
+1. LENGTH_CONSTRAINT: LENGTH(visit_id) = 9
+   - Confidence: 100.0%
+   - Violations: 0 records
+   - SQL: CHECK (LENGTH(visit_id) = 9)
+
+2. CONDITIONAL_CONSTRAINT: IF patient_id = 'undefined' THEN visit_id = 'undefined'
+   - Confidence: 100.0%
+   - Violations: 0 records
+   - SQL: CHECK (patient_id != 'undefined' OR visit_id = 'undefined')
+
+3. CONDITIONAL_CONSTRAINT: IF visit_date = 'undefined' THEN visit_id = 'undefined'
+   - Confidence: 100.0%
+   - Violations: 0 records
+   - SQL: CHECK (visit_date != 'undefined' OR visit_id = 'undefined')
+
+4. CONDITIONAL_CONSTRAINT: IF provider_id = 'undefined' THEN visit_id = 'undefined'
+   - Confidence: 100.0%
+   - Violations: 0 records
+   - SQL: CHECK (provider_id != 'undefined' OR visit_id = 'undefined')
+
+5. CONDITIONAL_CONSTRAINT: IF visit_type = 'undefined' THEN visit_id = 'undefined'
+   - Confidence: 100.0%
+   - Violations: 0 records
+   - SQL: CHECK (visit_type != 'undefined' OR visit_id = 'undefined')
+PATTERN-BASED ANOMALIES
+────────────────────────────────────────
+
+════════════════════════════════════════════════════════════
+                    DATA QUALITY METRICS
+════════════════════════════════════════════════════════════Overall Score: 83/100 (B)
+
+Dimensional Breakdown:
+┌─────────────────┬────────┬────────────────────────┐
+│ Dimension       │ Score  │ Key Issues             │
+├─────────────────┼────────┼────────────────────────┤
+│ Completeness    │ 100    │ Excellent              │
+│ Accuracy        │ 100    │ Excellent              │
+│ Consistency     │ 99     │ Excellent              │
+│ Validity        │ 85     │ Good                   │
+│ Timeliness      │ 52     │ Critical               │
+│ Uniqueness      │ 35     │ Critical               │
+└─────────────────┴────────┴────────────────────────┘
+RECOMMENDATION PRIORITY MATRIX
+────────────────────────────────────────
+
+🎯 Quick Wins (High Impact, Low Effort):
+1. Remove duplicates and add unique constraint on provider_id [Impact: 9/10, Effort: 2/10]
+2. Remove duplicates and add unique constraint on diagnosis_codes [Impact: 9/10, Effort: 2/10]
+📋 Strategic Initiatives (High Impact, High Effort):
+1. Add validation rules for visit_date [Impact: 9/10, Effort: 5/10]
+AUTOMATED FIX SCRIPTS
+────────────────────────────────────────
+SQL fixes available: Yes
+Python scripts available: Yes
+
+To generate fix scripts, run with --generate-fixes flag
+CERTIFICATION STATUS
+────────────────────────────────────────
+Not yet certified. To achieve Bronze:
+- Improve score by -13.1 points
+- Fix 0 critical issues
+- Resolve 0 warnings

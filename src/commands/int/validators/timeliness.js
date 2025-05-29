@@ -22,7 +22,22 @@ export function analyseTimeliness(data, headers) {
     const analysis = analyseDateColumn(data, dateCol);
     timelinessAnalysis[dateCol.header] = analysis;
 
-    if (analysis.staleness.percentage > 30) {
+    // Check if this looks like cohort/test data (all dates within a short period)
+    const isCohortPattern = analysis.range && analysis.range.span <= 90 && 
+                           analysis.validDates.length > 5 &&
+                           analysis.patterns.yearlyTrend && 
+                           Object.keys(analysis.patterns.yearlyTrend).length === 1;
+
+    if (isCohortPattern) {
+      results.issues.push({
+        type: 'observation',
+        field: dateCol.header,
+        message: `Cohort pattern detected - all dates within ${analysis.range.span} days`,
+        details: `Date range: ${analysis.range.oldest} to ${analysis.range.newest}`,
+        interpretation: 'Appears to be test data or study cohort'
+      });
+      // Don't penalize cohort data for "staleness"
+    } else if (analysis.staleness.percentage > 30) {
       results.issues.push({
         type: 'critical',
         field: dateCol.header,
@@ -257,7 +272,14 @@ function analyseDateColumn(data, dateCol) {
 function determineStalenessThreshold(columnName) {
   const columnLower = columnName.toLowerCase();
   
-  if (columnLower.includes('last_login') || columnLower.includes('last_active')) {
+  // Medical/clinical data has different staleness thresholds
+  if (columnLower.includes('visit') || columnLower.includes('appointment') || columnLower.includes('encounter')) {
+    return 730; // 2 years for medical visits
+  } else if (columnLower.includes('enrollment') || columnLower.includes('study')) {
+    return 1825; // 5 years for study enrollment
+  } else if (columnLower.includes('test_date') || columnLower.includes('lab_date')) {
+    return 365; // 1 year for lab tests
+  } else if (columnLower.includes('last_login') || columnLower.includes('last_active')) {
     return 90;
   } else if (columnLower.includes('modified') || columnLower.includes('updated')) {
     return 180;
