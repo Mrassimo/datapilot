@@ -18,6 +18,8 @@ temp/
 tests/outputs/
 tests/reports/
 *_test_report_*.json
+tests/fixtures/health_analysis/*_analysis.txt
+tests/fixtures/health_analysis/*_integrity.txt
 *_output.txt
 test_*.txt
 
