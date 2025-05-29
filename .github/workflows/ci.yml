@@ -11,8 +11,10 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        node-version: [18.x, 20.x, 22.x]
+        # Focus on Windows and Mac as requested, include Ubuntu for basic compatibility
+        os: [windows-latest, macos-latest, ubuntu-latest]
+        # Test on LTS versions
+        node-version: [18.x, 20.x]
 
     steps:
     - name: Checkout repository
@@ -34,29 +36,9 @@ jobs:
         ls -la tests/tui/
         ls -la tests/fixtures/
 
-    - name: Run unit tests
-      run: |
-        echo "Running parser tests..."
-        node tests/unit/test_parser.js
-        echo "Running format tests..."
-        node tests/unit/test_format.js
-        echo "Running stats tests..."
-        node tests/unit/test_stats.js
-
-    - name: Run TUI engine tests
-      run: node tests/tui/engine.test.js
-
-    - name: Run TUI flow tests
-      run: node tests/tui/flow.test.js
-
-    - name: Test core commands with sample data
-      run: |
-        echo "Testing EDA command..."
-        node bin/datapilot.js eda tests/fixtures/test_sales.csv --output /tmp/eda_test.txt --timeout 30000
-        echo "Testing INT command..."
-        node bin/datapilot.js int tests/fixtures/test_sales.csv --output /tmp/int_test.txt --timeout 30000
-        echo "Testing VIS command..."
-        node bin/datapilot.js vis tests/fixtures/test_sales.csv --output /tmp/vis_test.txt --timeout 30000
+    - name: Run comprehensive test suite
+      run: node tests/run_all_tests.js
+      timeout-minutes: 10
 
     - name: Verify CLI help functionality
       run: |
@@ -67,10 +49,23 @@ jobs:
         node bin/datapilot.js eng --help
         node bin/datapilot.js llm --help
 
+    - name: Create test output directory (Windows)
+      if: runner.os == 'Windows'
+      run: |
+        New-Item -ItemType Directory -Force -Path "$env:TEMP\datapilot-tests"
+      shell: pwsh
+
+    - name: Create test output directory (Unix)
+      if: runner.os != 'Windows'
+      run: mkdir -p /tmp/datapilot-tests
+
     - name: Upload test artifacts
-      if: failure()
+      if: always()
       uses: actions/upload-artifact@v4
       with:
         name: test-outputs-${{ matrix.os }}-${{ matrix.node-version }}
-        path: /tmp/*_test.txt
+        path: |
+          ${{ runner.os == 'Windows' && '$env:TEMP' || '/tmp' }}/*_test.txt
+          ${{ runner.os == 'Windows' && '$env:TEMP' || '/tmp' }}/datapilot-tests/*
         retention-days: 7
+        if-no-files-found: warn

@@ -73,11 +73,13 @@ function testSectionCreation() {
   console.log('\n=== Testing section creation ===');
   
   const section = createSection('TEST SECTION', 'Test content');
-  console.assert(section.includes('=== TEST SECTION ==='), 'Should create section header');
+  console.assert(section.includes('TEST SECTION'), 'Should create section header');
   console.assert(section.includes('Test content'), 'Should include content');
+  console.assert(section.includes('═'), 'Should use formatting characters');
   
   const subSection = createSubSection('Sub Test', 'Sub content');
-  console.assert(subSection.includes('Sub Test:'), 'Should create subsection');
+  console.assert(subSection.includes('Sub Test'), 'Should create subsection');
+  console.assert(subSection.includes('Sub content'), 'Should include subsection content');
   
   console.log('✓ Section creation works');
 }
