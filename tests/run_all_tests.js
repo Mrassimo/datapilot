@@ -86,7 +86,7 @@ async function main() {
   // Run command tests with small fixture
   log('\n🔧 Command Tests', 'yellow');
   const testFile = path.join(__dirname, 'fixtures/test_sales.csv');
-  const outputDir = process.platform === 'win32' ? process.env.TEMP : '/tmp';
+  const outputDir = process.platform === 'win32' ? process.env.TEMP || 'C:\\Users\\runneradmin\\AppData\\Local\\Temp' : '/tmp';
   
   results.push(await runTest('EDA Command', 'node', [
     'bin/datapilot.js', 'eda', testFile, 

@@ -29,12 +29,22 @@ jobs:
     - name: Install dependencies
       run: npm ci
 
-    - name: Verify test files exist
+    - name: Verify test files exist (Unix)
+      if: runner.os != 'Windows'
       run: |
         echo "Checking test files..."
         ls -la tests/unit/
         ls -la tests/tui/
         ls -la tests/fixtures/
+
+    - name: Verify test files exist (Windows)
+      if: runner.os == 'Windows'
+      run: |
+        echo "Checking test files..."
+        dir tests\unit\
+        dir tests\tui\
+        dir tests\fixtures\
+      shell: cmd
 
     - name: Run comprehensive test suite
       run: node tests/run_all_tests.js
@@ -59,13 +69,24 @@ jobs:
       if: runner.os != 'Windows'
       run: mkdir -p /tmp/datapilot-tests
 
-    - name: Upload test artifacts
-      if: always()
+    - name: Upload test artifacts (Windows)
+      if: runner.os == 'Windows' && always()
       uses: actions/upload-artifact@v4
       with:
         name: test-outputs-${{ matrix.os }}-${{ matrix.node-version }}
         path: |
-          ${{ runner.os == 'Windows' && '$env:TEMP' || '/tmp' }}/*_test.txt
-          ${{ runner.os == 'Windows' && '$env:TEMP' || '/tmp' }}/datapilot-tests/*
+          C:\Users\runneradmin\AppData\Local\Temp\*_test.txt
+          C:\Users\runneradmin\AppData\Local\Temp\datapilot-tests\*
+        retention-days: 7
+        if-no-files-found: warn
+
+    - name: Upload test artifacts (Unix)
+      if: runner.os != 'Windows' && always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-outputs-${{ matrix.os }}-${{ matrix.node-version }}
+        path: |
+          /tmp/*_test.txt
+          /tmp/datapilot-tests/*
         retention-days: 7
         if-no-files-found: warn
