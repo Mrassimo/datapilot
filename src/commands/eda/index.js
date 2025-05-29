@@ -101,15 +101,26 @@ export async function edaComprehensive(filePath, options = {}) {
       const fileName = basename(filePath);
       const columns = Object.keys(columnTypes);
       
-      // Apply sampling for large datasets
+      // Handle large datasets with user notification
       const originalRecordCount = records.length;
       if (records.length > 10000) {
-        if (spinner) spinner.text = `Sampling large dataset (${records.length} rows)...`;
-        const samplingStrategy = createSamplingStrategy(records, 'basic');
-        // For EDA, use max 5000 rows for analysis
-        samplingStrategy.sampleSize = Math.min(5000, samplingStrategy.sampleSize);
-        records = performSampling(records, samplingStrategy);
-        if (spinner) spinner.text = `Analyzing sample of ${records.length} rows from ${originalRecordCount} total rows...`;
+        console.log(chalk.yellow(`\n⚠️  Large dataset detected: ${records.length.toLocaleString()} rows`));
+        
+        if (records.length > 50000) {
+          // Very large dataset - use sampling
+          console.log(chalk.cyan('📊 Dataset is very large. Using intelligent sampling for performance.'));
+          console.log(chalk.cyan(`   Processing a representative sample of ${Math.min(10000, records.length).toLocaleString()} rows...`));
+          
+          const samplingStrategy = createSamplingStrategy(records, 'basic');
+          samplingStrategy.sampleSize = Math.min(10000, samplingStrategy.sampleSize);
+          records = performSampling(records, samplingStrategy);
+          
+          if (spinner) spinner.text = `Analyzing ${records.length.toLocaleString()} sampled rows...`;
+        } else {
+          // Medium-large dataset - process all but with warning
+          console.log(chalk.cyan('⏱️  This analysis may take up to 30 seconds...'));
+          if (spinner) spinner.text = `Processing ${records.length.toLocaleString()} rows (this may take a moment)...`;
+        }
       }
       
       // Handle empty dataset

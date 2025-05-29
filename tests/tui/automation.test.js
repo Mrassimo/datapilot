@@ -38,7 +38,11 @@ const results = {
 
 // Helper to create a TUI process
 function spawnTUI(args = [], options = {}) {
-  const env = { ...process.env, FORCE_COLOR: '0', NO_COLOR: '1' };
+  // In CI, respect the environment variables
+  const env = process.env.CI 
+    ? { ...process.env } 
+    : { ...process.env, FORCE_COLOR: '0', NO_COLOR: '1' };
+    
   const spawnOptions = {
     env,
     stdio: ['pipe', 'pipe', 'pipe'],

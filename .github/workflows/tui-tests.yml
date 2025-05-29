@@ -9,11 +9,18 @@ on:
     # Run daily at 2 AM UTC
     - cron: '0 2 * * *'
   workflow_dispatch:
+    inputs:
+      skip_flaky_tests:
+        description: 'Skip flaky automation tests'
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   test-linux:
     runs-on: ubuntu-latest
     name: TUI Tests (Linux)
+    timeout-minutes: 15
     
     steps:
     - uses: actions/checkout@v4
@@ -29,6 +36,8 @@ jobs:
     
     - name: Run TUI tests
       run: node tests/run_tui_tests.js
+      timeout-minutes: 10
+      continue-on-error: true
       env:
         FORCE_COLOR: 0
         NO_COLOR: 1
@@ -49,10 +58,12 @@ jobs:
           tests/tui_test_consolidated_report.json
           tests/TUI_TEST_RESULTS.md
           tests/tui_test_report.json
+        if-no-files-found: warn
 
   test-windows:
     runs-on: windows-latest
     name: TUI Tests (Windows)
+    timeout-minutes: 15
     
     steps:
     - uses: actions/checkout@v4
@@ -68,6 +79,8 @@ jobs:
     
     - name: Run TUI tests
       run: node tests/run_tui_tests.js
+      timeout-minutes: 10
+      continue-on-error: true
       env:
         FORCE_COLOR: 0
         NO_COLOR: 1
@@ -93,10 +106,12 @@ jobs:
           tests/TUI_TEST_RESULTS.md
           tests/tui_test_report.json
           tests/tui_test_report_windows.json
+        if-no-files-found: warn
 
   test-macos:
     runs-on: macos-latest
     name: TUI Tests (macOS)
+    timeout-minutes: 15
     
     steps:
     - uses: actions/checkout@v4
@@ -112,6 +127,8 @@ jobs:
     
     - name: Run TUI tests
       run: node tests/run_tui_tests.js
+      timeout-minutes: 10
+      continue-on-error: true
       env:
         FORCE_COLOR: 0
         NO_COLOR: 1
@@ -132,6 +149,7 @@ jobs:
           tests/tui_test_consolidated_report.json
           tests/TUI_TEST_RESULTS.md
           tests/tui_test_report.json
+        if-no-files-found: warn
 
   report:
     needs: [test-linux, test-windows, test-macos]

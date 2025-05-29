@@ -69,14 +69,32 @@ export const llmContext = withErrorBoundary(async function llmContextInternal(fi
           // Create smart sampling strategy for large datasets
           const samplingStrategy = createSamplingStrategy(allRecords, 'basic');
           
-          // For LLM, be more aggressive with sampling for performance
-          const maxRowsForLLM = 5000;
-          if (originalSize > maxRowsForLLM) {
-            if (spinner) {
-              spinner.text = `Large dataset detected (${originalSize.toLocaleString()} rows). Sampling ${maxRowsForLLM.toLocaleString()} rows for analysis...`;
+          // Handle large datasets with user-friendly notifications
+          let maxRowsForLLM = 10000;
+          
+          if (originalSize > 10000) {
+            console.log(chalk.yellow(`\n⚠️  Large dataset detected: ${originalSize.toLocaleString()} rows`));
+            
+            if (originalSize > 50000) {
+              // Very large dataset
+              maxRowsForLLM = 10000;
+              console.log(chalk.cyan('📊 Using intelligent sampling for LLM context generation.'));
+              console.log(chalk.cyan(`   Processing ${maxRowsForLLM.toLocaleString()} representative rows...`));
             } else {
-              console.log(`- Large dataset detected (${originalSize.toLocaleString()} rows). Sampling ${maxRowsForLLM.toLocaleString()} rows for analysis...`);
+              // Medium-large dataset
+              maxRowsForLLM = 20000;
+              console.log(chalk.cyan('⏱️  Analysis may take up to 30 seconds...'));
+              console.log(chalk.cyan(`   Processing ${Math.min(maxRowsForLLM, originalSize).toLocaleString()} rows...`));
             }
+            
+            if (spinner) {
+              spinner.text = `Analyzing ${Math.min(maxRowsForLLM, originalSize).toLocaleString()} rows...`;
+            }
+          } else if (spinner) {
+            spinner.text = `Analyzing ${originalSize.toLocaleString()} rows...`;
+          }
+          
+          if (originalSize > maxRowsForLLM) {
             
             const customStrategy = {
               method: 'systematic',
