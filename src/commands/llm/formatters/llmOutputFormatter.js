@@ -106,15 +106,23 @@ function formatKeyColumns(results) {
 function formatImportantPatterns(results) {
   let section = createSubSection('IMPORTANT PATTERNS AND INSIGHTS', '');
   
-  const { keyFindings, synthesis } = results;
+  const { keyFindings, synthesis, originalAnalysis } = results;
   
-  if (!keyFindings || keyFindings.length === 0) {
+  // Try to get findings from multiple sources
+  let findings = keyFindings || [];
+  
+  // Fallback: Extract patterns from original analysis if no key findings
+  if ((!findings || findings.length === 0) && originalAnalysis) {
+    findings = extractFallbackPatterns(originalAnalysis, results);
+  }
+  
+  if (!findings || findings.length === 0) {
     section += '\nNo significant patterns detected in the data.\n';
     return section;
   }
   
   // Format key findings with enhanced context
-  keyFindings.forEach((finding, idx) => {
+  findings.forEach((finding, idx) => {
     section += `\n${idx + 1}. ${finding.title}: `;
     
     // Main finding
@@ -141,7 +149,7 @@ function formatImportantPatterns(results) {
   // Add cross-analysis patterns if significant
   if (synthesis?.crossAnalysisPatterns && synthesis.crossAnalysisPatterns.length > 0) {
     const topPattern = synthesis.crossAnalysisPatterns[0];
-    section += `\n${keyFindings.length + 1}. PATTERN: ${topPattern.pattern} - ${topPattern.description}\n`;
+    section += `\n${findings.length + 1}. PATTERN: ${topPattern.pattern} - ${topPattern.description}\n`;
   }
   
   return section;
@@ -153,7 +161,8 @@ function formatDataQualityNotes(results) {
   
   // Overall quality score
   if (intSummary?.qualityScore) {
-    notes.push(`Overall quality: ${intSummary.qualityScore.grade} (${(intSummary.qualityScore.score * 100).toFixed(0)}%)`);
+    // Score is already in 0-100 range, don't multiply by 100
+    notes.push(`Overall quality: ${intSummary.qualityScore.grade} (${intSummary.qualityScore.score}%)`);
   }
   
   // Critical issues only
@@ -548,4 +557,77 @@ function patternToQuestion(pattern) {
     default:
       return null;
   }
+}
+
+function extractFallbackPatterns(originalAnalysis, results) {
+  const patterns = [];
+  
+  // Extract from correlations if available
+  if (originalAnalysis.correlations && originalAnalysis.correlations.length > 0) {
+    originalAnalysis.correlations.slice(0, 2).forEach(corr => {
+      patterns.push({
+        title: 'CORRELATION',
+        description: corr,
+        confidence: 0.8
+      });
+    });
+  }
+  
+  // Extract from seasonal patterns
+  if (originalAnalysis.seasonalPattern) {
+    patterns.push({
+      title: 'SEASONALITY',
+      description: originalAnalysis.seasonalPattern,
+      confidence: 0.9
+    });
+  }
+  
+  // Extract from segment analysis
+  if (originalAnalysis.segmentAnalysis) {
+    patterns.push({
+      title: originalAnalysis.segmentAnalysis.title,
+      description: originalAnalysis.segmentAnalysis.insight,
+      confidence: 0.8
+    });
+  }
+  
+  // Extract from category analysis
+  if (originalAnalysis.categoryAnalysis) {
+    patterns.push({
+      title: originalAnalysis.categoryAnalysis.title,
+      description: originalAnalysis.categoryAnalysis.insight,
+      confidence: 0.8
+    });
+  }
+  
+  // Extract from pricing insights
+  if (originalAnalysis.pricingInsights) {
+    patterns.push({
+      title: 'PRICING INSIGHTS',
+      description: originalAnalysis.pricingInsights,
+      confidence: 0.7
+    });
+  }
+  
+  // Extract from anomalies
+  if (originalAnalysis.anomalies && originalAnalysis.anomalies.length > 0) {
+    patterns.push({
+      title: 'ANOMALIES DETECTED',
+      description: originalAnalysis.anomalies.slice(0, 2).join('; '),
+      confidence: 0.9
+    });
+  }
+  
+  // Extract statistical insights from summaries if available
+  if (results.summaries?.edaSummary?.statisticalInsights) {
+    results.summaries.edaSummary.statisticalInsights.slice(0, 2).forEach(insight => {
+      patterns.push({
+        title: 'STATISTICAL INSIGHT',
+        description: insight.finding || insight.description || insight,
+        confidence: insight.confidence || 0.8
+      });
+    });
+  }
+  
+  return patterns;
 }

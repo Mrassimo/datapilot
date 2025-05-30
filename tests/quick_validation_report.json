@@ -1,0 +1,42 @@
+{
+  "timestamp": "2025-05-30T12:33:56.162Z",
+  "summary": {
+    "total": 5,
+    "passed": 3,
+    "passRate": 60
+  },
+  "results": {
+    "startup": true,
+    "mainMenu": true,
+    "noErrors": false,
+    "navigation": false,
+    "colors": true,
+    "components": [
+      "Demo Mode",
+      "Settings",
+      "Exit"
+    ]
+  },
+  "checks": [
+    {
+      "name": "TUI Startup",
+      "passed": true
+    },
+    {
+      "name": "Main Menu Display",
+      "passed": true
+    },
+    {
+      "name": "No Errors",
+      "passed": false
+    },
+    {
+      "name": "Navigation Elements",
+      "passed": false
+    },
+    {
+      "name": "Visual Formatting",
+      "passed": true
+    }
+  ]
+}

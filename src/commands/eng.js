@@ -2242,8 +2242,16 @@ export async function engineering(filePath, options = {}) {
   // Use archaeology engine if no specific options
   const engine = new ArchaeologyEngine();
   const report = await engine.analyzeTable(filePath, options);
-  console.log(report);
+  
+  // Only output to console if not in structured mode (not being called by LLM command)
+  if (!options.structuredOutput && !options.llmMode) {
+    console.log(report);
+  }
+  
   outputHandler.finalize();
+  
+  // Return the report for structured consumption
+  return report;
 }
 
 // Legacy functions preserved for compatibility

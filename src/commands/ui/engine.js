@@ -81,11 +81,6 @@ export class TUIEngine {
         hint: '🗄️  View, delete, or manage warehouse knowledge'
       },
       {
-        name: 'learning',
-        message: '🎓 Learning Mode',
-        hint: '📚 Interactive tutorials and data science concepts'
-      },
-      {
         name: 'settings',
         message: '⚙️  Settings & Preferences',
         hint: '🛠️  Configure DataPilot behavior and appearance'
@@ -108,8 +103,6 @@ export class TUIEngine {
         return await this.startDemo();
       case 'memory':
         return await this.startMemoryManager();
-      case 'learning':
-        return await this.startLearningMode();
       case 'settings':
         return await this.startSettings();
       case 'exit':
@@ -187,12 +180,17 @@ export class TUIEngine {
       });
     }
     
-    // Manual entry option
+    // Manual entry and navigation options
     choices.push({ name: 'separator', message: '─────────────────────', role: 'separator' });
     choices.push({
       name: 'manual',
       message: '📂 Browse for File',
       hint: 'Enter file path manually'
+    });
+    choices.push({
+      name: 'back',
+      message: '⬅️  Back to Main Menu',
+      hint: 'Return to main menu'
     });
     
     return choices;
@@ -321,16 +319,18 @@ export class TUIEngine {
     const demoPath = path.join(process.cwd(), 'tests', 'fixtures');
     const datasets = [];
     
+    // Only include 2 specific demo datasets as requested
+    const allowedDemos = ['boston_housing.csv', 'iris.csv'];
+    
     try {
       if (this.dependencies.fs.existsSync(demoPath)) {
-        const files = this.dependencies.fs.readdirSync(demoPath);
-        files.forEach(file => {
-          if (file.endsWith('.csv') && !file.includes('empty')) {
-            const fullPath = path.join(demoPath, file);
+        allowedDemos.forEach(filename => {
+          const fullPath = path.join(demoPath, filename);
+          if (this.dependencies.fs.existsSync(fullPath)) {
             datasets.push({
-              name: file.replace('.csv', ''),
+              name: filename.replace('.csv', ''),
               path: fullPath,
-              description: this.getDemoDescription(file)
+              description: this.getDemoDescription(filename)
             });
           }
         });
@@ -344,11 +344,8 @@ export class TUIEngine {
   
   getDemoDescription(filename) {
     const descriptions = {
-      'test_sales.csv': 'E-commerce sales data with transactions, products, and customer segments',
-      'insurance.csv': 'Insurance policy data with coverage details and customer information',
-      'australian_data.csv': 'Australian-specific dataset with postcodes and regional data',
-      'missing_values.csv': 'Dataset with various missing value patterns for quality testing',
-      'large_numeric.csv': 'Large numerical dataset for performance and statistical analysis'
+      'boston_housing.csv': 'Classic housing dataset with 506 samples and 14 features for regression analysis',
+      'iris.csv': 'Famous flower classification dataset with 150 samples and 4 measurements'
     };
     
     return descriptions[filename] || 'Sample dataset for demonstration purposes';
@@ -524,22 +521,6 @@ export class TUIEngine {
     return results;
   }
 
-  // === Learning Mode ===
-  
-  async startLearningMode() {
-    return {
-      action: 'learning',
-      message: 'Learning mode initialized',
-      modules: [
-        'Data Analysis Fundamentals',
-        'Exploratory Data Analysis (EDA)',
-        'Data Quality & Integrity',
-        'Visualization Best Practices',
-        'Data Engineering Principles',
-        'AI-Ready Data Preparation'
-      ]
-    };
-  }
 
   // === Settings ===
   

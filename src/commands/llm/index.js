@@ -195,10 +195,9 @@ export async function comprehensiveLLMAnalysis(records, headers, filePath, optio
     return result;
     
   } catch (error) {
-    outputHandler.restore();
     if (spinner) spinner.error({ text: 'Error generating LLM context' });
-    console.error(error.message);
-    if (!options.quiet) process.exit(1);
+    console.error('Comprehensive LLM analysis error:', error.message);
+    // Don't exit process here, let caller handle the error
     throw error;
   }
 }

@@ -63778,8 +63778,16 @@ async function engineering(filePath, options = {}) {
   // Use archaeology engine if no specific options
   const engine = new ArchaeologyEngine();
   const report = await engine.analyzeTable(filePath, options);
-  console.log(report);
+  
+  // Only output to console if not in structured mode (not being called by LLM command)
+  if (!options.structuredOutput && !options.llmMode) {
+    console.log(report);
+  }
+  
   outputHandler.finalize();
+  
+  // Return the report for structured consumption
+  return report;
 }
 
 // Legacy functions preserved for compatibility
@@ -66506,15 +66514,23 @@ function formatKeyColumns(results) {
 function formatImportantPatterns(results) {
   let section = createSubSection('IMPORTANT PATTERNS AND INSIGHTS', '');
   
-  const { keyFindings, synthesis } = results;
+  const { keyFindings, synthesis, originalAnalysis } = results;
   
-  if (!keyFindings || keyFindings.length === 0) {
+  // Try to get findings from multiple sources
+  let findings = keyFindings || [];
+  
+  // Fallback: Extract patterns from original analysis if no key findings
+  if ((!findings || findings.length === 0) && originalAnalysis) {
+    findings = extractFallbackPatterns(originalAnalysis, results);
+  }
+  
+  if (!findings || findings.length === 0) {
     section += '\nNo significant patterns detected in the data.\n';
     return section;
   }
   
   // Format key findings with enhanced context
-  keyFindings.forEach((finding, idx) => {
+  findings.forEach((finding, idx) => {
     section += `\n${idx + 1}. ${finding.title}: `;
     
     // Main finding
@@ -66541,7 +66557,7 @@ function formatImportantPatterns(results) {
   // Add cross-analysis patterns if significant
   if (synthesis?.crossAnalysisPatterns && synthesis.crossAnalysisPatterns.length > 0) {
     const topPattern = synthesis.crossAnalysisPatterns[0];
-    section += `\n${keyFindings.length + 1}. PATTERN: ${topPattern.pattern} - ${topPattern.description}\n`;
+    section += `\n${findings.length + 1}. PATTERN: ${topPattern.pattern} - ${topPattern.description}\n`;
   }
   
   return section;
@@ -66553,7 +66569,8 @@ function formatDataQualityNotes(results) {
   
   // Overall quality score
   if (intSummary?.qualityScore) {
-    notes.push(`Overall quality: ${intSummary.qualityScore.grade} (${(intSummary.qualityScore.score * 100).toFixed(0)}%)`);
+    // Score is already in 0-100 range, don't multiply by 100
+    notes.push(`Overall quality: ${intSummary.qualityScore.grade} (${intSummary.qualityScore.score}%)`);
   }
   
   // Critical issues only
@@ -66950,6 +66967,79 @@ function patternToQuestion(pattern) {
   }
 }
 
+function extractFallbackPatterns(originalAnalysis, results) {
+  const patterns = [];
+  
+  // Extract from correlations if available
+  if (originalAnalysis.correlations && originalAnalysis.correlations.length > 0) {
+    originalAnalysis.correlations.slice(0, 2).forEach(corr => {
+      patterns.push({
+        title: 'CORRELATION',
+        description: corr,
+        confidence: 0.8
+      });
+    });
+  }
+  
+  // Extract from seasonal patterns
+  if (originalAnalysis.seasonalPattern) {
+    patterns.push({
+      title: 'SEASONALITY',
+      description: originalAnalysis.seasonalPattern,
+      confidence: 0.9
+    });
+  }
+  
+  // Extract from segment analysis
+  if (originalAnalysis.segmentAnalysis) {
+    patterns.push({
+      title: originalAnalysis.segmentAnalysis.title,
+      description: originalAnalysis.segmentAnalysis.insight,
+      confidence: 0.8
+    });
+  }
+  
+  // Extract from category analysis
+  if (originalAnalysis.categoryAnalysis) {
+    patterns.push({
+      title: originalAnalysis.categoryAnalysis.title,
+      description: originalAnalysis.categoryAnalysis.insight,
+      confidence: 0.8
+    });
+  }
+  
+  // Extract from pricing insights
+  if (originalAnalysis.pricingInsights) {
+    patterns.push({
+      title: 'PRICING INSIGHTS',
+      description: originalAnalysis.pricingInsights,
+      confidence: 0.7
+    });
+  }
+  
+  // Extract from anomalies
+  if (originalAnalysis.anomalies && originalAnalysis.anomalies.length > 0) {
+    patterns.push({
+      title: 'ANOMALIES DETECTED',
+      description: originalAnalysis.anomalies.slice(0, 2).join('; '),
+      confidence: 0.9
+    });
+  }
+  
+  // Extract statistical insights from summaries if available
+  if (results.summaries?.edaSummary?.statisticalInsights) {
+    results.summaries.edaSummary.statisticalInsights.slice(0, 2).forEach(insight => {
+      patterns.push({
+        title: 'STATISTICAL INSIGHT',
+        description: insight.finding || insight.description || insight,
+        confidence: insight.confidence || 0.8
+      });
+    });
+  }
+  
+  return patterns;
+}
+
 /**
  * LLM Command Implementation
  * Orchestrates all analyses in summary mode and synthesizes insights
@@ -67107,10 +67197,9 @@ async function comprehensiveLLMAnalysis(records, headers, filePath, options = {}
     return result;
     
   } catch (error) {
-    outputHandler.restore();
     if (spinner) spinner.error({ text: 'Error generating LLM context' });
-    console.error(error.message);
-    if (!options.quiet) process.exit(1);
+    console.error('Comprehensive LLM analysis error:', error.message);
+    // Don't exit process here, let caller handle the error
     throw error;
   }
 }
@@ -76342,11 +76431,6 @@ class TUIEngine {
         hint: '🗄️  View, delete, or manage warehouse knowledge'
       },
       {
-        name: 'learning',
-        message: '🎓 Learning Mode',
-        hint: '📚 Interactive tutorials and data science concepts'
-      },
-      {
         name: 'settings',
         message: '⚙️  Settings & Preferences',
         hint: '🛠️  Configure DataPilot behavior and appearance'
@@ -76369,8 +76453,6 @@ class TUIEngine {
         return await this.startDemo();
       case 'memory':
         return await this.startMemoryManager();
-      case 'learning':
-        return await this.startLearningMode();
       case 'settings':
         return await this.startSettings();
       case 'exit':
@@ -76448,12 +76530,17 @@ class TUIEngine {
       });
     }
     
-    // Manual entry option
+    // Manual entry and navigation options
     choices.push({ name: 'separator', message: '─────────────────────', role: 'separator' });
     choices.push({
       name: 'manual',
       message: '📂 Browse for File',
       hint: 'Enter file path manually'
+    });
+    choices.push({
+      name: 'back',
+      message: '⬅️  Back to Main Menu',
+      hint: 'Return to main menu'
     });
     
     return choices;
@@ -76582,16 +76669,18 @@ class TUIEngine {
     const demoPath = path$1.join(process.cwd(), 'tests', 'fixtures');
     const datasets = [];
     
+    // Only include 2 specific demo datasets as requested
+    const allowedDemos = ['boston_housing.csv', 'iris.csv'];
+    
     try {
       if (this.dependencies.fs.existsSync(demoPath)) {
-        const files = this.dependencies.fs.readdirSync(demoPath);
-        files.forEach(file => {
-          if (file.endsWith('.csv') && !file.includes('empty')) {
-            const fullPath = path$1.join(demoPath, file);
+        allowedDemos.forEach(filename => {
+          const fullPath = path$1.join(demoPath, filename);
+          if (this.dependencies.fs.existsSync(fullPath)) {
             datasets.push({
-              name: file.replace('.csv', ''),
+              name: filename.replace('.csv', ''),
               path: fullPath,
-              description: this.getDemoDescription(file)
+              description: this.getDemoDescription(filename)
             });
           }
         });
@@ -76605,11 +76694,8 @@ class TUIEngine {
   
   getDemoDescription(filename) {
     const descriptions = {
-      'test_sales.csv': 'E-commerce sales data with transactions, products, and customer segments',
-      'insurance.csv': 'Insurance policy data with coverage details and customer information',
-      'australian_data.csv': 'Australian-specific dataset with postcodes and regional data',
-      'missing_values.csv': 'Dataset with various missing value patterns for quality testing',
-      'large_numeric.csv': 'Large numerical dataset for performance and statistical analysis'
+      'boston_housing.csv': 'Classic housing dataset with 506 samples and 14 features for regression analysis',
+      'iris.csv': 'Famous flower classification dataset with 150 samples and 4 measurements'
     };
     
     return descriptions[filename] || 'Sample dataset for demonstration purposes';
@@ -76785,22 +76871,6 @@ class TUIEngine {
     return results;
   }
 
-  // === Learning Mode ===
-  
-  async startLearningMode() {
-    return {
-      action: 'learning',
-      message: 'Learning mode initialized',
-      modules: [
-        'Data Analysis Fundamentals',
-        'Exploratory Data Analysis (EDA)',
-        'Data Quality & Integrity',
-        'Visualization Best Practices',
-        'Data Engineering Principles',
-        'AI-Ready Data Preparation'
-      ]
-    };
-  }
 
   // === Settings ===
   
@@ -76828,51 +76898,56 @@ class TUIEngine {
 
 const { prompt } = enquirer;
 
-// Safe color functions with fallbacks
+// Dark-terminal optimized color functions
 const safeColors = {
-  rainbow: (text) => {
-    try {
-      return chalk.red(text.slice(0, text.length/6)) + 
-             chalk.yellow(text.slice(text.length/6, text.length/3)) + 
-             chalk.green(text.slice(text.length/3, text.length/2)) + 
-             chalk.cyan(text.slice(text.length/2, 2*text.length/3)) + 
-             chalk.blue(text.slice(2*text.length/3, 5*text.length/6)) + 
-             chalk.magenta(text.slice(5*text.length/6));
-    } catch (error) {
-      return chalk.cyan(text);
-    }
-  },
-  ocean: (text) => chalk.blue(text),
-  sunset: (text) => chalk.yellow(text),
-  forest: (text) => chalk.green(text),
-  fire: (text) => chalk.red(text),
-  cosmic: (text) => chalk.magenta(text),
+  // Bright colors that work well on dark backgrounds
+  primary: (text) => chalk.cyan.bold(text),        // Bright cyan for headings
+  secondary: (text) => chalk.white(text),          // White for important text
+  accent: (text) => chalk.yellow.bold(text),       // Bold yellow for highlights
+  success: (text) => chalk.green.bold(text),       // Bold green for success
+  warning: (text) => chalk.yellow(text),           // Yellow for warnings
+  danger: (text) => chalk.red.bold(text),          // Bold red for errors
+  info: (text) => chalk.blue.bold(text),           // Bold blue for info
+  muted: (text) => chalk.gray(text),               // Gray for secondary text
   cyan: (text) => chalk.cyan(text),
-  green: (text) => chalk.green(text),
-  blue: (text) => chalk.blue(text),
-  red: (text) => chalk.red(text),
-  yellow: (text) => chalk.yellow(text),
-  magenta: (text) => chalk.magenta(text)
+  green: (text) => chalk.green.bold(text),
+  blue: (text) => chalk.blue.bold(text),
+  red: (text) => chalk.red.bold(text),
+  yellow: (text) => chalk.yellow.bold(text),
+  magenta: (text) => chalk.magenta.bold(text),
+  white: (text) => chalk.white(text)
 };
 
-// Create comprehensive color object with ALL needed functions
+// Dark-terminal optimized gradients - no rainbow theme
 const gradients = {
-  rainbow: (text) => safeColors.rainbow(text),
-  ocean: (text) => safeColors.ocean(text),
-  sunset: (text) => safeColors.sunset(text),
-  forest: (text) => safeColors.forest(text),
-  fire: (text) => safeColors.fire(text),
-  cosmic: (text) => safeColors.cosmic(text),
+  // Remove jarring rainbow, use elegant gradients
+  title: (text) => safeColors.primary(text),       // Cyan for titles
+  menu: (text) => safeColors.secondary(text),      // White for menu items
+  highlight: (text) => safeColors.accent(text),    // Yellow for highlights
+  success: (text) => safeColors.success(text),     // Green for success
+  warning: (text) => safeColors.warning(text),     // Yellow for warnings
+  error: (text) => safeColors.danger(text),        // Red for errors
+  info: (text) => safeColors.info(text),           // Blue for info
+  subtle: (text) => safeColors.muted(text),        // Gray for subtle text
+  accent: (text) => safeColors.accent(text),       // Yellow for accents
+  
+  // Legacy support (mapped to better colors)
+  rainbow: (text) => safeColors.primary(text),     // Replace rainbow with cyan
+  ocean: (text) => safeColors.info(text),          // Blue
+  sunset: (text) => safeColors.accent(text),       // Yellow
+  forest: (text) => safeColors.success(text),      // Green
+  fire: (text) => safeColors.danger(text),         // Red
+  cosmic: (text) => safeColors.magenta(text),      // Magenta
   cyan: (text) => safeColors.cyan(text),
   green: (text) => safeColors.green(text),
   blue: (text) => safeColors.blue(text),
   red: (text) => safeColors.red(text),
   yellow: (text) => safeColors.yellow(text),
   magenta: (text) => safeColors.magenta(text),
-  purple: (text) => chalk.magenta(text),
-  gray: (text) => chalk.gray(text),
-  grey: (text) => chalk.gray(text),
-  white: (text) => chalk.white(text),
+  purple: (text) => safeColors.magenta(text),
+  gray: (text) => safeColors.muted(text),
+  grey: (text) => safeColors.muted(text),
+  white: (text) => safeColors.white(text),
   black: (text) => chalk.black(text)
 };
 
@@ -76923,10 +76998,10 @@ async function interactiveUI() {
 async function showMainMenu(engine) {
   const choices = engine.getMainMenuChoices();
   
-  // Enhanced main menu header
-  console.log('\\n' + boxen(
-    gradients.rainbow('🌟 MAIN MENU 🌟\\n') +
-    gradients.cyan('Choose your data adventure:'),
+  // Clean, professional main menu header
+  console.log('\n' + boxen(
+    gradients.title('⭐ MAIN MENU ⭐') + '\n' +
+    gradients.menu('Choose your data adventure:'),
     {
       padding: { top: 0, bottom: 0, left: 2, right: 2 },
       borderStyle: 'single',
@@ -76938,7 +77013,7 @@ async function showMainMenu(engine) {
   const response = await prompt({
     type: 'select',
     name: 'action',
-    message: gradients.cyan('🚀 What would you like to explore today?'),
+    message: gradients.highlight('🚀 What would you like to explore today?'),
     choices: choices
   });
   
@@ -76957,9 +77032,6 @@ async function handleMainMenuAction(engine, action) {
       break;
     case 'memory':
       await showMemoryManager(engine, result);
-      break;
-    case 'learning':
-      await showLearningMode();
       break;
     case 'settings':
       await showSettings();
@@ -77020,23 +77092,47 @@ async function selectFile(engine, csvFiles) {
   const response = await prompt({
     type: 'select',
     name: 'file',
-    message: gradients.green('📂 Select a CSV file to analyze:'),
+    message: gradients.success('📂 Select a CSV file to analyze:'),
     choices: choices
   });
   
+  if (response.file === 'back') {
+    return null; // Signal to return to main menu
+  }
+  
   if (response.file === 'manual') {
-    const manualResponse = await prompt({
-      type: 'input',
-      name: 'path',
-      message: 'Enter the path to your CSV file:',
-      validate: (input) => {
-        if (!input.trim()) return 'Please enter a file path';
-        if (!fs.existsSync(input)) return 'File does not exist';
-        if (!input.toLowerCase().endsWith('.csv')) return 'File must be a CSV file';
-        return true;
+    // Manual file entry with better error handling and retry
+    let filePath = null;
+    let attempts = 0;
+    const maxAttempts = 3;
+    
+    while (!filePath && attempts < maxAttempts) {
+      try {
+        const manualResponse = await prompt({
+          type: 'input',
+          name: 'path',
+          message: attempts > 0 ? 
+            gradients.warning(`⚠️  Try again (${maxAttempts - attempts} attempts left):`) :
+            gradients.info('Enter the path to your CSV file:'),
+          validate: (input) => {
+            if (!input.trim()) return 'Please enter a file path';
+            if (!fs.existsSync(input)) return 'File does not exist';
+            if (!input.toLowerCase().endsWith('.csv')) return 'File must be a CSV file';
+            return true;
+          }
+        });
+        filePath = manualResponse.path;
+      } catch (error) {
+        attempts++;
+        if (attempts >= maxAttempts) {
+          console.log(gradients.error('❌ Too many failed attempts. Returning to main menu.'));
+          return null;
+        }
+        console.log(gradients.warning(`⚠️  Invalid file path. ${maxAttempts - attempts} attempts remaining.`));
       }
-    });
-    return manualResponse.path;
+    }
+    
+    return filePath;
   }
   
   return response.file;
@@ -77233,7 +77329,7 @@ async function showMemoryManager(engine, memoryResult) {
         await clearAllMemories(engine);
         break;
       case 'export':
-        await exportMemories();
+        await exportMemories(engine);
         break;
       case 'session':
         await showSessionMemories();
@@ -77361,8 +77457,117 @@ async function clearAllMemories(engine) {
 }
 
 async function exportMemories(engine) {
-  console.log(chalk.yellow('Export memories feature - implementation in progress...'));
-  await prompt({ type: 'confirm', name: 'continue', message: 'Press Enter to continue...' });
+  console.clear();
+  
+  const exportHeader = `
+  ╔═════════════════════════════════════════════════════════════╗
+  ║                 💾 EXPORT MEMORIES 💾                      ║
+  ║               Save warehouse knowledge to file              ║
+  ╚═════════════════════════════════════════════════════════════╝`;
+  
+  console.log(gradients.title(exportHeader));
+  
+  try {
+    // Get all memories from the engine
+    const memories = await engine.listMemories();
+    
+    if (Object.keys(memories).length === 0) {
+      console.log(gradients.warning('\n⚠️  No memories found to export. Analyze some CSV files first!'));
+      await prompt({ type: 'confirm', name: 'continue', message: 'Press Enter to continue...' });
+      return;
+    }
+    
+    // Get export filename from user
+    const { filename } = await prompt({
+      type: 'input',
+      name: 'filename',
+      message: gradients.info('Enter filename for export (without extension):'),
+      initial: `datapilot-memories-${new Date().toISOString().split('T')[0]}`,
+      validate: (input) => {
+        if (!input.trim()) return 'Please enter a filename';
+        // Remove invalid filename characters
+        const cleaned = input.trim().replace(/[<>:"/\\|?*]/g, '-');
+        return cleaned.length > 0 || 'Please enter a valid filename';
+      }
+    });
+    
+    // Clean the filename
+    const cleanFilename = filename.trim().replace(/[<>:"/\\|?*]/g, '-');
+    const exportPath = `${cleanFilename}.txt`;
+    
+    const spinner = distExports.createSpinner('Exporting memories...').start();
+    
+    // Generate export content
+    let exportContent = `DataPilot Warehouse Knowledge Export
+Generated: ${new Date().toLocaleString()}
+═══════════════════════════════════════════════════════════════
+
+MEMORY SUMMARY
+──────────────────────────────────────────────────────────────
+Total Domains: ${Object.keys(memories).length}
+Total Tables: ${Object.values(memories).reduce((total, tables) => total + tables.length, 0)}
+
+`;
+
+    // Export each domain and its tables
+    Object.entries(memories).forEach(([domain, tables]) => {
+      exportContent += `\n🏢 ${domain.toUpperCase()} DOMAIN
+──────────────────────────────────────────────────────────────
+Tables in this domain: ${tables.length}
+
+`;
+      
+      tables.forEach((table, index) => {
+        exportContent += `${index + 1}. ${table.name}
+   • Rows: ${table.rows?.toLocaleString() || 'Unknown'}
+   • Columns: ${table.columns || 'Unknown'}
+   • Quality: ${table.quality || 'N/A'}
+
+`;
+      });
+    });
+    
+    // Add detailed warehouse knowledge if available
+    try {
+      const detailedKnowledge = await engine.getDetailedKnowledge();
+      if (detailedKnowledge) {
+        exportContent += `\nDETAILED WAREHOUSE KNOWLEDGE
+──────────────────────────────────────────────────────────────
+${detailedKnowledge}
+
+`;
+      }
+    } catch (error) {
+      // Continue without detailed knowledge if not available
+    }
+    
+    exportContent += `\nExport completed at ${new Date().toLocaleString()}
+Generated by DataPilot - Your Data Analysis Co-Pilot 🛩️
+`;
+    
+    // Write to file
+    fs.writeFileSync(exportPath, exportContent, 'utf8');
+    
+    spinner.succeed('Memories exported successfully!');
+    
+    console.log('\n' + boxen(
+      gradients.success(`✅ Export Complete!\n\n`) +
+      gradients.info(`📁 File saved as: ${exportPath}\n`) +
+      gradients.info(`📊 Exported ${Object.keys(memories).length} domains with ${Object.values(memories).reduce((total, tables) => total + tables.length, 0)} tables\n`) +
+      gradients.subtle(`💡 You can now share this file or use it for documentation`),
+      {
+        padding: 1,
+        borderColor: 'green',
+        title: '💾 Export Summary',
+        titleAlignment: 'center'
+      }
+    ));
+    
+  } catch (error) {
+    console.log(gradients.error(`\n❌ Export failed: ${error.message}`));
+  }
+  
+  await prompt({ type: 'confirm', name: 'continue', message: '\nPress Enter to continue...' });
 }
 
 async function showSessionMemories() {
@@ -77407,9 +77612,9 @@ async function showResults() {
   console.log(chalk.gray('(In the actual implementation, results would be shown here)'));
 }
 
-// Enhanced animation functions with better ASCII art
+// Clean animation functions with proper ASCII art
 async function showWelcomeAnimation() {
-  // Clear screen and show enhanced DataPilot ASCII art
+  // Clear screen and show clean DataPilot ASCII art
   console.clear();
   
   const logo = `
@@ -77421,22 +77626,22 @@ async function showWelcomeAnimation() {
   ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝╚═╝     ╚═╝╚══════╝ ╚═════╝    ╚═╝   
                       🛩️ Your Data Analysis Co-Pilot 🛩️`;
 
-  console.log(gradients.rainbow(logo));
+  console.log(gradients.title(logo));
   
-  // Enhanced welcome message with better styling
-  console.log('\\n' + boxen(
-    gradients.cyan('✨ Welcome to DataPilot Interactive Terminal UI! ✨\\n\\n') +
-    gradients.green('🎯 Perfect for beginners and experts alike\\n') +
-    gradients.blue('🎨 Beautiful insights and visualizations\\n') +
-    gradients.yellow('🤖 AI-ready analysis generation\\n') +
-    gradients.magenta('🚀 Zero installation, maximum insights\\n\\n') +
-    gradients.gray('Navigate: ↑↓ arrows | Select: Enter | Exit: Ctrl+C'),
+  // Clean welcome message with better styling and proper borders
+  console.log('\n' + boxen(
+    gradients.title('✨ Welcome to DataPilot Interactive Terminal UI! ✨') + '\n\n' +
+    gradients.success('🎯 Perfect for beginners and experts alike') + '\n' +
+    gradients.info('🎨 Beautiful insights and visualizations') + '\n' +
+    gradients.highlight('🤖 AI-ready analysis generation') + '\n' +
+    gradients.accent('🚀 Zero installation, maximum insights') + '\n\n' +
+    gradients.subtle('Navigate: ↑↓ arrows | Select: Enter | Exit: Ctrl+C'),
     {
       padding: 1,
       margin: 1,
-      borderStyle: 'double',
+      borderStyle: 'single',
       borderColor: 'cyan',
-      title: '🌟 Interactive Data Analysis Engine 🌟',
+      title: '⭐ Interactive Data Analysis Engine ⭐',
       titleAlignment: 'center'
     }
   ));
@@ -77459,11 +77664,11 @@ async function showGoodbyeAnimation() {
   
   console.log(gradients.sunset(farewellArt));
   
-  console.log('\\n' + boxen(
-    gradients.cyan('Thank you for using DataPilot! 🙏\\n\\n') +
-    gradients.green('🎯 Data insights discovered\\n') +
-    gradients.blue('📊 Knowledge gained\\n') +
-    gradients.yellow('🚀 Analysis complete\\n\\n') +
+  console.log('\n' + boxen(
+    gradients.cyan('Thank you for using DataPilot! 🙏') + '\n\n' +
+    gradients.green('🎯 Data insights discovered') + '\n' +
+    gradients.blue('📊 Knowledge gained') + '\n' +
+    gradients.yellow('🚀 Analysis complete') + '\n\n' +
     gradients.ocean('Come back soon for more data adventures! 📈✨'),
     {
       padding: 1,
@@ -77475,41 +77680,42 @@ async function showGoodbyeAnimation() {
     }
   ));
   
-  console.log('\\n' + gradients.rainbow('   ▶ Happy analyzing! Keep discovering insights! ◀\\n'));
+  console.log('\n' + gradients.rainbow('   ▶ Happy analyzing! Keep discovering insights! ◀') + '\n');
 }
 
-async function showLearningMode(engine, result) {
+async function showAboutInfo() {
   console.clear();
   
-  // Enhanced learning mode header
-  const learningHeader = `
+  const aboutHeader = `
   ╔═════════════════════════════════════════════════════════════╗
-  ║                   🎓 LEARNING MODE 🎓                      ║
-  ║             Interactive data science tutorials               ║
+  ║                   📋 ABOUT DATAPILOT 📋                    ║
+  ║                  Your Data Analysis Co-Pilot                ║
   ╚═════════════════════════════════════════════════════════════╝`;
   
-  console.log(gradients.green(learningHeader));
+  console.log(gradients.title(aboutHeader));
   
   console.log('\\n' + boxen(
-    gradients.yellow('📚 Learning Modules Coming Soon! 📚\\n\\n') +
-    'Interactive tutorials will cover:\\n' +
-    gradients.green('• 📊 Data Analysis Fundamentals\\n') +
-    gradients.blue('• 🔍 Exploratory Data Analysis (EDA)\\n') +
-    gradients.cyan('• 🛡️  Data Quality & Integrity\\n') +
-    gradients.magenta('• 📈 Visualization Best Practices\\n') +
-    gradients.yellow('• 🏗️  Data Engineering Principles\\n') +
-    gradients.red('• 🤖 AI-Ready Data Preparation'),
+    gradients.cyan('DataPilot v1.1.0\\n\\n') +
+    gradients.green('🛩️ Your Data Analysis Co-Pilot\\n') +
+    gradients.blue('📊 Comprehensive CSV analysis suite\\n') +
+    gradients.yellow('🤖 AI-ready context generation\\n') +
+    gradients.magenta('🔍 Data quality & integrity checks\\n') +
+    gradients.white('📈 Visualization recommendations\\n') +
+    gradients.cyan('🏗️ Data engineering archaeology\\n\\n') +
+    gradients.subtle('Built with Node.js + modern CLI tools\\n') +
+    gradients.subtle('Open source & actively maintained\\n') +
+    gradients.subtle('Created for analysts by analysts'),
     {
       padding: 1,
-      borderStyle: 'round',
-      borderColor: 'green',
-      title: '🎯 Educational Content',
+      borderColor: 'cyan',
+      title: '📊 System Information',
       titleAlignment: 'center'
     }
   ));
   
   await prompt({ type: 'confirm', name: 'continue', message: '\\nPress Enter to continue...' });
 }
+
 
 async function showSettings(engine, result) {
   console.clear();
@@ -77541,7 +77747,67 @@ async function showSettings(engine, result) {
     }
   ));
   
-  await prompt({ type: 'confirm', name: 'continue', message: '\\nPress Enter to continue...' });
+  console.log();
+  
+  // Provide actual navigation menu instead of just confirmation
+  let inSettings = true;
+  while (inSettings) {
+    const response = await prompt({
+      type: 'select',
+      name: 'action',
+      message: gradients.cyan('What would you like to do?'),
+      choices: [
+        {
+          name: 'themes',
+          message: '🎨 Color Themes (Coming Soon)',
+          hint: 'Customize DataPilot appearance'
+        },
+        {
+          name: 'defaults',
+          message: '📊 Default Analysis Types (Coming Soon)',
+          hint: 'Set preferred analysis modes'
+        },
+        {
+          name: 'memory',
+          message: '💾 Memory Preferences (Coming Soon)',
+          hint: 'Configure knowledge storage'
+        },
+        {
+          name: 'paths',
+          message: '📁 File Search Paths (Coming Soon)',
+          hint: 'Set default directories'
+        },
+        {
+          name: 'performance',
+          message: '⚡ Performance Options (Coming Soon)',
+          hint: 'Optimize for your system'
+        },
+        {
+          name: 'about',
+          message: '📋 About DataPilot',
+          hint: 'Version and system information'
+        },
+        {
+          name: 'back',
+          message: '⬅️  Back to Main Menu',
+          hint: 'Return to main menu'
+        }
+      ]
+    });
+    
+    switch (response.action) {
+      case 'about':
+        await showAboutInfo();
+        break;
+      case 'back':
+        inSettings = false;
+        break;
+      default:
+        console.log(gradients.yellow('\\n⚠️  This feature is coming soon!'));
+        await prompt({ type: 'confirm', name: 'continue', message: 'Press Enter to continue...' });
+        break;
+    }
+  }
 }
 
 // ASCII art banner with version
