@@ -1,12 +1,20 @@
 import * as ss from 'simple-statistics';
 
 export function calculateEnhancedStats(values) {
-  const numbers = values.filter(v => typeof v === 'number' && !isNaN(v));
+  // Handle null string values and filter safely
+  const cleanedValues = values.map(v => {
+    if (typeof v === 'string' && (v.toLowerCase() === 'null' || v === 'NULL')) {
+      return null;
+    }
+    return v;
+  });
+  
+  const numbers = cleanedValues.filter(v => typeof v === 'number' && !isNaN(v) && isFinite(v));
   
   if (numbers.length === 0) {
     return { 
       count: 0, 
-      nullCount: values.length,
+      nullCount: cleanedValues.length,
       hasData: false 
     };
   }

@@ -146,6 +146,8 @@ export async function edaComprehensive(filePath, options = {}) {
       
       // Detect what analyses to run with timeout protection
       if (spinner) spinner.text = 'Detecting analysis requirements...';
+      
+      
       const analysisNeeds = detectAnalysisNeeds(records, columnTypes);
       
       // For very large datasets, disable expensive analyses
@@ -187,9 +189,12 @@ export async function edaComprehensive(filePath, options = {}) {
       for (const column of columns) {
         try {
           const type = columnTypes[column];
+          
           // For large datasets, estimate non-null ratio from sample
           const sampleValues = sampleForStats.map(r => r[column]);
+          
           const nonNullInSample = sampleValues.filter(v => v !== null && v !== undefined).length;
+          
           const nonNullRatio = nonNullInSample / sampleForStats.length;
           const estimatedNonNullCount = Math.round(nonNullRatio * records.length);
           
@@ -206,6 +211,7 @@ export async function edaComprehensive(filePath, options = {}) {
           
           // Add timeout protection for expensive calculations
           if (['integer', 'float'].includes(type.type) && values.length > 0) {
+            
             const statsPromise = Promise.resolve(calculateEnhancedStats(values));
             const statsTimeout = new Promise((_, reject) => {
               setTimeout(() => reject(new Error('Stats calculation timeout')), 5000);
@@ -241,9 +247,11 @@ export async function edaComprehensive(filePath, options = {}) {
         }
       }
       
+      
       analysis.completeness = totalNonNull / (records.length * columns.length);
       analysis.completenessLevel = analysis.completeness > 0.9 ? 'good' : 
                                    analysis.completeness > 0.7 ? 'fair' : 'poor';
+      
       
       // Count duplicates with timeout protection
       try {
@@ -281,8 +289,13 @@ export async function edaComprehensive(filePath, options = {}) {
         );
         
         for (const col of numericColumns) {
-          const values = records.map(r => r[col]);
-          analysis.distributionAnalysis[col] = await analyzeDistribution(values);
+          try {
+            const values = records.map(r => r[col]);
+            
+            analysis.distributionAnalysis[col] = await analyzeDistribution(values);
+          } catch (distError) {
+            throw distError;
+          }
         }
       }
       
@@ -297,11 +310,17 @@ export async function edaComprehensive(filePath, options = {}) {
         
         let totalOutliers = 0;
         for (const col of numericColumns) {
-          const values = records.map(r => r[col]);
-          const outlierResult = detectOutliers(values, col);
-          analysis.outlierAnalysis[col] = outlierResult;
-          if (outlierResult.aggregated) {
-            totalOutliers += outlierResult.aggregated.length;
+          try {
+            const values = records.map(r => r[col]);
+            
+            const outlierResult = detectOutliers(values, col);
+            
+            analysis.outlierAnalysis[col] = outlierResult;
+            if (outlierResult.aggregated) {
+              totalOutliers += outlierResult.aggregated.length;
+            }
+          } catch (outlierError) {
+            throw outlierError;
           }
         }
         
@@ -311,14 +330,20 @@ export async function edaComprehensive(filePath, options = {}) {
       // CART analysis (skip for large datasets)
       if (analysisNeeds.cart && records.length < 5000) {
         if (spinner) spinner.text = 'Performing CART analysis...';
-        const targets = findPotentialTargets(records, columnTypes);
-        if (targets.length > 0) {
-          analysis.cartAnalysis = performCARTAnalysis(
-            records, 
-            columns, 
-            columnTypes, 
-            targets[0].column
-          );
+        
+        try {
+          const targets = findPotentialTargets(records, columnTypes);
+          
+          if (targets.length > 0) {
+            analysis.cartAnalysis = performCARTAnalysis(
+              records, 
+              columns, 
+              columnTypes, 
+              targets[0].column
+            );
+          }
+        } catch (cartError) {
+          throw cartError;
         }
       } else if (analysisNeeds.cart) {
         analysis.cartAnalysis = { skipped: true, reason: 'Dataset too large' };
@@ -327,11 +352,16 @@ export async function edaComprehensive(filePath, options = {}) {
       // Regression analysis (skip for large datasets)
       if (analysisNeeds.regression && records.length < 5000) {
         if (spinner) spinner.text = 'Performing regression analysis...';
-        analysis.regressionAnalysis = performRegressionAnalysis(
-          records, 
-          columns, 
-          columnTypes
-        );
+        
+        try {
+          analysis.regressionAnalysis = performRegressionAnalysis(
+            records, 
+            columns, 
+            columnTypes
+          );
+        } catch (regressionError) {
+          throw regressionError;
+        }
       } else if (analysisNeeds.regression) {
         analysis.regressionAnalysis = { skipped: true, reason: 'Dataset too large' };
       }
@@ -339,7 +369,12 @@ export async function edaComprehensive(filePath, options = {}) {
       // Correlation analysis (skip for large datasets)
       if (analysisNeeds.correlationAnalysis && records.length < 5000) {
         if (spinner) spinner.text = 'Analyzing correlations...';
-        analysis.correlationAnalysis = performCorrelationAnalysis(records, columns, columnTypes);
+        
+        try {
+          analysis.correlationAnalysis = performCorrelationAnalysis(records, columns, columnTypes);
+        } catch (correlationError) {
+          throw correlationError;
+        }
       } else if (analysisNeeds.correlationAnalysis) {
         if (spinner) spinner.text = 'Skipping correlation analysis for large dataset...';
         analysis.correlationAnalysis = { skipped: true, reason: 'Dataset too large' };
@@ -348,27 +383,41 @@ export async function edaComprehensive(filePath, options = {}) {
       // Pattern detection (limit for large datasets)
       if (analysisNeeds.patternDetection) {
         if (spinner) spinner.text = 'Detecting patterns...';
-        const patternRecords = records.length > 5000 ? records.slice(0, 5000) : records;
-        analysis.patterns = detectPatterns(patternRecords, columns, columnTypes);
-        if (records.length > 5000) {
-          analysis.patterns.note = 'Analyzed first 5000 rows for patterns';
+        
+        try {
+          const patternRecords = records.length > 5000 ? records.slice(0, 5000) : records;
+          
+          analysis.patterns = detectPatterns(patternRecords, columns, columnTypes);
+          
+          if (records.length > 5000) {
+            analysis.patterns.note = 'Analyzed first 5000 rows for patterns';
+          }
+        } catch (patternError) {
+          throw patternError;
         }
       }
       
       // Time series analysis (limit for large datasets)
       if (analysisNeeds.timeSeries && records.length < 10000) {
         if (spinner) spinner.text = 'Analyzing time series...';
-        const dateColumn = analysis.dateColumns[0]; // Use first date column
-        const numericColumns = columns.filter(col => 
-          ['integer', 'float'].includes(columnTypes[col].type)
-        );
         
-        if (dateColumn && numericColumns.length > 0) {
-          analysis.timeSeriesAnalysis = performTimeSeriesAnalysis(
-            records, 
-            dateColumn, 
-            numericColumns
+        try {
+          const dateColumn = analysis.dateColumns[0]; // Use first date column
+          
+          const numericColumns = columns.filter(col => 
+            ['integer', 'float'].includes(columnTypes[col].type)
           );
+          
+          if (dateColumn && numericColumns.length > 0) {
+            analysis.timeSeriesAnalysis = performTimeSeriesAnalysis(
+              records, 
+              dateColumn, 
+              numericColumns
+            );
+          } else {
+          }
+        } catch (timeSeriesError) {
+          throw timeSeriesError;
         }
       } else if (analysisNeeds.timeSeries) {
         analysis.timeSeriesAnalysis = { skipped: true, reason: 'Dataset too large for time series analysis' };
@@ -377,67 +426,111 @@ export async function edaComprehensive(filePath, options = {}) {
       // Australian data validation
       if (analysisNeeds.australianData) {
         if (spinner) spinner.text = 'Validating Australian data patterns...';
-        analysis.australianValidation = validateAustralianData(records, columns, columnTypes);
         
-        if (analysis.australianValidation.detected) {
-          const australianInsights = generateAustralianInsights(analysis.australianValidation);
-          analysis.insights = [...(analysis.insights || []), ...australianInsights];
+        try {
+          analysis.australianValidation = validateAustralianData(records, columns, columnTypes);
+          
+          if (analysis.australianValidation.detected) {
+            const australianInsights = generateAustralianInsights(analysis.australianValidation);
+            analysis.insights = [...(analysis.insights || []), ...australianInsights];
+          }
+        } catch (australianError) {
+          throw australianError;
         }
       }
       
       // ML readiness assessment
       if (analysisNeeds.mlReadiness) {
         if (spinner) spinner.text = 'Assessing ML readiness...';
-        analysis.mlReadiness = assessMLReadiness(records, columns, columnTypes, analysis);
+        
+        try {
+          analysis.mlReadiness = assessMLReadiness(records, columns, columnTypes, analysis);
+        } catch (mlError) {
+          throw mlError;
+        }
       }
       
       // Generate insights
-      analysis.insights = generateInsights(analysis);
-      analysis.suggestions = generateSuggestions(analysis, analysisNeeds);
+      try {
+        analysis.insights = generateInsights(analysis);
+      } catch (insightsError) {
+        throw insightsError;
+      }
+      
+      try {
+        analysis.suggestions = generateSuggestions(analysis, analysisNeeds);
+      } catch (suggestionsError) {
+        throw suggestionsError;
+      }
       
       // Calculate final metrics
-      analysis.consistencyScore = calculateConsistencyScore(analysis);
-      analysis.highMissingColumns = columns.filter(col => {
-        const stats = columnAnalyses[col];
-        return stats && (1 - stats.nonNullRatio) > 0.1;
-      }).length;
+      try {
+        analysis.consistencyScore = calculateConsistencyScore(analysis);
+        
+        analysis.highMissingColumns = columns.filter(col => {
+          const stats = columnAnalyses[col];
+          return stats && (1 - stats.nonNullRatio) > 0.1;
+        }).length;
+      } catch (metricsError) {
+        throw metricsError;
+      }
       
       // Return structured data if requested for LLM consumption
       if (structuredMode) {
-        if (spinner) spinner.succeed('Comprehensive EDA analysis complete!');
-        return {
-          analysis,
-          structuredResults: {
-            statisticalInsights: analysis.insights || [],
-            dataQuality: {
-              completeness: analysis.completeness,
-              duplicateRows: analysis.duplicateCount / analysis.rowCount,
-              outlierPercentage: analysis.outlierRate || 0
-            },
-            correlations: analysis.correlationAnalysis?.correlations || [],
-            distributions: analysis.distributionAnalysis ? 
-              Object.entries(analysis.distributionAnalysis).map(([col, dist]) => ({
-                column: col,
-                ...dist
-              })) : [],
-            timeSeries: analysis.timeSeriesAnalysis || null,
-            summaryStats: analysis.columns.reduce((acc, col) => {
-              acc[col.name] = col.stats;
-              return acc;
-            }, {}),
-            mlReadiness: analysis.mlReadiness || { overallScore: 0.8, majorIssues: [] },
-            columns: analysis.columns.map(col => col.name)
-          }
-        };
+        try {
+          if (spinner) spinner.succeed('Comprehensive EDA analysis complete!');
+          
+          const dataQuality = {
+            completeness: analysis.completeness,
+            duplicateRows: analysis.duplicateCount / analysis.rowCount,
+            outlierPercentage: analysis.outlierRate || 0
+          };
+          
+          const correlations = analysis.correlationAnalysis?.correlations || [];
+          
+          const distributions = analysis.distributionAnalysis ? 
+            Object.entries(analysis.distributionAnalysis).map(([col, dist]) => ({
+              column: col,
+              ...dist
+            })) : [];
+          
+          
+          const summaryStats = analysis.columns.reduce((acc, col) => {
+            acc[col.name] = col.stats;
+            return acc;
+          }, {});
+          
+          const columnNames = analysis.columns.map(col => col.name);
+          
+          return {
+            analysis,
+            structuredResults: {
+              statisticalInsights: analysis.insights || [],
+              dataQuality,
+              correlations,
+              distributions,
+              timeSeries: analysis.timeSeriesAnalysis || null,
+              summaryStats,
+              mlReadiness: analysis.mlReadiness || { overallScore: 0.8, majorIssues: [] },
+              columns: columnNames
+            }
+          };
+        } catch (structuredError) {
+          throw structuredError;
+        }
       }
       
       // Format and output report
-      const report = formatComprehensiveEDAReport(analysis);
-      
-      if (spinner) spinner.succeed('Comprehensive EDA analysis complete!');
-      console.log(report);
-      
-      outputHandler.finalize();
+      try {
+        const report = formatComprehensiveEDAReport(analysis);
+        
+        if (spinner) spinner.succeed('Comprehensive EDA analysis complete!');
+        console.log(report);
+        
+        outputHandler.finalize();
+      } catch (reportError) {
+        throw reportError;
+      }
       
     } catch (error) {
       outputHandler.restore();

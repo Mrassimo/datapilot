@@ -271,8 +271,22 @@ function detectDateFormat(values) {
 }
 
 function isValidDate(value, formats) {
-  const dateStr = String(value);
+  if (!value || value === '') return false;
   
+  // Handle Date objects that were created during CSV parsing
+  if (value instanceof Date) {
+    // If it's already a Date object, check if it's valid
+    const isValidDateObject = !isNaN(value.getTime());
+    if (isValidDateObject) {
+      const year = value.getFullYear();
+      return year >= 1900 && year <= 2100;
+    }
+    return false;
+  }
+  
+  const dateStr = String(value).trim();
+  
+  // Common date patterns
   const patterns = {
     'YYYY-MM-DD': /^\d{4}-\d{2}-\d{2}$/,
     'DD/MM/YYYY': /^\d{2}\/\d{2}\/\d{4}$/,
@@ -280,11 +294,25 @@ function isValidDate(value, formats) {
     'DD-MM-YYYY': /^\d{2}-\d{2}-\d{4}$/,
     'YYYY/MM/DD': /^\d{4}\/\d{2}\/\d{2}$/
   };
-
-  for (const format of formats) {
+  
+  // Try parsing as-is first for ISO formats
+  try {
+    const date = new Date(dateStr);
+    if (!isNaN(date.getTime())) {
+      const year = date.getFullYear();
+      // Check for valid ISO date format (YYYY-MM-DD) first
+      if (patterns['YYYY-MM-DD'].test(dateStr) && year >= 1900 && year <= 2100) {
+        return true;
+      }
+    }
+  } catch (e) {
+    // Continue to pattern matching
+  }
+  
+  // Try each format pattern
+  for (const format of formats || Object.keys(patterns)) {
     if (patterns[format] && patterns[format].test(dateStr)) {
-      const date = new Date(dateStr);
-      return !isNaN(date.getTime());
+      return true;
     }
   }
   

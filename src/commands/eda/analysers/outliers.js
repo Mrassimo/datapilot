@@ -10,6 +10,8 @@ export function detectOutliers(values, columnName) {
       totalRecords: values.length,
       numericRecords: numbers.length,
       methods: {},
+      contextual: { patterns: [], recommendations: [] },
+      aggregated: [],
       summary: 'Insufficient data for outlier detection (n < 4)'
     };
   }

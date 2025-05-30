@@ -186,8 +186,16 @@ function parseNumber(value) {
   if (typeof value === 'number') return value;
   if (typeof value !== 'string') return null;
   
+  const trimmed = value.trim();
+  
+  // Reject date-like patterns before attempting number parsing
+  if (/\d{4}-\d{2}-\d{2}/.test(trimmed) || 
+      /\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}/.test(trimmed)) {
+    return null;
+  }
+  
   // Remove currency symbols and spaces
-  let cleaned = value.replace(/[$€£¥₹\s]/g, '');
+  let cleaned = trimmed.replace(/[$€£¥₹\s]/g, '');
   
   // Handle different decimal separators
   if (cleaned.includes(',') && cleaned.includes('.')) {
@@ -852,6 +860,15 @@ function analyzeColumnValues(values, totalRecords) {
       continue;
     }
     
+    // Check for Date objects (created during CSV parsing)
+    if (value instanceof Date) {
+      typeVotes.date++;
+      if (sampleValues.length < 5) {
+        sampleValues.push(value.toISOString().split('T')[0]); // Add as YYYY-MM-DD string
+      }
+      continue;
+    }
+    
     // Check numbers
     if (typeof value === 'number') {
       if (Number.isInteger(value)) {
@@ -887,10 +904,14 @@ function analyzeColumnValues(values, totalRecords) {
       }
       
       // Phone check (enhanced for international formats)
-      const phoneDigits = trimmed.replace(/[^\d]/g, '');
-      if (phoneDigits.length >= 8 && phoneDigits.length <= 15 && 
-          /^[\d\s\-\+\(\)\.ext]+$/i.test(trimmed)) {
-        typeVotes.phone++;
+      // But exclude date-like patterns first
+      if (!/\d{4}-\d{2}-\d{2}/.test(trimmed) && 
+          !/\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}/.test(trimmed)) {
+        const phoneDigits = trimmed.replace(/[^\d]/g, '');
+        if (phoneDigits.length >= 8 && phoneDigits.length <= 15 && 
+            /^[\d\s\-\+\(\)\.ext]+$/i.test(trimmed)) {
+          typeVotes.phone++;
+        }
       }
       
       // Australian postcode
@@ -932,12 +953,17 @@ function analyzeColumnValues(values, totalRecords) {
   let bestScore = 0;
   let confidence = 0;
   
-  for (const [type, votes] of Object.entries(typeVotes)) {
-    const score = votes / totalVotes;
-    if (score > bestScore) {
-      bestScore = score;
-      bestType = type;
-      confidence = score;
+  // Create prioritised list to handle ties (dates should win over numbers)
+  const typePriority = ['date', 'email', 'url', 'phone', 'postcode', 'boolean', 'currency', 'float', 'integer'];
+  
+  for (const type of typePriority) {
+    if (typeVotes[type] > 0) {
+      const score = typeVotes[type] / totalVotes;
+      if (score > bestScore || (score === bestScore && score > 0)) {
+        bestScore = score;
+        bestType = type;
+        confidence = score;
+      }
     }
   }
   

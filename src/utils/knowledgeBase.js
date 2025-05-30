@@ -76,9 +76,34 @@ export class KnowledgeBase {
     }
   }
 
-  saveYaml(filePath, data) {
+  
+  cleanForYaml(obj) {
+    if (obj === null || obj === undefined) return obj;
+    if (obj instanceof Promise) return '[Promise - not serializable]';
+    if (typeof obj === 'function') return undefined;
+    if (obj instanceof Date) return obj.toISOString();
+    
+    if (Array.isArray(obj)) {
+      return obj.map(item => this.cleanForYaml(item)).filter(item => item !== undefined);
+    }
+    
+    if (typeof obj === 'object') {
+      const cleaned = {};
+      for (const [key, value] of Object.entries(obj)) {
+        const cleanValue = this.cleanForYaml(value);
+        if (cleanValue !== undefined) {
+          cleaned[key] = cleanValue;
+        }
+      }
+      return cleaned;
+    }
+    
+    return obj;
+  }
+
+saveYaml(filePath, data) {
     try {
-      const yamlContent = yaml.dump(data, {
+      const yamlContent = yaml.dump(this.cleanForYaml(data), {
         indent: 2,
         lineWidth: 120,
         noRefs: true

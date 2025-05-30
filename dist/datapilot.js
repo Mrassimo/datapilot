@@ -10811,6 +10811,7 @@ function ora(options) {
 }
 
 function detectAnalysisNeeds(records, columnTypes) {
+  
   const analyses = {
     regression: false,
     timeSeries: false,
@@ -10827,8 +10828,10 @@ function detectAnalysisNeeds(records, columnTypes) {
   const columns = Object.keys(columnTypes);
   
   // Sample records for analysis detection on large datasets
+  
   const sampleSize = Math.min(1000, records.length);
   const sampledRecords = records.length > 1000 ? records.slice(0, sampleSize) : records;
+  
   
   // Check for regression analysis (continuous variable with high uniqueness)
   const numericColumns = columns.filter(col => 
@@ -10836,10 +10839,15 @@ function detectAnalysisNeeds(records, columnTypes) {
   );
   
   numericColumns.forEach(col => {
-    const values = sampledRecords.map(r => r[col]).filter(v => v !== null && v !== undefined);
-    const uniqueRatio = new Set(values).size / values.length;
-    if (uniqueRatio > 0.7 && values.length > 30) {
-      analyses.regression = true;
+    
+    try {
+      const values = sampledRecords.map(r => r[col]).filter(v => v !== null && v !== undefined);
+      
+      const uniqueRatio = new Set(values).size / values.length;
+      if (uniqueRatio > 0.7 && values.length > 30) {
+        analyses.regression = true;
+      }
+    } catch (error) {
     }
   });
 
@@ -12089,12 +12097,20 @@ function sampleSkewness(x) {
 }
 
 function calculateEnhancedStats(values) {
-  const numbers = values.filter(v => typeof v === 'number' && !isNaN(v));
+  // Handle null string values and filter safely
+  const cleanedValues = values.map(v => {
+    if (typeof v === 'string' && (v.toLowerCase() === 'null' || v === 'NULL')) {
+      return null;
+    }
+    return v;
+  });
+  
+  const numbers = cleanedValues.filter(v => typeof v === 'number' && !isNaN(v) && isFinite(v));
   
   if (numbers.length === 0) {
     return { 
       count: 0, 
-      nullCount: values.length,
+      nullCount: cleanedValues.length,
       hasData: false 
     };
   }
@@ -17961,6 +17977,8 @@ function detectOutliers(values, columnName) {
       totalRecords: values.length,
       numericRecords: numbers.length,
       methods: {},
+      contextual: { patterns: [], recommendations: [] },
+      aggregated: [],
       summary: 'Insufficient data for outlier detection (n < 4)'
     };
   }
@@ -31228,15 +31246,24 @@ function formatOutlierAnalysis(outlierAnalysis) {
   let section = createSubSection('UNIVARIATE OUTLIER ANALYSIS', '');
   
   Object.entries(outlierAnalysis).forEach(([column, analysis]) => {
-    if (!analysis.methods) return;
+    if (!analysis || !analysis.methods) return;
     
     section += `\n[Column: ${column}]\n`;
-    section += `Statistical Outliers: ${analysis.aggregated.length} records\n`;
+    
+    // Safe access to aggregated outliers with fallback
+    const aggregatedCount = analysis.aggregated && Array.isArray(analysis.aggregated) 
+      ? analysis.aggregated.length 
+      : 0;
+    section += `Statistical Outliers: ${aggregatedCount} records\n`;
     
     // Method summary
     if (analysis.methods.iqr && analysis.methods.iqr.totalOutliers > 0) {
       section += `  - IQR Method: ${analysis.methods.iqr.totalOutliers} outliers `;
-      section += `(${analysis.methods.iqr.outliers.mild.length} mild, ${analysis.methods.iqr.outliers.extreme.length} extreme)\n`;
+      if (analysis.methods.iqr.outliers && analysis.methods.iqr.outliers.mild && analysis.methods.iqr.outliers.extreme) {
+        section += `(${analysis.methods.iqr.outliers.mild.length} mild, ${analysis.methods.iqr.outliers.extreme.length} extreme)\n`;
+      } else {
+        section += '\n';
+      }
     }
     
     if (analysis.methods.modifiedZScore && analysis.methods.modifiedZScore.totalOutliers > 0) {
@@ -31245,9 +31272,9 @@ function formatOutlierAnalysis(outlierAnalysis) {
     }
     
     // Top outliers
-    if (analysis.aggregated.length > 0) {
+    if (analysis.aggregated && Array.isArray(analysis.aggregated) && analysis.aggregated.length > 0) {
       const topOutliers = analysis.aggregated
-        .filter(o => o.confidence === 'high' || o.confidence === 'very high')
+        .filter(o => o && (o.confidence === 'high' || o.confidence === 'very high'))
         .slice(0, 5)
         .map(o => formatNumber(o.value));
       
@@ -31257,11 +31284,11 @@ function formatOutlierAnalysis(outlierAnalysis) {
     }
     
     // Contextual analysis
-    if (analysis.contextual && analysis.contextual.patterns.length > 0) {
+    if (analysis.contextual && Array.isArray(analysis.contextual.patterns) && analysis.contextual.patterns.length > 0) {
       section += `  - Pattern: ${analysis.contextual.patterns[0]}\n`;
     }
     
-    if (analysis.contextual && analysis.contextual.recommendations.length > 0) {
+    if (analysis.contextual && Array.isArray(analysis.contextual.recommendations) && analysis.contextual.recommendations.length > 0) {
       section += `  - Recommendation: ${analysis.contextual.recommendations[0]}\n`;
     }
   });
@@ -35579,8 +35606,16 @@ function parseNumber(value) {
   if (typeof value === 'number') return value;
   if (typeof value !== 'string') return null;
   
+  const trimmed = value.trim();
+  
+  // Reject date-like patterns before attempting number parsing
+  if (/\d{4}-\d{2}-\d{2}/.test(trimmed) || 
+      /\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}/.test(trimmed)) {
+    return null;
+  }
+  
   // Remove currency symbols and spaces
-  let cleaned = value.replace(/[$€£¥₹\s]/g, '');
+  let cleaned = trimmed.replace(/[$€£¥₹\s]/g, '');
   
   // Handle different decimal separators
   if (cleaned.includes(',') && cleaned.includes('.')) {
@@ -36241,6 +36276,15 @@ function analyzeColumnValues(values, totalRecords) {
       continue;
     }
     
+    // Check for Date objects (created during CSV parsing)
+    if (value instanceof Date) {
+      typeVotes.date++;
+      if (sampleValues.length < 5) {
+        sampleValues.push(value.toISOString().split('T')[0]); // Add as YYYY-MM-DD string
+      }
+      continue;
+    }
+    
     // Check numbers
     if (typeof value === 'number') {
       if (Number.isInteger(value)) {
@@ -36276,10 +36320,14 @@ function analyzeColumnValues(values, totalRecords) {
       }
       
       // Phone check (enhanced for international formats)
-      const phoneDigits = trimmed.replace(/[^\d]/g, '');
-      if (phoneDigits.length >= 8 && phoneDigits.length <= 15 && 
-          /^[\d\s\-\+\(\)\.ext]+$/i.test(trimmed)) {
-        typeVotes.phone++;
+      // But exclude date-like patterns first
+      if (!/\d{4}-\d{2}-\d{2}/.test(trimmed) && 
+          !/\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}/.test(trimmed)) {
+        const phoneDigits = trimmed.replace(/[^\d]/g, '');
+        if (phoneDigits.length >= 8 && phoneDigits.length <= 15 && 
+            /^[\d\s\-\+\(\)\.ext]+$/i.test(trimmed)) {
+          typeVotes.phone++;
+        }
       }
       
       // Australian postcode
@@ -36321,12 +36369,17 @@ function analyzeColumnValues(values, totalRecords) {
   let bestScore = 0;
   let confidence = 0;
   
-  for (const [type, votes] of Object.entries(typeVotes)) {
-    const score = votes / totalVotes;
-    if (score > bestScore) {
-      bestScore = score;
-      bestType = type;
-      confidence = score;
+  // Create prioritised list to handle ties (dates should win over numbers)
+  const typePriority = ['date', 'email', 'url', 'phone', 'postcode', 'boolean', 'currency', 'float', 'integer'];
+  
+  for (const type of typePriority) {
+    if (typeVotes[type] > 0) {
+      const score = typeVotes[type] / totalVotes;
+      if (score > bestScore || (score === bestScore && score > 0)) {
+        bestScore = score;
+        bestType = type;
+        confidence = score;
+      }
     }
   }
   
@@ -36764,6 +36817,8 @@ async function edaComprehensive(filePath, options = {}) {
       
       // Detect what analyses to run with timeout protection
       if (spinner) spinner.text = 'Detecting analysis requirements...';
+      
+      
       const analysisNeeds = detectAnalysisNeeds(records, columnTypes);
       
       // For very large datasets, disable expensive analyses
@@ -36805,9 +36860,12 @@ async function edaComprehensive(filePath, options = {}) {
       for (const column of columns) {
         try {
           const type = columnTypes[column];
+          
           // For large datasets, estimate non-null ratio from sample
           const sampleValues = sampleForStats.map(r => r[column]);
+          
           const nonNullInSample = sampleValues.filter(v => v !== null && v !== undefined).length;
+          
           const nonNullRatio = nonNullInSample / sampleForStats.length;
           const estimatedNonNullCount = Math.round(nonNullRatio * records.length);
           
@@ -36824,6 +36882,7 @@ async function edaComprehensive(filePath, options = {}) {
           
           // Add timeout protection for expensive calculations
           if (['integer', 'float'].includes(type.type) && values.length > 0) {
+            
             const statsPromise = Promise.resolve(calculateEnhancedStats(values));
             const statsTimeout = new Promise((_, reject) => {
               setTimeout(() => reject(new Error('Stats calculation timeout')), 5000);
@@ -36859,9 +36918,11 @@ async function edaComprehensive(filePath, options = {}) {
         }
       }
       
+      
       analysis.completeness = totalNonNull / (records.length * columns.length);
       analysis.completenessLevel = analysis.completeness > 0.9 ? 'good' : 
                                    analysis.completeness > 0.7 ? 'fair' : 'poor';
+      
       
       // Count duplicates with timeout protection
       try {
@@ -36899,8 +36960,13 @@ async function edaComprehensive(filePath, options = {}) {
         );
         
         for (const col of numericColumns) {
-          const values = records.map(r => r[col]);
-          analysis.distributionAnalysis[col] = await analyzeDistribution$1(values);
+          try {
+            const values = records.map(r => r[col]);
+            
+            analysis.distributionAnalysis[col] = await analyzeDistribution$1(values);
+          } catch (distError) {
+            throw distError;
+          }
         }
       }
       
@@ -36915,11 +36981,17 @@ async function edaComprehensive(filePath, options = {}) {
         
         let totalOutliers = 0;
         for (const col of numericColumns) {
-          const values = records.map(r => r[col]);
-          const outlierResult = detectOutliers(values, col);
-          analysis.outlierAnalysis[col] = outlierResult;
-          if (outlierResult.aggregated) {
-            totalOutliers += outlierResult.aggregated.length;
+          try {
+            const values = records.map(r => r[col]);
+            
+            const outlierResult = detectOutliers(values, col);
+            
+            analysis.outlierAnalysis[col] = outlierResult;
+            if (outlierResult.aggregated) {
+              totalOutliers += outlierResult.aggregated.length;
+            }
+          } catch (outlierError) {
+            throw outlierError;
           }
         }
         
@@ -36929,14 +37001,20 @@ async function edaComprehensive(filePath, options = {}) {
       // CART analysis (skip for large datasets)
       if (analysisNeeds.cart && records.length < 5000) {
         if (spinner) spinner.text = 'Performing CART analysis...';
-        const targets = findPotentialTargets(records, columnTypes);
-        if (targets.length > 0) {
-          analysis.cartAnalysis = performCARTAnalysis(
-            records, 
-            columns, 
-            columnTypes, 
-            targets[0].column
-          );
+        
+        try {
+          const targets = findPotentialTargets(records, columnTypes);
+          
+          if (targets.length > 0) {
+            analysis.cartAnalysis = performCARTAnalysis(
+              records, 
+              columns, 
+              columnTypes, 
+              targets[0].column
+            );
+          }
+        } catch (cartError) {
+          throw cartError;
         }
       } else if (analysisNeeds.cart) {
         analysis.cartAnalysis = { skipped: true, reason: 'Dataset too large' };
@@ -36945,11 +37023,16 @@ async function edaComprehensive(filePath, options = {}) {
       // Regression analysis (skip for large datasets)
       if (analysisNeeds.regression && records.length < 5000) {
         if (spinner) spinner.text = 'Performing regression analysis...';
-        analysis.regressionAnalysis = performRegressionAnalysis(
-          records, 
-          columns, 
-          columnTypes
-        );
+        
+        try {
+          analysis.regressionAnalysis = performRegressionAnalysis(
+            records, 
+            columns, 
+            columnTypes
+          );
+        } catch (regressionError) {
+          throw regressionError;
+        }
       } else if (analysisNeeds.regression) {
         analysis.regressionAnalysis = { skipped: true, reason: 'Dataset too large' };
       }
@@ -36957,7 +37040,12 @@ async function edaComprehensive(filePath, options = {}) {
       // Correlation analysis (skip for large datasets)
       if (analysisNeeds.correlationAnalysis && records.length < 5000) {
         if (spinner) spinner.text = 'Analyzing correlations...';
-        analysis.correlationAnalysis = performCorrelationAnalysis(records, columns, columnTypes);
+        
+        try {
+          analysis.correlationAnalysis = performCorrelationAnalysis(records, columns, columnTypes);
+        } catch (correlationError) {
+          throw correlationError;
+        }
       } else if (analysisNeeds.correlationAnalysis) {
         if (spinner) spinner.text = 'Skipping correlation analysis for large dataset...';
         analysis.correlationAnalysis = { skipped: true, reason: 'Dataset too large' };
@@ -36966,27 +37054,41 @@ async function edaComprehensive(filePath, options = {}) {
       // Pattern detection (limit for large datasets)
       if (analysisNeeds.patternDetection) {
         if (spinner) spinner.text = 'Detecting patterns...';
-        const patternRecords = records.length > 5000 ? records.slice(0, 5000) : records;
-        analysis.patterns = detectPatterns$1(patternRecords, columns, columnTypes);
-        if (records.length > 5000) {
-          analysis.patterns.note = 'Analyzed first 5000 rows for patterns';
+        
+        try {
+          const patternRecords = records.length > 5000 ? records.slice(0, 5000) : records;
+          
+          analysis.patterns = detectPatterns$1(patternRecords, columns, columnTypes);
+          
+          if (records.length > 5000) {
+            analysis.patterns.note = 'Analyzed first 5000 rows for patterns';
+          }
+        } catch (patternError) {
+          throw patternError;
         }
       }
       
       // Time series analysis (limit for large datasets)
       if (analysisNeeds.timeSeries && records.length < 10000) {
         if (spinner) spinner.text = 'Analyzing time series...';
-        const dateColumn = analysis.dateColumns[0]; // Use first date column
-        const numericColumns = columns.filter(col => 
-          ['integer', 'float'].includes(columnTypes[col].type)
-        );
         
-        if (dateColumn && numericColumns.length > 0) {
-          analysis.timeSeriesAnalysis = performTimeSeriesAnalysis(
-            records, 
-            dateColumn, 
-            numericColumns
+        try {
+          const dateColumn = analysis.dateColumns[0]; // Use first date column
+          
+          const numericColumns = columns.filter(col => 
+            ['integer', 'float'].includes(columnTypes[col].type)
           );
+          
+          if (dateColumn && numericColumns.length > 0) {
+            analysis.timeSeriesAnalysis = performTimeSeriesAnalysis(
+              records, 
+              dateColumn, 
+              numericColumns
+            );
+          } else {
+          }
+        } catch (timeSeriesError) {
+          throw timeSeriesError;
         }
       } else if (analysisNeeds.timeSeries) {
         analysis.timeSeriesAnalysis = { skipped: true, reason: 'Dataset too large for time series analysis' };
@@ -36995,67 +37097,111 @@ async function edaComprehensive(filePath, options = {}) {
       // Australian data validation
       if (analysisNeeds.australianData) {
         if (spinner) spinner.text = 'Validating Australian data patterns...';
-        analysis.australianValidation = validateAustralianData$1(records, columns, columnTypes);
         
-        if (analysis.australianValidation.detected) {
-          const australianInsights = generateAustralianInsights(analysis.australianValidation);
-          analysis.insights = [...(analysis.insights || []), ...australianInsights];
+        try {
+          analysis.australianValidation = validateAustralianData$1(records, columns, columnTypes);
+          
+          if (analysis.australianValidation.detected) {
+            const australianInsights = generateAustralianInsights(analysis.australianValidation);
+            analysis.insights = [...(analysis.insights || []), ...australianInsights];
+          }
+        } catch (australianError) {
+          throw australianError;
         }
       }
       
       // ML readiness assessment
       if (analysisNeeds.mlReadiness) {
         if (spinner) spinner.text = 'Assessing ML readiness...';
-        analysis.mlReadiness = assessMLReadiness(records, columns, columnTypes, analysis);
+        
+        try {
+          analysis.mlReadiness = assessMLReadiness(records, columns, columnTypes, analysis);
+        } catch (mlError) {
+          throw mlError;
+        }
       }
       
       // Generate insights
-      analysis.insights = generateInsights(analysis);
-      analysis.suggestions = generateSuggestions(analysis, analysisNeeds);
+      try {
+        analysis.insights = generateInsights(analysis);
+      } catch (insightsError) {
+        throw insightsError;
+      }
+      
+      try {
+        analysis.suggestions = generateSuggestions(analysis, analysisNeeds);
+      } catch (suggestionsError) {
+        throw suggestionsError;
+      }
       
       // Calculate final metrics
-      analysis.consistencyScore = calculateConsistencyScore(analysis);
-      analysis.highMissingColumns = columns.filter(col => {
-        const stats = columnAnalyses[col];
-        return stats && (1 - stats.nonNullRatio) > 0.1;
-      }).length;
+      try {
+        analysis.consistencyScore = calculateConsistencyScore(analysis);
+        
+        analysis.highMissingColumns = columns.filter(col => {
+          const stats = columnAnalyses[col];
+          return stats && (1 - stats.nonNullRatio) > 0.1;
+        }).length;
+      } catch (metricsError) {
+        throw metricsError;
+      }
       
       // Return structured data if requested for LLM consumption
       if (structuredMode) {
-        if (spinner) spinner.succeed('Comprehensive EDA analysis complete!');
-        return {
-          analysis,
-          structuredResults: {
-            statisticalInsights: analysis.insights || [],
-            dataQuality: {
-              completeness: analysis.completeness,
-              duplicateRows: analysis.duplicateCount / analysis.rowCount,
-              outlierPercentage: analysis.outlierRate || 0
-            },
-            correlations: analysis.correlationAnalysis?.correlations || [],
-            distributions: analysis.distributionAnalysis ? 
-              Object.entries(analysis.distributionAnalysis).map(([col, dist]) => ({
-                column: col,
-                ...dist
-              })) : [],
-            timeSeries: analysis.timeSeriesAnalysis || null,
-            summaryStats: analysis.columns.reduce((acc, col) => {
-              acc[col.name] = col.stats;
-              return acc;
-            }, {}),
-            mlReadiness: analysis.mlReadiness || { overallScore: 0.8, majorIssues: [] },
-            columns: analysis.columns.map(col => col.name)
-          }
-        };
+        try {
+          if (spinner) spinner.succeed('Comprehensive EDA analysis complete!');
+          
+          const dataQuality = {
+            completeness: analysis.completeness,
+            duplicateRows: analysis.duplicateCount / analysis.rowCount,
+            outlierPercentage: analysis.outlierRate || 0
+          };
+          
+          const correlations = analysis.correlationAnalysis?.correlations || [];
+          
+          const distributions = analysis.distributionAnalysis ? 
+            Object.entries(analysis.distributionAnalysis).map(([col, dist]) => ({
+              column: col,
+              ...dist
+            })) : [];
+          
+          
+          const summaryStats = analysis.columns.reduce((acc, col) => {
+            acc[col.name] = col.stats;
+            return acc;
+          }, {});
+          
+          const columnNames = analysis.columns.map(col => col.name);
+          
+          return {
+            analysis,
+            structuredResults: {
+              statisticalInsights: analysis.insights || [],
+              dataQuality,
+              correlations,
+              distributions,
+              timeSeries: analysis.timeSeriesAnalysis || null,
+              summaryStats,
+              mlReadiness: analysis.mlReadiness || { overallScore: 0.8, majorIssues: [] },
+              columns: columnNames
+            }
+          };
+        } catch (structuredError) {
+          throw structuredError;
+        }
       }
       
       // Format and output report
-      const report = formatComprehensiveEDAReport(analysis);
-      
-      if (spinner) spinner.succeed('Comprehensive EDA analysis complete!');
-      console.log(report);
-      
-      outputHandler.finalize();
+      try {
+        const report = formatComprehensiveEDAReport(analysis);
+        
+        if (spinner) spinner.succeed('Comprehensive EDA analysis complete!');
+        console.log(report);
+        
+        outputHandler.finalize();
+      } catch (reportError) {
+        throw reportError;
+      }
       
     } catch (error) {
       outputHandler.restore();
@@ -45405,8 +45551,22 @@ function detectDateFormat(values) {
 }
 
 function isValidDate(value, formats) {
-  const dateStr = String(value);
+  if (!value || value === '') return false;
   
+  // Handle Date objects that were created during CSV parsing
+  if (value instanceof Date) {
+    // If it's already a Date object, check if it's valid
+    const isValidDateObject = !isNaN(value.getTime());
+    if (isValidDateObject) {
+      const year = value.getFullYear();
+      return year >= 1900 && year <= 2100;
+    }
+    return false;
+  }
+  
+  const dateStr = String(value).trim();
+  
+  // Common date patterns
   const patterns = {
     'YYYY-MM-DD': /^\d{4}-\d{2}-\d{2}$/,
     'DD/MM/YYYY': /^\d{2}\/\d{2}\/\d{4}$/,
@@ -45414,11 +45574,25 @@ function isValidDate(value, formats) {
     'DD-MM-YYYY': /^\d{2}-\d{2}-\d{4}$/,
     'YYYY/MM/DD': /^\d{4}\/\d{2}\/\d{2}$/
   };
-
-  for (const format of formats) {
+  
+  // Try parsing as-is first for ISO formats
+  try {
+    const date = new Date(dateStr);
+    if (!isNaN(date.getTime())) {
+      const year = date.getFullYear();
+      // Check for valid ISO date format (YYYY-MM-DD) first
+      if (patterns['YYYY-MM-DD'].test(dateStr) && year >= 1900 && year <= 2100) {
+        return true;
+      }
+    }
+  } catch (e) {
+    // Continue to pattern matching
+  }
+  
+  // Try each format pattern
+  for (const format of formats || Object.keys(patterns)) {
     if (patterns[format] && patterns[format].test(dateStr)) {
-      const date = new Date(dateStr);
-      return !isNaN(date.getTime());
+      return true;
     }
   }
   
@@ -46868,25 +47042,55 @@ function getStalestColumn(timelinessAnalysis) {
 }
 
 function parseDate$1(value) {
-  if (!value) return null;
+  if (!value || value === '') return null;
   
-  const formats = [
-    value => new Date(value),
-    value => new Date(value.replace(/(\d{2})\/(\d{2})\/(\d{4})/, '$2/$1/$3')),
-    value => new Date(value.replace(/(\d{2})-(\d{2})-(\d{4})/, '$2/$1/$3')),
+  const dateStr = String(value).trim();
+  
+  // Try parsing as-is first (handles ISO dates)
+  const directParse = new Date(dateStr);
+  if (!isNaN(directParse.getTime())) {
+    const year = directParse.getFullYear();
+    if (year > 1900 && year < 2100) {
+      return directParse;
+    }
+  }
+  
+  // Try common formats
+  const parsers = [
+    // DD/MM/YYYY
+    () => {
+      const match = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+      if (match) {
+        const [_, d, m, y] = match;
+        return new Date(`${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`);
+      }
+      return null;
+    },
+    // DD-MM-YYYY  
+    () => {
+      const match = dateStr.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+      if (match) {
+        const [_, d, m, y] = match;
+        return new Date(`${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`);
+      }
+      return null;
+    }
   ];
-
-  for (const format of formats) {
+  
+  for (const parser of parsers) {
     try {
-      const date = format(value);
-      if (!isNaN(date.getTime()) && date.getFullYear() > 1900 && date.getFullYear() < 2100) {
-        return date;
+      const date = parser();
+      if (date && !isNaN(date.getTime())) {
+        const year = date.getFullYear();
+        if (year > 1900 && year < 2100) {
+          return date;
+        }
       }
     } catch (e) {
       continue;
     }
   }
-
+  
   return null;
 }
 
@@ -60640,9 +60844,34 @@ class KnowledgeBase {
     }
   }
 
-  saveYaml(filePath, data) {
+  
+  cleanForYaml(obj) {
+    if (obj === null || obj === undefined) return obj;
+    if (obj instanceof Promise) return '[Promise - not serializable]';
+    if (typeof obj === 'function') return undefined;
+    if (obj instanceof Date) return obj.toISOString();
+    
+    if (Array.isArray(obj)) {
+      return obj.map(item => this.cleanForYaml(item)).filter(item => item !== undefined);
+    }
+    
+    if (typeof obj === 'object') {
+      const cleaned = {};
+      for (const [key, value] of Object.entries(obj)) {
+        const cleanValue = this.cleanForYaml(value);
+        if (cleanValue !== undefined) {
+          cleaned[key] = cleanValue;
+        }
+      }
+      return cleaned;
+    }
+    
+    return obj;
+  }
+
+saveYaml(filePath, data) {
     try {
-      const yamlContent = jsYaml.dump(data, {
+      const yamlContent = jsYaml.dump(this.cleanForYaml(data), {
         indent: 2,
         lineWidth: 120,
         noRefs: true

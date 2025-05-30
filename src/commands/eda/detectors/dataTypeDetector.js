@@ -1,4 +1,5 @@
 export function detectAnalysisNeeds(records, columnTypes) {
+  
   const analyses = {
     regression: false,
     timeSeries: false,
@@ -15,8 +16,10 @@ export function detectAnalysisNeeds(records, columnTypes) {
   const columns = Object.keys(columnTypes);
   
   // Sample records for analysis detection on large datasets
+  
   const sampleSize = Math.min(1000, records.length);
   const sampledRecords = records.length > 1000 ? records.slice(0, sampleSize) : records;
+  
   
   // Check for regression analysis (continuous variable with high uniqueness)
   const numericColumns = columns.filter(col => 
@@ -24,10 +27,15 @@ export function detectAnalysisNeeds(records, columnTypes) {
   );
   
   numericColumns.forEach(col => {
-    const values = sampledRecords.map(r => r[col]).filter(v => v !== null && v !== undefined);
-    const uniqueRatio = new Set(values).size / values.length;
-    if (uniqueRatio > 0.7 && values.length > 30) {
-      analyses.regression = true;
+    
+    try {
+      const values = sampledRecords.map(r => r[col]).filter(v => v !== null && v !== undefined);
+      
+      const uniqueRatio = new Set(values).size / values.length;
+      if (uniqueRatio > 0.7 && values.length > 30) {
+        analyses.regression = true;
+      }
+    } catch (error) {
     }
   });
 

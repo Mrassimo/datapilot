@@ -227,15 +227,24 @@ function formatOutlierAnalysis(outlierAnalysis) {
   let section = createSubSection('UNIVARIATE OUTLIER ANALYSIS', '');
   
   Object.entries(outlierAnalysis).forEach(([column, analysis]) => {
-    if (!analysis.methods) return;
+    if (!analysis || !analysis.methods) return;
     
     section += `\n[Column: ${column}]\n`;
-    section += `Statistical Outliers: ${analysis.aggregated.length} records\n`;
+    
+    // Safe access to aggregated outliers with fallback
+    const aggregatedCount = analysis.aggregated && Array.isArray(analysis.aggregated) 
+      ? analysis.aggregated.length 
+      : 0;
+    section += `Statistical Outliers: ${aggregatedCount} records\n`;
     
     // Method summary
     if (analysis.methods.iqr && analysis.methods.iqr.totalOutliers > 0) {
       section += `  - IQR Method: ${analysis.methods.iqr.totalOutliers} outliers `;
-      section += `(${analysis.methods.iqr.outliers.mild.length} mild, ${analysis.methods.iqr.outliers.extreme.length} extreme)\n`;
+      if (analysis.methods.iqr.outliers && analysis.methods.iqr.outliers.mild && analysis.methods.iqr.outliers.extreme) {
+        section += `(${analysis.methods.iqr.outliers.mild.length} mild, ${analysis.methods.iqr.outliers.extreme.length} extreme)\n`;
+      } else {
+        section += '\n';
+      }
     }
     
     if (analysis.methods.modifiedZScore && analysis.methods.modifiedZScore.totalOutliers > 0) {
@@ -244,9 +253,9 @@ function formatOutlierAnalysis(outlierAnalysis) {
     }
     
     // Top outliers
-    if (analysis.aggregated.length > 0) {
+    if (analysis.aggregated && Array.isArray(analysis.aggregated) && analysis.aggregated.length > 0) {
       const topOutliers = analysis.aggregated
-        .filter(o => o.confidence === 'high' || o.confidence === 'very high')
+        .filter(o => o && (o.confidence === 'high' || o.confidence === 'very high'))
         .slice(0, 5)
         .map(o => formatNumber(o.value));
       
@@ -256,11 +265,11 @@ function formatOutlierAnalysis(outlierAnalysis) {
     }
     
     // Contextual analysis
-    if (analysis.contextual && analysis.contextual.patterns.length > 0) {
+    if (analysis.contextual && Array.isArray(analysis.contextual.patterns) && analysis.contextual.patterns.length > 0) {
       section += `  - Pattern: ${analysis.contextual.patterns[0]}\n`;
     }
     
-    if (analysis.contextual && analysis.contextual.recommendations.length > 0) {
+    if (analysis.contextual && Array.isArray(analysis.contextual.recommendations) && analysis.contextual.recommendations.length > 0) {
       section += `  - Recommendation: ${analysis.contextual.recommendations[0]}\n`;
     }
   });

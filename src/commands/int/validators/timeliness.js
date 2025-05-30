@@ -463,24 +463,54 @@ function getStalestColumn(timelinessAnalysis) {
 }
 
 function parseDate(value) {
-  if (!value) return null;
+  if (!value || value === '') return null;
   
-  const formats = [
-    value => new Date(value),
-    value => new Date(value.replace(/(\d{2})\/(\d{2})\/(\d{4})/, '$2/$1/$3')),
-    value => new Date(value.replace(/(\d{2})-(\d{2})-(\d{4})/, '$2/$1/$3')),
+  const dateStr = String(value).trim();
+  
+  // Try parsing as-is first (handles ISO dates)
+  const directParse = new Date(dateStr);
+  if (!isNaN(directParse.getTime())) {
+    const year = directParse.getFullYear();
+    if (year > 1900 && year < 2100) {
+      return directParse;
+    }
+  }
+  
+  // Try common formats
+  const parsers = [
+    // DD/MM/YYYY
+    () => {
+      const match = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+      if (match) {
+        const [_, d, m, y] = match;
+        return new Date(`${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`);
+      }
+      return null;
+    },
+    // DD-MM-YYYY  
+    () => {
+      const match = dateStr.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+      if (match) {
+        const [_, d, m, y] = match;
+        return new Date(`${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`);
+      }
+      return null;
+    }
   ];
-
-  for (const format of formats) {
+  
+  for (const parser of parsers) {
     try {
-      const date = format(value);
-      if (!isNaN(date.getTime()) && date.getFullYear() > 1900 && date.getFullYear() < 2100) {
-        return date;
+      const date = parser();
+      if (date && !isNaN(date.getTime())) {
+        const year = date.getFullYear();
+        if (year > 1900 && year < 2100) {
+          return date;
+        }
       }
     } catch (e) {
       continue;
     }
   }
-
+  
   return null;
 }
