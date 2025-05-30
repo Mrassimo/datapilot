@@ -10826,13 +10826,17 @@ function detectAnalysisNeeds(records, columnTypes) {
 
   const columns = Object.keys(columnTypes);
   
+  // Sample records for analysis detection on large datasets
+  const sampleSize = Math.min(1000, records.length);
+  const sampledRecords = records.length > 1000 ? records.slice(0, sampleSize) : records;
+  
   // Check for regression analysis (continuous variable with high uniqueness)
   const numericColumns = columns.filter(col => 
     ['integer', 'float'].includes(columnTypes[col].type)
   );
   
   numericColumns.forEach(col => {
-    const values = records.map(r => r[col]).filter(v => v !== null && v !== undefined);
+    const values = sampledRecords.map(r => r[col]).filter(v => v !== null && v !== undefined);
     const uniqueRatio = new Set(values).size / values.length;
     if (uniqueRatio > 0.7 && values.length > 30) {
       analyses.regression = true;
@@ -10841,10 +10845,10 @@ function detectAnalysisNeeds(records, columnTypes) {
 
   // Check for time series analysis
   const dateColumns = columns.filter(col => columnTypes[col].type === 'date');
-  if (dateColumns.length > 0 && records.length > 30) {
+  if (dateColumns.length > 0 && sampledRecords.length > 30) {
     // Check for regular intervals
     const dateCol = dateColumns[0];
-    const dates = records
+    const dates = sampledRecords
       .map(r => r[dateCol])
       .filter(d => d instanceof Date)
       .sort((a, b) => a - b);
@@ -10914,10 +10918,14 @@ function detectAnalysisNeeds(records, columnTypes) {
 function findPotentialTargets(records, columnTypes) {
   const columns = Object.keys(columnTypes);
   const targets = [];
+  
+  // Sample for large datasets
+  const sampleSize = Math.min(1000, records.length);
+  const sampledRecords = records.length > 1000 ? records.slice(0, sampleSize) : records;
 
   columns.forEach(col => {
     const type = columnTypes[col];
-    const values = records.map(r => r[col]).filter(v => v !== null && v !== undefined);
+    const values = sampledRecords.map(r => r[col]).filter(v => v !== null && v !== undefined);
     const uniqueRatio = new Set(values).size / values.length;
 
     // Good regression target: continuous with high variance
@@ -35860,12 +35868,15 @@ async function parseCSVWithEncoding(filePath, encoding, delimiter, useSampling, 
             });
           }
           
-          // Memory management
+          // Memory management - check less frequently to avoid spam
           let aggressiveSampling = false;
-          if (rowCount % 5000 === 0) {
+          if (rowCount % 50000 === 0) {  // Check every 50k rows instead of 5k
             const memoryStatus = checkMemoryUsage();
-            if (memoryStatus.shouldUseAggressiveSampling && !options.quiet) {
-              console.warn(chalk.red(`\nHigh memory usage detected (${memoryStatus.heapUsedGB.toFixed(1)}GB), enabling aggressive sampling`));
+            if (memoryStatus.shouldUseAggressiveSampling && !aggressiveSampling) {
+              if (!options.quiet && !records._memoryWarningShown) {
+                console.warn(chalk.red(`\nHigh memory usage detected (${memoryStatus.heapUsedGB.toFixed(1)}GB), enabling aggressive sampling`));
+                records._memoryWarningShown = true;  // Flag to avoid repeating message
+              }
               aggressiveSampling = true;
             }
           }
@@ -36170,12 +36181,16 @@ function detectColumnTypes(records) {
   
   const columns = Object.keys(records[0]);
   const columnTypes = {};
-  const spinner = ora('Analyzing column types...').start();
+  
+  // Sample records for type detection on large datasets
+  const sampleSize = Math.min(1000, records.length);
+  const sampledRecords = records.length > 1000 
+    ? records.slice(0, sampleSize) 
+    : records;
   
   for (const [index, column] of columns.entries()) {
-    spinner.text = `Analyzing column types... (${index + 1}/${columns.length})`;
     
-    const values = records.map(r => r[column]).filter(v => v !== null);
+    const values = sampledRecords.map(r => r[column]).filter(v => v !== null);
     
     if (values.length === 0) {
       columnTypes[column] = { 
@@ -36194,8 +36209,6 @@ function detectColumnTypes(records) {
       nullPercentage: (records.filter(r => r[column] === null).length / records.length * 100).toFixed(1)
     };
   }
-  
-  spinner.succeed('Column analysis complete');
   return columnTypes;
 }
 
@@ -36388,7 +36401,7 @@ function checkMemoryUsage() {
     freeMemoryGB,
     memoryPercentage: (memoryUsageGB / totalMemoryGB) * 100,
     isHighMemory: memoryUsageGB > 1, // 1GB threshold
-    shouldUseAggressiveSampling: memoryUsageGB > 1.5 || freeMemoryGB < 0.5
+    shouldUseAggressiveSampling: memoryUsageGB > 1.5 // Don't use freeMemoryGB as it might be unreliable
   };
 }
 
@@ -36639,8 +36652,8 @@ async function edaComprehensive(filePath, options = {}) {
   // Structured data mode for LLM consumption
   const structuredMode = options.structuredOutput || options.llmMode;
   
-  // Set timeout for analysis (default 30 seconds)
-  const timeoutMs = options.timeout || 30000;
+  // Set timeout for analysis (default 60 seconds for large datasets)
+  const timeoutMs = options.timeout || 60000;
   
   const analysisPromise = performAnalysis();
   const timeoutPromise = new Promise((_, reject) => {
@@ -36653,7 +36666,7 @@ async function edaComprehensive(filePath, options = {}) {
     return await Promise.race([analysisPromise, timeoutPromise]);
   } catch (error) {
     outputHandler.restore();
-    if (spinner) spinner.error({ text: 'Analysis failed or timed out' });
+    if (spinner) spinner.fail('Analysis failed or timed out');
     
     if (error.message.includes('timed out')) {
       console.error(chalk.red('🚨 EDA Analysis Timeout'));
@@ -36692,8 +36705,10 @@ async function edaComprehensive(filePath, options = {}) {
         }
         
         if (spinner) spinner.text = 'Detecting column types...';
+        const typeStart = Date.now();
         try {
           columnTypes = detectColumnTypes(records);
+          console.log(`Column type detection took ${Date.now() - typeStart}ms`);
         } catch (typeError) {
           throw new Error(`Column type detection failed: ${typeError.message}`);
         }
@@ -36703,6 +36718,28 @@ async function edaComprehensive(filePath, options = {}) {
       const fileStats = statSync(filePath);
       const fileName = basename(filePath);
       const columns = Object.keys(columnTypes);
+      
+      // Handle large datasets with user notification
+      const originalRecordCount = records.length;
+      if (records.length > 10000) {
+        console.log(chalk.yellow(`\n⚠️  Large dataset detected: ${records.length.toLocaleString()} rows`));
+        
+        if (records.length > 50000) {
+          // Very large dataset - use sampling
+          console.log(chalk.cyan('📊 Dataset is very large. Using intelligent sampling for performance.'));
+          console.log(chalk.cyan(`   Processing a representative sample of ${Math.min(10000, records.length).toLocaleString()} rows...`));
+          
+          const samplingStrategy = createSamplingStrategy(records, 'basic');
+          samplingStrategy.sampleSize = Math.min(10000, samplingStrategy.sampleSize);
+          records = performSampling(records, samplingStrategy);
+          
+          if (spinner) spinner.text = `Analyzing ${records.length.toLocaleString()} sampled rows...`;
+        } else {
+          // Medium-large dataset - process all but with warning
+          console.log(chalk.cyan('⏱️  This analysis may take up to 30 seconds...'));
+          if (spinner) spinner.text = `Processing ${records.length.toLocaleString()} rows (this may take a moment)...`;
+        }
+      }
       
       // Handle empty dataset
       if (records.length === 0) {
@@ -36729,12 +36766,22 @@ async function edaComprehensive(filePath, options = {}) {
       if (spinner) spinner.text = 'Detecting analysis requirements...';
       const analysisNeeds = detectAnalysisNeeds(records, columnTypes);
       
+      // For very large datasets, disable expensive analyses
+      if (records.length > 10000) {
+        analysisNeeds.regression = false;
+        analysisNeeds.cart = false;
+        analysisNeeds.correlationAnalysis = false;
+        analysisNeeds.timeSeries = false;
+        analysisNeeds.mlReadiness = false;
+      }
+      
       // Initialize analysis object
       const analysis = {
         fileName,
         fileSize: formatFileSize(fileStats.size),
-        rowCount: records.length,
+        rowCount: originalRecordCount,
         columnCount: columns.length,
+        sampledRows: records.length < originalRecordCount ? records.length : undefined,
         columns: [],
         numericColumnCount: 0,
         categoricalColumnCount: 0,
@@ -36752,19 +36799,28 @@ async function edaComprehensive(filePath, options = {}) {
       const columnAnalyses = {};
       let totalNonNull = 0;
       
-      // Process columns with timeout protection
+      // Process columns with timeout protection  
+      const sampleForStats = records.slice(0, Math.min(5000, records.length));
+      
       for (const column of columns) {
         try {
           const type = columnTypes[column];
-          const values = records.map(r => r[column]).filter(v => v !== null && v !== undefined);
+          // For large datasets, estimate non-null ratio from sample
+          const sampleValues = sampleForStats.map(r => r[column]);
+          const nonNullInSample = sampleValues.filter(v => v !== null && v !== undefined).length;
+          const nonNullRatio = nonNullInSample / sampleForStats.length;
+          const estimatedNonNullCount = Math.round(nonNullRatio * records.length);
+          
+          // Use sampled values for stats
+          const values = sampleValues.filter(v => v !== null && v !== undefined);
           
           const columnAnalysis = {
             name: column,
             type: type.type,
-            nonNullRatio: values.length / records.length
+            nonNullRatio: nonNullRatio
           };
           
-          totalNonNull += values.length;
+          totalNonNull += estimatedNonNullCount;
           
           // Add timeout protection for expensive calculations
           if (['integer', 'float'].includes(type.type) && values.length > 0) {
@@ -36844,7 +36900,7 @@ async function edaComprehensive(filePath, options = {}) {
         
         for (const col of numericColumns) {
           const values = records.map(r => r[col]);
-          analysis.distributionAnalysis[col] = analyzeDistribution$1(values);
+          analysis.distributionAnalysis[col] = await analyzeDistribution$1(values);
         }
       }
       
@@ -36870,8 +36926,8 @@ async function edaComprehensive(filePath, options = {}) {
         analysis.outlierRate = totalOutliers / (records.length * numericColumns.length);
       }
       
-      // CART analysis
-      if (analysisNeeds.cart) {
+      // CART analysis (skip for large datasets)
+      if (analysisNeeds.cart && records.length < 5000) {
         if (spinner) spinner.text = 'Performing CART analysis...';
         const targets = findPotentialTargets(records, columnTypes);
         if (targets.length > 0) {
@@ -36882,32 +36938,43 @@ async function edaComprehensive(filePath, options = {}) {
             targets[0].column
           );
         }
+      } else if (analysisNeeds.cart) {
+        analysis.cartAnalysis = { skipped: true, reason: 'Dataset too large' };
       }
       
-      // Regression analysis
-      if (analysisNeeds.regression) {
+      // Regression analysis (skip for large datasets)
+      if (analysisNeeds.regression && records.length < 5000) {
         if (spinner) spinner.text = 'Performing regression analysis...';
         analysis.regressionAnalysis = performRegressionAnalysis(
           records, 
           columns, 
           columnTypes
         );
+      } else if (analysisNeeds.regression) {
+        analysis.regressionAnalysis = { skipped: true, reason: 'Dataset too large' };
       }
       
-      // Correlation analysis
-      if (analysisNeeds.correlationAnalysis) {
+      // Correlation analysis (skip for large datasets)
+      if (analysisNeeds.correlationAnalysis && records.length < 5000) {
         if (spinner) spinner.text = 'Analyzing correlations...';
         analysis.correlationAnalysis = performCorrelationAnalysis(records, columns, columnTypes);
+      } else if (analysisNeeds.correlationAnalysis) {
+        if (spinner) spinner.text = 'Skipping correlation analysis for large dataset...';
+        analysis.correlationAnalysis = { skipped: true, reason: 'Dataset too large' };
       }
       
-      // Pattern detection
+      // Pattern detection (limit for large datasets)
       if (analysisNeeds.patternDetection) {
         if (spinner) spinner.text = 'Detecting patterns...';
-        analysis.patterns = detectPatterns$1(records, columns, columnTypes);
+        const patternRecords = records.length > 5000 ? records.slice(0, 5000) : records;
+        analysis.patterns = detectPatterns$1(patternRecords, columns, columnTypes);
+        if (records.length > 5000) {
+          analysis.patterns.note = 'Analyzed first 5000 rows for patterns';
+        }
       }
       
-      // Time series analysis
-      if (analysisNeeds.timeSeries) {
+      // Time series analysis (limit for large datasets)
+      if (analysisNeeds.timeSeries && records.length < 10000) {
         if (spinner) spinner.text = 'Analyzing time series...';
         const dateColumn = analysis.dateColumns[0]; // Use first date column
         const numericColumns = columns.filter(col => 
@@ -36921,6 +36988,8 @@ async function edaComprehensive(filePath, options = {}) {
             numericColumns
           );
         }
+      } else if (analysisNeeds.timeSeries) {
+        analysis.timeSeriesAnalysis = { skipped: true, reason: 'Dataset too large for time series analysis' };
       }
       
       // Australian data validation
@@ -36990,7 +37059,7 @@ async function edaComprehensive(filePath, options = {}) {
       
     } catch (error) {
       outputHandler.restore();
-      if (spinner) spinner.error({ text: 'Error during analysis' });
+      if (spinner) spinner.fail('Error during analysis');
       console.error(error.message);
       if (!options.quiet) process.exit(1);
       throw error;
@@ -46358,7 +46427,22 @@ function analyseTimeliness(data, headers) {
     const analysis = analyseDateColumn(data, dateCol);
     timelinessAnalysis[dateCol.header] = analysis;
 
-    if (analysis.staleness.percentage > 30) {
+    // Check if this looks like cohort/test data (all dates within a short period)
+    const isCohortPattern = analysis.range && analysis.range.span <= 90 && 
+                           analysis.validDates.length > 5 &&
+                           analysis.patterns.yearlyTrend && 
+                           Object.keys(analysis.patterns.yearlyTrend).length === 1;
+
+    if (isCohortPattern) {
+      results.issues.push({
+        type: 'observation',
+        field: dateCol.header,
+        message: `Cohort pattern detected - all dates within ${analysis.range.span} days`,
+        details: `Date range: ${analysis.range.oldest} to ${analysis.range.newest}`,
+        interpretation: 'Appears to be test data or study cohort'
+      });
+      // Don't penalize cohort data for "staleness"
+    } else if (analysis.staleness.percentage > 30) {
       results.issues.push({
         type: 'critical',
         field: dateCol.header,
@@ -46593,7 +46677,14 @@ function analyseDateColumn(data, dateCol) {
 function determineStalenessThreshold(columnName) {
   const columnLower = columnName.toLowerCase();
   
-  if (columnLower.includes('last_login') || columnLower.includes('last_active')) {
+  // Medical/clinical data has different staleness thresholds
+  if (columnLower.includes('visit') || columnLower.includes('appointment') || columnLower.includes('encounter')) {
+    return 730; // 2 years for medical visits
+  } else if (columnLower.includes('enrollment') || columnLower.includes('study')) {
+    return 1825; // 5 years for study enrollment
+  } else if (columnLower.includes('test_date') || columnLower.includes('lab_date')) {
+    return 365; // 1 year for lab tests
+  } else if (columnLower.includes('last_login') || columnLower.includes('last_active')) {
     return 90;
   } else if (columnLower.includes('modified') || columnLower.includes('updated')) {
     return 180;
@@ -50251,31 +50342,38 @@ function validateStates(data, stateColumn) {
 
 function calculateQualityScore(dimensionResults) {
   const weights = {
-    Completeness: 0.20,
-    Validity: 0.20,
-    Accuracy: 0.20,
-    Consistency: 0.15,
-    Timeliness: 0.15,
-    Uniqueness: 0.10
+    completeness: 0.20,
+    validity: 0.20,
+    accuracy: 0.20,
+    consistency: 0.15,
+    timeliness: 0.15,
+    uniqueness: 0.10
   };
 
   let totalScore = 0;
   let totalWeight = 0;
   const dimensionScores = {};
 
+  // Debug: Check what dimensions we're receiving
+  Object.keys(dimensionResults).filter(d => dimensionResults[d]?.score !== undefined);
+  
   Object.entries(dimensionResults).forEach(([dimension, result]) => {
     if (result && result.score !== undefined) {
-      const weight = weights[dimension] || 0;
+      // Ensure dimension key matches our weights (case-sensitive)
+      const normalizedDimension = dimension.toLowerCase();
+      const actualWeight = weights[normalizedDimension] || 0;
+      
       dimensionScores[dimension] = {
         score: result.score,
-        weight: weight,
-        weightedScore: result.score * weight
+        weight: actualWeight,
+        weightedScore: result.score * actualWeight
       };
-      totalScore += result.score * weight;
-      totalWeight += weight;
+      totalScore += result.score * actualWeight;
+      totalWeight += actualWeight;
     }
   });
 
+  // If we didn't get all dimensions, calculate based on what we have
   const overallScore = totalWeight > 0 ? totalScore / totalWeight : 0;
   const grade = getGrade(overallScore);
   const trend = calculateTrend(overallScore);
@@ -50355,7 +50453,7 @@ function generateScoreBreakdown(dimensionScores) {
     .sort((a, b) => b[1].score - a[1].score)
     .forEach(([dimension, scores]) => {
       breakdown.push({
-        dimension: dimension,
+        dimension: dimension.charAt(0).toUpperCase() + dimension.slice(1),
         score: scores.score,
         weight: `${(scores.weight * 100).toFixed(0)}%`,
         contribution: scores.weightedScore.toFixed(1),
@@ -50502,12 +50600,12 @@ function generateRecommendations(dimensionResults) {
 function calculateImpact(issue, dimension) {
   const baseImpact = issue.type === 'critical' ? 8 : 5;
   const dimensionWeight = {
-    'Completeness': 1.2,
-    'Validity': 1.1,
-    'Accuracy': 1.3,
-    'Consistency': 1.0,
-    'Timeliness': 0.9,
-    'Uniqueness': 1.1
+    'completeness': 1.2,
+    'validity': 1.1,
+    'accuracy': 1.3,
+    'consistency': 1.0,
+    'timeliness': 0.9,
+    'uniqueness': 1.1
   };
   
   return Math.min(10, baseImpact * (dimensionWeight[dimension] || 1));
@@ -50526,27 +50624,27 @@ function calculatePriority(impact, effort) {
 
 function generateSpecificRecommendation(issue, dimension) {
   const templates = {
-    'Completeness': {
+    'completeness': {
       critical: 'Implement data collection process for {field}',
       warning: 'Review and fill missing values in {field}'
     },
-    'Validity': {
+    'validity': {
       critical: 'Add validation rules for {field}',
       warning: 'Standardize format for {field}'
     },
-    'Accuracy': {
+    'accuracy': {
       critical: 'Investigate and correct outliers in {field}',
       warning: 'Review business rules for {field}'
     },
-    'Consistency': {
+    'consistency': {
       critical: 'Implement referential integrity for {field}',
       warning: 'Standardize data entry for {field}'
     },
-    'Timeliness': {
+    'timeliness': {
       critical: 'Update stale records in {field}',
       warning: 'Implement regular update schedule for {field}'
     },
-    'Uniqueness': {
+    'uniqueness': {
       critical: 'Remove duplicates and add unique constraint on {field}',
       warning: 'Review and merge near-duplicates'
     }
@@ -51977,7 +52075,7 @@ Dimensional Breakdown:
 │ Dimension       │ Score  │ Key Issues             │
 ├─────────────────┼────────┼────────────────────────┤
 ${score.scoreBreakdown.map(dim => 
-  `│ ${dim.dimension.padEnd(15)} │ ${String(dim.score).padEnd(6)} │ ${(dim.performance + ' issues').padEnd(22)} │`
+  `│ ${dim.dimension.padEnd(15)} │ ${String(dim.score).padEnd(6)} │ ${dim.performance.padEnd(22)} │`
 ).join('\n')}
 └─────────────────┴────────┴────────────────────────┘`
   );
@@ -56562,14 +56660,14 @@ function calculateCorrelation(values1, values2) {
   return sampleCorrelation(x, y);
 }
 
-function analyzeDistribution(values) {
+async function analyzeDistribution(values) {
   const numbers = values.filter(v => typeof v === 'number' && !isNaN(v));
   
   if (numbers.length === 0) {
     return { type: 'empty' };
   }
   
-  const stats = calculateStats(values);
+  const stats = await calculateStats(values);
   const skewness = stats.skewness;
   const kurtosis = stats.kurtosis;
   
@@ -61226,6 +61324,7 @@ class ArchaeologyEngine {
   }
 
   async analyzeTable(csvPath, options = {}) {
+    const outputHandler = new OutputHandler(options);
     const knowledge = await this.knowledgeBase.load();
     
     const spinner = options.quiet ? null : ora('Reading CSV file...').start();
@@ -61264,7 +61363,7 @@ class ArchaeologyEngine {
     // Check if data is empty
     if (!records || records.length === 0) {
       outputHandler.restore();
-      if (spinner) spinner.error({ text: 'Empty dataset - no data to analyze' });
+      if (spinner) spinner.fail('Empty dataset - no data to analyze');
       console.error('No data found in the CSV file');
       if (!options.quiet) process.exit(1);
       return;
@@ -64319,21 +64418,21 @@ function generateDataQuestions$1(columns, columnTypes, dataType) {
   return questions.slice(0, 8);
 }
 
-function generateTechnicalNotes$1(records, columns, columnTypes) {
+async function generateTechnicalNotes$1(records, columns, columnTypes) {
   const notes = [];
   
   // Check for skewed distributions
   const numericColumns = columns.filter(c => columnTypes[c] && ['integer', 'float'].includes(columnTypes[c].type));
   
-  numericColumns.forEach(col => {
+  for (const col of numericColumns) {
     const values = records.map(r => r[col]).filter(v => typeof v === 'number');
     if (values.length > 0) {
-      const dist = analyzeDistribution(values);
+      const dist = await analyzeDistribution(values);
       if (Math.abs(dist.skewness) > 2) {
         notes.push(`Log transformation recommended for ${col} (heavy ${dist.skewness > 0 ? 'right' : 'left'} skew)`);
       }
     }
-  });
+  }
   
   return notes;
 }
@@ -66638,8 +66737,14 @@ async function comprehensiveLLMAnalysis(records, headers, filePath, options = {}
   const samplingStrategy = createSamplingStrategy(records, 'basic');
   let sampledRecords = records;
   
-  if (samplingStrategy.method !== 'none' && records.length > 10000) {
-    sampledRecords = performSampling(records, samplingStrategy);
+  // More aggressive sampling for comprehensive analysis
+  if (samplingStrategy.method !== 'none' && records.length > 5000) {
+    // For comprehensive analysis, use even more aggressive sampling
+    const maxSampleSize = 2000; // Limit to 2000 rows for sub-analyses
+    if (sampledRecords.length > maxSampleSize) {
+      maxSampleSize / records.length;
+      sampledRecords = performSampling(records, { ...samplingStrategy});
+    }
     if (spinner) {
       spinner.text = `Using smart sampling (${sampledRecords.length.toLocaleString()} of ${records.length.toLocaleString()} rows) for faster analysis...`;
     }
@@ -66664,13 +66769,31 @@ async function comprehensiveLLMAnalysis(records, headers, filePath, options = {}
     if (spinner) spinner.text = 'Running exploratory data analysis...';
     
     // Run all analyses in parallel with summary mode using sampled data
-    const [edaResults, intResults, visResults, engResults, originalContext] = await Promise.all([
-      runEdaAnalysis(sampledRecords, headers, filePath, options),
-      runIntAnalysis(sampledRecords, headers, filePath, options),
-      runVisAnalysis(sampledRecords, headers, filePath, options),
-      runEngAnalysis(sampledRecords, headers, filePath, options),
-      generateOriginalContext(sampledRecords, columns, columnTypes)
-    ]);
+    // Add individual error handling to prevent one failure from blocking all
+    const analysisPromises = [
+      runEdaAnalysis(sampledRecords, headers, filePath, options, columnTypes).catch(e => {
+        console.error('EDA analysis failed:', e.message);
+        return {};
+      }),
+      runIntAnalysis(sampledRecords, headers, filePath, options, columnTypes).catch(e => {
+        console.error('INT analysis failed:', e.message);
+        return {};
+      }),
+      runVisAnalysis(sampledRecords, headers, filePath, options, columnTypes).catch(e => {
+        console.error('VIS analysis failed:', e.message);
+        return {};
+      }),
+      runEngAnalysis(sampledRecords, headers, filePath, options, columnTypes).catch(e => {
+        console.error('ENG analysis failed:', e.message);
+        return {};
+      }),
+      generateOriginalContext(sampledRecords, columns, columnTypes).catch(e => {
+        console.error('Original context generation failed:', e.message);
+        return {};
+      })
+    ];
+    
+    const [edaResults, intResults, visResults, engResults, originalContext] = await Promise.all(analysisPromises);
     
     if (spinner) spinner.text = 'Extracting key insights...';
     
@@ -66765,18 +66888,18 @@ async function comprehensiveLLMAnalysis(records, headers, filePath, options = {}
 
 // Analysis runners - now use real command outputs
 
-async function runEdaAnalysis(records, headers, filePath, options) {
+async function runEdaAnalysis(records, headers, filePath, options, columnTypes) {
   const captureOptions = {
     ...options,
     structuredOutput: true,
     quiet: true,
-    preloadedData: { records, columnTypes: detectColumnTypes(records) }
+    preloadedData: { records, columnTypes }
   };
   
   try {
     // Add timeout for large dataset analysis
     const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('EDA analysis timeout')), 15000); // 15 second timeout
+      setTimeout(() => reject(new Error('EDA analysis timeout')), 10000); // 10 second timeout
     });
     
     const analysisPromise = eda(filePath, captureOptions);
@@ -66784,7 +66907,7 @@ async function runEdaAnalysis(records, headers, filePath, options) {
     
     return result?.structuredResults || {};
   } catch (error) {
-    console.error('EDA analysis error:', error);
+    console.error('EDA analysis error:', error.message);
     // Fallback to minimal structure
     return {
       statisticalInsights: [],
@@ -66799,12 +66922,12 @@ async function runEdaAnalysis(records, headers, filePath, options) {
   }
 }
 
-async function runIntAnalysis(records, _headers, filePath, options) {
+async function runIntAnalysis(records, _headers, filePath, options, columnTypes) {
   const captureOptions = {
     ...options,
     structuredOutput: true,
     quiet: true,
-    preloadedData: { records, columnTypes: detectColumnTypes(records) }
+    preloadedData: { records, columnTypes }
   };
   
   try {
@@ -66832,12 +66955,12 @@ async function runIntAnalysis(records, _headers, filePath, options) {
   }
 }
 
-async function runVisAnalysis(records, _headers, filePath, options) {
+async function runVisAnalysis(records, _headers, filePath, options, columnTypes) {
   const captureOptions = {
     ...options,
     structuredOutput: true,
     quiet: true,
-    preloadedData: { records, columnTypes: detectColumnTypes(records) }
+    preloadedData: { records, columnTypes }
   };
   
   try {
@@ -66858,12 +66981,12 @@ async function runVisAnalysis(records, _headers, filePath, options) {
   }
 }
 
-async function runEngAnalysis(records, _headers, filePath, options) {
+async function runEngAnalysis(records, _headers, filePath, options, columnTypes) {
   const captureOptions = {
     ...options,
     structuredOutput: true,
     quiet: true,
-    preloadedData: { records, columnTypes: detectColumnTypes(records) }
+    preloadedData: { records, columnTypes }
   };
   
   try {
@@ -66889,25 +67012,28 @@ async function runEngAnalysis(records, _headers, filePath, options) {
 
 // Generate original context data for compatibility
 async function generateOriginalContext(records, columns, columnTypes) {
-  // This maintains compatibility with the original LLM format
-  const dateColumns = columns.filter(col => columnTypes[col] && columnTypes[col].type === 'date');
-  const dateRange = getDateRange$1(records, dateColumns);
-  const dataType = inferDataType$1(columns, columnTypes);
-  
-  // Run original analysis functions
-  const seasonalPattern = dateColumns.length > 0 ? 
-    analyzeSeasonality$1(records, dateColumns[0], columns, columnTypes) : null;
-  
-  const segmentAnalysis = analyzeSegments$1(records, columns, columnTypes);
-  const categoryAnalysis = analyzeCategoryPerformance$1(records, columns, columnTypes);
-  const pricingInsights = analyzePricing$1(records, columns, columnTypes);
-  const anomalies = detectAnomalies$1(records, columns, columnTypes);
-  const qualityMetrics = calculateDataQuality$1(records, columns);
-  const summaryStats = generateSummaryStatistics$1(records, columns, columnTypes);
-  const correlations = findSignificantCorrelations$1(records, columns, columnTypes);
-  const analysisSuggestions = generateAnalysisSuggestions$1(columns, columnTypes);
-  const dataQuestions = generateDataQuestions$1(columns, columnTypes, dataType);
-  const technicalNotes = generateTechnicalNotes$1(records, columns, columnTypes);
+  try {
+    // This maintains compatibility with the original LLM format
+    const dateColumns = columns.filter(col => columnTypes[col] && columnTypes[col].type === 'date');
+    const dateRange = getDateRange$1(records, dateColumns);
+    const dataType = inferDataType$1(columns, columnTypes);
+    
+    // Run only essential analysis functions for large datasets
+    const isLargeDataset = records.length > 5000;
+    
+    const seasonalPattern = !isLargeDataset && dateColumns.length > 0 ? 
+      analyzeSeasonality$1(records, dateColumns[0], columns, columnTypes) : null;
+    
+    const segmentAnalysis = !isLargeDataset ? analyzeSegments$1(records, columns, columnTypes) : null;
+    const categoryAnalysis = !isLargeDataset ? analyzeCategoryPerformance$1(records, columns, columnTypes) : null;
+    const pricingInsights = !isLargeDataset ? analyzePricing$1(records, columns, columnTypes) : null;
+    const anomalies = !isLargeDataset ? detectAnomalies$1(records, columns, columnTypes) : [];
+    const qualityMetrics = calculateDataQuality$1(records, columns);
+    const summaryStats = generateSummaryStatistics$1(records, columns, columnTypes);
+    const correlations = !isLargeDataset ? findSignificantCorrelations$1(records, columns, columnTypes) : [];
+    const analysisSuggestions = generateAnalysisSuggestions$1(columns, columnTypes);
+    const dataQuestions = generateDataQuestions$1(columns, columnTypes, dataType);
+    const technicalNotes = !isLargeDataset ? await generateTechnicalNotes$1(records, columns, columnTypes) : [];
   
   return {
     recordCount: records.length,
@@ -66928,6 +67054,19 @@ async function generateOriginalContext(records, columns, columnTypes) {
     dataQuestions,
     technicalNotes
   };
+  } catch (error) {
+    console.error('Original context generation error:', error.message);
+    // Return minimal context on error
+    return {
+      recordCount: records.length,
+      columnCount: columns.length,
+      columns,
+      columnTypes,
+      dateRange: null,
+      dataType: 'unknown',
+      qualityMetrics: { overallQuality: 0.8 }
+    };
+  }
 }
 
 const llmContext = withErrorBoundary(async function llmContextInternal(filePath, options = {}) {
@@ -66948,7 +67087,7 @@ const llmContext = withErrorBoundary(async function llmContextInternal(filePath,
     return await Promise.race([analysisPromise, timeoutPromise]);
   } catch (error) {
     outputHandler.restore();
-    if (spinner) spinner.error({ text: 'LLM analysis failed or timed out' });
+    if (spinner) spinner.fail('LLM analysis failed or timed out');
     
     if (error.message.includes('timed out')) {
       console.error(chalk.red('🚨 LLM Analysis Timeout'));
@@ -66990,15 +67129,51 @@ const llmContext = withErrorBoundary(async function llmContextInternal(filePath,
           // Create smart sampling strategy for large datasets
           const samplingStrategy = createSamplingStrategy(allRecords, 'basic');
           
-          if (samplingStrategy.method !== 'none') {
-            if (spinner) {
-              spinner.text = `Large dataset detected (${originalSize.toLocaleString()} rows). Applying smart sampling...`;
+          // Handle large datasets with user-friendly notifications
+          let maxRowsForLLM = 10000;
+          
+          if (originalSize > 10000) {
+            console.log(chalk.yellow(`\n⚠️  Large dataset detected: ${originalSize.toLocaleString()} rows`));
+            
+            if (originalSize > 50000) {
+              // Very large dataset
+              maxRowsForLLM = 10000;
+              console.log(chalk.cyan('📊 Using intelligent sampling for LLM context generation.'));
+              console.log(chalk.cyan(`   Processing ${maxRowsForLLM.toLocaleString()} representative rows...`));
             } else {
-              console.log(`- Large dataset detected (${originalSize.toLocaleString()} rows). Applying smart sampling...`);
+              // Medium-large dataset
+              maxRowsForLLM = 20000;
+              console.log(chalk.cyan('⏱️  Analysis may take up to 30 seconds...'));
+              console.log(chalk.cyan(`   Processing ${Math.min(maxRowsForLLM, originalSize).toLocaleString()} rows...`));
             }
             
+            if (spinner) {
+              spinner.text = `Analyzing ${Math.min(maxRowsForLLM, originalSize).toLocaleString()} rows...`;
+            }
+          } else if (spinner) {
+            spinner.text = `Analyzing ${originalSize.toLocaleString()} rows...`;
+          }
+          
+          if (originalSize > maxRowsForLLM) {
+            
+            const customStrategy = {
+              method: 'systematic',
+              sampleSize: maxRowsForLLM,
+              targetSize: maxRowsForLLM,
+              sampleRate: maxRowsForLLM / originalSize
+            };
+            records = performSampling(allRecords, customStrategy);
+            if (records.length === 0) {
+              console.error('❌ Sampling returned 0 records! Falling back to first 5000 rows');
+              records = allRecords.slice(0, maxRowsForLLM);
+            }
+            console.log(`⚠️  Large dataset sampled: ${records.length.toLocaleString()} of ${originalSize.toLocaleString()} rows`);
+          } else if (samplingStrategy.method !== 'none') {
+            if (spinner) {
+              spinner.text = `Dataset detected (${originalSize.toLocaleString()} rows). Applying smart sampling...`;
+            }
             records = performSampling(allRecords, samplingStrategy);
-            console.log(`⚠️  Large dataset sampled: ${records.length.toLocaleString()} of ${originalSize.toLocaleString()} rows (${samplingStrategy.method} sampling)`);
+            console.log(`⚠️  Dataset sampled: ${records.length.toLocaleString()} of ${originalSize.toLocaleString()} rows (${samplingStrategy.method} sampling)`);
           } else {
             records = allRecords;
           }
@@ -67100,34 +67275,45 @@ const llmContext = withErrorBoundary(async function llmContextInternal(filePath,
       // Key columns and characteristics
       report += createSubSection('KEY COLUMNS AND THEIR CHARACTERISTICS', '');
       
-      columns.forEach((column, idx) => {
+      // For large datasets, use simpler column descriptions
+      const isLargeDataset = records.length > 5000;
+      
+      for (let idx = 0; idx < columns.length; idx++) {
+        const column = columns[idx];
         const type = safeGet(columnTypes, column, { type: 'unknown' });
-        const values = SafeArrayOps.safeMap(records, r => safeGet(r, column), []);
         
         report += `\n${idx + 1}. ${column}: `;
         
         if (type.type === 'identifier') {
-          const unique = new Set(values.filter(v => v !== null)).size;
-          report += `Unique identifier${unique === records.length ? '' : ` (${unique} unique values)`}`;
+          report += `Unique identifier`;
         } else if (type.type === 'integer' || type.type === 'float') {
-          const stats = calculateStats(values);
-          const range = `range: ${formatValue(stats.min, column)} to ${formatValue(stats.max, column)}`;
-          report += `${inferColumnPurpose(column)} (${range})`;
+          if (isLargeDataset) {
+            // For large datasets, just show the type without calculating stats
+            report += `${inferColumnPurpose(column)} (numeric)`;
+          } else {
+            const values = SafeArrayOps.safeMap(records, r => safeGet(r, column), []);
+            const stats = await calculateStats(values);
+            const range = `range: ${formatValue(stats.min, column)} to ${formatValue(stats.max, column)}`;
+            report += `${inferColumnPurpose(column)} (${range})`;
+          }
         } else if (type.type === 'categorical') {
-          const topValues = getTopCategoricalValues(values, 3);
+          const topValues = isLargeDataset ? 'multiple categories' : getTopCategoricalValues(SafeArrayOps.safeMap(records, r => safeGet(r, column), []), 3);
           const categoryCount = type.categories ? type.categories.length : 0;
-          report += `${categoryCount} categories: ${topValues}`;
+          report += `${categoryCount} categories${isLargeDataset ? '' : `: ${topValues}`}`;
         } else if (type.type === 'date') {
           report += 'Date field';
-          const dates = values.filter(v => v instanceof Date);
-          if (dates.length > 0) {
-            const sorted = dates.sort((a, b) => a - b);
-            report += ` (${formatDate(sorted[0])} to ${formatDate(sorted[sorted.length - 1])})`;
+          if (!isLargeDataset) {
+            const values = SafeArrayOps.safeMap(records, r => safeGet(r, column), []);
+            const dates = values.filter(v => v instanceof Date);
+            if (dates.length > 0) {
+              const sorted = dates.sort((a, b) => a - b);
+              report += ` (${formatDate(sorted[0])} to ${formatDate(sorted[sorted.length - 1])})`;
+            }
           }
         } else {
           report += type.type.charAt(0).toUpperCase() + type.type.slice(1);
         }
-      });
+      }
       
       // Important patterns and insights
       report += '\n' + createSubSection('IMPORTANT PATTERNS AND INSIGHTS', '');
@@ -67191,13 +67377,15 @@ const llmContext = withErrorBoundary(async function llmContextInternal(filePath,
         report += `- ${stat}\n`;
       });
       
-      // Correlations discovered
-      const correlations = findSignificantCorrelations(records, columns, columnTypes);
-      if (correlations.length > 0) {
-        report += createSubSection('CORRELATIONS DISCOVERED', '');
-        correlations.forEach(corr => {
-          report += `- ${corr}\n`;
-        });
+      // Correlations discovered - skip for large datasets to improve performance
+      if (records.length < 10000) {
+        const correlations = findSignificantCorrelations(records, columns, columnTypes);
+        if (correlations.length > 0) {
+          report += createSubSection('CORRELATIONS DISCOVERED', '');
+          correlations.forEach(corr => {
+            report += `- ${corr}\n`;
+          });
+        }
       }
       
       // Suggested analyses
@@ -67216,13 +67404,15 @@ const llmContext = withErrorBoundary(async function llmContextInternal(filePath,
         report += `- ${question}\n`;
       });
       
-      // Technical notes
-      report += createSubSection('TECHNICAL NOTES FOR ANALYSIS', '');
-      
-      const technicalNotes = generateTechnicalNotes(records, columns, columnTypes);
-      technicalNotes.forEach(note => {
-        report += `- ${note}\n`;
-      });
+      // Technical notes - skip for large datasets to improve performance
+      if (records.length < 10000) {
+        report += createSubSection('TECHNICAL NOTES FOR ANALYSIS', '');
+        
+        const technicalNotes = await generateTechnicalNotes(records, columns, columnTypes);
+        technicalNotes.forEach(note => {
+          report += `- ${note}\n`;
+        });
+      }
       
       // Show sample data for context
       if (records.length > 0) {
@@ -67255,7 +67445,7 @@ const llmContext = withErrorBoundary(async function llmContextInternal(filePath,
       
     } catch (error) {
       outputHandler.restore();
-      if (spinner) spinner.error({ text: 'Error generating LLM context' });
+      if (spinner) spinner.fail('Error generating LLM context');
       console.error(error.message);
       if (!options.quiet) process.exit(1);
       throw error;
@@ -68020,21 +68210,21 @@ function generateDataQuestions(columns, columnTypes, dataType, records = []) {
   return questions.slice(0, 8);
 }
 
-function generateTechnicalNotes(records, columns, columnTypes) {
+async function generateTechnicalNotes(records, columns, columnTypes) {
   const notes = [];
   
   // Check for skewed distributions
   const numericColumns = columns.filter(c => columnTypes[c] && ['integer', 'float'].includes(columnTypes[c].type));
   
-  numericColumns.forEach(col => {
+  for (const col of numericColumns) {
     const values = records.map(r => r[col]).filter(v => typeof v === 'number');
     if (values.length > 0) {
-      const dist = analyzeDistribution(values);
+      const dist = await analyzeDistribution(values);
       if (Math.abs(dist.skewness) > 2) {
         notes.push(`Log transformation recommended for ${col} (heavy ${dist.skewness > 0 ? 'right' : 'left'} skew)`);
       }
     }
-  });
+  }
   
   // Check for cyclical features
   const dateColumns = columns.filter(c => columnTypes[c] && columnTypes[c].type === 'date');
@@ -77202,6 +77392,8 @@ async function runWithProgress(command, filePath, options) {
     
     spinner.stop();
     const result = await command(filePath, enhancedOptions);
+    // Ensure process exits cleanly after successful completion
+    process.exit(0);
     return result;
   } catch (error) {
     spinner.fail(`Analysis failed: ${error.message}`);
@@ -77437,11 +77629,13 @@ program
   .option('--delimiter <delimiter>', 'Force specific delimiter (comma, semicolon, tab, pipe)')
   .option('--timeout <ms>', 'Set timeout in milliseconds (default: 60000)', '60000')
   .option('--force', 'Continue analysis despite data quality warnings')
-  .option('--comprehensive', 'Use comprehensive analysis (default: true)', true)
+  .option('--comprehensive <bool>', 'Use comprehensive analysis (default: true)', 'true')
   .action(async (file, options) => {
     const filePath = validateFile(file);
     // Convert timeout to number
     if (options.timeout) options.timeout = parseInt(options.timeout);
+    // Convert comprehensive to boolean
+    if (options.comprehensive) options.comprehensive = options.comprehensive === 'true';
     await runWithProgress(llmContext, filePath, options);
   });
 

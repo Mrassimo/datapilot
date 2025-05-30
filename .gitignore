@@ -14,14 +14,25 @@ temp/
 *.tmp
 *.temp
 
+# Root level CSV files (test data should be in tests/fixtures/)
+/*.csv
+!/package.json
+
 # Test outputs and reports (generated)
 tests/outputs/
 tests/reports/
+tests/parallel_results/
 *_test_report_*.json
 tests/fixtures/health_analysis/*_analysis.txt
 tests/fixtures/health_analysis/*_integrity.txt
 *_output.txt
+*-output.txt
 test_*.txt
+test_report*.txt
+test_report*.md
+
+# Large test data files (keep in separate folder)
+tests/test-data-large/
 
 # DataPilot specific temporary files
 .datapilot_recent.json
@@ -46,10 +57,16 @@ Icon?
 # Build outputs
 dist/
 build/
+datapilot-portable-*/
+*.zip
 
 # Logs directory contents (keep directory)
 logs/*
 !logs/.gitkeep
+
+# Scripts directory - temporary migration scripts
+scripts/reorganize-*.js
+scripts/migrate-*.js
 
 # User data
 .datapilot/
@@ -67,3 +84,18 @@ coverage/
 
 # Include important dist folder for self-contained package
 !dist/
+
+# Root level test files
+/*.csv
+*-output.txt
+
+# Test parallel results
+tests/parallel_results/
+
+# Test reports
+test_report*.txt
+test_report*.md
+
+# Temporary migration scripts
+scripts/reorganize-*.js
+scripts/migrate-*.js

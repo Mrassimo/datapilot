@@ -15,7 +15,9 @@
     "test:tui:powershell": "powershell -ExecutionPolicy Bypass -File tests/Test-DataPilotTUI.ps1",
     "test:all": "npm run test && npm run test:tui",
     "build": "rollup -c",
-    "build:watch": "rollup -c -w"
+    "build:watch": "rollup -c -w",
+    "build:portable": "node scripts/build/create-portable-bundle.js",
+    "clean:portable": "rm -rf datapilot-portable-*"
   },
   "keywords": [
     "csv",
