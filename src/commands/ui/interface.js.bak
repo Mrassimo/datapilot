@@ -19,7 +19,7 @@ async function safePrompt(config) {
   try {
     return await prompt(config);
   } catch (error) {
-    if (error && error.message && (error.message.includes('cancelled') || error.message.includes('Escape'))) {
+    if (error.message && (error.message.includes('cancelled') || error.message.includes('Escape'))) {
       throw new Error('cancelled');
     }
     throw error;
@@ -101,7 +101,7 @@ export async function interactiveUI() {
         }
       } catch (error) {
         // Handle Escape key press gracefully
-        if (error && error.message && error.message.includes('cancelled')) {
+        if (error.message && error.message.includes('cancelled')) {
           console.log(chalk.yellow('\nOperation cancelled. Returning to main menu...'));
           continue;
         }
@@ -213,7 +213,7 @@ async function showGuidedAnalysis(engine, analysisResult) {
   // Step 5: Show results
   await showResults();
   
-  await safePrompt({
+  await prompt({
     type: 'confirm',
     name: 'continue',
     message: '\\nPress Enter to continue...'
@@ -371,7 +371,7 @@ async function showDemo(engine, demoResult) {
   
   if (demoResult.datasets.length === 0) {
     console.log(chalk.yellow('No demo datasets found. Please ensure test fixtures are available.'));
-    await safePrompt({ type: 'confirm', name: 'continue', message: 'Press Enter to continue...' });
+    await prompt({ type: 'confirm', name: 'continue', message: 'Press Enter to continue...' });
     return;
   }
   
@@ -387,7 +387,7 @@ async function showDemo(engine, demoResult) {
     hint: 'Return to main menu'
   });
   
-  const response = await safePrompt({
+  const response = await prompt({
     type: 'select',
     name: 'dataset',
     message: gradients.fire('🎯 Choose a demo dataset:'),
@@ -401,7 +401,7 @@ async function showDemo(engine, demoResult) {
   await runAnalysisWithAnimation(engine, response.dataset, analysisType);
   await showResults();
   
-  await safePrompt({
+  await prompt({
     type: 'confirm',
     name: 'continue',
     message: '\\nPress Enter to continue...'
@@ -439,7 +439,7 @@ async function showMemoryManager(engine, memoryResult) {
   
   let managing = true;
   while (managing) {
-    const action = await safePrompt({
+    const action = await prompt({
       type: 'select',
       name: 'action',
       message: gradients.cyan('What would you like to do?'),
@@ -506,13 +506,13 @@ async function showMemoryList(engine) {
     });
   }
   
-  await safePrompt({ type: 'confirm', name: 'continue', message: '\\nPress Enter to continue...' });
+  await prompt({ type: 'confirm', name: 'continue', message: '\\nPress Enter to continue...' });
 }
 
 async function showMemoryDetails(engine) {
   // Implementation would be similar to the original but using engine methods
   console.log(chalk.yellow('Memory details feature - implementation in progress...'));
-  await safePrompt({ type: 'confirm', name: 'continue', message: 'Press Enter to continue...' });
+  await prompt({ type: 'confirm', name: 'continue', message: 'Press Enter to continue...' });
 }
 
 async function deleteMemory(engine) {
@@ -521,18 +521,18 @@ async function deleteMemory(engine) {
   
   if (allTables.length === 0) {
     console.log(chalk.yellow('No memories to delete!'));
-    await safePrompt({ type: 'confirm', name: 'continue', message: 'Press Enter to continue...' });
+    await prompt({ type: 'confirm', name: 'continue', message: 'Press Enter to continue...' });
     return;
   }
   
-  const { tableName } = await safePrompt({
+  const { tableName } = await prompt({
     type: 'autocomplete',
     name: 'tableName',
     message: 'Select a table to delete:',
     choices: allTables.map(t => t.name)
   });
   
-  const { confirm } = await safePrompt({
+  const { confirm } = await prompt({
     type: 'confirm',
     name: 'confirm',
     message: `Are you sure you want to delete memory for "${tableName}"?`,
@@ -552,14 +552,14 @@ async function deleteMemory(engine) {
     console.log(chalk.gray('Deletion cancelled.'));
   }
   
-  await safePrompt({ type: 'confirm', name: 'continue', message: 'Press Enter to continue...' });
+  await prompt({ type: 'confirm', name: 'continue', message: 'Press Enter to continue...' });
 }
 
 async function clearAllMemories(engine) {
   console.log(chalk.red('\\n⚠️  WARNING: This will delete ALL warehouse knowledge!'));
   console.log(chalk.yellow('This action cannot be undone.\\n'));
   
-  const { confirmFirst } = await safePrompt({
+  const { confirmFirst } = await prompt({
     type: 'confirm',
     name: 'confirmFirst',
     message: 'Are you absolutely sure you want to clear all memories?',
@@ -568,11 +568,11 @@ async function clearAllMemories(engine) {
   
   if (!confirmFirst) {
     console.log(chalk.gray('Clear operation cancelled.'));
-    await safePrompt({ type: 'confirm', name: 'continue', message: 'Press Enter to continue...' });
+    await prompt({ type: 'confirm', name: 'continue', message: 'Press Enter to continue...' });
     return;
   }
   
-  const { confirmSecond } = await safePrompt({
+  const { confirmSecond } = await prompt({
     type: 'input',
     name: 'confirmSecond',
     message: 'Type "DELETE ALL" to confirm:',
@@ -592,7 +592,7 @@ async function clearAllMemories(engine) {
     console.log(chalk.gray('Clear operation cancelled.'));
   }
   
-  await safePrompt({ type: 'confirm', name: 'continue', message: 'Press Enter to continue...' });
+  await prompt({ type: 'confirm', name: 'continue', message: 'Press Enter to continue...' });
 }
 
 async function exportMemories(engine) {
@@ -612,12 +612,12 @@ async function exportMemories(engine) {
     
     if (Object.keys(memories).length === 0) {
       console.log(gradients.warning('\n⚠️  No memories found to export. Analyze some CSV files first!'));
-      await safePrompt({ type: 'confirm', name: 'continue', message: 'Press Enter to continue...' });
+      await prompt({ type: 'confirm', name: 'continue', message: 'Press Enter to continue...' });
       return;
     }
     
     // Get export filename from user
-    const { filename } = await safePrompt({
+    const { filename } = await prompt({
       type: 'input',
       name: 'filename',
       message: gradients.info('Enter filename for export (without extension):'),
@@ -706,7 +706,7 @@ Generated by DataPilot - Your Data Analysis Co-Pilot 🛩️
     console.log(gradients.error(`\n❌ Export failed: ${error.message}`));
   }
   
-  await safePrompt({ type: 'confirm', name: 'continue', message: '\nPress Enter to continue...' });
+  await prompt({ type: 'confirm', name: 'continue', message: '\nPress Enter to continue...' });
 }
 
 async function showSessionMemories() {
@@ -743,7 +743,7 @@ async function showSessionMemories() {
   console.log('  • Quick save/load analysis contexts');
   console.log('  • Share knowledge between team members');
   
-  await safePrompt({ type: 'confirm', name: 'continue', message: 'Press Enter to continue...' });
+  await prompt({ type: 'confirm', name: 'continue', message: 'Press Enter to continue...' });
 }
 
 async function showResults() {
@@ -851,7 +851,7 @@ async function showAboutInfo() {
     }
   ));
   
-  await safePrompt({ type: 'confirm', name: 'continue', message: '\\nPress Enter to continue...' });
+  await prompt({ type: 'confirm', name: 'continue', message: '\\nPress Enter to continue...' });
 }
 
 
@@ -890,7 +890,7 @@ async function showSettings(engine, result) {
   // Provide actual navigation menu instead of just confirmation
   let inSettings = true;
   while (inSettings) {
-    const response = await safePrompt({
+    const response = await prompt({
       type: 'select',
       name: 'action',
       message: gradients.cyan('What would you like to do?'),
@@ -942,7 +942,7 @@ async function showSettings(engine, result) {
         break;
       default:
         console.log(gradients.yellow('\\n⚠️  This feature is coming soon!'));
-        await safePrompt({ type: 'confirm', name: 'continue', message: 'Press Enter to continue...' });
+        await prompt({ type: 'confirm', name: 'continue', message: 'Press Enter to continue...' });
         break;
     }
   }

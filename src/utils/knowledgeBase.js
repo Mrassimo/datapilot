@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import yaml from 'js-yaml';
+import { FileLockManager } from './fileLock.js';
 
 export class KnowledgeBase {
   constructor(basePath = null) {
@@ -10,6 +11,11 @@ export class KnowledgeBase {
     this.tablesPath = path.join(this.basePath, 'tables');
     this.patternsPath = path.join(this.basePath, 'patterns.yaml');
     this.relationshipsPath = path.join(this.basePath, 'relationships.yaml');
+    
+    // Initialize file locks for concurrent access protection
+    this.warehouseLock = new FileLockManager(this.warehousePath);
+    this.patternsLock = new FileLockManager(this.patternsPath);
+    this.relationshipsLock = new FileLockManager(this.relationshipsPath);
     
     this.initializeDirectories();
   }
@@ -101,16 +107,94 @@ export class KnowledgeBase {
     return obj;
   }
 
-saveYaml(filePath, data) {
+async saveYaml(filePath, data) {
+    // Determine which lock to use based on file path
+    let lockManager = null;
+    if (filePath === this.warehousePath) {
+      lockManager = this.warehouseLock;
+    } else if (filePath === this.patternsPath) {
+      lockManager = this.patternsLock;
+    } else if (filePath === this.relationshipsPath) {
+      lockManager = this.relationshipsLock;
+    }
+    
+    // Create backup before writing
     try {
-      const yamlContent = yaml.dump(this.cleanForYaml(data), {
-        indent: 2,
-        lineWidth: 120,
-        noRefs: true
-      });
-      fs.writeFileSync(filePath, yamlContent, 'utf8');
+      if (fs.existsSync(filePath)) {
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const backupPath = `${filePath}.backup-${timestamp}`;
+        fs.copyFileSync(filePath, backupPath);
+        
+        // Keep only last 3 backups to save space
+        this.cleanupOldBackups(filePath);
+      }
+    } catch (backupError) {
+      console.warn(`Failed to create backup for ${filePath}:`, backupError.message);
+    }
+    
+    const saveOperation = () => {
+      try {
+        const yamlContent = yaml.dump(this.cleanForYaml(data), {
+          indent: 2,
+          lineWidth: 120,
+          noRefs: true
+        });
+        
+        // Validate content before saving
+        if (yamlContent.includes('undefined') || 
+            yamlContent.includes('[object Object]') ||
+            yamlContent.includes('function') ||
+            yamlContent.trim().length === 0) {
+          throw new Error('Invalid YAML content generated');
+        }
+        
+        fs.writeFileSync(filePath, yamlContent, 'utf8');
+      } catch (error) {
+        console.error(`Failed to save ${filePath}:`, error.message);
+        throw error;
+      }
+    };
+    
+    // Use file locking if available, otherwise proceed without it
+    if (lockManager) {
+      try {
+        await lockManager.withLock(saveOperation, 3000); // 3 second timeout
+      } catch (lockError) {
+        console.warn(`File locking failed for ${filePath}, proceeding without lock:`, lockError.message);
+        saveOperation();
+      }
+    } else {
+      saveOperation();
+    }
+  }
+
+  cleanupOldBackups(filePath) {
+    try {
+      const dir = path.dirname(filePath);
+      const basename = path.basename(filePath);
+      const files = fs.readdirSync(dir);
+      
+      const backups = files
+        .filter(f => f.startsWith(`${basename}.backup-`))
+        .map(f => ({
+          name: f,
+          path: path.join(dir, f),
+          stat: fs.statSync(path.join(dir, f))
+        }))
+        .sort((a, b) => b.stat.mtime - a.stat.mtime); // Sort by modification time, newest first
+      
+      // Keep only the 3 most recent backups
+      const backupsToDelete = backups.slice(3);
+      
+      for (const backup of backupsToDelete) {
+        try {
+          fs.unlinkSync(backup.path);
+        } catch (error) {
+          console.warn(`Failed to delete old backup ${backup.name}:`, error.message);
+        }
+      }
     } catch (error) {
-      console.error(`Failed to save ${filePath}:`, error.message);
+      console.warn(`Failed to cleanup backups for ${filePath}:`, error.message);
     }
   }
 
@@ -135,7 +219,7 @@ saveYaml(filePath, data) {
 
   async saveTable(tableName, analysis) {
     const tablePath = path.join(this.tablesPath, `${tableName}.yaml`);
-    this.saveYaml(tablePath, analysis);
+    await this.saveYaml(tablePath, analysis);
   }
 
   async update(tableName, analysis) {
@@ -180,9 +264,9 @@ saveYaml(filePath, data) {
 
     // Save everything
     await this.saveTable(tableName, analysis);
-    this.saveYaml(this.warehousePath, knowledge.warehouse);
-    this.saveYaml(this.patternsPath, knowledge.patterns);
-    this.saveYaml(this.relationshipsPath, knowledge.relationships);
+    await this.saveYaml(this.warehousePath, knowledge.warehouse);
+    await this.saveYaml(this.patternsPath, knowledge.patterns);
+    await this.saveYaml(this.relationshipsPath, knowledge.relationships);
 
     return knowledge;
   }
@@ -202,7 +286,7 @@ saveYaml(filePath, data) {
         updated: new Date().toISOString()
       };
 
-      this.saveYaml(this.warehousePath, knowledge.warehouse);
+      await this.saveYaml(this.warehousePath, knowledge.warehouse);
     }
   }
 
@@ -400,7 +484,7 @@ WAREHOUSE ARCHAEOLOGY SUMMARY:
           knowledge.warehouse.warehouse_metadata.last_updated = new Date().toISOString();
           
           // Save updated warehouse
-          this.saveYaml(this.warehousePath, knowledge.warehouse);
+          await this.saveYaml(this.warehousePath, knowledge.warehouse);
         }
       }
       
@@ -410,7 +494,7 @@ WAREHOUSE ARCHAEOLOGY SUMMARY:
           .filter(rel => rel.source_table !== tableName && rel.target_table !== tableName);
         knowledge.relationships.suspected = (knowledge.relationships.suspected || [])
           .filter(rel => rel.source_table !== tableName && rel.target_table !== tableName);
-        this.saveYaml(this.relationshipsPath, knowledge.relationships);
+        await this.saveYaml(this.relationshipsPath, knowledge.relationships);
       }
       
       return true;
@@ -433,7 +517,7 @@ WAREHOUSE ARCHAEOLOGY SUMMARY:
       
       // Create empty warehouse file
       const emptyWarehouse = this.createEmptyWarehouse();
-      this.saveYaml(this.warehousePath, emptyWarehouse);
+      await this.saveYaml(this.warehousePath, emptyWarehouse);
       
       return true;
     } catch (error) {
