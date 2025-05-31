@@ -1,6 +1,6 @@
 {
   "name": "datapilot",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "🛩️ Professional CSV analysis CLI with 5 specialized analysis modes and AI-ready insights. Clean, fast, powerful.",
   "main": "bin/datapilot.js",
   "bin": {
@@ -25,7 +25,7 @@
   ],
   "keywords": [
     "csv",
-    "data-analysis", 
+    "data-analysis",
     "cli",
     "tui",
     "interactive",
