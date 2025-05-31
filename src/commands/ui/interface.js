@@ -13,6 +13,7 @@ import fs from 'fs';
 import path from 'path';
 
 import { TUIEngine } from './engine.js';
+import { browseForFileSimple } from './simpleBrowser.js';
 
 // Wrapper for prompts to handle Escape key gracefully
 async function safePrompt(config) {
@@ -352,8 +353,10 @@ async function selectFile(engine, csvFiles) {
   }
   
   if (response.file === 'manual') {
-    // Interactive file browser
-    const selectedFile = await browseForFile();
+    // Use simple file browser with proper screen clearing
+    const selectedFile = await browseForFileSimple();
+    // Clear and redraw after browser closes
+    console.clear();
     return selectedFile;
   }
   
