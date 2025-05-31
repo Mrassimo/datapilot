@@ -398,11 +398,8 @@ program
         });
       }
       
-      // Set the port in environment
-      process.env.PORT = port;
-      
       // Start the server
-      const server = await startWebServer();
+      const server = await startWebServer(port);
       
       const url = `http://localhost:${port}`;
       console.log(chalk.green(`✅ DataPilot Web Interface running at ${url}`));

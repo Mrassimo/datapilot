@@ -7,10 +7,10 @@ import fs from 'fs';
 
 // Import DataPilot commands
 import { eda } from './commands/eda.js';
-import { int } from './commands/int.js';
-import { vis } from './commands/vis.js';
-import { eng } from './commands/eng.js';
-import { llm } from './commands/llm.js';
+import { integrity } from './commands/int.js';
+import { visualize } from './commands/vis.js';
+import { engineering } from './commands/eng.js';
+import { llmContext } from './commands/llm.js';
 
 // Import DataPilot utilities
 import { parseCSV } from './utils/parser.js';
@@ -19,7 +19,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(cors());
@@ -109,7 +108,7 @@ app.post('/api/analyze/int', upload.single('file'), async (req, res) => {
     }
     
     const { data, headers } = await parseCSVForAnalysis(actualFilePath);
-    const result = await int(data, headers, actualFilePath, options);
+    const result = await integrity(data, headers, actualFilePath, options);
     
     if (req.file) {
       fs.unlinkSync(actualFilePath);
@@ -139,7 +138,7 @@ app.post('/api/analyze/vis', upload.single('file'), async (req, res) => {
     }
     
     const { data, headers } = await parseCSVForAnalysis(actualFilePath);
-    const result = await vis(data, headers, actualFilePath, options);
+    const result = await visualize(data, headers, actualFilePath, options);
     
     if (req.file) {
       fs.unlinkSync(actualFilePath);
@@ -169,7 +168,7 @@ app.post('/api/analyze/eng', upload.single('file'), async (req, res) => {
     }
     
     const { data, headers } = await parseCSVForAnalysis(actualFilePath);
-    const result = await eng(data, headers, actualFilePath, options);
+    const result = await engineering(data, headers, actualFilePath, options);
     
     if (req.file) {
       fs.unlinkSync(actualFilePath);
@@ -199,7 +198,7 @@ app.post('/api/analyze/llm', upload.single('file'), async (req, res) => {
     }
     
     const { data, headers } = await parseCSVForAnalysis(actualFilePath);
-    const result = await llm(data, headers, actualFilePath, options);
+    const result = await llmContext(data, headers, actualFilePath, options);
     
     if (req.file) {
       fs.unlinkSync(actualFilePath);
@@ -236,13 +235,13 @@ app.use((error, req, res, next) => {
   res.status(500).json({ error: 'Internal server error' });
 });
 
-export function startWebServer() {
+export function startWebServer(port = process.env.PORT || 3000) {
   return new Promise((resolve, reject) => {
-    const server = app.listen(PORT, (err) => {
+    const server = app.listen(port, (err) => {
       if (err) {
         reject(err);
       } else {
-        console.log(`DataPilot web server running at http://localhost:${PORT}`);
+        console.log(`DataPilot web server running at http://localhost:${port}`);
         resolve(server);
       }
     });
