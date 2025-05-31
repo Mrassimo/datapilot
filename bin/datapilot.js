@@ -359,6 +359,84 @@ program
     await interactiveUI();
   });
 
+// WebUI command - Modern React Web Interface
+program
+  .command('webui')
+  .description('🌐 Modern Web Interface - React-based UI for easy CSV analysis')
+  .option('-p, --port <port>', 'Port number for web server (default: 3000)', '3000')
+  .option('--no-open', 'Don\'t automatically open browser')
+  .action(async (options) => {
+    try {
+      const { startWebServer } = await import('../src/webServer.js');
+      const open = await import('open');
+      
+      const port = parseInt(options.port);
+      
+      console.log(chalk.blue('🚀 Starting DataPilot Web Interface...'));
+      
+      // Check if frontend is built
+      const frontendDistPath = path.join(process.cwd(), 'frontend', 'dist');
+      if (!existsSync(frontendDistPath)) {
+        console.log(chalk.yellow('⚠️  Frontend not built. Building now...'));
+        const { spawn } = await import('child_process');
+        
+        await new Promise((resolve, reject) => {
+          const buildProcess = spawn('npm', ['run', 'build:frontend'], { 
+            stdio: 'inherit',
+            cwd: process.cwd()
+          });
+          
+          buildProcess.on('close', (code) => {
+            if (code === 0) {
+              resolve();
+            } else {
+              reject(new Error(`Frontend build failed with code ${code}`));
+            }
+          });
+          
+          buildProcess.on('error', reject);
+        });
+      }
+      
+      // Set the port in environment
+      process.env.PORT = port;
+      
+      // Start the server
+      const server = await startWebServer();
+      
+      const url = `http://localhost:${port}`;
+      console.log(chalk.green(`✅ DataPilot Web Interface running at ${url}`));
+      
+      // Open browser unless disabled
+      if (options.open !== false) {
+        try {
+          await open.default(url);
+          console.log(chalk.blue('🌐 Opening in your default browser...'));
+        } catch (error) {
+          console.log(chalk.yellow(`⚠️  Could not open browser automatically. Please visit: ${url}`));
+        }
+      } else {
+        console.log(chalk.blue(`🌐 Visit ${url} in your browser`));
+      }
+      
+      // Handle graceful shutdown
+      process.on('SIGINT', () => {
+        console.log(chalk.yellow('\n🛑 Shutting down DataPilot Web Interface...'));
+        server.close(() => {
+          console.log(chalk.green('✅ Server closed gracefully'));
+          process.exit(0);
+        });
+      });
+      
+      // Keep the process alive
+      console.log(chalk.gray('Press Ctrl+C to stop the server'));
+      
+    } catch (error) {
+      console.error(chalk.red(`❌ Failed to start web interface: ${error.message}`));
+      process.exit(1);
+    }
+  });
+
 // Help text with enhanced examples
 program.on('--help', () => {
   console.log('');

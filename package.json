@@ -17,7 +17,12 @@
     "build": "rollup -c",
     "build:watch": "rollup -c -w",
     "build:portable": "node scripts/build/create-portable-bundle.js",
-    "clean:portable": "rm -rf datapilot-portable-*"
+    "clean:portable": "rm -rf datapilot-portable-*",
+    "build:frontend": "cd frontend && npm run build",
+    "dev:frontend": "cd frontend && npm run dev",
+    "install:frontend": "cd frontend && npm install",
+    "webui": "node bin/datapilot.js webui",
+    "dev:webui": "npm run build:frontend && npm run webui"
   },
   "keywords": [
     "csv",
