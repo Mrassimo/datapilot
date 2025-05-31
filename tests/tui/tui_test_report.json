@@ -1,0 +1,27 @@
+{
+  "timestamp": "2025-05-31T00:09:10.907Z",
+  "platform": "darwin",
+  "node": "v23.6.1",
+  "results": {
+    "passed": 5,
+    "failed": 3,
+    "skipped": 1,
+    "errors": [
+      {
+        "suite": "TUI Startup and Exit",
+        "test": "Should start and display welcome message",
+        "error": "Timeout waiting for pattern: /exit|thank|bye/i"
+      },
+      {
+        "suite": "File Selection",
+        "test": "Should handle invalid file selection",
+        "error": "Timeout waiting for pattern: /Enter the path|path to your CSV/i"
+      },
+      {
+        "suite": "Analysis Workflow",
+        "test": "Should complete demo analysis",
+        "error": "Timeout waiting for pattern: /complete|Results|Done|finished|Press Enter|continue/i"
+      }
+    ]
+  }
+}

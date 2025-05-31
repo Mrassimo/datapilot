@@ -1,6 +1,6 @@
 # DataPilot TUI Test Results
 
-**Date:** 2025-05-28T21:23:09.585Z
+**Date:** 2025-05-31T00:09:10.918Z
 **Platform:** darwin (arm64)
 **Node Version:** v23.6.1
 
@@ -9,14 +9,14 @@
 - Total Test Suites: 3
 - Passed: 2
 - Failed: 1
-- Total Duration: 43.59s
+- Total Duration: 44.95s
 
 ## Detailed Results
 
 ### ✅ TUI Engine Unit Tests
 
 - Exit Code: 0
-- Duration: 0.23s
+- Duration: 0.17s
 
 ### ✅ TUI Engine Flow Tests
 
@@ -26,7 +26,7 @@
 ### ❌ Automated TUI Tests (E2E)
 
 - Exit Code: 1
-- Duration: 43.22s
+- Duration: 44.64s
 
 ## Recommendations
 
