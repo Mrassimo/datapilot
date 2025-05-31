@@ -15,6 +15,7 @@ import require$$0$6 from 'util';
 import os$1 from 'os';
 import { pipeline } from 'stream/promises';
 import 'crypto';
+import fs$1 from 'fs/promises';
 import require$$0$7 from 'readline';
 import { fileURLToPath } from 'node:url';
 import { win32, posix } from 'node:path';
@@ -60771,6 +60772,171 @@ var jsYaml = {
 	safeDump: safeDump
 };
 
+/**
+ * File Locking System for DataPilot Knowledge Base
+ * Prevents concurrent access corruption identified in Google review
+ */
+
+
+class FileLockManager {
+  constructor(filePath) {
+    this.filePath = filePath;
+    this.lockPath = `${filePath}.lock`;
+    this.maxRetries = 50; // 5 seconds with 100ms intervals
+    this.retryInterval = 100;
+  }
+
+  /**
+   * Acquire exclusive lock on file
+   * @param {number} timeout - Maximum time to wait for lock (ms)
+   * @returns {Promise<boolean>} - true if lock acquired
+   */
+  async acquireLock(timeout = 5000) {
+    const startTime = Date.now();
+    let attempts = 0;
+    
+    while (Date.now() - startTime < timeout && attempts < this.maxRetries) {
+      try {
+        // Create lock file with process info
+        const lockInfo = {
+          pid: process.pid,
+          timestamp: Date.now(),
+          file: this.filePath
+        };
+        
+        await fs$1.writeFile(
+          this.lockPath, 
+          JSON.stringify(lockInfo), 
+          { flag: 'wx' } // Exclusive create - fails if exists
+        );
+        
+        return true;
+      } catch (error) {
+        if (error.code === 'EEXIST') {
+          // Lock exists - check if it's stale
+          const lockValid = await this.checkLockValidity();
+          
+          if (!lockValid) {
+            // Remove stale lock and retry
+            await this.forceRemoveLock();
+          } else {
+            // Valid lock exists, wait
+            await this.sleep(this.retryInterval);
+          }
+        } else {
+          // Other error - propagate
+          throw new Error(`Failed to acquire lock: ${error.message}`);
+        }
+      }
+      
+      attempts++;
+    }
+    
+    throw new Error(`Failed to acquire file lock within ${timeout}ms (${attempts} attempts)`);
+  }
+
+  /**
+   * Release the file lock
+   */
+  async releaseLock() {
+    try {
+      // Verify we own the lock before removing
+      const lockInfo = await this.readLockInfo();
+      
+      if (lockInfo && lockInfo.pid === process.pid) {
+        await fs$1.unlink(this.lockPath);
+      } else {
+        console.warn('Attempting to release lock not owned by this process');
+      }
+    } catch (error) {
+      // Lock might already be removed - this is not necessarily an error
+      if (error.code !== 'ENOENT') {
+        console.warn('Warning: Failed to release lock:', error.message);
+      }
+    }
+  }
+
+  /**
+   * Check if existing lock is still valid
+   * @returns {Promise<boolean>}
+   */
+  async checkLockValidity() {
+    try {
+      const lockInfo = await this.readLockInfo();
+      
+      if (!lockInfo) {
+        return false;
+      }
+      
+      // Check if lock is too old (stale)
+      const lockAge = Date.now() - lockInfo.timestamp;
+      if (lockAge > 30000) { // 30 seconds
+        return false;
+      }
+      
+      // Check if process is still running
+      try {
+        process.kill(lockInfo.pid, 0); // Signal 0 just checks if process exists
+        return true;
+      } catch (killError) {
+        // Process doesn't exist
+        return false;
+      }
+    } catch (error) {
+      // Can't read lock file - assume invalid
+      return false;
+    }
+  }
+
+  /**
+   * Read lock file information
+   * @returns {Promise<object|null>}
+   */
+  async readLockInfo() {
+    try {
+      const content = await fs$1.readFile(this.lockPath, 'utf8');
+      return JSON.parse(content);
+    } catch (error) {
+      return null;
+    }
+  }
+
+  /**
+   * Force remove lock file (for stale locks)
+   */
+  async forceRemoveLock() {
+    try {
+      await fs$1.unlink(this.lockPath);
+    } catch (error) {
+      // Ignore - might have been removed by another process
+    }
+  }
+
+  /**
+   * Sleep utility
+   * @param {number} ms 
+   */
+  async sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  /**
+   * Execute function with file lock
+   * @param {Function} fn - Function to execute with lock
+   * @param {number} timeout - Lock timeout
+   * @returns {Promise<any>}
+   */
+  async withLock(fn, timeout = 5000) {
+    await this.acquireLock(timeout);
+    
+    try {
+      return await fn();
+    } finally {
+      await this.releaseLock();
+    }
+  }
+}
+
 class KnowledgeBase {
   constructor(basePath = null) {
     this.basePath = basePath || path$1.join(os$1.homedir(), '.datapilot', 'archaeology');
@@ -60778,6 +60944,11 @@ class KnowledgeBase {
     this.tablesPath = path$1.join(this.basePath, 'tables');
     this.patternsPath = path$1.join(this.basePath, 'patterns.yaml');
     this.relationshipsPath = path$1.join(this.basePath, 'relationships.yaml');
+    
+    // Initialize file locks for concurrent access protection
+    this.warehouseLock = new FileLockManager(this.warehousePath);
+    this.patternsLock = new FileLockManager(this.patternsPath);
+    this.relationshipsLock = new FileLockManager(this.relationshipsPath);
     
     this.initializeDirectories();
   }
@@ -60869,16 +61040,94 @@ class KnowledgeBase {
     return obj;
   }
 
-saveYaml(filePath, data) {
+async saveYaml(filePath, data) {
+    // Determine which lock to use based on file path
+    let lockManager = null;
+    if (filePath === this.warehousePath) {
+      lockManager = this.warehouseLock;
+    } else if (filePath === this.patternsPath) {
+      lockManager = this.patternsLock;
+    } else if (filePath === this.relationshipsPath) {
+      lockManager = this.relationshipsLock;
+    }
+    
+    // Create backup before writing
     try {
-      const yamlContent = jsYaml.dump(this.cleanForYaml(data), {
-        indent: 2,
-        lineWidth: 120,
-        noRefs: true
-      });
-      fs.writeFileSync(filePath, yamlContent, 'utf8');
+      if (fs.existsSync(filePath)) {
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const backupPath = `${filePath}.backup-${timestamp}`;
+        fs.copyFileSync(filePath, backupPath);
+        
+        // Keep only last 3 backups to save space
+        this.cleanupOldBackups(filePath);
+      }
+    } catch (backupError) {
+      console.warn(`Failed to create backup for ${filePath}:`, backupError.message);
+    }
+    
+    const saveOperation = () => {
+      try {
+        const yamlContent = jsYaml.dump(this.cleanForYaml(data), {
+          indent: 2,
+          lineWidth: 120,
+          noRefs: true
+        });
+        
+        // Validate content before saving
+        if (yamlContent.includes('undefined') || 
+            yamlContent.includes('[object Object]') ||
+            yamlContent.includes('function') ||
+            yamlContent.trim().length === 0) {
+          throw new Error('Invalid YAML content generated');
+        }
+        
+        fs.writeFileSync(filePath, yamlContent, 'utf8');
+      } catch (error) {
+        console.error(`Failed to save ${filePath}:`, error.message);
+        throw error;
+      }
+    };
+    
+    // Use file locking if available, otherwise proceed without it
+    if (lockManager) {
+      try {
+        await lockManager.withLock(saveOperation, 3000); // 3 second timeout
+      } catch (lockError) {
+        console.warn(`File locking failed for ${filePath}, proceeding without lock:`, lockError.message);
+        saveOperation();
+      }
+    } else {
+      saveOperation();
+    }
+  }
+
+  cleanupOldBackups(filePath) {
+    try {
+      const dir = path$1.dirname(filePath);
+      const basename = path$1.basename(filePath);
+      const files = fs.readdirSync(dir);
+      
+      const backups = files
+        .filter(f => f.startsWith(`${basename}.backup-`))
+        .map(f => ({
+          name: f,
+          path: path$1.join(dir, f),
+          stat: fs.statSync(path$1.join(dir, f))
+        }))
+        .sort((a, b) => b.stat.mtime - a.stat.mtime); // Sort by modification time, newest first
+      
+      // Keep only the 3 most recent backups
+      const backupsToDelete = backups.slice(3);
+      
+      for (const backup of backupsToDelete) {
+        try {
+          fs.unlinkSync(backup.path);
+        } catch (error) {
+          console.warn(`Failed to delete old backup ${backup.name}:`, error.message);
+        }
+      }
     } catch (error) {
-      console.error(`Failed to save ${filePath}:`, error.message);
+      console.warn(`Failed to cleanup backups for ${filePath}:`, error.message);
     }
   }
 
@@ -60903,7 +61152,7 @@ saveYaml(filePath, data) {
 
   async saveTable(tableName, analysis) {
     const tablePath = path$1.join(this.tablesPath, `${tableName}.yaml`);
-    this.saveYaml(tablePath, analysis);
+    await this.saveYaml(tablePath, analysis);
   }
 
   async update(tableName, analysis) {
@@ -60948,9 +61197,9 @@ saveYaml(filePath, data) {
 
     // Save everything
     await this.saveTable(tableName, analysis);
-    this.saveYaml(this.warehousePath, knowledge.warehouse);
-    this.saveYaml(this.patternsPath, knowledge.patterns);
-    this.saveYaml(this.relationshipsPath, knowledge.relationships);
+    await this.saveYaml(this.warehousePath, knowledge.warehouse);
+    await this.saveYaml(this.patternsPath, knowledge.patterns);
+    await this.saveYaml(this.relationshipsPath, knowledge.relationships);
 
     return knowledge;
   }
@@ -60970,7 +61219,7 @@ saveYaml(filePath, data) {
         updated: new Date().toISOString()
       };
 
-      this.saveYaml(this.warehousePath, knowledge.warehouse);
+      await this.saveYaml(this.warehousePath, knowledge.warehouse);
     }
   }
 
@@ -61168,7 +61417,7 @@ WAREHOUSE ARCHAEOLOGY SUMMARY:
           knowledge.warehouse.warehouse_metadata.last_updated = new Date().toISOString();
           
           // Save updated warehouse
-          this.saveYaml(this.warehousePath, knowledge.warehouse);
+          await this.saveYaml(this.warehousePath, knowledge.warehouse);
         }
       }
       
@@ -61178,7 +61427,7 @@ WAREHOUSE ARCHAEOLOGY SUMMARY:
           .filter(rel => rel.source_table !== tableName && rel.target_table !== tableName);
         knowledge.relationships.suspected = (knowledge.relationships.suspected || [])
           .filter(rel => rel.source_table !== tableName && rel.target_table !== tableName);
-        this.saveYaml(this.relationshipsPath, knowledge.relationships);
+        await this.saveYaml(this.relationshipsPath, knowledge.relationships);
       }
       
       return true;
@@ -61201,7 +61450,7 @@ WAREHOUSE ARCHAEOLOGY SUMMARY:
       
       // Create empty warehouse file
       const emptyWarehouse = this.createEmptyWarehouse();
-      this.saveYaml(this.warehousePath, emptyWarehouse);
+      await this.saveYaml(this.warehousePath, emptyWarehouse);
       
       return true;
     } catch (error) {
@@ -76898,6 +77147,18 @@ class TUIEngine {
 
 const { prompt } = enquirer;
 
+// Wrapper for prompts to handle Escape key gracefully
+async function safePrompt(config) {
+  try {
+    return await prompt(config);
+  } catch (error) {
+    if (error && error.message && (error.message.includes('cancelled') || error.message.includes('Escape'))) {
+      throw new Error('cancelled');
+    }
+    throw error;
+  }
+}
+
 // Dark-terminal optimized color functions
 const safeColors = {
   // Bright colors that work well on dark backgrounds
@@ -76972,15 +77233,26 @@ async function interactiveUI() {
           await handleMainMenuAction(engine, action);
         }
       } catch (error) {
-        console.error(chalk.red('An error occurred:'), error.message);
-        const continueChoice = await prompt({
-          type: 'confirm',
-          name: 'continue',
-          message: 'Would you like to continue?',
-          initial: true
-        });
+        // Handle Escape key press gracefully
+        if (error && error.message && error.message.includes('cancelled')) {
+          console.log(chalk.yellow('\nOperation cancelled. Returning to main menu...'));
+          continue;
+        }
         
-        if (!continueChoice.continue) {
+        console.log(chalk.red('An error occurred:'), error.message);
+        try {
+          const continueChoice = await safePrompt({
+            type: 'confirm',
+            name: 'continue',
+            message: 'Would you like to continue?',
+            initial: true
+          });
+          
+          if (!continueChoice.continue) {
+            running = false;
+          }
+        } catch (continueError) {
+          // If user cancels the continue prompt, exit gracefully
           running = false;
         }
       }
@@ -76990,7 +77262,7 @@ async function interactiveUI() {
     await showGoodbyeAnimation();
     
   } catch (error) {
-    console.error(chalk.red('Fatal error in interactive UI:'), error.message);
+    console.log(chalk.red('Fatal error in interactive UI:'), error.message);
     process.exit(1);
   }
 }
@@ -77010,7 +77282,7 @@ async function showMainMenu(engine) {
     }
   ));
   
-  const response = await prompt({
+  const response = await safePrompt({
     type: 'select',
     name: 'action',
     message: gradients.highlight('🚀 What would you like to explore today?'),
@@ -77040,7 +77312,7 @@ async function handleMainMenuAction(engine, action) {
       // Exit handled in main loop
       break;
     case 'error':
-      console.error(chalk.red('Error:'), result.message);
+      console.log(chalk.red('Error:'), result.message);
       break;
   }
 }
@@ -77074,7 +77346,7 @@ async function showGuidedAnalysis(engine, analysisResult) {
   // Step 5: Show results
   await showResults();
   
-  await prompt({
+  await safePrompt({
     type: 'confirm',
     name: 'continue',
     message: '\\nPress Enter to continue...'
@@ -77089,7 +77361,7 @@ async function selectFile(engine, csvFiles) {
     return null;
   }
   
-  const response = await prompt({
+  const response = await safePrompt({
     type: 'select',
     name: 'file',
     message: gradients.success('📂 Select a CSV file to analyze:'),
@@ -77108,7 +77380,7 @@ async function selectFile(engine, csvFiles) {
     
     while (!filePath && attempts < maxAttempts) {
       try {
-        const manualResponse = await prompt({
+        const manualResponse = await safePrompt({
           type: 'input',
           name: 'path',
           message: attempts > 0 ? 
@@ -77175,7 +77447,7 @@ async function showFilePreview(engine, filePath) {
 async function selectAnalysisType(engine) {
   const choices = engine.getAnalysisTypeChoices();
   
-  const response = await prompt({
+  const response = await safePrompt({
     type: 'select',
     name: 'type',
     message: gradients.blue('🔬 What type of analysis would you like?'),
@@ -77232,7 +77504,7 @@ async function showDemo(engine, demoResult) {
   
   if (demoResult.datasets.length === 0) {
     console.log(chalk.yellow('No demo datasets found. Please ensure test fixtures are available.'));
-    await prompt({ type: 'confirm', name: 'continue', message: 'Press Enter to continue...' });
+    await safePrompt({ type: 'confirm', name: 'continue', message: 'Press Enter to continue...' });
     return;
   }
   
@@ -77248,7 +77520,7 @@ async function showDemo(engine, demoResult) {
     hint: 'Return to main menu'
   });
   
-  const response = await prompt({
+  const response = await safePrompt({
     type: 'select',
     name: 'dataset',
     message: gradients.fire('🎯 Choose a demo dataset:'),
@@ -77262,7 +77534,7 @@ async function showDemo(engine, demoResult) {
   await runAnalysisWithAnimation(engine, response.dataset, analysisType);
   await showResults();
   
-  await prompt({
+  await safePrompt({
     type: 'confirm',
     name: 'continue',
     message: '\\nPress Enter to continue...'
@@ -77300,7 +77572,7 @@ async function showMemoryManager(engine, memoryResult) {
   
   let managing = true;
   while (managing) {
-    const action = await prompt({
+    const action = await safePrompt({
       type: 'select',
       name: 'action',
       message: gradients.cyan('What would you like to do?'),
@@ -77367,13 +77639,13 @@ async function showMemoryList(engine) {
     });
   }
   
-  await prompt({ type: 'confirm', name: 'continue', message: '\\nPress Enter to continue...' });
+  await safePrompt({ type: 'confirm', name: 'continue', message: '\\nPress Enter to continue...' });
 }
 
 async function showMemoryDetails(engine) {
   // Implementation would be similar to the original but using engine methods
   console.log(chalk.yellow('Memory details feature - implementation in progress...'));
-  await prompt({ type: 'confirm', name: 'continue', message: 'Press Enter to continue...' });
+  await safePrompt({ type: 'confirm', name: 'continue', message: 'Press Enter to continue...' });
 }
 
 async function deleteMemory(engine) {
@@ -77382,18 +77654,18 @@ async function deleteMemory(engine) {
   
   if (allTables.length === 0) {
     console.log(chalk.yellow('No memories to delete!'));
-    await prompt({ type: 'confirm', name: 'continue', message: 'Press Enter to continue...' });
+    await safePrompt({ type: 'confirm', name: 'continue', message: 'Press Enter to continue...' });
     return;
   }
   
-  const { tableName } = await prompt({
+  const { tableName } = await safePrompt({
     type: 'autocomplete',
     name: 'tableName',
     message: 'Select a table to delete:',
     choices: allTables.map(t => t.name)
   });
   
-  const { confirm } = await prompt({
+  const { confirm } = await safePrompt({
     type: 'confirm',
     name: 'confirm',
     message: `Are you sure you want to delete memory for "${tableName}"?`,
@@ -77413,14 +77685,14 @@ async function deleteMemory(engine) {
     console.log(chalk.gray('Deletion cancelled.'));
   }
   
-  await prompt({ type: 'confirm', name: 'continue', message: 'Press Enter to continue...' });
+  await safePrompt({ type: 'confirm', name: 'continue', message: 'Press Enter to continue...' });
 }
 
 async function clearAllMemories(engine) {
   console.log(chalk.red('\\n⚠️  WARNING: This will delete ALL warehouse knowledge!'));
   console.log(chalk.yellow('This action cannot be undone.\\n'));
   
-  const { confirmFirst } = await prompt({
+  const { confirmFirst } = await safePrompt({
     type: 'confirm',
     name: 'confirmFirst',
     message: 'Are you absolutely sure you want to clear all memories?',
@@ -77429,11 +77701,11 @@ async function clearAllMemories(engine) {
   
   if (!confirmFirst) {
     console.log(chalk.gray('Clear operation cancelled.'));
-    await prompt({ type: 'confirm', name: 'continue', message: 'Press Enter to continue...' });
+    await safePrompt({ type: 'confirm', name: 'continue', message: 'Press Enter to continue...' });
     return;
   }
   
-  const { confirmSecond } = await prompt({
+  const { confirmSecond } = await safePrompt({
     type: 'input',
     name: 'confirmSecond',
     message: 'Type "DELETE ALL" to confirm:',
@@ -77453,7 +77725,7 @@ async function clearAllMemories(engine) {
     console.log(chalk.gray('Clear operation cancelled.'));
   }
   
-  await prompt({ type: 'confirm', name: 'continue', message: 'Press Enter to continue...' });
+  await safePrompt({ type: 'confirm', name: 'continue', message: 'Press Enter to continue...' });
 }
 
 async function exportMemories(engine) {
@@ -77473,12 +77745,12 @@ async function exportMemories(engine) {
     
     if (Object.keys(memories).length === 0) {
       console.log(gradients.warning('\n⚠️  No memories found to export. Analyze some CSV files first!'));
-      await prompt({ type: 'confirm', name: 'continue', message: 'Press Enter to continue...' });
+      await safePrompt({ type: 'confirm', name: 'continue', message: 'Press Enter to continue...' });
       return;
     }
     
     // Get export filename from user
-    const { filename } = await prompt({
+    const { filename } = await safePrompt({
       type: 'input',
       name: 'filename',
       message: gradients.info('Enter filename for export (without extension):'),
@@ -77567,7 +77839,7 @@ Generated by DataPilot - Your Data Analysis Co-Pilot 🛩️
     console.log(gradients.error(`\n❌ Export failed: ${error.message}`));
   }
   
-  await prompt({ type: 'confirm', name: 'continue', message: '\nPress Enter to continue...' });
+  await safePrompt({ type: 'confirm', name: 'continue', message: '\nPress Enter to continue...' });
 }
 
 async function showSessionMemories() {
@@ -77604,7 +77876,7 @@ async function showSessionMemories() {
   console.log('  • Quick save/load analysis contexts');
   console.log('  • Share knowledge between team members');
   
-  await prompt({ type: 'confirm', name: 'continue', message: 'Press Enter to continue...' });
+  await safePrompt({ type: 'confirm', name: 'continue', message: 'Press Enter to continue...' });
 }
 
 async function showResults() {
@@ -77646,9 +77918,8 @@ async function showWelcomeAnimation() {
     }
   ));
   
-  // Animated loading effect
+  // Animated loading effect - removed artificial delay
   const spinner = distExports.createSpinner('Initializing DataPilot...').start();
-  await new Promise(resolve => setTimeout(resolve, 800));
   spinner.success({ text: 'Ready to analyze your data! 🎉' });
   
   console.log();
@@ -77713,7 +77984,7 @@ async function showAboutInfo() {
     }
   ));
   
-  await prompt({ type: 'confirm', name: 'continue', message: '\\nPress Enter to continue...' });
+  await safePrompt({ type: 'confirm', name: 'continue', message: '\\nPress Enter to continue...' });
 }
 
 
@@ -77752,7 +78023,7 @@ async function showSettings(engine, result) {
   // Provide actual navigation menu instead of just confirmation
   let inSettings = true;
   while (inSettings) {
-    const response = await prompt({
+    const response = await safePrompt({
       type: 'select',
       name: 'action',
       message: gradients.cyan('What would you like to do?'),
@@ -77804,7 +78075,7 @@ async function showSettings(engine, result) {
         break;
       default:
         console.log(gradients.yellow('\\n⚠️  This feature is coming soon!'));
-        await prompt({ type: 'confirm', name: 'continue', message: 'Press Enter to continue...' });
+        await safePrompt({ type: 'confirm', name: 'continue', message: 'Press Enter to continue...' });
         break;
     }
   }

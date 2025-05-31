@@ -130,7 +130,7 @@ function verifySourceCode() {
   const sourceChecks = {
     noLearningInDist: !distContent.includes('Learning Mode'),
     accentFunctionExists: interfaceContent.includes('accent: (text) => safeColors.accent(text)'),
-    cleanedFormatting: interfaceContent.includes("+ '\\\\n\\\\n' +"),
+    cleanedFormatting: interfaceContent.includes("+ '\\n\\n' +"),
     exportMemoriesExists: interfaceContent.includes('exportMemories(engine)')
   };
   
