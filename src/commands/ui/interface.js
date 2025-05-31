@@ -224,24 +224,32 @@ async function browseForFile() {
   let currentPath = process.cwd();
   let selectedFile = null;
   
+  // Clear the screen once at the start
+  console.clear();
+  
   while (selectedFile === null) {
     try {
       // Get directory contents
       const items = fs.readdirSync(currentPath).map(item => {
         const fullPath = path.join(currentPath, item);
-        const stats = fs.statSync(fullPath);
-        const isDirectory = stats.isDirectory();
-        const isCSV = item.toLowerCase().endsWith('.csv');
-        
-        return {
-          name: item,
-          fullPath,
-          isDirectory,
-          isCSV,
-          size: stats.size,
-          modified: stats.mtime
-        };
-      }).filter(item => item.isDirectory || item.isCSV);
+        try {
+          const stats = fs.statSync(fullPath);
+          const isDirectory = stats.isDirectory();
+          const isCSV = item.toLowerCase().endsWith('.csv');
+          
+          return {
+            name: item,
+            fullPath,
+            isDirectory,
+            isCSV,
+            size: stats.size,
+            modified: stats.mtime
+          };
+        } catch (e) {
+          // Skip files we can't access
+          return null;
+        }
+      }).filter(item => item && (item.isDirectory || item.isCSV));
       
       // Sort: directories first, then files
       items.sort((a, b) => {
@@ -250,28 +258,25 @@ async function browseForFile() {
         return a.name.localeCompare(b.name);
       });
       
-      // Build choices with action mapping
+      // Build choices
       const choices = [];
-      const actionMap = {};
       
       // Add parent directory option if not at root
       if (currentPath !== '/') {
-        const parentKey = 'PARENT_DIR';
         choices.push({
-          name: parentKey,
-          message: '📁 .. (parent directory)'
+          name: 'parent',
+          message: '📁 .. (parent directory)',
+          value: 'parent'
         });
-        actionMap[parentKey] = { action: 'parent' };
       }
       
       // Add directories
       items.filter(item => item.isDirectory).forEach(item => {
-        const dirKey = `DIR_${item.name}`;
         choices.push({
-          name: dirKey,
-          message: `📁 ${item.name}/`
+          name: item.fullPath,
+          message: `📁 ${item.name}/`,
+          value: item.fullPath
         });
-        actionMap[dirKey] = { action: 'cd', path: item.fullPath };
       });
       
       // Add CSV files
@@ -279,23 +284,25 @@ async function browseForFile() {
         const sizeStr = item.size < 1024 ? `${item.size}B` :
                        item.size < 1024 * 1024 ? `${(item.size / 1024).toFixed(1)}KB` :
                        `${(item.size / (1024 * 1024)).toFixed(1)}MB`;
-        const fileKey = `FILE_${item.name}`;
         choices.push({
-          name: fileKey,
-          message: `📄 ${item.name} (${sizeStr})`
+          name: item.fullPath,
+          message: `📄 ${item.name} (${sizeStr})`,
+          value: item.fullPath
         });
-        actionMap[fileKey] = { action: 'select', path: item.fullPath };
       });
       
       // Add cancel option
       choices.push({
-        name: 'CANCEL',
-        message: '❌ Cancel'
+        name: 'cancel',
+        message: '❌ Cancel',
+        value: 'cancel'
       });
-      actionMap['CANCEL'] = { action: 'cancel' };
       
-      // Show current directory
-      console.log('\n' + gradients.info(`📂 Current directory: ${currentPath}`));
+      // Clear screen and show clean UI
+      console.clear();
+      console.log(gradients.cyan('📂 FILE BROWSER'));
+      console.log(gradients.info(`Current: ${currentPath}`));
+      console.log('');
       
       const response = await safePrompt({
         type: 'select',
@@ -304,26 +311,20 @@ async function browseForFile() {
         choices: choices
       });
       
-      // Map response back to action
-      const selectedAction = actionMap[response.selection];
-      if (!selectedAction) {
-        console.log(gradients.error('❌ Invalid selection'));
-        continue;
-      }
-      
       // Handle selection
-      if (selectedAction.action === 'cancel') {
+      if (response.selection === 'cancel') {
         return null;
-      } else if (selectedAction.action === 'parent') {
+      } else if (response.selection === 'parent') {
         currentPath = path.dirname(currentPath);
-      } else if (selectedAction.action === 'cd') {
-        currentPath = selectedAction.path;
-      } else if (selectedAction.action === 'select') {
-        selectedFile = selectedAction.path;
+      } else if (fs.statSync(response.selection).isDirectory()) {
+        currentPath = response.selection;
+      } else if (response.selection.toLowerCase().endsWith('.csv')) {
+        selectedFile = response.selection;
       }
       
     } catch (error) {
-      console.log(gradients.error(`❌ Error browsing directory: ${error.message}`));
+      console.log(gradients.error(`❌ Error: ${error.message}`));
+      await new Promise(resolve => setTimeout(resolve, 2000));
       return null;
     }
   }
@@ -371,15 +372,15 @@ async function showFilePreview(engine, filePath) {
       return;
     }
     
-    console.log('\\n' + boxen(
-      `📄 File: ${chalk.green(path.basename(filePath))}\\n` +
-      `📏 Size: ${chalk.cyan(engine.formatFileSize(preview.size))}\\n` +
-      `📊 Rows: ${chalk.yellow(preview.rows.toLocaleString())}\\n` +
-      `📋 Columns: ${chalk.blue(preview.columns)}\\n\\n` +
-      `🏷️  Column Types:\\n${preview.columnNames.slice(0, 5).map(col => 
+    console.log('\n' + boxen(
+      `📄 File: ${chalk.green(path.basename(filePath))}\n` +
+      `📏 Size: ${chalk.cyan(engine.formatFileSize(preview.size))}\n` +
+      `📊 Rows: ${chalk.yellow(preview.rows.toLocaleString())}\n` +
+      `📋 Columns: ${chalk.blue(preview.columns)}\n\n` +
+      `🏷️  Column Types:\n${preview.columnNames.slice(0, 5).map(col => 
         `  • ${col} (${preview.columnTypes[col]?.type || 'unknown'})`
-      ).join('\\n')}` +
-      (preview.columnNames.length > 5 ? `\\n  ... and ${preview.columnNames.length - 5} more` : ''),
+      ).join('\n')}` +
+      (preview.columnNames.length > 5 ? `\n  ... and ${preview.columnNames.length - 5} more` : ''),
       {
         padding: 1,
         borderColor: 'green',
@@ -419,10 +420,10 @@ async function runAnalysisWithAnimation(engine, filePath, analysisType) {
       spinner.success({ text: 'Analysis complete!' });
       
       // Display basic results info
-      console.log('\\n' + boxen(
-        `✅ Analysis completed successfully!\\n` +
-        `📊 Type: ${chalk.cyan(analysisType.toUpperCase())}\\n` +
-        `📄 File: ${chalk.green(path.basename(filePath))}\\n` +
+      console.log('\n' + boxen(
+        `✅ Analysis completed successfully!\n` +
+        `📊 Type: ${chalk.cyan(analysisType.toUpperCase())}\n` +
+        `📄 File: ${chalk.green(path.basename(filePath))}\n` +
         `⏱️  Time: ${chalk.yellow(new Date(results.timestamp).toLocaleTimeString())}`,
         {
           padding: 1,
