@@ -1,0 +1,32 @@
+# Development files
+tests/
+archive/
+docs/
+scripts/
+.github/
+*.md
+!README.md
+
+# Config files
+.gitignore
+rollup.config.js
+CLAUDE.md
+TUI_STATUS_REPORT.md
+
+# Build artifacts
+node_modules/
+*.log
+.DS_Store
+
+# Test outputs
+*.json
+test_report.*
+navigation_test_report.*
+tui_test_*
+
+# Keep only essentials
+# dist/ - needed
+# src/ - needed  
+# bin/ - needed
+# package.json - needed
+# README.md - needed

@@ -1,5 +1,5 @@
 {
-  "timestamp": "2025-05-31T00:09:10.918Z",
+  "timestamp": "2025-05-31T13:16:45.584Z",
   "platform": {
     "os": "darwin",
     "arch": "arm64",
@@ -9,7 +9,7 @@
     {
       "suite": "TUI Engine Unit Tests",
       "exitCode": 0,
-      "duration": 0.17,
+      "duration": 0.2,
       "success": true
     },
     {
@@ -21,7 +21,7 @@
     {
       "suite": "Automated TUI Tests (E2E)",
       "exitCode": 1,
-      "duration": 44.64,
+      "duration": 44.58,
       "success": false
     }
   ],
@@ -29,6 +29,6 @@
     "total": 3,
     "passed": 2,
     "failed": 1,
-    "totalDuration": 44.95
+    "totalDuration": 44.92
   }
 }

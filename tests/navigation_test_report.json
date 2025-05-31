@@ -1,0 +1,71 @@
+{
+  "timestamp": "2025-05-31T13:17:20.390Z",
+  "summary": {
+    "total": 7,
+    "passed": 6,
+    "failed": 1,
+    "passRate": 85.71428571428571
+  },
+  "results": [
+    {
+      "name": "Main Menu Navigation",
+      "status": "PASSED",
+      "duration": 2254,
+      "details": {
+        "success": true,
+        "description": "Main menu displays all options and responds to navigation"
+      }
+    },
+    {
+      "name": "Settings Menu Navigation",
+      "status": "PASSED",
+      "duration": 2205,
+      "details": {
+        "success": true,
+        "description": "Settings menu navigation and About page work correctly"
+      }
+    },
+    {
+      "name": "Memory Manager Navigation",
+      "status": "PASSED",
+      "duration": 2337,
+      "details": {
+        "success": true,
+        "description": "Memory Manager navigation works correctly"
+      }
+    },
+    {
+      "name": "Demo Mode Navigation",
+      "status": "PASSED",
+      "duration": 2227,
+      "details": {
+        "success": true,
+        "description": "Demo mode shows only 2 datasets and navigation works"
+      }
+    },
+    {
+      "name": "Analysis Navigation",
+      "status": "PASSED",
+      "duration": 2194,
+      "details": {
+        "success": true,
+        "description": "Guided Analysis mode starts correctly"
+      }
+    },
+    {
+      "name": "Back Navigation",
+      "status": "PASSED",
+      "duration": 2201,
+      "details": {
+        "success": true,
+        "description": "Back navigation returns to main menu correctly"
+      }
+    },
+    {
+      "name": "Exit Functionality",
+      "status": "FAILED",
+      "error": "Process exited unexpectedly with code 0",
+      "duration": 2031
+    }
+  ]
+}
