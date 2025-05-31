@@ -1,0 +1,38 @@
+# Development files
+archive/
+*.md.backup
+*.log
+.DS_Store
+
+# Test files (not needed in package)
+tests/
+test_results.json
+benchmarks/
+
+# Build artifacts (except dist)
+src/
+bin/
+rollup.config.js
+frontend/src/
+frontend/node_modules/
+frontend/package*.json
+frontend/public/
+frontend/*.config.js
+frontend/eslint.config.js
+frontend/components.json
+!frontend/dist/
+
+# Documentation (keep only README)
+docs/
+
+# Scripts (keep only install scripts)
+scripts/build/
+
+# Temporary files
+*.tmp
+*.temp
+uploads/
+logs/
+
+# Development dependencies
+node_modules/

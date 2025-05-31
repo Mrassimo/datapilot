@@ -7,6 +7,13 @@
     "datapilot": "./dist/datapilot.js"
   },
   "type": "module",
+  "files": [
+    "dist/",
+    "frontend/dist/index.html",
+    "frontend/dist/vite.svg", 
+    "frontend/dist/assets/",
+    "README.md"
+  ],
   "scripts": {
     "test": "node tests/run_tests.js",
     "test:tui": "node tests/run_tui_tests.js",
@@ -22,7 +29,8 @@
     "dev:frontend": "cd frontend && npm run dev",
     "install:frontend": "cd frontend && npm install",
     "webui": "node bin/datapilot.js webui",
-    "dev:webui": "npm run build:frontend && npm run webui"
+    "dev:webui": "npm run build:frontend && npm run webui",
+    "prepublishOnly": "npm run build:frontend && npm run build"
   },
   "keywords": [
     "csv",

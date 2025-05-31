@@ -438,12 +438,18 @@ program
 program.on('--help', () => {
   console.log('');
   console.log(chalk.cyan('Examples:'));
+  console.log('  $ datapilot webui                           # 🌐 Launch modern web interface');
   console.log('  $ datapilot all data.csv                    # Run complete analysis');
   console.log('  $ datapilot all "C:\\My Data\\sales.csv"      # Path with spaces (use quotes)');
   console.log('  $ datapilot all data.csv -o analysis.txt    # Save to file');
   console.log('  $ datapilot all data.csv --quick            # Quick mode');
   console.log('  $ datapilot eda sales.csv --encoding latin1 # Force encoding');
   console.log('  $ datapilot int data.csv --delimiter ";"    # Force delimiter');
+  console.log('');
+  console.log(chalk.cyan('Web Interface:'));
+  console.log('  $ datapilot webui                           # Launch React web interface');
+  console.log('  $ datapilot webui --port 8080               # Custom port');
+  console.log('  $ datapilot webui --no-open                 # Don\'t auto-open browser');
   console.log('');
   console.log(chalk.cyan('Data Archaeology Workflow:'));
   console.log('  1. Analyze all tables: datapilot eng analyze *.csv');
