@@ -220,6 +220,106 @@ async function showGuidedAnalysis(engine, analysisResult) {
   });
 }
 
+async function browseForFile() {
+  let currentPath = process.cwd();
+  let selectedFile = null;
+  
+  while (selectedFile === null) {
+    try {
+      // Get directory contents
+      const items = fs.readdirSync(currentPath).map(item => {
+        const fullPath = path.join(currentPath, item);
+        const stats = fs.statSync(fullPath);
+        const isDirectory = stats.isDirectory();
+        const isCSV = item.toLowerCase().endsWith('.csv');
+        
+        return {
+          name: item,
+          fullPath,
+          isDirectory,
+          isCSV,
+          size: stats.size,
+          modified: stats.mtime
+        };
+      }).filter(item => item.isDirectory || item.isCSV);
+      
+      // Sort: directories first, then files
+      items.sort((a, b) => {
+        if (a.isDirectory && !b.isDirectory) return -1;
+        if (!a.isDirectory && b.isDirectory) return 1;
+        return a.name.localeCompare(b.name);
+      });
+      
+      // Build choices
+      const choices = [];
+      
+      // Add parent directory option if not at root
+      if (currentPath !== '/') {
+        choices.push({
+          name: '..',
+          message: '📁 .. (parent directory)',
+          value: { action: 'parent' }
+        });
+      }
+      
+      // Add directories
+      items.filter(item => item.isDirectory).forEach(item => {
+        choices.push({
+          name: item.fullPath,
+          message: `📁 ${item.name}/`,
+          value: { action: 'cd', path: item.fullPath }
+        });
+      });
+      
+      // Add CSV files
+      items.filter(item => item.isCSV).forEach(item => {
+        const sizeStr = item.size < 1024 ? `${item.size}B` :
+                       item.size < 1024 * 1024 ? `${(item.size / 1024).toFixed(1)}KB` :
+                       `${(item.size / (1024 * 1024)).toFixed(1)}MB`;
+        choices.push({
+          name: item.fullPath,
+          message: `📄 ${item.name} (${sizeStr})`,
+          value: { action: 'select', path: item.fullPath }
+        });
+      });
+      
+      // Add cancel option
+      choices.push({
+        name: 'cancel',
+        message: '❌ Cancel',
+        value: { action: 'cancel' }
+      });
+      
+      // Show current directory
+      console.log('\\n' + gradients.info(`📂 Current directory: ${currentPath}`));
+      
+      const response = await safePrompt({
+        type: 'select',
+        name: 'selection',
+        message: 'Navigate with ↑↓ arrows, Enter to select:',
+        choices: choices
+      });
+      
+      // Handle selection
+      if (response.selection.action === 'cancel') {
+        return null;
+      } else if (response.selection.action === 'parent') {
+        currentPath = path.dirname(currentPath);
+      } else if (response.selection.action === 'cd') {
+        currentPath = response.selection.path;
+      } else if (response.selection.action === 'select') {
+        selectedFile = response.selection.path;
+      }
+      
+    } catch (error) {
+      console.log(gradients.error(`❌ Error browsing directory: ${error.message}`));
+      return null;
+    }
+  }
+  
+  return selectedFile;
+}
+
 async function selectFile(engine, csvFiles) {
   const choices = engine.getFileSelectionChoices(csvFiles);
   
@@ -240,38 +340,9 @@ async function selectFile(engine, csvFiles) {
   }
   
   if (response.file === 'manual') {
-    // Manual file entry with better error handling and retry
-    let filePath = null;
-    let attempts = 0;
-    const maxAttempts = 3;
-    
-    while (!filePath && attempts < maxAttempts) {
-      try {
-        const manualResponse = await safePrompt({
-          type: 'input',
-          name: 'path',
-          message: attempts > 0 ? 
-            gradients.warning(`⚠️  Try again (${maxAttempts - attempts} attempts left):`) :
-            gradients.info('Enter the path to your CSV file:'),
-          validate: (input) => {
-            if (!input.trim()) return 'Please enter a file path';
-            if (!fs.existsSync(input)) return 'File does not exist';
-            if (!input.toLowerCase().endsWith('.csv')) return 'File must be a CSV file';
-            return true;
-          }
-        });
-        filePath = manualResponse.path;
-      } catch (error) {
-        attempts++;
-        if (attempts >= maxAttempts) {
-          console.log(gradients.error('❌ Too many failed attempts. Returning to main menu.'));
-          return null;
-        }
-        console.log(gradients.warning(`⚠️  Invalid file path. ${maxAttempts - attempts} attempts remaining.`));
-      }
-    }
-    
-    return filePath;
+    // Interactive file browser
+    const selectedFile = await browseForFile();
+    return selectedFile;
   }
   
   return response.file;
@@ -375,11 +446,62 @@ async function showDemo(engine, demoResult) {
     return;
   }
   
-  const choices = demoResult.datasets.map(dataset => ({
-    name: dataset.path,
-    message: `📊 ${dataset.name}`,
-    hint: dataset.description
-  }));
+  // Group datasets by category
+  const groupedDatasets = {};
+  demoResult.datasets.forEach(dataset => {
+    const category = engine.getDemoCategory(dataset.name);
+    if (!groupedDatasets[category]) {
+      groupedDatasets[category] = [];
+    }
+    groupedDatasets[category].push(dataset);
+  });
+  
+  // Build choices with category headers
+  const choices = [];
+  const categoryIcons = {
+    healthcare: '🏥',
+    ecommerce: '🛒',
+    real_estate: '🏠',
+    finance: '💰',
+    organizations: '👥',
+    australian: '🇦🇺',
+    ml_classic: '🤖',
+    testing: '🧪',
+    general: '📊'
+  };
+  
+  const categoryNames = {
+    healthcare: 'Healthcare & Medical',
+    ecommerce: 'E-commerce & Business',
+    real_estate: 'Real Estate',
+    finance: 'Finance & Economics',
+    organizations: 'People & Organizations',
+    australian: 'Australian Specific',
+    ml_classic: 'Classic ML Datasets',
+    testing: 'Testing & Edge Cases',
+    general: 'General'
+  };
+  
+  Object.entries(groupedDatasets).sort().forEach(([category, datasets]) => {
+    const icon = categoryIcons[category] || '📊';
+    const name = categoryNames[category] || category;
+    
+    // Add category header
+    choices.push({
+      name: `${category}_header`,
+      message: `${icon} ${name}`,
+      role: 'separator'
+    });
+    
+    // Add datasets in this category
+    datasets.forEach(dataset => {
+      choices.push({
+        name: dataset.path,
+        message: `  📄 ${dataset.name}`,
+        hint: `${dataset.size} - ${dataset.description}`
+      });
+    });
+  });
   
   choices.push({
     name: 'back',

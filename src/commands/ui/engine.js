@@ -319,20 +319,33 @@ export class TUIEngine {
     const demoPath = path.join(process.cwd(), 'tests', 'fixtures');
     const datasets = [];
     
-    // Only include 2 specific demo datasets as requested
-    const allowedDemos = ['boston_housing.csv', 'iris.csv'];
-    
     try {
       if (this.dependencies.fs.existsSync(demoPath)) {
-        allowedDemos.forEach(filename => {
-          const fullPath = path.join(demoPath, filename);
-          if (this.dependencies.fs.existsSync(fullPath)) {
-            datasets.push({
-              name: filename.replace('.csv', ''),
-              path: fullPath,
-              description: this.getDemoDescription(filename)
-            });
+        const files = this.dependencies.fs.readdirSync(demoPath);
+        files.forEach(filename => {
+          if (filename.toLowerCase().endsWith('.csv') && filename !== 'empty.csv') {
+            const fullPath = path.join(demoPath, filename);
+            const stats = this.dependencies.fs.statSync(fullPath);
+            // Only include files under 5MB
+            if (stats.size < 5 * 1024 * 1024) {
+              datasets.push({
+                name: filename.replace('.csv', ''),
+                path: fullPath,
+                description: this.getDemoDescription(filename),
+                size: this.formatFileSize(stats.size)
+              });
+            }
           }
+        });
+        
+        // Sort by category (healthcare, finance, general, etc.)
+        datasets.sort((a, b) => {
+          const categoryA = this.getDemoCategory(a.name);
+          const categoryB = this.getDemoCategory(b.name);
+          if (categoryA !== categoryB) {
+            return categoryA.localeCompare(categoryB);
+          }
+          return a.name.localeCompare(b.name);
         });
       }
     } catch (error) {
@@ -342,13 +355,132 @@ export class TUIEngine {
     return datasets;
   }
   
-  getDemoDescription(filename) {
-    const descriptions = {
-      'boston_housing.csv': 'Classic housing dataset with 506 samples and 14 features for regression analysis',
-      'iris.csv': 'Famous flower classification dataset with 150 samples and 4 measurements'
+  getDemoCategory(filename) {
+    const categories = {
+      // Healthcare
+      'clinical_visits': 'healthcare',
+      'diabetes_patients': 'healthcare',
+      'patient_demographics': 'healthcare',
+      'insurance': 'healthcare',
+      'glucose_metabolism': 'healthcare',
+      'body_composition': 'healthcare',
+      'lipid_panel': 'healthcare',
+      'lab_test_reference': 'healthcare',
+      
+      // E-commerce & Business
+      'australian_ecommerce': 'ecommerce',
+      'australian_ecommerce_clean': 'ecommerce',
+      'ecommerce_customers': 'ecommerce',
+      'customers': 'ecommerce',
+      'orders': 'ecommerce',
+      'products': 'ecommerce',
+      'inventory': 'ecommerce',
+      'suppliers': 'ecommerce',
+      'shipments': 'ecommerce',
+      'test_sales': 'ecommerce',
+      
+      // Real Estate
+      'boston_housing': 'real_estate',
+      'melbourne_housing': 'real_estate',
+      'real_estate_transactions': 'real_estate',
+      'housing': 'real_estate',
+      
+      // Finance & Economics
+      'cpi_inflation': 'finance',
+      'interest_gdp_inflation': 'finance',
+      'income_inequality': 'finance',
+      'wage_panel': 'finance',
+      'unemployment_duration': 'finance',
+      
+      // People & Organizations
+      'people-100': 'organizations',
+      'leads-100': 'organizations',
+      'organizations-100': 'organizations',
+      
+      // Australian Specific
+      'australian_data': 'australian',
+      'locations': 'australian',
+      
+      // Classic ML Datasets
+      'iris': 'ml_classic',
+      'wine': 'ml_classic',
+      'wine_with_headers': 'ml_classic',
+      
+      // Testing & Edge Cases
+      'edge_case_date_formats': 'testing',
+      'edge_case_missing_values': 'testing',
+      'missing_values': 'testing',
+      'large_numeric': 'testing',
+      'large_test': 'testing',
+      'quoted_commas_test': 'testing',
+      'semicolon_test': 'testing'
     };
     
-    return descriptions[filename] || 'Sample dataset for demonstration purposes';
+    return categories[filename.replace('.csv', '')] || 'general';
+  }
+  
+  getDemoDescription(filename) {
+    const descriptions = {
+      // Healthcare
+      'clinical_visits.csv': 'Patient clinical visit records with appointment data',
+      'diabetes_patients.csv': 'Diabetes patient data with glucose levels and HbA1c',
+      'patient_demographics.csv': 'Patient demographic information and health metrics',
+      'insurance.csv': 'Medical insurance claims and coverage data',
+      'glucose_metabolism.csv': 'Glucose metabolism test results',
+      'body_composition.csv': 'Body composition analysis data (BMI, fat %, muscle mass)',
+      'lipid_panel.csv': 'Lipid panel test results (cholesterol, triglycerides)',
+      'lab_test_reference.csv': 'Laboratory test reference ranges',
+      
+      // E-commerce & Business
+      'australian_ecommerce.csv': 'Australian e-commerce transaction data',
+      'australian_ecommerce_clean.csv': 'Cleaned Australian e-commerce data',
+      'ecommerce_customers.csv': 'E-commerce customer profiles and purchase history',
+      'customers.csv': 'Customer database with contact information',
+      'orders.csv': 'Order transaction records',
+      'products.csv': 'Product catalog with pricing and categories',
+      'inventory.csv': 'Inventory levels and stock management',
+      'suppliers.csv': 'Supplier information and contracts',
+      'shipments.csv': 'Shipment tracking and delivery data',
+      'test_sales.csv': 'Sales transaction test data',
+      
+      // Real Estate
+      'boston_housing.csv': 'Classic Boston housing prices (506 samples, 14 features)',
+      'melbourne_housing.csv': 'Melbourne real estate prices with suburb data',
+      'real_estate_transactions.csv': 'Property sale transactions with details',
+      'housing.csv': 'General housing market data',
+      
+      // Finance & Economics
+      'cpi_inflation.csv': 'Consumer Price Index and inflation rates',
+      'interest_gdp_inflation.csv': 'Interest rates, GDP, and inflation metrics',
+      'income_inequality.csv': 'Income distribution and inequality measures',
+      'wage_panel.csv': 'Wage panel data across industries',
+      'unemployment_duration.csv': 'Unemployment duration statistics',
+      
+      // People & Organizations
+      'people-100.csv': '100 sample person records with demographics',
+      'leads-100.csv': '100 sales lead records',
+      'organizations-100.csv': '100 organization records',
+      
+      // Australian Specific
+      'australian_data.csv': 'Australian-specific data (postcodes, phones)',
+      'locations.csv': 'Australian location data with coordinates',
+      
+      // Classic ML Datasets
+      'iris.csv': 'Classic iris flower dataset (150 samples, 4 features)',
+      'wine.csv': 'Wine quality dataset',
+      'wine_with_headers.csv': 'Wine dataset with column headers',
+      
+      // Testing & Edge Cases
+      'edge_case_date_formats.csv': 'Various date format edge cases',
+      'edge_case_missing_values.csv': 'Missing value handling test cases',
+      'missing_values.csv': 'Dataset with various missing value patterns',
+      'large_numeric.csv': 'Large numeric value test data',
+      'large_test.csv': 'Large dataset for performance testing',
+      'quoted_commas_test.csv': 'CSV parsing edge case - quoted commas',
+      'semicolon_test.csv': 'Semicolon-delimited test file'
+    };
+    
+    return descriptions[filename] || 'Sample dataset for testing and demonstration';
   }
   
   async startDemo() {
