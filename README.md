@@ -1,121 +1,83 @@
 # 🛩️ DataPilot
 
-**Transform CSV files into insights in seconds. Zero setup, maximum intelligence.**
+**Professional CSV analysis CLI. Transform data into insights in seconds.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
-[![Tests](https://img.shields.io/badge/Tests-Passing-brightgreen.svg)](#)
+[![Node.js](https://img.shields.io/badge/Node.js-14+-green.svg)](https://nodejs.org/)
+[![npm](https://img.shields.io/npm/v/datapilot.svg)](https://www.npmjs.com/package/datapilot)
 
-## Quick Start (30 seconds)
+## Installation
 
 ```bash
-# Clone and run
-git clone https://github.com/Mrassimo/datapilot.git
-cd datapilot
-npm install
-
-# Interactive UI (recommended)
-node bin/datapilot.js ui
-
-# Or analyze directly
-node bin/datapilot.js all yourdata.csv
+npm install -g datapilot
 ```
 
-## What is DataPilot?
+## Quick Start
 
-DataPilot is a comprehensive CSV analysis toolkit that provides instant insights through five specialized analysis modes. It's designed for both beginners and data professionals who need quick, actionable insights from their data.
+```bash
+# Analyze any CSV file
+datapilot all data.csv
+
+# Interactive terminal UI
+datapilot ui
+
+# Specific analysis
+datapilot eda sales.csv
+```
 
 ## Features
 
-### 🎨 Interactive Terminal UI
-- Beautiful, colorful interface
-- Guided analysis workflow  
-- Demo datasets included
-- Memory management for persistent insights
+### 📊 Five Specialized Analysis Modes
 
-### 📊 Five Analysis Modes
+| Command | Purpose | Output |
+|---------|---------|--------|
+| `eda` | Exploratory Data Analysis | Statistical summaries, distributions, correlations |
+| `int` | Data Integrity Check | Quality scores, missing values, validation rules |
+| `vis` | Visualization Recommendations | Chart suggestions, color palettes, best practices |
+| `eng` | Data Engineering Archaeology | Schema discovery, relationships, technical debt |
+| `llm` | LLM Context Generation | AI-ready summaries for ChatGPT/Claude |
 
-1. **EDA** - Exploratory Data Analysis
-   - Statistical summaries
-   - Distribution analysis
-   - Correlation detection
-   - Outlier identification
+### 🎯 Key Capabilities
 
-2. **INT** - Data Integrity Check  
-   - Missing value analysis
-   - Duplicate detection
-   - Data quality scoring
-   - Validation rules
+- **Smart Sampling**: Handles files of any size efficiently
+- **Auto-Detection**: Encoding, delimiters, and data types
+- **Australian Data**: Built-in support for AU formats
+- **Memory System**: Learns patterns across analyses
+- **Export Ready**: All outputs optimized for AI consumption
 
-3. **VIS** - Visualization Recommendations
-   - Chart type suggestions
-   - Color palette selection
-   - Layout recommendations
-   - Accessibility checks
-
-4. **ENG** - Data Engineering Archaeology
-   - Schema discovery
-   - Relationship detection
-   - Domain classification
-   - Persistent knowledge base
-
-5. **LLM** - AI Context Generation
-   - Natural language summaries
-   - Ready-to-paste LLM context
-   - Key insights extraction
-   - Analysis questions
-
-📚 **[Deep Dive: Command Theory & Implementation →](docs/COMMAND_DEEP_DIVE.md)**
-
-## Usage Examples
+## Usage
 
 ```bash
-# Interactive mode (recommended for beginners)
-node bin/datapilot.js ui
+# Complete analysis suite
+datapilot all data.csv
+datapilot all data.csv --output report.txt
 
-# Run all analyses
-node bin/datapilot.js all data.csv
+# Individual analyses
+datapilot eda sales.csv              # Exploratory analysis
+datapilot int inventory.csv          # Data quality check
+datapilot vis metrics.csv            # Visualization recommendations
+datapilot eng warehouse.csv          # Data engineering insights
+datapilot llm insights.csv           # AI-ready summaries
 
-# Specific analysis
-node bin/datapilot.js eda sales_data.csv
-node bin/datapilot.js int customer_records.csv --output report.txt
-
-# Large files
-node bin/datapilot.js llm big_dataset.csv --comprehensive false
-
-# Save analysis
-node bin/datapilot.js vis analytics.csv --output recommendations.txt
+# Options
+--output <file>        Save results to file
+--quick               Fast mode for large files
+--encoding <type>     Force encoding (utf8, latin1)
+--delimiter <char>    Force delimiter (comma, semicolon, tab)
 ```
-
-## Key Capabilities
-
-- **Smart Sampling**: Handles large files efficiently
-- **Multi-encoding Support**: Auto-detects file encodings
-- **Australian Data Aware**: Built-in support for AU postcodes, phones, ABNs
-- **Memory System**: Builds knowledge over time with the ENG command
-- **Export Ready**: All outputs designed for LLM consumption
 
 ## Performance
 
-- Small files (<1MB): Instant analysis
-- Medium files (1-10MB): 2-5 seconds  
-- Large files (>10MB): Automatic sampling for speed
-- Memory efficient: Handles files larger than RAM
+- **< 1MB**: Instant analysis
+- **1-10MB**: 2-5 seconds
+- **> 10MB**: Uses intelligent sampling
 
-## Requirements
+## Documentation
 
-- Node.js 18+ 
-- Works on Windows, Mac, Linux
-- No Python, R, or external dependencies
-
-## Contributing
-
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
+- [Quick Start Guide](docs/QUICK-START.md)
+- [Installation Guide](docs/INSTALLATION.md) 
+- [Command Deep Dive](docs/COMMAND_DEEP_DIVE.md)
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) file for details.
-
----
-
-**Built with ❤️ for the data community**
+MIT © DataPilot Contributors
