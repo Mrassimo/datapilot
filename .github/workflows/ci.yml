@@ -50,6 +50,11 @@ jobs:
       run: node tests/run_all_tests.js
       timeout-minutes: 10
 
+    - name: Test safe knowledge base features
+      run: node tests/test_safe_knowledge_base.js
+      timeout-minutes: 5
+      continue-on-error: true
+
     - name: Verify CLI help functionality
       run: |
         node bin/datapilot.js --help
@@ -58,6 +63,23 @@ jobs:
         node bin/datapilot.js vis --help
         node bin/datapilot.js eng --help
         node bin/datapilot.js llm --help
+
+    - name: Test core functionality (Unix)
+      if: runner.os != 'Windows'
+      run: |
+        echo "Testing EDA analysis..."
+        node bin/datapilot.js eda tests/fixtures/iris.csv --output /tmp/test_eda_output.txt
+        echo "Testing Knowledge Base..."
+        node bin/datapilot.js eng tests/fixtures/iris.csv
+
+    - name: Test core functionality (Windows)
+      if: runner.os == 'Windows'
+      run: |
+        echo "Testing EDA analysis..."
+        node bin/datapilot.js eda tests/fixtures/iris.csv --output C:\temp\test_eda_output.txt
+        echo "Testing Knowledge Base..."
+        node bin/datapilot.js eng tests/fixtures/iris.csv
+      shell: cmd
 
     - name: Create test output directory (Windows)
       if: runner.os == 'Windows'
