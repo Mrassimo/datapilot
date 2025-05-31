@@ -29,6 +29,30 @@ export class KnowledgeBase {
     }
   }
 
+  sanitizeData(data) {
+    if (data === null || data === undefined) return null;
+    if (typeof data === 'number') {
+      if (isNaN(data) || !isFinite(data)) return null;
+      return data;
+    }
+    if (typeof data === 'string') return data;
+    if (typeof data === 'boolean') return data;
+    if (Array.isArray(data)) {
+      return data.map(item => this.sanitizeData(item)).filter(item => item !== null);
+    }
+    if (typeof data === 'object') {
+      const sanitized = {};
+      for (const [key, value] of Object.entries(data)) {
+        const sanitizedValue = this.sanitizeData(value);
+        if (sanitizedValue !== null) {
+          sanitized[key] = sanitizedValue;
+        }
+      }
+      return Object.keys(sanitized).length > 0 ? sanitized : null;
+    }
+    return null;
+  }
+
   async load() {
     try {
       const warehouse = this.loadYaml(this.warehousePath) || this.createEmptyWarehouse();
@@ -134,7 +158,7 @@ async saveYaml(filePath, data) {
     
     const saveOperation = () => {
       try {
-        const yamlContent = yaml.dump(this.cleanForYaml(data), {
+        let yamlContent = yaml.dump(this.cleanForYaml(data), {
           indent: 2,
           lineWidth: 120,
           noRefs: true
@@ -144,8 +168,29 @@ async saveYaml(filePath, data) {
         if (yamlContent.includes('undefined') || 
             yamlContent.includes('[object Object]') ||
             yamlContent.includes('function') ||
-            yamlContent.trim().length === 0) {
-          throw new Error('Invalid YAML content generated');
+            yamlContent.trim().length === 0 ||
+            yamlContent.includes('NaN') ||
+            yamlContent.includes('Infinity')) {
+          console.warn(`Invalid YAML content detected for ${filePath}, sanitizing...`);
+          
+          // Sanitize the data before regenerating YAML
+          const sanitizedData = this.sanitizeData(data);
+          yamlContent = yaml.dump(sanitizedData, {
+            indent: 2,
+            lineWidth: -1,
+            noRefs: true,
+            replacer: (key, value) => {
+              if (value === undefined || value === null) return null;
+              if (typeof value === 'number' && (isNaN(value) || !isFinite(value))) return null;
+              if (typeof value === 'object' && value.constructor === Object && Object.keys(value).length === 0) return null;
+              return value;
+            }
+          });
+          
+          if (yamlContent.trim().length === 0) {
+            console.warn(`Unable to generate valid YAML for ${filePath}, skipping save`);
+            return;
+          }
         }
         
         fs.writeFileSync(filePath, yamlContent, 'utf8');
