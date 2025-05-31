@@ -76918,20 +76918,33 @@ class TUIEngine {
     const demoPath = path$1.join(process.cwd(), 'tests', 'fixtures');
     const datasets = [];
     
-    // Only include 2 specific demo datasets as requested
-    const allowedDemos = ['boston_housing.csv', 'iris.csv'];
-    
     try {
       if (this.dependencies.fs.existsSync(demoPath)) {
-        allowedDemos.forEach(filename => {
-          const fullPath = path$1.join(demoPath, filename);
-          if (this.dependencies.fs.existsSync(fullPath)) {
-            datasets.push({
-              name: filename.replace('.csv', ''),
-              path: fullPath,
-              description: this.getDemoDescription(filename)
-            });
+        const files = this.dependencies.fs.readdirSync(demoPath);
+        files.forEach(filename => {
+          if (filename.toLowerCase().endsWith('.csv') && filename !== 'empty.csv') {
+            const fullPath = path$1.join(demoPath, filename);
+            const stats = this.dependencies.fs.statSync(fullPath);
+            // Only include files under 5MB
+            if (stats.size < 5 * 1024 * 1024) {
+              datasets.push({
+                name: filename.replace('.csv', ''),
+                path: fullPath,
+                description: this.getDemoDescription(filename),
+                size: this.formatFileSize(stats.size)
+              });
+            }
           }
+        });
+        
+        // Sort by category (healthcare, finance, general, etc.)
+        datasets.sort((a, b) => {
+          const categoryA = this.getDemoCategory(a.name);
+          const categoryB = this.getDemoCategory(b.name);
+          if (categoryA !== categoryB) {
+            return categoryA.localeCompare(categoryB);
+          }
+          return a.name.localeCompare(b.name);
         });
       }
     } catch (error) {
@@ -76941,13 +76954,132 @@ class TUIEngine {
     return datasets;
   }
   
-  getDemoDescription(filename) {
-    const descriptions = {
-      'boston_housing.csv': 'Classic housing dataset with 506 samples and 14 features for regression analysis',
-      'iris.csv': 'Famous flower classification dataset with 150 samples and 4 measurements'
+  getDemoCategory(filename) {
+    const categories = {
+      // Healthcare
+      'clinical_visits': 'healthcare',
+      'diabetes_patients': 'healthcare',
+      'patient_demographics': 'healthcare',
+      'insurance': 'healthcare',
+      'glucose_metabolism': 'healthcare',
+      'body_composition': 'healthcare',
+      'lipid_panel': 'healthcare',
+      'lab_test_reference': 'healthcare',
+      
+      // E-commerce & Business
+      'australian_ecommerce': 'ecommerce',
+      'australian_ecommerce_clean': 'ecommerce',
+      'ecommerce_customers': 'ecommerce',
+      'customers': 'ecommerce',
+      'orders': 'ecommerce',
+      'products': 'ecommerce',
+      'inventory': 'ecommerce',
+      'suppliers': 'ecommerce',
+      'shipments': 'ecommerce',
+      'test_sales': 'ecommerce',
+      
+      // Real Estate
+      'boston_housing': 'real_estate',
+      'melbourne_housing': 'real_estate',
+      'real_estate_transactions': 'real_estate',
+      'housing': 'real_estate',
+      
+      // Finance & Economics
+      'cpi_inflation': 'finance',
+      'interest_gdp_inflation': 'finance',
+      'income_inequality': 'finance',
+      'wage_panel': 'finance',
+      'unemployment_duration': 'finance',
+      
+      // People & Organizations
+      'people-100': 'organizations',
+      'leads-100': 'organizations',
+      'organizations-100': 'organizations',
+      
+      // Australian Specific
+      'australian_data': 'australian',
+      'locations': 'australian',
+      
+      // Classic ML Datasets
+      'iris': 'ml_classic',
+      'wine': 'ml_classic',
+      'wine_with_headers': 'ml_classic',
+      
+      // Testing & Edge Cases
+      'edge_case_date_formats': 'testing',
+      'edge_case_missing_values': 'testing',
+      'missing_values': 'testing',
+      'large_numeric': 'testing',
+      'large_test': 'testing',
+      'quoted_commas_test': 'testing',
+      'semicolon_test': 'testing'
     };
     
-    return descriptions[filename] || 'Sample dataset for demonstration purposes';
+    return categories[filename.replace('.csv', '')] || 'general';
+  }
+  
+  getDemoDescription(filename) {
+    const descriptions = {
+      // Healthcare
+      'clinical_visits.csv': 'Patient clinical visit records with appointment data',
+      'diabetes_patients.csv': 'Diabetes patient data with glucose levels and HbA1c',
+      'patient_demographics.csv': 'Patient demographic information and health metrics',
+      'insurance.csv': 'Medical insurance claims and coverage data',
+      'glucose_metabolism.csv': 'Glucose metabolism test results',
+      'body_composition.csv': 'Body composition analysis data (BMI, fat %, muscle mass)',
+      'lipid_panel.csv': 'Lipid panel test results (cholesterol, triglycerides)',
+      'lab_test_reference.csv': 'Laboratory test reference ranges',
+      
+      // E-commerce & Business
+      'australian_ecommerce.csv': 'Australian e-commerce transaction data',
+      'australian_ecommerce_clean.csv': 'Cleaned Australian e-commerce data',
+      'ecommerce_customers.csv': 'E-commerce customer profiles and purchase history',
+      'customers.csv': 'Customer database with contact information',
+      'orders.csv': 'Order transaction records',
+      'products.csv': 'Product catalog with pricing and categories',
+      'inventory.csv': 'Inventory levels and stock management',
+      'suppliers.csv': 'Supplier information and contracts',
+      'shipments.csv': 'Shipment tracking and delivery data',
+      'test_sales.csv': 'Sales transaction test data',
+      
+      // Real Estate
+      'boston_housing.csv': 'Classic Boston housing prices (506 samples, 14 features)',
+      'melbourne_housing.csv': 'Melbourne real estate prices with suburb data',
+      'real_estate_transactions.csv': 'Property sale transactions with details',
+      'housing.csv': 'General housing market data',
+      
+      // Finance & Economics
+      'cpi_inflation.csv': 'Consumer Price Index and inflation rates',
+      'interest_gdp_inflation.csv': 'Interest rates, GDP, and inflation metrics',
+      'income_inequality.csv': 'Income distribution and inequality measures',
+      'wage_panel.csv': 'Wage panel data across industries',
+      'unemployment_duration.csv': 'Unemployment duration statistics',
+      
+      // People & Organizations
+      'people-100.csv': '100 sample person records with demographics',
+      'leads-100.csv': '100 sales lead records',
+      'organizations-100.csv': '100 organization records',
+      
+      // Australian Specific
+      'australian_data.csv': 'Australian-specific data (postcodes, phones)',
+      'locations.csv': 'Australian location data with coordinates',
+      
+      // Classic ML Datasets
+      'iris.csv': 'Classic iris flower dataset (150 samples, 4 features)',
+      'wine.csv': 'Wine quality dataset',
+      'wine_with_headers.csv': 'Wine dataset with column headers',
+      
+      // Testing & Edge Cases
+      'edge_case_date_formats.csv': 'Various date format edge cases',
+      'edge_case_missing_values.csv': 'Missing value handling test cases',
+      'missing_values.csv': 'Dataset with various missing value patterns',
+      'large_numeric.csv': 'Large numeric value test data',
+      'large_test.csv': 'Large dataset for performance testing',
+      'quoted_commas_test.csv': 'CSV parsing edge case - quoted commas',
+      'semicolon_test.csv': 'Semicolon-delimited test file'
+    };
+    
+    return descriptions[filename] || 'Sample dataset for testing and demonstration';
   }
   
   async startDemo() {
@@ -77353,6 +77485,106 @@ async function showGuidedAnalysis(engine, analysisResult) {
   });
 }
 
+async function browseForFile() {
+  let currentPath = process.cwd();
+  let selectedFile = null;
+  
+  while (selectedFile === null) {
+    try {
+      // Get directory contents
+      const items = fs.readdirSync(currentPath).map(item => {
+        const fullPath = path$1.join(currentPath, item);
+        const stats = fs.statSync(fullPath);
+        const isDirectory = stats.isDirectory();
+        const isCSV = item.toLowerCase().endsWith('.csv');
+        
+        return {
+          name: item,
+          fullPath,
+          isDirectory,
+          isCSV,
+          size: stats.size,
+          modified: stats.mtime
+        };
+      }).filter(item => item.isDirectory || item.isCSV);
+      
+      // Sort: directories first, then files
+      items.sort((a, b) => {
+        if (a.isDirectory && !b.isDirectory) return -1;
+        if (!a.isDirectory && b.isDirectory) return 1;
+        return a.name.localeCompare(b.name);
+      });
+      
+      // Build choices
+      const choices = [];
+      
+      // Add parent directory option if not at root
+      if (currentPath !== '/') {
+        choices.push({
+          name: '..',
+          message: '📁 .. (parent directory)',
+          value: { action: 'parent' }
+        });
+      }
+      
+      // Add directories
+      items.filter(item => item.isDirectory).forEach(item => {
+        choices.push({
+          name: item.fullPath,
+          message: `📁 ${item.name}/`,
+          value: { action: 'cd', path: item.fullPath }
+        });
+      });
+      
+      // Add CSV files
+      items.filter(item => item.isCSV).forEach(item => {
+        const sizeStr = item.size < 1024 ? `${item.size}B` :
+                       item.size < 1024 * 1024 ? `${(item.size / 1024).toFixed(1)}KB` :
+                       `${(item.size / (1024 * 1024)).toFixed(1)}MB`;
+        choices.push({
+          name: item.fullPath,
+          message: `📄 ${item.name} (${sizeStr})`,
+          value: { action: 'select', path: item.fullPath }
+        });
+      });
+      
+      // Add cancel option
+      choices.push({
+        name: 'cancel',
+        message: '❌ Cancel',
+        value: { action: 'cancel' }
+      });
+      
+      // Show current directory
+      console.log('\\n' + gradients.info(`📂 Current directory: ${currentPath}`));
+      
+      const response = await safePrompt({
+        type: 'select',
+        name: 'selection',
+        message: 'Navigate with ↑↓ arrows, Enter to select:',
+        choices: choices
+      });
+      
+      // Handle selection
+      if (response.selection.action === 'cancel') {
+        return null;
+      } else if (response.selection.action === 'parent') {
+        currentPath = path$1.dirname(currentPath);
+      } else if (response.selection.action === 'cd') {
+        currentPath = response.selection.path;
+      } else if (response.selection.action === 'select') {
+        selectedFile = response.selection.path;
+      }
+      
+    } catch (error) {
+      console.log(gradients.error(`❌ Error browsing directory: ${error.message}`));
+      return null;
+    }
+  }
+  
+  return selectedFile;
+}
+
 async function selectFile(engine, csvFiles) {
   const choices = engine.getFileSelectionChoices(csvFiles);
   
@@ -77373,38 +77605,9 @@ async function selectFile(engine, csvFiles) {
   }
   
   if (response.file === 'manual') {
-    // Manual file entry with better error handling and retry
-    let filePath = null;
-    let attempts = 0;
-    const maxAttempts = 3;
-    
-    while (!filePath && attempts < maxAttempts) {
-      try {
-        const manualResponse = await safePrompt({
-          type: 'input',
-          name: 'path',
-          message: attempts > 0 ? 
-            gradients.warning(`⚠️  Try again (${maxAttempts - attempts} attempts left):`) :
-            gradients.info('Enter the path to your CSV file:'),
-          validate: (input) => {
-            if (!input.trim()) return 'Please enter a file path';
-            if (!fs.existsSync(input)) return 'File does not exist';
-            if (!input.toLowerCase().endsWith('.csv')) return 'File must be a CSV file';
-            return true;
-          }
-        });
-        filePath = manualResponse.path;
-      } catch (error) {
-        attempts++;
-        if (attempts >= maxAttempts) {
-          console.log(gradients.error('❌ Too many failed attempts. Returning to main menu.'));
-          return null;
-        }
-        console.log(gradients.warning(`⚠️  Invalid file path. ${maxAttempts - attempts} attempts remaining.`));
-      }
-    }
-    
-    return filePath;
+    // Interactive file browser
+    const selectedFile = await browseForFile();
+    return selectedFile;
   }
   
   return response.file;
@@ -77508,11 +77711,62 @@ async function showDemo(engine, demoResult) {
     return;
   }
   
-  const choices = demoResult.datasets.map(dataset => ({
-    name: dataset.path,
-    message: `📊 ${dataset.name}`,
-    hint: dataset.description
-  }));
+  // Group datasets by category
+  const groupedDatasets = {};
+  demoResult.datasets.forEach(dataset => {
+    const category = engine.getDemoCategory(dataset.name);
+    if (!groupedDatasets[category]) {
+      groupedDatasets[category] = [];
+    }
+    groupedDatasets[category].push(dataset);
+  });
+  
+  // Build choices with category headers
+  const choices = [];
+  const categoryIcons = {
+    healthcare: '🏥',
+    ecommerce: '🛒',
+    real_estate: '🏠',
+    finance: '💰',
+    organizations: '👥',
+    australian: '🇦🇺',
+    ml_classic: '🤖',
+    testing: '🧪',
+    general: '📊'
+  };
+  
+  const categoryNames = {
+    healthcare: 'Healthcare & Medical',
+    ecommerce: 'E-commerce & Business',
+    real_estate: 'Real Estate',
+    finance: 'Finance & Economics',
+    organizations: 'People & Organizations',
+    australian: 'Australian Specific',
+    ml_classic: 'Classic ML Datasets',
+    testing: 'Testing & Edge Cases',
+    general: 'General'
+  };
+  
+  Object.entries(groupedDatasets).sort().forEach(([category, datasets]) => {
+    const icon = categoryIcons[category] || '📊';
+    const name = categoryNames[category] || category;
+    
+    // Add category header
+    choices.push({
+      name: `${category}_header`,
+      message: `${icon} ${name}`,
+      role: 'separator'
+    });
+    
+    // Add datasets in this category
+    datasets.forEach(dataset => {
+      choices.push({
+        name: dataset.path,
+        message: `  📄 ${dataset.name}`,
+        hint: `${dataset.size} - ${dataset.description}`
+      });
+    });
+  });
   
   choices.push({
     name: 'back',

@@ -69,3 +69,4 @@ export async function commandName(data, headers, filePath, options) {
 
 ## Development Workflow
 - push to git after a major task is complete and tested
+- when pushing to git, update npm

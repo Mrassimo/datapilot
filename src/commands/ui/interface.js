@@ -446,61 +446,23 @@ async function showDemo(engine, demoResult) {
     return;
   }
   
-  // Group datasets by category
-  const groupedDatasets = {};
-  demoResult.datasets.forEach(dataset => {
-    const category = engine.getDemoCategory(dataset.name);
-    if (!groupedDatasets[category]) {
-      groupedDatasets[category] = [];
-    }
-    groupedDatasets[category].push(dataset);
-  });
-  
-  // Build choices with category headers
-  const choices = [];
-  const categoryIcons = {
-    healthcare: '🏥',
-    ecommerce: '🛒',
-    real_estate: '🏠',
-    finance: '💰',
-    organizations: '👥',
-    australian: '🇦🇺',
-    ml_classic: '🤖',
-    testing: '🧪',
-    general: '📊'
-  };
-  
-  const categoryNames = {
-    healthcare: 'Healthcare & Medical',
-    ecommerce: 'E-commerce & Business',
-    real_estate: 'Real Estate',
-    finance: 'Finance & Economics',
-    organizations: 'People & Organizations',
-    australian: 'Australian Specific',
-    ml_classic: 'Classic ML Datasets',
-    testing: 'Testing & Edge Cases',
-    general: 'General'
-  };
-  
-  Object.entries(groupedDatasets).sort().forEach(([category, datasets]) => {
-    const icon = categoryIcons[category] || '📊';
-    const name = categoryNames[category] || category;
+  // Simple list of 5 curated datasets
+  const choices = demoResult.datasets.map(dataset => {
+    const categoryIcons = {
+      healthcare: '🏥',
+      ecommerce: '🛒', 
+      real_estate: '🏠',
+      ml_classic: '🤖',
+      australian: '🇦🇺'
+    };
     
-    // Add category header
-    choices.push({
-      name: `${category}_header`,
-      message: `${icon} ${name}`,
-      role: 'separator'
-    });
+    const icon = categoryIcons[dataset.category] || '📊';
     
-    // Add datasets in this category
-    datasets.forEach(dataset => {
-      choices.push({
-        name: dataset.path,
-        message: `  📄 ${dataset.name}`,
-        hint: `${dataset.size} - ${dataset.description}`
-      });
-    });
+    return {
+      name: dataset.path,
+      message: `${icon} ${dataset.name}`,
+      hint: `${dataset.size} - ${dataset.description}`
+    };
   });
   
   choices.push({

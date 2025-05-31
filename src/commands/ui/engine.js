@@ -319,33 +319,29 @@ export class TUIEngine {
     const demoPath = path.join(process.cwd(), 'tests', 'fixtures');
     const datasets = [];
     
+    // Curated list of 5 excellent demo datasets
+    const selectedDemos = [
+      'iris.csv',              // Classic ML dataset (150 rows, 5 columns)
+      'boston_housing.csv',    // Real estate regression (506 rows, 14 columns)
+      'insurance.csv',         // Healthcare analysis (1338 rows, 7 columns)
+      'ecommerce_customers.csv', // Business analytics (500 rows, 8 columns)
+      'melbourne_housing.csv'  // Australian real estate (large dataset)
+    ];
+    
     try {
       if (this.dependencies.fs.existsSync(demoPath)) {
-        const files = this.dependencies.fs.readdirSync(demoPath);
-        files.forEach(filename => {
-          if (filename.toLowerCase().endsWith('.csv') && filename !== 'empty.csv') {
-            const fullPath = path.join(demoPath, filename);
+        selectedDemos.forEach(filename => {
+          const fullPath = path.join(demoPath, filename);
+          if (this.dependencies.fs.existsSync(fullPath)) {
             const stats = this.dependencies.fs.statSync(fullPath);
-            // Only include files under 5MB
-            if (stats.size < 5 * 1024 * 1024) {
-              datasets.push({
-                name: filename.replace('.csv', ''),
-                path: fullPath,
-                description: this.getDemoDescription(filename),
-                size: this.formatFileSize(stats.size)
-              });
-            }
+            datasets.push({
+              name: filename.replace('.csv', ''),
+              path: fullPath,
+              description: this.getDemoDescription(filename),
+              size: this.formatFileSize(stats.size),
+              category: this.getDemoCategory(filename.replace('.csv', ''))
+            });
           }
-        });
-        
-        // Sort by category (healthcare, finance, general, etc.)
-        datasets.sort((a, b) => {
-          const categoryA = this.getDemoCategory(a.name);
-          const categoryB = this.getDemoCategory(b.name);
-          if (categoryA !== categoryB) {
-            return categoryA.localeCompare(categoryB);
-          }
-          return a.name.localeCompare(b.name);
         });
       }
     } catch (error) {
@@ -421,66 +417,14 @@ export class TUIEngine {
   
   getDemoDescription(filename) {
     const descriptions = {
-      // Healthcare
-      'clinical_visits.csv': 'Patient clinical visit records with appointment data',
-      'diabetes_patients.csv': 'Diabetes patient data with glucose levels and HbA1c',
-      'patient_demographics.csv': 'Patient demographic information and health metrics',
-      'insurance.csv': 'Medical insurance claims and coverage data',
-      'glucose_metabolism.csv': 'Glucose metabolism test results',
-      'body_composition.csv': 'Body composition analysis data (BMI, fat %, muscle mass)',
-      'lipid_panel.csv': 'Lipid panel test results (cholesterol, triglycerides)',
-      'lab_test_reference.csv': 'Laboratory test reference ranges',
-      
-      // E-commerce & Business
-      'australian_ecommerce.csv': 'Australian e-commerce transaction data',
-      'australian_ecommerce_clean.csv': 'Cleaned Australian e-commerce data',
-      'ecommerce_customers.csv': 'E-commerce customer profiles and purchase history',
-      'customers.csv': 'Customer database with contact information',
-      'orders.csv': 'Order transaction records',
-      'products.csv': 'Product catalog with pricing and categories',
-      'inventory.csv': 'Inventory levels and stock management',
-      'suppliers.csv': 'Supplier information and contracts',
-      'shipments.csv': 'Shipment tracking and delivery data',
-      'test_sales.csv': 'Sales transaction test data',
-      
-      // Real Estate
-      'boston_housing.csv': 'Classic Boston housing prices (506 samples, 14 features)',
-      'melbourne_housing.csv': 'Melbourne real estate prices with suburb data',
-      'real_estate_transactions.csv': 'Property sale transactions with details',
-      'housing.csv': 'General housing market data',
-      
-      // Finance & Economics
-      'cpi_inflation.csv': 'Consumer Price Index and inflation rates',
-      'interest_gdp_inflation.csv': 'Interest rates, GDP, and inflation metrics',
-      'income_inequality.csv': 'Income distribution and inequality measures',
-      'wage_panel.csv': 'Wage panel data across industries',
-      'unemployment_duration.csv': 'Unemployment duration statistics',
-      
-      // People & Organizations
-      'people-100.csv': '100 sample person records with demographics',
-      'leads-100.csv': '100 sales lead records',
-      'organizations-100.csv': '100 organization records',
-      
-      // Australian Specific
-      'australian_data.csv': 'Australian-specific data (postcodes, phones)',
-      'locations.csv': 'Australian location data with coordinates',
-      
-      // Classic ML Datasets
-      'iris.csv': 'Classic iris flower dataset (150 samples, 4 features)',
-      'wine.csv': 'Wine quality dataset',
-      'wine_with_headers.csv': 'Wine dataset with column headers',
-      
-      // Testing & Edge Cases
-      'edge_case_date_formats.csv': 'Various date format edge cases',
-      'edge_case_missing_values.csv': 'Missing value handling test cases',
-      'missing_values.csv': 'Dataset with various missing value patterns',
-      'large_numeric.csv': 'Large numeric value test data',
-      'large_test.csv': 'Large dataset for performance testing',
-      'quoted_commas_test.csv': 'CSV parsing edge case - quoted commas',
-      'semicolon_test.csv': 'Semicolon-delimited test file'
+      'iris.csv': 'Classic flower classification dataset (150 samples, 4 features) - perfect for ML',
+      'boston_housing.csv': 'Boston housing prices with 14 features (506 samples) - regression analysis',
+      'insurance.csv': 'Medical insurance claims with demographics (1338 samples) - healthcare analytics',
+      'ecommerce_customers.csv': 'E-commerce customer profiles and purchase history (500 samples)',
+      'melbourne_housing.csv': 'Melbourne real estate prices with suburb data - Australian property market'
     };
     
-    return descriptions[filename] || 'Sample dataset for testing and demonstration';
+    return descriptions[filename] || 'Sample dataset for demonstration';
   }
   
   async startDemo() {
