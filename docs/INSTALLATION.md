@@ -124,4 +124,58 @@ All installation methods give you:
 - **Regular user?** → Use Option 3 (Global installation)
 - **Developer/contributor?** → Use Option 4 (Developer setup)
 
+## 🪟 **Advanced Windows Setup**
+
+### Making DataPilot Available Everywhere (Windows)
+
+**Option A: Add to PATH**
+1. Open System Properties → Advanced → Environment Variables
+2. Add `C:\path\to\datapilot` to your PATH
+3. Now use `datapilot` from any directory!
+
+**Option B: Create Global Alias**
+1. Create `datapilot.bat` in a PATH directory:
+   ```batch
+   @echo off
+   node "C:\path\to\datapilot\dist\datapilot.js" %*
+   ```
+
+**Option C: PowerShell Function**
+Add to your PowerShell profile:
+```powershell
+function datapilot {
+    node "C:\path\to\datapilot\dist\datapilot.js" $args
+}
+```
+
+### Windows File Handling
+
+```bash
+# Paths with spaces (use quotes!)
+datapilot all "C:\My Documents\Sales Report 2024.csv"
+
+# Network drives
+datapilot all "\\NetworkShare\Data\report.csv"
+
+# OneDrive/Dropbox
+datapilot all "%USERPROFILE%\OneDrive\Documents\data.csv"
+
+# Force encoding for international data
+datapilot all data.csv --encoding latin1
+datapilot all european_data.csv --delimiter ";"
+```
+
+### Batch Processing (Windows)
+
+Create a batch file for repeated analysis:
+```batch
+@echo off
+echo Analysing all CSV files...
+for %%f in (*.csv) do (
+    echo Processing %%f...
+    datapilot all "%%f" -o "%%~nf_analysis.txt"
+)
+echo Done!
+```
+
 **Need more help?** Check out our [Easy Usage Guide](docs/EASY-USAGE.md) or launch `./datapilot ui` and select "Learning Mode"! 📚

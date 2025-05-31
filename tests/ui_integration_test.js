@@ -117,8 +117,8 @@ async function runTests() {
   console.log(`🚀 Starting DataPilot WebUI server on port ${TEST_PORT}...\n`);
   
   try {
-    // Start the webui server
-    serverProcess = spawn('node', ['bin/datapilot.js', 'webui', '--port', TEST_PORT, '--no-open'], {
+    // Start the web UI server
+    serverProcess = spawn('node', ['bin/datapilot.js', 'ui', '--port', TEST_PORT, '--no-open'], {
       cwd: path.join(__dirname, '..'),
       stdio: ['pipe', 'pipe', 'pipe']
     });

@@ -63,6 +63,9 @@ jobs:
         node bin/datapilot.js vis --help
         node bin/datapilot.js eng --help
         node bin/datapilot.js llm --help
+        node bin/datapilot.js ui --help
+        node bin/datapilot.js wui --help
+        node bin/datapilot.js tui --help
 
     - name: Test core functionality (Unix)
       if: runner.os != 'Windows'

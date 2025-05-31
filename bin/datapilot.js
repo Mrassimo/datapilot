@@ -468,15 +468,6 @@ program
     await launchWebUI(options);
   });
 
-// WebUI command - Web Interface (backward compatibility)
-program
-  .command('webui')
-  .description('🌐 Web Interface - Modern React-based UI for easy CSV analysis')
-  .option('-p, --port <port>', 'Port number for web server (default: 3000)', '3000')
-  .option('--no-open', 'Don\'t automatically open browser')
-  .action(async (options) => {
-    await launchWebUI(options);
-  });
 
 // Help text with enhanced examples
 program.on('--help', () => {

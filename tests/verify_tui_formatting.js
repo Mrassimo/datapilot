@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Quick test to verify UI formatting is correct
+ * Quick test to verify TUI (Terminal UI) formatting is correct
  */
 
 import { spawn } from 'child_process';
@@ -12,16 +12,16 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const projectRoot = path.join(__dirname, '..');
 
-console.log('Testing DataPilot UI formatting...\n');
+console.log('Testing DataPilot TUI formatting...\n');
 
-const ui = spawn('node', [path.join(projectRoot, 'bin', 'datapilot.js'), 'ui'], {
+const tui = spawn('node', [path.join(projectRoot, 'bin', 'datapilot.js'), 'tui'], {
   stdio: ['pipe', 'pipe', 'pipe']
 });
 
 let output = '';
 let errorOccurred = false;
 
-ui.stdout.on('data', (data) => {
+tui.stdout.on('data', (data) => {
   output += data.toString();
   
   // Check for common formatting issues
@@ -50,31 +50,31 @@ ui.stdout.on('data', (data) => {
     console.log('✅ Menu prompt appears correctly');
     
     // Send exit command
-    ui.stdin.write('\x1B[B\x1B[B\x1B[B\x1B[B\n'); // Navigate down to exit and press enter
+    tui.stdin.write('\x1B[B\x1B[B\x1B[B\x1B[B\n'); // Navigate down to exit and press enter
     
     setTimeout(() => {
       if (!errorOccurred) {
-        console.log('\n✨ UI formatting test passed! No issues detected.');
+        console.log('\n✨ TUI formatting test passed! No issues detected.');
       } else {
-        console.log('\n❌ UI formatting test failed! Issues were detected.');
+        console.log('\n❌ TUI formatting test failed! Issues were detected.');
       }
       process.exit(errorOccurred ? 1 : 0);
     }, 1000);
   }
 });
 
-ui.stderr.on('data', (data) => {
+tui.stderr.on('data', (data) => {
   console.error('STDERR:', data.toString());
 });
 
-ui.on('error', (error) => {
-  console.error('Failed to start UI:', error);
+tui.on('error', (error) => {
+  console.error('Failed to start TUI:', error);
   process.exit(1);
 });
 
 // Timeout after 10 seconds
 setTimeout(() => {
   console.error('\n❌ Test timed out');
-  ui.kill();
+  tui.kill();
   process.exit(1);
 }, 10000);
