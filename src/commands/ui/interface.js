@@ -250,25 +250,28 @@ async function browseForFile() {
         return a.name.localeCompare(b.name);
       });
       
-      // Build choices
+      // Build choices with action mapping
       const choices = [];
+      const actionMap = {};
       
       // Add parent directory option if not at root
       if (currentPath !== '/') {
+        const parentKey = 'PARENT_DIR';
         choices.push({
-          name: '..',
-          message: '📁 .. (parent directory)',
-          value: { action: 'parent' }
+          name: parentKey,
+          message: '📁 .. (parent directory)'
         });
+        actionMap[parentKey] = { action: 'parent' };
       }
       
       // Add directories
       items.filter(item => item.isDirectory).forEach(item => {
+        const dirKey = `DIR_${item.name}`;
         choices.push({
-          name: item.fullPath,
-          message: `📁 ${item.name}/`,
-          value: { action: 'cd', path: item.fullPath }
+          name: dirKey,
+          message: `📁 ${item.name}/`
         });
+        actionMap[dirKey] = { action: 'cd', path: item.fullPath };
       });
       
       // Add CSV files
@@ -276,22 +279,23 @@ async function browseForFile() {
         const sizeStr = item.size < 1024 ? `${item.size}B` :
                        item.size < 1024 * 1024 ? `${(item.size / 1024).toFixed(1)}KB` :
                        `${(item.size / (1024 * 1024)).toFixed(1)}MB`;
+        const fileKey = `FILE_${item.name}`;
         choices.push({
-          name: item.fullPath,
-          message: `📄 ${item.name} (${sizeStr})`,
-          value: { action: 'select', path: item.fullPath }
+          name: fileKey,
+          message: `📄 ${item.name} (${sizeStr})`
         });
+        actionMap[fileKey] = { action: 'select', path: item.fullPath };
       });
       
       // Add cancel option
       choices.push({
-        name: 'cancel',
-        message: '❌ Cancel',
-        value: { action: 'cancel' }
+        name: 'CANCEL',
+        message: '❌ Cancel'
       });
+      actionMap['CANCEL'] = { action: 'cancel' };
       
       // Show current directory
-      console.log('\\n' + gradients.info(`📂 Current directory: ${currentPath}`));
+      console.log('\n' + gradients.info(`📂 Current directory: ${currentPath}`));
       
       const response = await safePrompt({
         type: 'select',
@@ -300,15 +304,22 @@ async function browseForFile() {
         choices: choices
       });
       
+      // Map response back to action
+      const selectedAction = actionMap[response.selection];
+      if (!selectedAction) {
+        console.log(gradients.error('❌ Invalid selection'));
+        continue;
+      }
+      
       // Handle selection
-      if (response.selection.action === 'cancel') {
+      if (selectedAction.action === 'cancel') {
         return null;
-      } else if (response.selection.action === 'parent') {
+      } else if (selectedAction.action === 'parent') {
         currentPath = path.dirname(currentPath);
-      } else if (response.selection.action === 'cd') {
-        currentPath = response.selection.path;
-      } else if (response.selection.action === 'select') {
-        selectedFile = response.selection.path;
+      } else if (selectedAction.action === 'cd') {
+        currentPath = selectedAction.path;
+      } else if (selectedAction.action === 'select') {
+        selectedFile = selectedAction.path;
       }
       
     } catch (error) {

@@ -1,0 +1,47 @@
+{
+  "passed": 1,
+  "failed": 5,
+  "tests": [
+    {
+      "name": "File Browser - Basic Access",
+      "success": true,
+      "duration": 708,
+      "output": null
+    },
+    {
+      "name": "File Browser - Navigation to Browser",
+      "success": false,
+      "duration": 9918,
+      "error": "Timeout waiting for pattern: Current directory",
+      "output": "     ⭐ MAIN MENU ⭐        │\n│  Choose your data adventure:  │\n└───────────────────────────────┘\n\u001b[?25l? 🚀 What would you like to explore today? … \n❯ 📊 Analyze CSV Data 🔍 Smart file discovery and guided analysis\n  🎭 Try Demo Mode 🎯 Experience DataPilot with built-in sample datasets\n  🧠 Manage Memories 🗄️  View, delete, or manage warehouse knowledge\n  ⚙️  Settings & Preferences 🛠️  Configure DataPilot behavior and appearance\n  👋 Exit DataPilot ✨ Thanks for exploring data with us!\u001b[5A\u001b[49G"
+    },
+    {
+      "name": "File Browser - Directory Navigation",
+      "success": false,
+      "duration": 6914,
+      "error": "Timeout waiting for pattern: Current directory",
+      "output": "     ⭐ MAIN MENU ⭐        │\n│  Choose your data adventure:  │\n└───────────────────────────────┘\n\u001b[?25l? 🚀 What would you like to explore today? … \n❯ 📊 Analyze CSV Data 🔍 Smart file discovery and guided analysis\n  🎭 Try Demo Mode 🎯 Experience DataPilot with built-in sample datasets\n  🧠 Manage Memories 🗄️  View, delete, or manage warehouse knowledge\n  ⚙️  Settings & Preferences 🛠️  Configure DataPilot behavior and appearance\n  👋 Exit DataPilot ✨ Thanks for exploring data with us!\u001b[5A\u001b[49G"
+    },
+    {
+      "name": "File Browser - File Selection",
+      "success": false,
+      "duration": 6919,
+      "error": "Timeout waiting for pattern: Current directory",
+      "output": "     ⭐ MAIN MENU ⭐        │\n│  Choose your data adventure:  │\n└───────────────────────────────┘\n\u001b[?25l? 🚀 What would you like to explore today? … \n❯ 📊 Analyze CSV Data 🔍 Smart file discovery and guided analysis\n  🎭 Try Demo Mode 🎯 Experience DataPilot with built-in sample datasets\n  🧠 Manage Memories 🗄️  View, delete, or manage warehouse knowledge\n  ⚙️  Settings & Preferences 🛠️  Configure DataPilot behavior and appearance\n  👋 Exit DataPilot ✨ Thanks for exploring data with us!\u001b[5A\u001b[49G"
+    },
+    {
+      "name": "File Browser - Cancel Function",
+      "success": false,
+      "duration": 6917,
+      "error": "Timeout waiting for pattern: Current directory",
+      "output": "     ⭐ MAIN MENU ⭐        │\n│  Choose your data adventure:  │\n└───────────────────────────────┘\n\u001b[?25l? 🚀 What would you like to explore today? … \n❯ 📊 Analyze CSV Data 🔍 Smart file discovery and guided analysis\n  🎭 Try Demo Mode 🎯 Experience DataPilot with built-in sample datasets\n  🧠 Manage Memories 🗄️  View, delete, or manage warehouse knowledge\n  ⚙️  Settings & Preferences 🛠️  Configure DataPilot behavior and appearance\n  👋 Exit DataPilot ✨ Thanks for exploring data with us!\u001b[5A\u001b[49G"
+    },
+    {
+      "name": "File Browser - Error Handling",
+      "success": false,
+      "duration": 6912,
+      "error": "Timeout waiting for pattern: Current directory",
+      "output": "     ⭐ MAIN MENU ⭐        │\n│  Choose your data adventure:  │\n└───────────────────────────────┘\n\u001b[?25l? 🚀 What would you like to explore today? … \n❯ 📊 Analyze CSV Data 🔍 Smart file discovery and guided analysis\n  🎭 Try Demo Mode 🎯 Experience DataPilot with built-in sample datasets\n  🧠 Manage Memories 🗄️  View, delete, or manage warehouse knowledge\n  ⚙️  Settings & Preferences 🛠️  Configure DataPilot behavior and appearance\n  👋 Exit DataPilot ✨ Thanks for exploring data with us!\u001b[5A\u001b[49G"
+    }
+  ]
+}

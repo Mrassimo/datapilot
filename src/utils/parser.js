@@ -41,143 +41,111 @@ export function normalizePath(filePath) {
 }
 
 // Enhanced encoding detection with better fallback
-export function detectEncoding(filePath) {
+// Fast encoding detection - optimized for performance
+export function detectEncodingFast(filePath) {
   try {
-    // Normalize the path first
     const normalizedPath = normalizePath(filePath);
     
-    // Try chardet first
-    const encoding = chardet.detectFileSync(normalizedPath, { sampleSize: 65536 });
+    // For CSV files, 99% are UTF-8. Skip expensive detection for speed.
+    // Only do minimal BOM check which is very fast
+    const fd = openSync(normalizedPath, 'r');
+    const buffer = Buffer.alloc(3); // Check UTF-8 BOM only
+    readSync(fd, buffer, 0, 3, 0);
+    closeSync(fd);
     
-    if (!encoding) {
-      console.log(chalk.yellow('Could not detect encoding, checking for BOM...'));
-      
-      // Check for BOM
-      const fd = openSync(normalizedPath, 'r');
-      const buffer = Buffer.alloc(4); // Check 4 bytes for UTF-32
-      readSync(fd, buffer, 0, 4, 0);
-      closeSync(fd);
-      
-      // Check various BOMs
-      if (buffer[0] === 0xEF && buffer[1] === 0xBB && buffer[2] === 0xBF) {
-        return 'utf8'; // UTF-8 with BOM
-      }
-      if (buffer[0] === 0xFF && buffer[1] === 0xFE) {
-        if (buffer[2] === 0x00 && buffer[3] === 0x00) {
-          console.log(chalk.yellow('UTF-32LE detected, will use UTF-8 fallback'));
-          return 'utf8'; // UTF-32LE (not supported, fallback)
-        }
-        return 'utf16le'; // UTF-16LE
-      }
-      if (buffer[0] === 0xFE && buffer[1] === 0xFF) {
-        return 'utf16be'; // UTF-16BE
-      }
-      if (buffer[0] === 0x00 && buffer[1] === 0x00 && buffer[2] === 0xFE && buffer[3] === 0xFF) {
-        console.log(chalk.yellow('UTF-32BE detected, will use UTF-8 fallback'));
-        return 'utf8'; // UTF-32BE (not supported, fallback)
-      }
-      
-      // Default to UTF-8
+    // Check for UTF-8 BOM (most common)
+    if (buffer[0] === 0xEF && buffer[1] === 0xBB && buffer[2] === 0xBF) {
       return 'utf8';
     }
     
-    if (encoding && encoding !== 'UTF-8' && encoding !== 'ascii') {
-      console.log(chalk.yellow(`Detected ${encoding} encoding (will handle automatically)`));
-    }
-    
-    // Enhanced encoding map with better Windows support
-    const encodingMap = {
-      'UTF-8': 'utf8',
-      'ascii': 'ascii',
-      'windows-1250': 'latin1',
-      'windows-1251': 'win1251',
-      'windows-1252': 'latin1',
-      'ISO-8859-1': 'latin1',
-      'ISO-8859-2': 'latin1',
-      'UTF-16LE': 'utf16le',
-      'UTF-16BE': 'utf16be',
-      'UTF-32LE': 'utf8', // Fallback
-      'UTF-32BE': 'utf8', // Fallback
-      'Big5': 'utf8', // Fallback
-      'GB2312': 'utf8', // Fallback
-      'Shift_JIS': 'utf8', // Fallback
-      'EUC-JP': 'utf8', // Fallback
-      'EUC-KR': 'utf8' // Fallback
-    };
-    
-    const mappedEncoding = encodingMap[encoding] || 'utf8';
-    
-    // Warn about unsupported encodings
-    if (encoding && !encodingMap[encoding]) {
-      console.log(chalk.yellow(`Warning: ${encoding} encoding not fully supported, using UTF-8 fallback`));
-    }
-    
-    return mappedEncoding;
+    // Default to UTF-8 for speed - let CSV parser handle encoding errors
+    return 'utf8';
   } catch (error) {
-    console.log(chalk.yellow('Encoding detection failed, defaulting to UTF-8'));
     return 'utf8';
   }
 }
 
-// Detect CSV delimiter with improved logic
-export function detectDelimiter(filePath, encoding = 'utf8') {
+// Legacy function kept for compatibility but optimized
+export function detectEncoding(filePath) {
+  // Use fast detection by default
+  return detectEncodingFast(filePath);
+}
+
+// Fast delimiter detection - optimized for performance  
+export function detectDelimiterFast(filePath, encoding = 'utf8') {
   try {
     const normalizedPath = normalizePath(filePath);
-    const sample = readFileSync(normalizedPath, { encoding, end: 8192 }).toString();
-    const lines = sample.split(/\r?\n/).filter(l => l.trim());
+    // Read much smaller sample for speed - 2KB is usually enough
+    const sample = readFileSync(normalizedPath, { encoding, end: 2048 }).toString();
+    const lines = sample.split(/\r?\n/).filter(l => l.trim()).slice(0, 5); // Only check first 5 lines
     
     if (lines.length < 2) return ',';
     
+    // Fast check - just count delimiters in first few lines
     const delimiters = [',', ';', '\t', '|'];
-    const scores = {};
+    const counts = {};
     
-    // Test each delimiter
     for (const delimiter of delimiters) {
-      const counts = lines.slice(0, Math.min(10, lines.length)).map(line => {
-        // Count occurrences, considering quoted fields
-        let count = 0;
-        let inQuotes = false;
-        for (let i = 0; i < line.length; i++) {
-          if (line[i] === '"' && (i === 0 || line[i-1] !== '\\')) {
-            inQuotes = !inQuotes;
-          } else if (line[i] === delimiter && !inQuotes) {
-            count++;
-          }
-        }
-        return count;
-      });
-      
-      // Calculate consistency score
-      const avg = counts.reduce((a, b) => a + b, 0) / counts.length;
-      if (avg > 0) {
-        const variance = counts.reduce((sum, count) => 
-          sum + Math.pow(count - avg, 2), 0) / counts.length;
-        const consistency = avg / (variance + 1);
-        scores[delimiter] = { avg, variance, consistency };
-      } else {
-        scores[delimiter] = { avg: 0, variance: 0, consistency: 0 };
+      counts[delimiter] = 0;
+      for (const line of lines) {
+        counts[delimiter] += (line.match(new RegExp(`\\${delimiter}`, 'g')) || []).length;
       }
     }
     
-    // Find best delimiter
-    let bestDelimiter = ',';
-    let bestScore = 0;
-    
-    for (const [delimiter, score] of Object.entries(scores)) {
-      if (score.consistency > bestScore && score.avg > 0) {
-        bestScore = score.consistency;
-        bestDelimiter = delimiter;
-      }
-    }
-    
-    if (bestDelimiter !== ',') {
-      console.log(chalk.yellow(`Detected delimiter: ${bestDelimiter === '\t' ? '\\t (tab)' : bestDelimiter}`));
-    }
-    
-    return bestDelimiter;
+    // Return the delimiter with highest count
+    return Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b) || ',';
   } catch (error) {
-    console.log(chalk.yellow(`Delimiter detection failed: ${error.message}, using comma`));
-    return ',';
+    return ','; // Default to comma
+  }
+}
+
+// Legacy function - now optimized
+export function detectDelimiter(filePath, encoding = 'utf8') {
+  return detectDelimiterFast(filePath, encoding);
+}
+
+// Combined fast detection - single file read for both encoding and delimiter
+export function detectBothFast(filePath) {
+  try {
+    const normalizedPath = normalizePath(filePath);
+    
+    // Single file read - just 2KB for maximum speed
+    const fd = openSync(normalizedPath, 'r');
+    const buffer = Buffer.alloc(2048);
+    const bytesRead = readSync(fd, buffer, 0, 2048, 0);
+    closeSync(fd);
+    
+    // Check UTF-8 BOM
+    let encoding = 'utf8';
+    let startIndex = 0;
+    if (bytesRead >= 3 && buffer[0] === 0xEF && buffer[1] === 0xBB && buffer[2] === 0xBF) {
+      startIndex = 3; // Skip BOM
+    }
+    
+    // Convert to string for delimiter detection
+    const sample = buffer.slice(startIndex, bytesRead).toString(encoding);
+    const lines = sample.split(/\r?\n/).filter(l => l.trim()).slice(0, 3); // Only first 3 lines
+    
+    if (lines.length < 2) {
+      return { encoding, delimiter: ',' };
+    }
+    
+    // Fast delimiter detection
+    const delimiters = [',', ';', '\t', '|'];
+    const counts = {};
+    
+    for (const delimiter of delimiters) {
+      counts[delimiter] = 0;
+      for (const line of lines) {
+        counts[delimiter] += (line.match(new RegExp(`\\${delimiter}`, 'g')) || []).length;
+      }
+    }
+    
+    const delimiter = Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b) || ',';
+    
+    return { encoding, delimiter };
+  } catch (error) {
+    return { encoding: 'utf8', delimiter: ',' };
   }
 }
 
@@ -557,8 +525,10 @@ export async function parseCSV(filePath, options = {}) {
     throw new Error(`File not found: ${normalizedPath}`);
   }
   
-  const detectedEncoding = options.encoding || detectEncoding(normalizedPath);
-  const detectedDelimiter = detectDelimiter(normalizedPath, detectedEncoding);
+  // Fast combined detection - single file read instead of two separate reads
+  const detected = detectBothFast(normalizedPath);
+  const detectedEncoding = options.encoding || detected.encoding;
+  const detectedDelimiter = options.delimiter || detected.delimiter;
   
   // Enhanced fallback encoding list
   const fallbackEncodings = ['utf8', 'latin1', 'utf16le', 'ascii'];
@@ -1132,6 +1102,7 @@ export default {
   detectColumnTypes,
   detectEncoding,
   detectDelimiter,
+  detectBothFast,
   processInChunks,
   checkMemoryUsage,
   getFileHash,
