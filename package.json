@@ -28,8 +28,11 @@
     "build:frontend": "cd frontend && npm run build",
     "dev:frontend": "cd frontend && npm run dev",
     "install:frontend": "cd frontend && npm install",
+    "ui": "node bin/datapilot.js ui",
+    "wui": "node bin/datapilot.js wui", 
+    "tui": "node bin/datapilot.js tui",
     "webui": "node bin/datapilot.js webui",
-    "dev:webui": "npm run build:frontend && npm run webui",
+    "dev:ui": "npm run build:frontend && npm run ui",
     "prepublishOnly": "npm run build:frontend && npm run build"
   },
   "keywords": [

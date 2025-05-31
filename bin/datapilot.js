@@ -23,6 +23,9 @@ import { normalizePath } from '../src/utils/parser.js';
 // Import format utilities
 import { createError } from '../src/utils/format.js';
 
+// Import port management utilities
+import { handlePortConflict } from '../src/utils/portManager.js';
+
 // ASCII art banner with version
 const VERSION = '1.1.1';
 const banner = `
@@ -74,6 +77,92 @@ function validateFile(filePath) {
     return resolvedPath;
   } catch (error) {
     console.error(chalk.red(`❌ Error validating file: ${error.message}`));
+    process.exit(1);
+  }
+}
+
+// Web UI launcher function
+async function launchWebUI(options = {}) {
+  try {
+    const { startWebServer } = await import('../src/webServer.js');
+    const open = await import('open');
+    
+    const requestedPort = parseInt(options.port || '3000');
+    
+    console.log(chalk.blue('🚀 Starting DataPilot Web Interface...'));
+    
+    // Smart port management
+    const portResult = await handlePortConflict(requestedPort);
+    
+    if (!portResult.shouldLaunch) {
+      // DataPilot is already running on this port
+      if (options.open !== false) {
+        try {
+          await open.default(portResult.url);
+        } catch (error) {
+          console.log(chalk.yellow(`⚠️  Could not open browser automatically. Please visit: ${portResult.url}`));
+        }
+      } else {
+        console.log(chalk.blue(`🌐 Visit ${portResult.url} in your browser`));
+      }
+      return;
+    }
+    
+    // Check if frontend is built
+    const frontendDistPath = path.join(process.cwd(), 'frontend', 'dist');
+    if (!existsSync(frontendDistPath)) {
+      console.log(chalk.yellow('⚠️  Frontend not built. Building now...'));
+      const { spawn } = await import('child_process');
+      
+      await new Promise((resolve, reject) => {
+        const buildProcess = spawn('npm', ['run', 'build:frontend'], { 
+          stdio: 'inherit',
+          cwd: process.cwd()
+        });
+        
+        buildProcess.on('close', (code) => {
+          if (code === 0) {
+            resolve();
+          } else {
+            reject(new Error(`Frontend build failed with code ${code}`));
+          }
+        });
+        
+        buildProcess.on('error', reject);
+      });
+    }
+    
+    // Start the server
+    const server = await startWebServer(portResult.port);
+    
+    console.log(chalk.green(`✅ DataPilot Web Interface running at ${portResult.url}`));
+    
+    // Open browser unless disabled
+    if (options.open !== false) {
+      try {
+        await open.default(portResult.url);
+        console.log(chalk.blue('🌐 Opening in your default browser...'));
+      } catch (error) {
+        console.log(chalk.yellow(`⚠️  Could not open browser automatically. Please visit: ${portResult.url}`));
+      }
+    } else {
+      console.log(chalk.blue(`🌐 Visit ${portResult.url} in your browser`));
+    }
+    
+    // Handle graceful shutdown
+    process.on('SIGINT', () => {
+      console.log(chalk.yellow('\n🛑 Shutting down DataPilot Web Interface...'));
+      server.close(() => {
+        console.log(chalk.green('✅ Server closed gracefully'));
+        process.exit(0);
+      });
+    });
+    
+    // Keep the process alive
+    console.log(chalk.gray('Press Ctrl+C to stop the server'));
+    
+  } catch (error) {
+    console.error(chalk.red(`❌ Failed to start web interface: ${error.message}`));
     process.exit(1);
   }
 }
@@ -347,10 +436,10 @@ program
     await runWithProgress(llmContext, filePath, options);
   });
 
-// UI command - Interactive Terminal Interface
+// TUI command - Interactive Terminal Interface  
 program
-  .command('ui')
-  .description('🎨 Interactive UI - Fun, colorful, beginner-friendly interface')
+  .command('tui')
+  .description('🎨 Terminal UI - Fun, colorful, beginner-friendly terminal interface')
   .action(async () => {
     // Check terminal capabilities
     if (process.platform === 'win32' && !process.env.WT_SESSION) {
@@ -359,86 +448,41 @@ program
     await interactiveUI();
   });
 
-// WebUI command - Modern React Web Interface
+// UI command - Modern Web Interface (DEFAULT)
 program
-  .command('webui')
-  .description('🌐 Modern Web Interface - React-based UI for easy CSV analysis')
+  .command('ui')
+  .description('🌐 Web Interface - Modern React-based UI (default interface)')
   .option('-p, --port <port>', 'Port number for web server (default: 3000)', '3000')
   .option('--no-open', 'Don\'t automatically open browser')
   .action(async (options) => {
-    try {
-      const { startWebServer } = await import('../src/webServer.js');
-      const open = await import('open');
-      
-      const port = parseInt(options.port);
-      
-      console.log(chalk.blue('🚀 Starting DataPilot Web Interface...'));
-      
-      // Check if frontend is built
-      const frontendDistPath = path.join(process.cwd(), 'frontend', 'dist');
-      if (!existsSync(frontendDistPath)) {
-        console.log(chalk.yellow('⚠️  Frontend not built. Building now...'));
-        const { spawn } = await import('child_process');
-        
-        await new Promise((resolve, reject) => {
-          const buildProcess = spawn('npm', ['run', 'build:frontend'], { 
-            stdio: 'inherit',
-            cwd: process.cwd()
-          });
-          
-          buildProcess.on('close', (code) => {
-            if (code === 0) {
-              resolve();
-            } else {
-              reject(new Error(`Frontend build failed with code ${code}`));
-            }
-          });
-          
-          buildProcess.on('error', reject);
-        });
-      }
-      
-      // Start the server
-      const server = await startWebServer(port);
-      
-      const url = `http://localhost:${port}`;
-      console.log(chalk.green(`✅ DataPilot Web Interface running at ${url}`));
-      
-      // Open browser unless disabled
-      if (options.open !== false) {
-        try {
-          await open.default(url);
-          console.log(chalk.blue('🌐 Opening in your default browser...'));
-        } catch (error) {
-          console.log(chalk.yellow(`⚠️  Could not open browser automatically. Please visit: ${url}`));
-        }
-      } else {
-        console.log(chalk.blue(`🌐 Visit ${url} in your browser`));
-      }
-      
-      // Handle graceful shutdown
-      process.on('SIGINT', () => {
-        console.log(chalk.yellow('\n🛑 Shutting down DataPilot Web Interface...'));
-        server.close(() => {
-          console.log(chalk.green('✅ Server closed gracefully'));
-          process.exit(0);
-        });
-      });
-      
-      // Keep the process alive
-      console.log(chalk.gray('Press Ctrl+C to stop the server'));
-      
-    } catch (error) {
-      console.error(chalk.red(`❌ Failed to start web interface: ${error.message}`));
-      process.exit(1);
-    }
+    await launchWebUI(options);
+  });
+
+// WUI command - Web Interface (alias)
+program
+  .command('wui')
+  .description('🌐 Web Interface - Modern React-based UI for easy CSV analysis')
+  .option('-p, --port <port>', 'Port number for web server (default: 3000)', '3000')
+  .option('--no-open', 'Don\'t automatically open browser')
+  .action(async (options) => {
+    await launchWebUI(options);
+  });
+
+// WebUI command - Web Interface (backward compatibility)
+program
+  .command('webui')
+  .description('🌐 Web Interface - Modern React-based UI for easy CSV analysis')
+  .option('-p, --port <port>', 'Port number for web server (default: 3000)', '3000')
+  .option('--no-open', 'Don\'t automatically open browser')
+  .action(async (options) => {
+    await launchWebUI(options);
   });
 
 // Help text with enhanced examples
 program.on('--help', () => {
   console.log('');
   console.log(chalk.cyan('Examples:'));
-  console.log('  $ datapilot webui                           # 🌐 Launch modern web interface');
+  console.log('  $ datapilot ui                              # 🌐 Launch web interface (default)');
   console.log('  $ datapilot all data.csv                    # Run complete analysis');
   console.log('  $ datapilot all "C:\\My Data\\sales.csv"      # Path with spaces (use quotes)');
   console.log('  $ datapilot all data.csv -o analysis.txt    # Save to file');
@@ -446,10 +490,12 @@ program.on('--help', () => {
   console.log('  $ datapilot eda sales.csv --encoding latin1 # Force encoding');
   console.log('  $ datapilot int data.csv --delimiter ";"    # Force delimiter');
   console.log('');
-  console.log(chalk.cyan('Web Interface:'));
-  console.log('  $ datapilot webui                           # Launch React web interface');
-  console.log('  $ datapilot webui --port 8080               # Custom port');
-  console.log('  $ datapilot webui --no-open                 # Don\'t auto-open browser');
+  console.log(chalk.cyan('User Interfaces:'));
+  console.log('  $ datapilot ui                              # 🌐 Web interface (default)');
+  console.log('  $ datapilot wui                             # 🌐 Web interface (short alias)');
+  console.log('  $ datapilot tui                             # 🎨 Terminal interface');
+  console.log('  $ datapilot ui --port 8080                  # Custom port');
+  console.log('  $ datapilot ui --no-open                    # Don\'t auto-open browser');
   console.log('');
   console.log(chalk.cyan('Data Archaeology Workflow:'));
   console.log('  1. Analyze all tables: datapilot eng analyze *.csv');
