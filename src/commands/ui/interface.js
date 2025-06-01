@@ -15,6 +15,48 @@ import path from 'path';
 import { TUIEngine } from './engine.js';
 import { browseForFileSimple } from './simpleBrowser.js';
 
+// Detect Windows environment for ASCII fallback
+const isWindows = process.platform === 'win32';
+const useAscii = isWindows || process.env.DATAPILOT_ASCII === 'true';
+
+// Box drawing characters with ASCII fallback
+const boxChars = useAscii ? {
+  topLeft: '+',
+  topRight: '+',
+  bottomLeft: '+',
+  bottomRight: '+',
+  horizontal: '-',
+  vertical: '|',
+  horizontalDouble: '='
+} : {
+  topLeft: '╔',
+  topRight: '╗',
+  bottomLeft: '╚',
+  bottomRight: '╝',
+  horizontal: '═',
+  vertical: '║',
+  horizontalDouble: '═'
+};
+
+// Arrow characters with ASCII fallback
+const arrows = useAscii ? {
+  up: '^',
+  down: 'v',
+  left: '<',
+  right: '>',
+  leftEmoji: '<-',
+  rightTriangle: '>',
+  leftTriangle: '<'
+} : {
+  up: '↑',
+  down: '↓',
+  left: '←',
+  right: '→',
+  leftEmoji: '⬅️',
+  rightTriangle: '▶',
+  leftTriangle: '◀'
+};
+
 // Wrapper for prompts to handle Escape key gracefully
 async function safePrompt(config) {
   try {
@@ -212,13 +254,7 @@ async function showGuidedAnalysis(engine, analysisResult) {
   await runAnalysisWithAnimation(engine, filePath, analysisType);
   
   // Step 5: Show results
-  await showResults();
-  
-  await safePrompt({
-    type: 'confirm',
-    name: 'continue',
-    message: '\\nPress Enter to continue...'
-  });
+  await showResults(engine);
 }
 
 async function browseForFile() {
@@ -446,11 +482,10 @@ async function showDemo(engine, demoResult) {
   console.clear();
   
   // Enhanced demo mode header
-  const demoHeader = `
-  ╔═════════════════════════════════════════════════════════════╗
-  ║                     🎭 DEMO MODE 🎭                        ║
-  ║               Try DataPilot with sample data                 ║
-  ╚═════════════════════════════════════════════════════════════╝`;
+  const demoHeader = createBox(
+    '🎭 DEMO MODE 🎭',
+    'Try DataPilot with sample data'
+  );
   
   console.log(gradients.fire(demoHeader));
   console.log();
@@ -498,13 +533,7 @@ async function showDemo(engine, demoResult) {
   // Run demo analysis
   const analysisType = await selectAnalysisType(engine);
   await runAnalysisWithAnimation(engine, response.dataset, analysisType);
-  await showResults();
-  
-  await safePrompt({
-    type: 'confirm',
-    name: 'continue',
-    message: '\\nPress Enter to continue...'
-  });
+  await showResults(engine);
 }
 
 async function showMemoryManager(engine, memoryResult) {
@@ -845,9 +874,158 @@ async function showSessionMemories() {
   await safePrompt({ type: 'confirm', name: 'continue', message: 'Press Enter to continue...' });
 }
 
-async function showResults() {
-  console.log('\\n' + chalk.green('📊 Analysis results displayed above.'));
-  console.log(chalk.gray('(In the actual implementation, results would be shown here)'));
+async function showResults(engine) {
+  // Get the last analysis results from the engine
+  const analysisResults = engine.state.lastAnalysisResults;
+  
+  if (!analysisResults || !analysisResults.results) {
+    console.log(chalk.yellow('\n⚠️  No analysis results available.'));
+    return;
+  }
+  
+  console.log('\n' + boxen(
+    gradients.success('📊 Analysis Complete!'),
+    {
+      padding: 1,
+      borderColor: 'green',
+      title: '✨ Results Summary',
+      titleAlignment: 'center'
+    }
+  ));
+  
+  // Collect all results text
+  let fullResults = '';
+  const resultTypes = Object.keys(analysisResults.results);
+  
+  resultTypes.forEach(type => {
+    const result = analysisResults.results[type];
+    if (result) {
+      fullResults += `\n=== ${type.toUpperCase()} Analysis ===\n`;
+      
+      // Handle different result formats
+      if (typeof result === 'string') {
+        fullResults += result;
+      } else if (result.output) {
+        fullResults += result.output;
+      } else if (result.text) {
+        fullResults += result.text;
+      } else if (result.summary) {
+        fullResults += result.summary;
+      } else {
+        // Fallback to JSON stringification for structured data
+        fullResults += JSON.stringify(result, null, 2);
+      }
+      fullResults += '\n';
+    }
+  });
+  
+  // Store results for clipboard functionality
+  engine.state.lastResultsText = fullResults;
+  
+  // Create formatted text for clipboard/saving
+  const formattedResultsText = `DataPilot Analysis Results
+File: ${analysisResults.filePath}
+Analysis Type: ${analysisResults.analysisType}
+Timestamp: ${new Date(analysisResults.timestamp).toLocaleString()}
+${'='.repeat(60)}
+${fullResults}`;
+  
+  // Display options for results
+  const choices = [
+    {
+      name: 'view',
+      message: '📄 View Full Results',
+      hint: 'Display complete analysis output'
+    },
+    {
+      name: 'copy',
+      message: '📋 Copy Results to Clipboard',
+      hint: 'Copy all results for sharing'
+    },
+    {
+      name: 'save',
+      message: '💾 Save Results to File',
+      hint: 'Export results to a text file'
+    },
+    {
+      name: 'continue',
+      message: '✅ Continue',
+      hint: 'Return to main menu'
+    }
+  ];
+  
+  let viewing = true;
+  while (viewing) {
+    const response = await safePrompt({
+      type: 'select',
+      name: 'action',
+      message: gradients.cyan('What would you like to do with the results?'),
+      choices: choices
+    });
+    
+    switch (response.action) {
+      case 'view':
+        console.clear();
+        console.log(gradients.title('📊 FULL ANALYSIS RESULTS'));
+        console.log(gradients.subtle(`File: ${analysisResults.filePath}`));
+        console.log(gradients.subtle(`Analysis Type: ${analysisResults.analysisType}`));
+        console.log(gradients.subtle(`Timestamp: ${new Date(analysisResults.timestamp).toLocaleString()}`));
+        console.log(gradients.subtle('─'.repeat(60)));
+        console.log(fullResults);
+        console.log(gradients.subtle('─'.repeat(60)));
+        await safePrompt({
+          type: 'confirm',
+          name: 'continue',
+          message: 'Press Enter to continue...'
+        });
+        console.clear();
+        break;
+        
+      case 'copy':
+        // Since we can't directly access clipboard in Node.js without additional packages,
+        // we'll display the text for manual copying
+        console.log('\n' + boxen(
+          gradients.info('📋 Copy the text below:') + '\n\n' +
+          gradients.subtle('(Select all text and copy with Ctrl+C or Cmd+C)'),
+          {
+            padding: 1,
+            borderColor: 'blue',
+            title: 'Manual Copy',
+            titleAlignment: 'center'
+          }
+        ));
+        console.log('\n' + chalk.gray('─'.repeat(80)));
+        console.log(formattedResultsText);
+        console.log(chalk.gray('─'.repeat(80)) + '\n');
+        
+        await safePrompt({
+          type: 'confirm',
+          name: 'continue',
+          message: 'Press Enter when done copying...'
+        });
+        console.clear();
+        break;
+        
+      case 'save':
+        const filename = `datapilot-results-${new Date().toISOString().replace(/[:.]/g, '-')}.txt`;
+        try {
+          fs.writeFileSync(filename, formattedResultsText, 'utf8');
+          console.log(gradients.success(`\n✅ Results saved to: ${filename}`));
+        } catch (error) {
+          console.log(gradients.error(`\n❌ Failed to save: ${error.message}`));
+        }
+        await safePrompt({
+          type: 'confirm',
+          name: 'continue',
+          message: 'Press Enter to continue...'
+        });
+        break;
+        
+      case 'continue':
+        viewing = false;
+        break;
+    }
+  }
 }
 
 // Clean animation functions with proper ASCII art

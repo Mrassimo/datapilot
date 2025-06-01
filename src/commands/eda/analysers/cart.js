@@ -1,10 +1,15 @@
 import { DecisionTreeRegression } from 'ml-cart';
 
 export function performCARTAnalysis(records, columns, columnTypes, targetColumn = null) {
-  // Prepare data for CART analysis
-  const numericColumns = columns.filter(col => 
-    ['integer', 'float'].includes(columnTypes[col].type)
-  );
+  // Prepare data for CART analysis - validate numeric columns actually contain numbers
+  const numericColumns = columns.filter(col => {
+    if (!['integer', 'float'].includes(columnTypes[col].type)) return false;
+    
+    // Additional validation: check if values are actually numeric
+    const sampleValues = records.slice(0, 100).map(r => r[col]).filter(v => v !== null && v !== undefined);
+    const numericCount = sampleValues.filter(v => typeof v === 'number' || !isNaN(parseFloat(v))).length;
+    return numericCount / sampleValues.length > 0.8; // At least 80% should be numeric
+  });
   const categoricalColumns = columns.filter(col => 
     columnTypes[col].type === 'categorical' && 
     columnTypes[col].categories.length <= 20 // Limit categories
@@ -51,15 +56,32 @@ export function performCARTAnalysis(records, columns, columnTypes, targetColumn 
     minNumSamples: Math.max(5, Math.floor(features.length * 0.05))
   };
   
-  const regression = new DecisionTreeRegression(treeConfig);
-  regression.train(features, target);
-  
+  try {
+    const regression = new DecisionTreeRegression(treeConfig);
+    regression.train(features, target);
+    
+    // Continue with the rest of the analysis
+    return performCARTAnalysisWithTree(regression, features, target, featureNames, columnTypes, records.length, targetColumn);
+  } catch (error) {
+    // Handle matrix/numeric errors gracefully
+    if (error.message && error.message.includes('non-numeric')) {
+      return {
+        applicable: false,
+        reason: 'Data contains mixed types that cannot be processed by CART analysis',
+        suggestion: 'Ensure all feature columns contain only numeric values'
+      };
+    }
+    throw error; // Re-throw other errors
+  }
+}
+
+function performCARTAnalysisWithTree(regression, features, target, featureNames, columnTypes, recordCount, targetColumn) {
   // Extract rules
   const rules = extractRules(regression.root, featureNames, 0, columnTypes);
   const importances = calculateFeatureImportances(regression, features, target, featureNames);
   
   // Find interesting segments
-  const segments = findBusinessSegments(rules, records.length);
+  const segments = findBusinessSegments(rules, recordCount);
   
   return {
     applicable: true,
@@ -125,13 +147,23 @@ function prepareData(records, numericColumns, categoricalColumns, targetColumn, 
     const targetValue = record[targetColumn];
     if (targetValue === null || targetValue === undefined) return;
     
+    // Ensure target value is numeric
+    const numericTarget = typeof targetValue === 'number' ? targetValue : parseFloat(targetValue);
+    if (isNaN(numericTarget)) return;
+    
     const row = [];
     
     // Numeric features
     numericColumns.forEach(col => {
       if (col !== targetColumn) {
         const value = record[col];
-        row.push(value !== null && value !== undefined ? value : 0);
+        // Ensure value is actually numeric
+        if (value !== null && value !== undefined) {
+          const numericValue = typeof value === 'number' ? value : parseFloat(value);
+          row.push(isNaN(numericValue) ? 0 : numericValue);
+        } else {
+          row.push(0);
+        }
       }
     });
     
@@ -147,7 +179,7 @@ function prepareData(records, numericColumns, categoricalColumns, targetColumn, 
     });
     
     features.push(row);
-    target.push(targetValue);
+    target.push(numericTarget);
   });
   
   return { features, target, featureNames };

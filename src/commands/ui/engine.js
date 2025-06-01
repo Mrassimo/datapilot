@@ -199,7 +199,18 @@ export class TUIEngine {
   async previewFile(filePath) {
     try {
       const records = await this.dependencies.parseCSV(filePath, { quiet: true, header: true });
+      
+      // Safety check for undefined records
+      if (!records || !Array.isArray(records)) {
+        throw new Error('Failed to parse CSV: No valid records returned');
+      }
+      
       const columnTypes = this.dependencies.detectColumnTypes(records);
+      
+      // Safety check for undefined columnTypes
+      if (!columnTypes || typeof columnTypes !== 'object') {
+        throw new Error('Failed to detect column types');
+      }
       
       const preview = {
         path: filePath,
@@ -268,37 +279,85 @@ export class TUIEngine {
     };
     
     try {
-      const records = await this.dependencies.parseCSV(filePath, { quiet: true, header: true });
-      const columnTypes = this.dependencies.detectColumnTypes(records);
-      
       const analysisOptions = {
         ...options,
-        preloadedData: { records, columnTypes },
-        structuredOutput: this.testMode
+        // Don't use quiet mode - we need to capture the output
+        quiet: false,
+        structuredOutput: false  // We want text output, not structured
+      };
+      
+      // Helper function to capture console output
+      const captureOutput = async (fn) => {
+        const originalLog = console.log;
+        let output = '';
+        
+        // Override console.log to capture output
+        console.log = (...args) => {
+          const text = args.map(arg => 
+            typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+          ).join(' ');
+          output += text + '\n';
+          // Still show output in real-time
+          originalLog(...args);
+        };
+        
+        try {
+          const result = await fn();
+          console.log = originalLog; // Restore console.log
+          
+          // Return both the function result and captured output
+          return {
+            result,
+            output: output.trim()
+          };
+        } catch (error) {
+          console.log = originalLog; // Restore console.log on error
+          throw error;
+        }
       };
       
       switch (analysisType) {
         case 'all':
-          results.results.eda = await this.dependencies.eda(records, Object.keys(columnTypes), filePath, analysisOptions);
-          results.results.int = await this.dependencies.integrity(records, Object.keys(columnTypes), filePath, analysisOptions);
-          results.results.vis = await this.dependencies.visualize(filePath, analysisOptions);
-          results.results.eng = await this.dependencies.eda(records, Object.keys(columnTypes), filePath, { ...analysisOptions, command: 'eng' });
-          results.results.llm = await this.dependencies.llmContext(filePath, analysisOptions);
+          results.results.eda = await captureOutput(() => 
+            this.dependencies.eda(filePath, analysisOptions)
+          );
+          results.results.int = await captureOutput(() => 
+            this.dependencies.integrity(filePath, analysisOptions)
+          );
+          results.results.vis = await captureOutput(() => 
+            this.dependencies.visualize(filePath, analysisOptions)
+          );
+          results.results.eng = await captureOutput(() => 
+            this.dependencies.eda(filePath, { ...analysisOptions, command: 'eng' })
+          );
+          results.results.llm = await captureOutput(() => 
+            this.dependencies.llmContext(filePath, analysisOptions)
+          );
           break;
         case 'eda':
-          results.results.eda = await this.dependencies.eda(records, Object.keys(columnTypes), filePath, analysisOptions);
+          results.results.eda = await captureOutput(() => 
+            this.dependencies.eda(filePath, analysisOptions)
+          );
           break;
         case 'int':
-          results.results.int = await this.dependencies.integrity(records, Object.keys(columnTypes), filePath, analysisOptions);
+          results.results.int = await captureOutput(() => 
+            this.dependencies.integrity(filePath, analysisOptions)
+          );
           break;
         case 'vis':
-          results.results.vis = await this.dependencies.visualize(filePath, analysisOptions);
+          results.results.vis = await captureOutput(() => 
+            this.dependencies.visualize(filePath, analysisOptions)
+          );
           break;
         case 'eng':
-          results.results.eng = await this.dependencies.eda(records, Object.keys(columnTypes), filePath, { ...analysisOptions, command: 'eng' });
+          results.results.eng = await captureOutput(() => 
+            this.dependencies.eda(filePath, { ...analysisOptions, command: 'eng' })
+          );
           break;
         case 'llm':
-          results.results.llm = await this.dependencies.llmContext(filePath, analysisOptions);
+          results.results.llm = await captureOutput(() => 
+            this.dependencies.llmContext(filePath, analysisOptions)
+          );
           break;
         default:
           throw new Error(`Unknown analysis type: ${analysisType}`);

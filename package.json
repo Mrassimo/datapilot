@@ -12,6 +12,7 @@
     "test:tui": "node tests/run_tui_tests.js",
     "build": "rollup -c",
     "build:watch": "rollup -c -w",
+    "postinstall": "node scripts/postinstall.js",
     "prepublishOnly": "npm run build",
     "release:patch": "npm version patch && npm publish",
     "release:minor": "npm version minor && npm publish",
@@ -21,6 +22,7 @@
     "dist/",
     "src/",
     "bin/",
+    "scripts/",
     "README.md"
   ],
   "keywords": [

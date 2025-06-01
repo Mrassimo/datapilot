@@ -1,7 +1,7 @@
 import { parse } from 'csv-parse';
 import { createReadStream, statSync, openSync, readSync, closeSync, existsSync } from 'fs';
 import { pipeline } from 'stream/promises';
-import * as chardet from 'chardet';
+// import * as chardet from 'chardet'; // Removed - not used, fast detection is preferred
 import chalk from 'chalk';
 import ora from 'ora';
 import { readFileSync } from 'fs';
@@ -10,10 +10,10 @@ import path from 'path';
 import os from 'os';
 
 // Constants
-const SAMPLE_THRESHOLD = 50 * 1024 * 1024; // 50MB
-const MAX_MEMORY_ROWS = 100000; // Maximum rows to keep in memory
+const SAMPLE_THRESHOLD = 2 * 1024 * 1024; // 2MB - lowered for better performance
+const MAX_MEMORY_ROWS = 50000; // Maximum rows to keep in memory - reduced
 const SAMPLE_RATE = 0.01; // 1% sampling for files > 1M rows
-const MAX_ROWS_FOR_FULL_ANALYSIS = 50000;
+const MAX_ROWS_FOR_FULL_ANALYSIS = 20000; // Reduced for faster processing
 const CHUNK_SIZE = 10000; // Process 10k rows at a time for CPU-intensive operations
 
 // Enhanced path normalization for Windows
@@ -283,7 +283,7 @@ async function attemptParse(filePath, encoding, options = {}) {
   let useSampling = false;
   let sampleRate = 1.0;
   
-  if (fileSize > 100 * 1024 * 1024 && !options.noSampling) { // 100MB threshold
+  if (fileSize > SAMPLE_THRESHOLD && !options.noSampling) { // Use defined threshold
     const averageBytesPerRow = 80;
     const estimatedRows = fileSize / averageBytesPerRow;
     
@@ -319,7 +319,17 @@ async function parseCSVWithEncoding(filePath, encoding, delimiter, useSampling, 
   }
   
   const records = [];
-  const spinner = options.quiet ? null : ora('Reading CSV file...').start();
+  const spinner = options.quiet ? null : ora({
+    text: 'Reading CSV file...',
+    spinner: 'dots',
+    color: 'cyan'
+  }).start();
+  
+  // Show file size info immediately
+  if (spinner && fileSize > 1024 * 1024) {
+    const fileSizeMB = (fileSize / 1024 / 1024).toFixed(1);
+    spinner.text = `Reading CSV file (${fileSizeMB}MB)...`;
+  }
   
   // Create progress callback if spinner exists
   const progressCallback = spinner && fileSize > 1024 * 1024 ? 
@@ -530,7 +540,9 @@ export async function parseCSV(filePath, options = {}) {
   const detectedEncoding = options.encoding || detected.encoding;
   const detectedDelimiter = options.delimiter || detected.delimiter;
   
-  // Enhanced fallback encoding list
+  // Enhanced fallback encoding list - only include Node.js supported encodings
+  // Note: UTF-32BE, ISO-8859-1, windows-1252 are not natively supported by Node.js
+  // and can cause "Cannot read properties of undefined" errors
   const fallbackEncodings = ['utf8', 'latin1', 'utf16le', 'ascii'];
   const encodingsToTry = [detectedEncoding, ...fallbackEncodings.filter(e => e !== detectedEncoding)];
   
@@ -632,7 +644,13 @@ export async function parseCSV(filePath, options = {}) {
   
   // Enhanced error message with debugging information
   const attemptDetails = attempts.map(a => `  • ${a.encoding}: ${a.error}`).join('\n');
-  const errorMessage = `
+  
+  // Check for specific problematic encoding mentions
+  const hasProblematicEncodings = attemptDetails.includes('UTF-32BE') || 
+                                  attemptDetails.includes('ISO-8859-1') || 
+                                  attemptDetails.includes('windows-1252');
+  
+  let errorMessage = `
 🚨 CSV PARSING FAILED
 
 📁 File: ${normalizedPath}
@@ -641,7 +659,24 @@ export async function parseCSV(filePath, options = {}) {
 📋 Detected delimiter: ${detectedDelimiter === '\t' ? 'TAB' : detectedDelimiter}
 
 ❌ All encoding attempts failed:
-${attemptDetails}
+${attemptDetails}`;
+
+  if (hasProblematicEncodings) {
+    errorMessage += `
+
+⚠️ **ENCODING DETECTION ISSUE DETECTED**:
+The system attempted to use UTF-32BE, ISO-8859-1, or windows-1252 encodings,
+which are not directly supported by Node.js and can cause undefined property errors.
+
+🔧 **SPECIFIC FIXES FOR ENCODING ISSUES**:
+1. 📄 **Save file as UTF-8**: Open the file in a text editor and save as UTF-8
+2. 🔄 **Convert encoding**: Use tools like iconv to convert to UTF-8:
+   \`iconv -f ISO-8859-1 -t UTF-8 input.csv > output.csv\`
+3. 📝 **Check file source**: Ensure the file wasn't exported with unusual encoding
+`;
+  }
+
+  errorMessage += `
 
 🔧 TROUBLESHOOTING SUGGESTIONS:
 
@@ -762,7 +797,15 @@ function validateParsedData(records, filePath) {
 
 // Enhanced column type detection
 export function detectColumnTypes(records) {
-  if (records.length === 0) return {};
+  // Safety checks for undefined or invalid input
+  if (!records || !Array.isArray(records) || records.length === 0) {
+    return {};
+  }
+  
+  // Safety check for first record
+  if (!records[0] || typeof records[0] !== 'object') {
+    return {};
+  }
   
   const columns = Object.keys(records[0]);
   const columnTypes = {};

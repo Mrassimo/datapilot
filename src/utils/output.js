@@ -23,7 +23,8 @@ export class OutputHandler {
       
       // Write buffer to file
       writeFileSync(this.outputFile, this.buffer);
-      console.log(chalk.green(`\n✓ Analysis saved to: ${this.outputFile}`));
+      const checkmark = process.platform === 'win32' ? '[OK]' : '✓';
+      console.log(chalk.green(`\n${checkmark} Analysis saved to: ${this.outputFile}`));
       
       // Show preview
       const lines = this.buffer.split('\n').slice(0, 10);

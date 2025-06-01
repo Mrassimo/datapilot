@@ -105,16 +105,7 @@ export async function browseForFileSimple() {
         initial: 0
       });
       
-      // Override render to prevent duplicates
-      const originalRender = prompt.render.bind(prompt);
-      let renderCount = 0;
-      prompt.render = async function() {
-        if (renderCount === 0) {
-          renderCount++;
-          return originalRender();
-        }
-        // Skip subsequent renders during navigation
-      };
+      // Let enquirer handle rendering naturally for proper navigation
       
       const answer = await prompt.run();
       const action = actions.get(answer);

@@ -107,8 +107,9 @@ export async function runAll(filePath, options = {}) {
     }
     
   } catch (error) {
-    outputHandler.restore();
-    spinner.error({ text: 'Analysis failed' });
+    // Restore console.log in case of error
+    console.log = originalLog;
+    spinner.fail('Analysis failed');
     console.error('Error during analysis:', error.message);
     if (!options.quiet) process.exit(1);
     throw error;

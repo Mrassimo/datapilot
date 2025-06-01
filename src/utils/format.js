@@ -2,6 +2,10 @@ import chalk from 'chalk';
 
 // Removed import of deleted unifiedFormat.js - using local implementations
 
+// Detect Windows environment for ASCII fallback
+const isWindows = process.platform === 'win32';
+const useAscii = isWindows || process.env.DATAPILOT_ASCII === 'true';
+
 // Define missing exports that were previously in unifiedFormat.js
 export const colors = {
   primary: chalk.blue,
@@ -13,19 +17,25 @@ export const colors = {
 };
 
 export const symbols = {
-  success: '✓',
-  error: '✗',
-  warning: '⚠',
-  info: 'ℹ',
-  bullet: '•'
+  success: useAscii ? '[OK]' : '✓',
+  error: useAscii ? '[X]' : '✗',
+  warning: useAscii ? '[!]' : '⚠',
+  info: useAscii ? '[i]' : 'ℹ',
+  bullet: useAscii ? '*' : '•'
 };
 
 export const createSuccess = (text) => `${colors.success(symbols.success)} ${text}`;
 export const createWarning = (text) => `${colors.warning(symbols.warning)} ${text}`;
 export const createError = (text) => `${colors.error(symbols.error)} ${text}`;
 
-export const createHeader = (text) => `\n${colors.primary('═'.repeat(60))}\n${colors.primary(text.toUpperCase().padStart((60 + text.length) / 2))}\n${colors.primary('═'.repeat(60))}`;
-export const createSubsection = (title, content = '') => `\n${colors.info(title)}\n${'─'.repeat(40)}\n${content}`;
+export const createHeader = (text) => {
+  const border = useAscii ? '='.repeat(60) : '═'.repeat(60);
+  return `\n${colors.primary(border)}\n${colors.primary(text.toUpperCase().padStart((60 + text.length) / 2))}\n${colors.primary(border)}`;
+};
+export const createSubsection = (title, content = '') => {
+  const divider = useAscii ? '-'.repeat(40) : '─'.repeat(40);
+  return `\n${colors.info(title)}\n${divider}\n${content}`;
+};
 export const createTable = (data) => JSON.stringify(data, null, 2);
 export const createList = (items) => items.map(item => `${symbols.bullet} ${item}`).join('\n');
 export const createStandardSpinner = (text) => ({ text });
@@ -117,7 +127,9 @@ export function progressBar(current, total, width = 40) {
   const percentage = current / total;
   const filled = Math.round(width * percentage);
   const empty = width - filled;
-  const bar = '█'.repeat(filled) + '░'.repeat(empty);
+  const bar = useAscii 
+    ? '#'.repeat(filled) + '.'.repeat(empty)
+    : '█'.repeat(filled) + '░'.repeat(empty);
   return `[${bar}] ${formatPercentage(percentage)}`;
 }
 
@@ -205,22 +217,44 @@ export function formatDataTable(records, columns) {
   });
   
   // Build header
-  let table = '\n┌' + columns.map(col => '─'.repeat(columnWidths[col] + 2)).join('┬') + '┐\n';
-  table += '│ ' + columns.map(col => col.padEnd(columnWidths[col])).join(' │ ') + ' │\n';
-  table += '├' + columns.map(col => '─'.repeat(columnWidths[col] + 2)).join('┼') + '┤\n';
-  
-  // Build rows
-  records.forEach(record => {
-    table += '│ ' + columns.map(col => {
-      let val = String(record[col] || '');
-      if (val.length > columnWidths[col]) {
-        val = val.substring(0, columnWidths[col] - 3) + '...';
-      }
-      return val.padEnd(columnWidths[col]);
-    }).join(' │ ') + ' │\n';
-  });
-  
-  table += '└' + columns.map(col => '─'.repeat(columnWidths[col] + 2)).join('┴') + '┘\n';
+  let table;
+  if (useAscii) {
+    // ASCII table format for Windows
+    table = '\n+' + columns.map(col => '-'.repeat(columnWidths[col] + 2)).join('+') + '+\n';
+    table += '| ' + columns.map(col => col.padEnd(columnWidths[col])).join(' | ') + ' |\n';
+    table += '+' + columns.map(col => '-'.repeat(columnWidths[col] + 2)).join('+') + '+\n';
+    
+    // Build rows
+    records.forEach(record => {
+      table += '| ' + columns.map(col => {
+        let val = String(record[col] || '');
+        if (val.length > columnWidths[col]) {
+          val = val.substring(0, columnWidths[col] - 3) + '...';
+        }
+        return val.padEnd(columnWidths[col]);
+      }).join(' | ') + ' |\n';
+    });
+    
+    table += '+' + columns.map(col => '-'.repeat(columnWidths[col] + 2)).join('+') + '+\n';
+  } else {
+    // Unicode table format
+    table = '\n┌' + columns.map(col => '─'.repeat(columnWidths[col] + 2)).join('┬') + '┐\n';
+    table += '│ ' + columns.map(col => col.padEnd(columnWidths[col])).join(' │ ') + ' │\n';
+    table += '├' + columns.map(col => '─'.repeat(columnWidths[col] + 2)).join('┼') + '┤\n';
+    
+    // Build rows
+    records.forEach(record => {
+      table += '│ ' + columns.map(col => {
+        let val = String(record[col] || '');
+        if (val.length > columnWidths[col]) {
+          val = val.substring(0, columnWidths[col] - 3) + '...';
+        }
+        return val.padEnd(columnWidths[col]);
+      }).join(' │ ') + ' │\n';
+    });
+    
+    table += '└' + columns.map(col => '─'.repeat(columnWidths[col] + 2)).join('┴') + '┘\n';
+  }
   
   return table;
 }
