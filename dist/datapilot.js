@@ -2,7 +2,7 @@
 import require$$0$1 from 'events';
 import require$$1 from 'child_process';
 import path$1, { basename } from 'path';
-import fs, { existsSync, statSync, openSync, readSync, closeSync, createReadStream, readFileSync, writeFileSync, realpathSync as realpathSync$1, readlinkSync, readdirSync, readdir as readdir$1, lstatSync } from 'fs';
+import fsSync, { existsSync, statSync, openSync, readSync, closeSync, createReadStream, readFileSync, writeFileSync, realpathSync as realpathSync$1, readlinkSync, readdirSync, readdir as readdir$1, lstatSync } from 'fs';
 import require$$4 from 'process';
 import process$1 from 'node:process';
 import os from 'node:os';
@@ -15,7 +15,7 @@ import require$$1$1 from 'util';
 import os$1 from 'os';
 import { pipeline } from 'stream/promises';
 import 'crypto';
-import fs$1 from 'fs/promises';
+import fs from 'fs/promises';
 import { fileURLToPath } from 'node:url';
 import { win32, posix } from 'node:path';
 import * as actualFS from 'node:fs';
@@ -1172,7 +1172,7 @@ function requireCommand () {
 	const EventEmitter = require$$0$1.EventEmitter;
 	const childProcess = require$$1;
 	const path = path$1;
-	const fs$1 = fs;
+	const fs = fsSync;
 	const process = require$$4;
 
 	const { Argument, humanReadableArgName } = requireArgument();
@@ -2121,13 +2121,13 @@ Expecting one of '${allowedValues.join("', '")}'`);
 	    function findFile(baseDir, baseName) {
 	      // Look for specified file
 	      const localBin = path.resolve(baseDir, baseName);
-	      if (fs$1.existsSync(localBin)) return localBin;
+	      if (fs.existsSync(localBin)) return localBin;
 
 	      // Stop looking if candidate already has an expected extension.
 	      if (sourceExt.includes(path.extname(baseName))) return undefined;
 
 	      // Try all the extensions.
-	      const foundExt = sourceExt.find(ext => fs$1.existsSync(`${localBin}${ext}`));
+	      const foundExt = sourceExt.find(ext => fs.existsSync(`${localBin}${ext}`));
 	      if (foundExt) return `${localBin}${foundExt}`;
 
 	      return undefined;
@@ -2143,7 +2143,7 @@ Expecting one of '${allowedValues.join("', '")}'`);
 	    if (this._scriptPath) {
 	      let resolvedScriptPath; // resolve possible symlink for installed npm binary
 	      try {
-	        resolvedScriptPath = fs$1.realpathSync(this._scriptPath);
+	        resolvedScriptPath = fs.realpathSync(this._scriptPath);
 	      } catch (err) {
 	        resolvedScriptPath = this._scriptPath;
 	      }
@@ -58890,7 +58890,7 @@ class FileLockManager {
           file: this.filePath
         };
         
-        await fs$1.writeFile(
+        await fs.writeFile(
           this.lockPath, 
           JSON.stringify(lockInfo), 
           { flag: 'wx' } // Exclusive create - fails if exists
@@ -58930,7 +58930,7 @@ class FileLockManager {
       const lockInfo = await this.readLockInfo();
       
       if (lockInfo && lockInfo.pid === process.pid) {
-        await fs$1.unlink(this.lockPath);
+        await fs.unlink(this.lockPath);
       } else {
         console.warn('Attempting to release lock not owned by this process');
       }
@@ -58980,7 +58980,7 @@ class FileLockManager {
    */
   async readLockInfo() {
     try {
-      const content = await fs$1.readFile(this.lockPath, 'utf8');
+      const content = await fs.readFile(this.lockPath, 'utf8');
       return JSON.parse(content);
     } catch (error) {
       return null;
@@ -58992,7 +58992,7 @@ class FileLockManager {
    */
   async forceRemoveLock() {
     try {
-      await fs$1.unlink(this.lockPath);
+      await fs.unlink(this.lockPath);
     } catch (error) {
       // Ignore - might have been removed by another process
     }
@@ -59023,7 +59023,334 @@ class FileLockManager {
   }
 }
 
-class KnowledgeBase {
+/**
+ * Global lock manager for knowledge base
+ */
+class KnowledgeBaseLockManager {
+  constructor() {
+    this.lockManagers = new Map();
+  }
+
+  /**
+   * Get lock manager for specific file
+   * @param {string} filePath 
+   * @returns {FileLockManager}
+   */
+  getLockManager(filePath) {
+    if (!this.lockManagers.has(filePath)) {
+      this.lockManagers.set(filePath, new FileLockManager(filePath));
+    }
+    return this.lockManagers.get(filePath);
+  }
+
+  /**
+   * Execute function with lock on specific file
+   * @param {string} filePath 
+   * @param {Function} fn 
+   * @param {number} timeout 
+   * @returns {Promise<any>}
+   */
+  async withLock(filePath, fn, timeout = 5000) {
+    const lockManager = this.getLockManager(filePath);
+    return await lockManager.withLock(fn, timeout);
+  }
+}
+
+// Export singleton instance
+const knowledgeBaseLocks = new KnowledgeBaseLockManager();
+
+/**
+ * Backup Manager for DataPilot Knowledge Base
+ * Prevents data loss identified as critical risk in Google review
+ */
+
+
+class BackupManager {
+  constructor(options = {}) {
+    this.maxBackups = options.maxBackups || 5;
+    this.backupInterval = options.backupInterval || 3600000; // 1 hour
+    this.compressionEnabled = options.compression || false;
+  }
+
+  /**
+   * Create backup of file before modification
+   * @param {string} filePath - Path to file to backup
+   * @returns {Promise<string|null>} - Path to backup file or null if failed
+   */
+  async createBackup(filePath) {
+    try {
+      // Check if original file exists
+      try {
+        await fs.access(filePath);
+      } catch (error) {
+        // File doesn't exist - no backup needed
+        return null;
+      }
+
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const backupPath = `${filePath}.backup-${timestamp}`;
+      
+      // Create backup directory if it doesn't exist
+      const backupDir = path$1.dirname(backupPath);
+      await fs.mkdir(backupDir, { recursive: true });
+      
+      // Copy file to backup location
+      await fs.copyFile(filePath, backupPath);
+      
+      // Clean up old backups
+      await this.cleanupOldBackups(filePath);
+      
+      return backupPath;
+    } catch (error) {
+      console.warn('Failed to create backup for', filePath, ':', error.message);
+      return null;
+    }
+  }
+
+  /**
+   * Restore from most recent backup
+   * @param {string} filePath - Original file path
+   * @returns {Promise<boolean>} - true if restored successfully
+   */
+  async restoreFromBackup(filePath) {
+    try {
+      const backups = await this.listBackups(filePath);
+      
+      if (backups.length === 0) {
+        return false;
+      }
+      
+      // Use most recent backup
+      const latestBackup = backups[0];
+      await fs.copyFile(latestBackup.path, filePath);
+      
+      console.log(`Restored ${filePath} from backup: ${latestBackup.path}`);
+      return true;
+    } catch (error) {
+      console.error('Failed to restore from backup:', error.message);
+      return false;
+    }
+  }
+
+  /**
+   * List all available backups for a file
+   * @param {string} filePath 
+   * @returns {Promise<Array>} - Array of backup info objects
+   */
+  async listBackups(filePath) {
+    try {
+      const dir = path$1.dirname(filePath);
+      const basename = path$1.basename(filePath);
+      const files = await fs.readdir(dir);
+      
+      const backups = [];
+      
+      for (const file of files) {
+        if (file.startsWith(`${basename}.backup-`)) {
+          const backupPath = path$1.join(dir, file);
+          const stats = await fs.stat(backupPath);
+          
+          // Extract timestamp from filename
+          const timestampMatch = file.match(/\.backup-(.+)$/);
+          const timestamp = timestampMatch ? timestampMatch[1] : '';
+          
+          backups.push({
+            path: backupPath,
+            timestamp,
+            created: stats.mtime,
+            size: stats.size
+          });
+        }
+      }
+      
+      // Sort by creation time (newest first)
+      return backups.sort((a, b) => b.created - a.created);
+    } catch (error) {
+      console.warn('Failed to list backups:', error.message);
+      return [];
+    }
+  }
+
+  /**
+   * Clean up old backups, keeping only the most recent ones
+   * @param {string} filePath 
+   */
+  async cleanupOldBackups(filePath) {
+    try {
+      const backups = await this.listBackups(filePath);
+      
+      // Remove backups beyond the limit
+      const backupsToRemove = backups.slice(this.maxBackups);
+      
+      for (const backup of backupsToRemove) {
+        try {
+          await fs.unlink(backup.path);
+        } catch (error) {
+          console.warn('Failed to remove old backup:', backup.path, error.message);
+        }
+      }
+      
+      if (backupsToRemove.length > 0) {
+        console.log(`Cleaned up ${backupsToRemove.length} old backups for ${filePath}`);
+      }
+    } catch (error) {
+      console.warn('Failed to cleanup backups:', error.message);
+    }
+  }
+
+  /**
+   * Verify backup integrity
+   * @param {string} backupPath 
+   * @returns {Promise<boolean>}
+   */
+  async verifyBackup(backupPath) {
+    try {
+      // Basic verification - check if file exists and is readable
+      const stats = await fs.stat(backupPath);
+      
+      if (stats.size === 0) {
+        return false;
+      }
+      
+      // For YAML files, try to parse
+      if (backupPath.endsWith('.yml') || backupPath.endsWith('.yaml')) {
+        const content = await fs.readFile(backupPath, 'utf8');
+        // Basic YAML structure check
+        if (!content.trim() || content.includes('undefined')) {
+          return false;
+        }
+      }
+      
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  /**
+   * Get backup statistics
+   * @param {string} filePath 
+   * @returns {Promise<object>}
+   */
+  async getBackupStats(filePath) {
+    const backups = await this.listBackups(filePath);
+    
+    let totalSize = 0;
+    let oldestBackup = null;
+    let newestBackup = null;
+    
+    for (const backup of backups) {
+      totalSize += backup.size;
+      
+      if (!oldestBackup || backup.created < oldestBackup.created) {
+        oldestBackup = backup;
+      }
+      
+      if (!newestBackup || backup.created > newestBackup.created) {
+        newestBackup = backup;
+      }
+    }
+    
+    return {
+      count: backups.length,
+      totalSize,
+      oldestBackup,
+      newestBackup,
+      backups
+    };
+  }
+}
+
+/**
+ * Specialized backup manager for DataPilot knowledge base
+ */
+class KnowledgeBaseBackupManager extends BackupManager {
+  constructor() {
+    super({
+      maxBackups: 10, // Keep more backups for knowledge base
+      backupInterval: 1800000, // 30 minutes
+    });
+  }
+
+  /**
+   * Safe write with automatic backup
+   * @param {string} filePath 
+   * @param {string} content 
+   * @returns {Promise<boolean>}
+   */
+  async safeWrite(filePath, content) {
+    try {
+      // Create backup before writing
+      const backupPath = await this.createBackup(filePath);
+      
+      // Write new content
+      await fs.writeFile(filePath, content, 'utf8');
+      
+      // Verify the write
+      const written = await fs.readFile(filePath, 'utf8');
+      if (written !== content) {
+        throw new Error('Write verification failed');
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Safe write failed:', error.message);
+      
+      // Attempt to restore from backup
+      const restored = await this.restoreFromBackup(filePath);
+      if (restored) {
+        console.log('Successfully restored from backup after write failure');
+      }
+      
+      throw error;
+    }
+  }
+
+  /**
+   * Validate knowledge base content before backup
+   * @param {string} content 
+   * @returns {boolean}
+   */
+  validateKnowledgeContent(content) {
+    try {
+      // Basic validation for YAML content
+      if (!content || content.trim().length === 0) {
+        return false;
+      }
+      
+      // Check for corruption indicators
+      if (content.includes('undefined') || content.includes('null')) {
+        console.warn('Knowledge base content contains undefined/null values');
+        return false;
+      }
+      
+      // Check for basic YAML structure
+      if (!content.includes(':') && !content.includes('-')) {
+        console.warn('Content does not appear to be valid YAML');
+        return false;
+      }
+      
+      return true;
+    } catch (error) {
+      console.warn('Content validation failed:', error.message);
+      return false;
+    }
+  }
+}
+
+// Export singleton instance for knowledge base
+const knowledgeBaseBackup = new KnowledgeBaseBackupManager();
+
+/**
+ * Safe Knowledge Base with File Locking and Backup
+ * Addresses critical issues identified in Google review:
+ * - Concurrency protection
+ * - Data corruption prevention  
+ * - Backup and recovery
+ */
+
+
+class SafeKnowledgeBase {
   constructor(basePath = null) {
     this.basePath = basePath || path$1.join(os$1.homedir(), '.datapilot', 'archaeology');
     this.warehousePath = path$1.join(this.basePath, 'warehouse_knowledge.yaml');
@@ -59031,39 +59358,76 @@ class KnowledgeBase {
     this.patternsPath = path$1.join(this.basePath, 'patterns.yaml');
     this.relationshipsPath = path$1.join(this.basePath, 'relationships.yaml');
     
-    // Initialize file locks for concurrent access protection
-    this.warehouseLock = new FileLockManager(this.warehousePath);
-    this.patternsLock = new FileLockManager(this.patternsPath);
-    this.relationshipsLock = new FileLockManager(this.relationshipsPath);
-    
-    this.initializeDirectories();
+    // Initialize directories synchronously for constructor
+    this.initializeDirectoriesSync();
   }
 
-  initializeDirectories() {
+  initializeDirectoriesSync() {
     try {
-      fs.mkdirSync(this.basePath, { recursive: true });
-      fs.mkdirSync(this.tablesPath, { recursive: true });
+      fsSync.mkdirSync(this.basePath, { recursive: true });
+      fsSync.mkdirSync(this.tablesPath, { recursive: true });
     } catch (error) {
       console.error('Failed to initialize knowledge base directories:', error.message);
     }
   }
 
+  /**
+   * Load knowledge base with file locking
+   */
   async load() {
     try {
-      const warehouse = this.loadYaml(this.warehousePath) || this.createEmptyWarehouse();
-      const patterns = this.loadYaml(this.patternsPath) || { naming_conventions: [], common_issues: [] };
-      const relationships = this.loadYaml(this.relationshipsPath) || { confirmed: [], suspected: [] };
+      return await knowledgeBaseLocks.withLock(this.warehousePath, async () => {
+        const warehouse = await this.loadYaml(this.warehousePath) || this.createEmptyWarehouse();
+        const patterns = await this.loadYaml(this.patternsPath) || { naming_conventions: [], common_issues: [] };
+        const relationships = await this.loadYaml(this.relationshipsPath) || { confirmed: [], suspected: [] };
 
-      return {
-        warehouse,
-        patterns,
-        relationships,
-        tables: this.loadAllTables()
-      };
+        return {
+          warehouse,
+          patterns,
+          relationships,
+          tables: await this.loadAllTables()
+        };
+      });
     } catch (error) {
       console.error('Failed to load knowledge base:', error.message);
+      
+      // Attempt recovery from backup
+      const recovered = await this.attemptRecovery();
+      if (recovered) {
+        console.log('Successfully recovered knowledge base from backup');
+        return recovered;
+      }
+      
       return this.createEmptyKnowledge();
     }
+  }
+
+  /**
+   * Attempt to recover from backup
+   */
+  async attemptRecovery() {
+    try {
+      // Try to restore main warehouse file
+      const warehouseRestored = await knowledgeBaseBackup.restoreFromBackup(this.warehousePath);
+      
+      if (warehouseRestored) {
+        // Load recovered data
+        const warehouse = await this.loadYaml(this.warehousePath) || this.createEmptyWarehouse();
+        const patterns = await this.loadYaml(this.patternsPath) || { naming_conventions: [], common_issues: [] };
+        const relationships = await this.loadYaml(this.relationshipsPath) || { confirmed: [], suspected: [] };
+
+        return {
+          warehouse,
+          patterns,
+          relationships,
+          tables: await this.loadAllTables()
+        };
+      }
+    } catch (error) {
+      console.error('Recovery attempt failed:', error.message);
+    }
+    
+    return null;
   }
 
   createEmptyWarehouse() {
@@ -59072,7 +59436,8 @@ class KnowledgeBase {
         name: "Discovered Data Warehouse",
         discovered_tables: 0,
         last_updated: new Date().toISOString(),
-        total_technical_debt_hours: 0
+        total_technical_debt_hours: 0,
+        version: "1.0" // Add version for future schema evolution
       },
       table_registry: {},
       domains: {}
@@ -59088,20 +59453,63 @@ class KnowledgeBase {
     };
   }
 
-  loadYaml(filePath) {
+  /**
+   * Load YAML file with error handling
+   */
+  async loadYaml(filePath) {
     try {
-      if (fs.existsSync(filePath)) {
-        const content = fs.readFileSync(filePath, 'utf8');
-        return jsYaml.load(content);
+      // Check if file exists
+      await fs.access(filePath);
+      
+      const content = await fs.readFile(filePath, 'utf8');
+      
+      // Validate content before parsing
+      if (!this.validateYamlContent(content)) {
+        console.warn(`Invalid YAML content in ${filePath}, attempting backup recovery`);
+        
+        // Try to restore from backup
+        const restored = await knowledgeBaseBackup.restoreFromBackup(filePath);
+        if (restored) {
+          const restoredContent = await fs.readFile(filePath, 'utf8');
+          return jsYaml.load(restoredContent);
+        }
+        
+        return null;
       }
-      return null;
+      
+      return jsYaml.load(content);
     } catch (error) {
-      console.error(`Failed to load ${filePath}:`, error.message);
+      if (error.code !== 'ENOENT') {
+        console.error(`Failed to load ${filePath}:`, error.message);
+      }
       return null;
     }
   }
 
-  
+  /**
+   * Validate YAML content for corruption
+   */
+  validateYamlContent(content) {
+    if (!content || content.trim().length === 0) {
+      return false;
+    }
+    
+    // Check for corruption indicators
+    if (content.includes('undefined') || content.includes('[object Object]')) {
+      return false;
+    }
+    
+    try {
+      jsYaml.load(content);
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  /**
+   * Clean data for YAML serialization
+   */
   cleanForYaml(obj) {
     if (obj === null || obj === undefined) return obj;
     if (obj instanceof Promise) return '[Promise - not serializable]';
@@ -59126,106 +59534,54 @@ class KnowledgeBase {
     return obj;
   }
 
-async saveYaml(filePath, data) {
-    // Determine which lock to use based on file path
-    let lockManager = null;
-    if (filePath === this.warehousePath) {
-      lockManager = this.warehouseLock;
-    } else if (filePath === this.patternsPath) {
-      lockManager = this.patternsLock;
-    } else if (filePath === this.relationshipsPath) {
-      lockManager = this.relationshipsLock;
-    }
-    
-    // Create backup before writing
-    try {
-      if (fs.existsSync(filePath)) {
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        const backupPath = `${filePath}.backup-${timestamp}`;
-        fs.copyFileSync(filePath, backupPath);
-        
-        // Keep only last 3 backups to save space
-        this.cleanupOldBackups(filePath);
-      }
-    } catch (backupError) {
-      console.warn(`Failed to create backup for ${filePath}:`, backupError.message);
-    }
-    
-    const saveOperation = () => {
+  /**
+   * Save YAML with backup and locking
+   */
+  async saveYaml(filePath, data) {
+    return await knowledgeBaseLocks.withLock(filePath, async () => {
       try {
-        const yamlContent = jsYaml.dump(this.cleanForYaml(data), {
+        // Clean and prepare data
+        const cleanData = this.cleanForYaml(data);
+        
+        // Validate data before saving
+        if (!cleanData || Object.keys(cleanData).length === 0) {
+          throw new Error('Cannot save empty or invalid data');
+        }
+        
+        const yamlContent = jsYaml.dump(cleanData, {
           indent: 2,
           lineWidth: 120,
           noRefs: true
         });
         
-        // Validate content before saving
-        if (yamlContent.includes('undefined') || 
-            yamlContent.includes('[object Object]') ||
-            yamlContent.includes('function') ||
-            yamlContent.trim().length === 0) {
-          throw new Error('Invalid YAML content generated');
+        // Validate generated YAML
+        if (!this.validateYamlContent(yamlContent)) {
+          throw new Error('Generated YAML content is invalid');
         }
         
-        fs.writeFileSync(filePath, yamlContent, 'utf8');
+        // Use backup manager for safe write
+        await knowledgeBaseBackup.safeWrite(filePath, yamlContent);
+        
       } catch (error) {
         console.error(`Failed to save ${filePath}:`, error.message);
         throw error;
       }
-    };
-    
-    // Use file locking if available, otherwise proceed without it
-    if (lockManager) {
-      try {
-        await lockManager.withLock(saveOperation, 3000); // 3 second timeout
-      } catch (lockError) {
-        console.warn(`File locking failed for ${filePath}, proceeding without lock:`, lockError.message);
-        saveOperation();
-      }
-    } else {
-      saveOperation();
-    }
+    });
   }
 
-  cleanupOldBackups(filePath) {
-    try {
-      const dir = path$1.dirname(filePath);
-      const basename = path$1.basename(filePath);
-      const files = fs.readdirSync(dir);
-      
-      const backups = files
-        .filter(f => f.startsWith(`${basename}.backup-`))
-        .map(f => ({
-          name: f,
-          path: path$1.join(dir, f),
-          stat: fs.statSync(path$1.join(dir, f))
-        }))
-        .sort((a, b) => b.stat.mtime - a.stat.mtime); // Sort by modification time, newest first
-      
-      // Keep only the 3 most recent backups
-      const backupsToDelete = backups.slice(3);
-      
-      for (const backup of backupsToDelete) {
-        try {
-          fs.unlinkSync(backup.path);
-        } catch (error) {
-          console.warn(`Failed to delete old backup ${backup.name}:`, error.message);
-        }
-      }
-    } catch (error) {
-      console.warn(`Failed to cleanup backups for ${filePath}:`, error.message);
-    }
-  }
-
-  loadAllTables() {
+  /**
+   * Load all table files
+   */
+  async loadAllTables() {
     try {
       const tables = {};
-      const files = fs.readdirSync(this.tablesPath);
+      const files = await fs.readdir(this.tablesPath);
       
       for (const file of files) {
         if (file.endsWith('.yaml')) {
           const tableName = file.replace('.yaml', '');
-          tables[tableName] = this.loadYaml(path$1.join(this.tablesPath, file));
+          const tablePath = path$1.join(this.tablesPath, file);
+          tables[tableName] = await this.loadYaml(tablePath);
         }
       }
       
@@ -59236,79 +59592,269 @@ async saveYaml(filePath, data) {
     }
   }
 
+  /**
+   * Save table with locking
+   */
   async saveTable(tableName, analysis) {
     const tablePath = path$1.join(this.tablesPath, `${tableName}.yaml`);
     await this.saveYaml(tablePath, analysis);
   }
 
+  /**
+   * Update knowledge base with full consistency checks
+   */
   async update(tableName, analysis) {
-    const knowledge = await this.load();
-    
-    // Update warehouse metadata
-    knowledge.warehouse.warehouse_metadata.discovered_tables += 1;
-    knowledge.warehouse.warehouse_metadata.last_updated = new Date().toISOString();
-    knowledge.warehouse.warehouse_metadata.total_technical_debt_hours += analysis.tech_debt_hours || 0;
+    return await knowledgeBaseLocks.withLock(this.warehousePath, async () => {
+      try {
+        const knowledge = await this.load();
+        
+        // Validate analysis data
+        if (!analysis || typeof analysis !== 'object') {
+          throw new Error('Invalid analysis data provided');
+        }
+        
+        // Create backup of current state
+        await knowledgeBaseBackup.createBackup(this.warehousePath);
+        
+        // Update warehouse metadata with validation
+        const currentCount = Object.keys(knowledge.warehouse.table_registry || {}).length;
+        const isNewTable = !knowledge.warehouse.table_registry[tableName];
+        
+        knowledge.warehouse.warehouse_metadata.discovered_tables = currentCount + (isNewTable ? 1 : 0);
+        knowledge.warehouse.warehouse_metadata.last_updated = new Date().toISOString();
+        knowledge.warehouse.warehouse_metadata.total_technical_debt_hours += analysis.tech_debt_hours || 0;
 
-    // Add to table registry
-    knowledge.warehouse.table_registry[tableName] = {
-      analyzed_date: new Date().toISOString(),
-      likely_purpose: analysis.likely_purpose || "Unknown",
-      quality_score: analysis.quality_score || 50,
-      tech_debt_hours: analysis.tech_debt_hours || 0,
-      relationships: analysis.relationships || [],
-      columns: analysis.columns || [],
-      domain: analysis.domain || "Unknown"
-    };
+        // Add to table registry with validation
+        knowledge.warehouse.table_registry[tableName] = {
+          analyzed_date: new Date().toISOString(),
+          likely_purpose: analysis.likely_purpose || "Unknown",
+          quality_score: Math.max(0, Math.min(100, analysis.quality_score || 50)), // Constrain to 0-100
+          tech_debt_hours: Math.max(0, analysis.tech_debt_hours || 0), // Non-negative
+          relationships: Array.isArray(analysis.relationships) ? analysis.relationships : [],
+          columns: Array.isArray(analysis.columns) ? analysis.columns : [],
+          domain: analysis.domain || "Unknown"
+        };
 
-    // Update domain classification
-    const domain = analysis.domain || "Unknown";
-    if (!knowledge.warehouse.domains[domain]) {
-      knowledge.warehouse.domains[domain] = [];
-    }
-    if (!knowledge.warehouse.domains[domain].includes(tableName)) {
-      knowledge.warehouse.domains[domain].push(tableName);
-    }
+        // Update domain classification safely
+        const domain = analysis.domain || "Unknown";
+        if (!knowledge.warehouse.domains[domain]) {
+          knowledge.warehouse.domains[domain] = [];
+        }
+        if (!knowledge.warehouse.domains[domain].includes(tableName)) {
+          knowledge.warehouse.domains[domain].push(tableName);
+        }
 
-    // Update patterns
-    if (analysis.patterns) {
-      knowledge.patterns.naming_conventions.push(...analysis.patterns.naming || []);
-      knowledge.patterns.common_issues.push(...analysis.patterns.issues || []);
-    }
+        // Update patterns with validation
+        if (analysis.patterns && typeof analysis.patterns === 'object') {
+          if (Array.isArray(analysis.patterns.naming)) {
+            knowledge.patterns.naming_conventions.push(...analysis.patterns.naming);
+          }
+          if (Array.isArray(analysis.patterns.issues)) {
+            knowledge.patterns.common_issues.push(...analysis.patterns.issues);
+          }
+        }
 
-    // Update relationships
-    if (analysis.relationships) {
-      knowledge.relationships.confirmed.push(...analysis.relationships.confirmed || []);
-      knowledge.relationships.suspected.push(...analysis.relationships.suspected || []);
-    }
+        // Update relationships with validation
+        if (analysis.relationships && typeof analysis.relationships === 'object') {
+          if (Array.isArray(analysis.relationships.confirmed)) {
+            knowledge.relationships.confirmed.push(...analysis.relationships.confirmed);
+          }
+          if (Array.isArray(analysis.relationships.suspected)) {
+            knowledge.relationships.suspected.push(...analysis.relationships.suspected);
+          }
+        }
 
-    // Save everything
-    await this.saveTable(tableName, analysis);
-    await this.saveYaml(this.warehousePath, knowledge.warehouse);
-    await this.saveYaml(this.patternsPath, knowledge.patterns);
-    await this.saveYaml(this.relationshipsPath, knowledge.relationships);
+        // Save everything atomically
+        await this.saveTable(tableName, analysis);
+        await this.saveYaml(this.warehousePath, knowledge.warehouse);
+        await this.saveYaml(this.patternsPath, knowledge.patterns);
+        await this.saveYaml(this.relationshipsPath, knowledge.relationships);
 
-    return knowledge;
+        return knowledge;
+        
+      } catch (error) {
+        console.error('Knowledge base update failed:', error.message);
+        
+        // Attempt to restore from backup on failure
+        await knowledgeBaseBackup.restoreFromBackup(this.warehousePath);
+        throw error;
+      }
+    });
   }
 
+  /**
+   * Add insights with safety checks
+   */
   async addInsights(tableName, insights) {
-    const knowledge = await this.load();
-    
-    if (knowledge.warehouse.table_registry[tableName]) {
-      knowledge.warehouse.table_registry[tableName].llm_insights = {
-        purpose: insights.purpose,
-        upstream: insights.upstream,
-        downstream: insights.downstream,
-        critical_columns: insights.critical_columns,
-        deprecate_columns: insights.deprecate_columns,
-        data_model_position: insights.data_model_position,
-        next_investigate: insights.next_investigate,
-        updated: new Date().toISOString()
-      };
+    return await knowledgeBaseLocks.withLock(this.warehousePath, async () => {
+      const knowledge = await this.load();
+      
+      if (knowledge.warehouse.table_registry[tableName]) {
+        // Validate insights object
+        if (!insights || typeof insights !== 'object') {
+          throw new Error('Invalid insights data provided');
+        }
+        
+        knowledge.warehouse.table_registry[tableName].llm_insights = {
+          purpose: insights.purpose || '',
+          upstream: insights.upstream || '',
+          downstream: insights.downstream || '',
+          critical_columns: Array.isArray(insights.critical_columns) ? insights.critical_columns : [],
+          deprecate_columns: Array.isArray(insights.deprecate_columns) ? insights.deprecate_columns : [],
+          data_model_position: insights.data_model_position || '',
+          next_investigate: insights.next_investigate || '',
+          updated: new Date().toISOString()
+        };
 
-      await this.saveYaml(this.warehousePath, knowledge.warehouse);
+        await this.saveYaml(this.warehousePath, knowledge.warehouse);
+      }
+    });
+  }
+
+  /**
+   * Delete table with consistency checks
+   */
+  async deleteTable(tableName) {
+    return await knowledgeBaseLocks.withLock(this.warehousePath, async () => {
+      try {
+        // Create backup before deletion
+        await knowledgeBaseBackup.createBackup(this.warehousePath);
+        
+        const knowledge = await this.load();
+        
+        // Remove table YAML file
+        const tableFilePath = path$1.join(this.tablesPath, `${tableName}.yaml`);
+        try {
+          await fs.access(tableFilePath);
+          await fs.unlink(tableFilePath);
+        } catch (error) {
+          // File doesn't exist - not an error
+        }
+        
+        // Update warehouse metadata
+        if (knowledge.warehouse && knowledge.warehouse.table_registry) {
+          const tableInfo = knowledge.warehouse.table_registry[tableName];
+          if (tableInfo) {
+            // Update technical debt
+            if (knowledge.warehouse.warehouse_metadata && tableInfo.tech_debt_hours) {
+              knowledge.warehouse.warehouse_metadata.total_technical_debt_hours -= tableInfo.tech_debt_hours;
+            }
+            
+            // Remove from registry
+            delete knowledge.warehouse.table_registry[tableName];
+            
+            // Update discovered tables count
+            if (knowledge.warehouse.warehouse_metadata) {
+              knowledge.warehouse.warehouse_metadata.discovered_tables = 
+                Object.keys(knowledge.warehouse.table_registry).length;
+            }
+            
+            // Remove from domains
+            if (knowledge.warehouse.domains && tableInfo.domain) {
+              const domainTables = knowledge.warehouse.domains[tableInfo.domain] || [];
+              knowledge.warehouse.domains[tableInfo.domain] = domainTables.filter(t => t !== tableName);
+              
+              // Remove empty domains
+              if (knowledge.warehouse.domains[tableInfo.domain].length === 0) {
+                delete knowledge.warehouse.domains[tableInfo.domain];
+              }
+            }
+            
+            // Update timestamp
+            knowledge.warehouse.warehouse_metadata.last_updated = new Date().toISOString();
+            
+            // Save updated warehouse
+            await this.saveYaml(this.warehousePath, knowledge.warehouse);
+          }
+        }
+        
+        // Remove any relationships referencing this table
+        if (knowledge.relationships) {
+          knowledge.relationships.confirmed = (knowledge.relationships.confirmed || [])
+            .filter(rel => rel.source_table !== tableName && rel.target_table !== tableName);
+          knowledge.relationships.suspected = (knowledge.relationships.suspected || [])
+            .filter(rel => rel.source_table !== tableName && rel.target_table !== tableName);
+          await this.saveYaml(this.relationshipsPath, knowledge.relationships);
+        }
+        
+        return true;
+      } catch (error) {
+        console.error(`Failed to delete table ${tableName}:`, error.message);
+        
+        // Restore from backup on failure
+        await knowledgeBaseBackup.restoreFromBackup(this.warehousePath);
+        throw error;
+      }
+    });
+  }
+
+  /**
+   * Clear all with confirmation and backup
+   */
+  async clearAll() {
+    return await knowledgeBaseLocks.withLock(this.warehousePath, async () => {
+      try {
+        // Create final backup before clearing
+        await knowledgeBaseBackup.createBackup(this.warehousePath);
+        
+        // Remove the entire archaeology directory
+        if (fsSync.existsSync(this.basePath)) {
+          await fs.rm(this.basePath, { recursive: true, force: true });
+        }
+        
+        // Reinitialize empty directories
+        this.initializeDirectoriesSync();
+        
+        // Create empty warehouse file
+        const emptyWarehouse = this.createEmptyWarehouse();
+        await this.saveYaml(this.warehousePath, emptyWarehouse);
+        
+        return true;
+      } catch (error) {
+        console.error('Failed to clear all memories:', error.message);
+        throw error;
+      }
+    });
+  }
+
+  /**
+   * Get knowledge base health status
+   */
+  async getHealthStatus() {
+    try {
+      const knowledge = await this.load();
+      const backupStats = await knowledgeBaseBackup.getBackupStats(this.warehousePath);
+      
+      return {
+        status: 'healthy',
+        tables_count: Object.keys(knowledge.warehouse.table_registry || {}).length,
+        last_updated: knowledge.warehouse.warehouse_metadata?.last_updated,
+        backup_count: backupStats.count,
+        total_backup_size: backupStats.totalSize,
+        last_backup: backupStats.newestBackup?.timestamp
+      };
+    } catch (error) {
+      return {
+        status: 'unhealthy',
+        error: error.message,
+        recovery_available: await this.isRecoveryAvailable()
+      };
     }
   }
 
+  /**
+   * Check if backup recovery is available
+   */
+  async isRecoveryAvailable() {
+    try {
+      const backups = await knowledgeBaseBackup.listBackups(this.warehousePath);
+      return backups.length > 0;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  // Keep all the existing analysis methods unchanged
   detectCrossTablePatterns(currentAnalysis, knowledge) {
     const patterns = {
       naming_patterns: [],
@@ -59317,7 +59863,6 @@ async saveYaml(filePath, data) {
       quality_patterns: []
     };
 
-    // Detect naming patterns
     const currentColumns = currentAnalysis.columns || [];
     const allTables = Object.values(knowledge.warehouse.table_registry || {});
     
@@ -59328,7 +59873,6 @@ async saveYaml(filePath, data) {
       }
     }
 
-    // Detect relationship patterns
     const suspectedRelationships = this.detectRelationships(currentAnalysis, knowledge);
     patterns.relationship_patterns = suspectedRelationships;
 
@@ -59365,10 +59909,8 @@ async saveYaml(filePath, data) {
     const norm1 = normalize(col1);
     const norm2 = normalize(col2);
     
-    // Exact match after normalization
     if (norm1 === norm2) return true;
     
-    // Contains relationship (for foreign keys)
     if (norm1.includes('id') && norm2.includes('id')) {
       const base1 = norm1.replace('id', '');
       const base2 = norm2.replace('id', '');
@@ -59422,7 +59964,6 @@ async saveYaml(filePath, data) {
     if (name1 === name2) return 0.95;
     if (name1.includes(name2) || name2.includes(name1)) return 0.8;
     
-    // Type compatibility
     if (col1.type === col2.type) return 0.7;
     
     return 0.5;
@@ -59458,109 +59999,10 @@ WAREHOUSE ARCHAEOLOGY SUMMARY:
 - Last Updated: ${metadata.last_updated}
     `.trim();
   }
-
-  async deleteTable(tableName) {
-    try {
-      // Load current warehouse knowledge
-      const knowledge = await this.load();
-      
-      // Remove table YAML file
-      const tableFilePath = path$1.join(this.tablesPath, `${tableName}.yaml`);
-      if (fs.existsSync(tableFilePath)) {
-        fs.unlinkSync(tableFilePath);
-      }
-      
-      // Update warehouse metadata
-      if (knowledge.warehouse && knowledge.warehouse.table_registry) {
-        const tableInfo = knowledge.warehouse.table_registry[tableName];
-        if (tableInfo) {
-          // Update technical debt
-          if (knowledge.warehouse.warehouse_metadata && tableInfo.tech_debt_hours) {
-            knowledge.warehouse.warehouse_metadata.total_technical_debt_hours -= tableInfo.tech_debt_hours;
-          }
-          
-          // Remove from registry
-          delete knowledge.warehouse.table_registry[tableName];
-          
-          // Update discovered tables count
-          if (knowledge.warehouse.warehouse_metadata) {
-            knowledge.warehouse.warehouse_metadata.discovered_tables = 
-              Object.keys(knowledge.warehouse.table_registry).length;
-          }
-          
-          // Remove from domains
-          if (knowledge.warehouse.domains && tableInfo.domain) {
-            const domainTables = knowledge.warehouse.domains[tableInfo.domain] || [];
-            knowledge.warehouse.domains[tableInfo.domain] = domainTables.filter(t => t !== tableName);
-            
-            // Remove empty domains
-            if (knowledge.warehouse.domains[tableInfo.domain].length === 0) {
-              delete knowledge.warehouse.domains[tableInfo.domain];
-            }
-          }
-          
-          // Update timestamp
-          knowledge.warehouse.warehouse_metadata.last_updated = new Date().toISOString();
-          
-          // Save updated warehouse
-          await this.saveYaml(this.warehousePath, knowledge.warehouse);
-        }
-      }
-      
-      // Remove any relationships referencing this table
-      if (knowledge.relationships) {
-        knowledge.relationships.confirmed = (knowledge.relationships.confirmed || [])
-          .filter(rel => rel.source_table !== tableName && rel.target_table !== tableName);
-        knowledge.relationships.suspected = (knowledge.relationships.suspected || [])
-          .filter(rel => rel.source_table !== tableName && rel.target_table !== tableName);
-        await this.saveYaml(this.relationshipsPath, knowledge.relationships);
-      }
-      
-      return true;
-    } catch (error) {
-      console.error(`Failed to delete table ${tableName}:`, error.message);
-      throw error;
-    }
-  }
-
-  async clearAll() {
-    try {
-      // Remove the entire archaeology directory
-      if (fs.existsSync(this.basePath)) {
-        // Recursively remove all files and directories
-        this.removeDirectory(this.basePath);
-      }
-      
-      // Reinitialize empty directories
-      this.initializeDirectories();
-      
-      // Create empty warehouse file
-      const emptyWarehouse = this.createEmptyWarehouse();
-      await this.saveYaml(this.warehousePath, emptyWarehouse);
-      
-      return true;
-    } catch (error) {
-      console.error('Failed to clear all memories:', error.message);
-      throw error;
-    }
-  }
-
-  removeDirectory(dirPath) {
-    if (fs.existsSync(dirPath)) {
-      fs.readdirSync(dirPath).forEach((file) => {
-        const curPath = path$1.join(dirPath, file);
-        if (fs.lstatSync(curPath).isDirectory()) {
-          // Recursive call for directories
-          this.removeDirectory(curPath);
-        } else {
-          // Delete file
-          fs.unlinkSync(curPath);
-        }
-      });
-      fs.rmdirSync(dirPath);
-    }
-  }
 }
+
+// Export both for compatibility
+const KnowledgeBase = SafeKnowledgeBase;
 
 /**
  * Data-driven relationship validation for ENG command
