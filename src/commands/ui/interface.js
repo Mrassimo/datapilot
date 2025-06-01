@@ -57,6 +57,33 @@ const arrows = useAscii ? {
   leftTriangle: '◀'
 };
 
+// Helper function to create formatted boxes
+function createBox(title, subtitle = '') {
+  const width = 61; // Standard width for boxes
+  const titlePadding = Math.floor((width - title.length - 2) / 2);
+  const subtitlePadding = subtitle ? Math.floor((width - subtitle.length - 2) / 2) : 0;
+  
+  if (useAscii) {
+    // ASCII box format
+    let box = '\n  +' + '='.repeat(width) + '+\n';
+    box += '  |' + ' '.repeat(titlePadding) + title + ' '.repeat(width - titlePadding - title.length) + '|\n';
+    if (subtitle) {
+      box += '  |' + ' '.repeat(subtitlePadding) + subtitle + ' '.repeat(width - subtitlePadding - subtitle.length) + '|\n';
+    }
+    box += '  +' + '='.repeat(width) + '+';
+    return box;
+  } else {
+    // Unicode box format
+    let box = '\n  ' + boxChars.topLeft + boxChars.horizontalDouble.repeat(width) + boxChars.topRight + '\n';
+    box += '  ' + boxChars.vertical + ' '.repeat(titlePadding) + title + ' '.repeat(width - titlePadding - title.length) + boxChars.vertical + '\n';
+    if (subtitle) {
+      box += '  ' + boxChars.vertical + ' '.repeat(subtitlePadding) + subtitle + ' '.repeat(width - subtitlePadding - subtitle.length) + boxChars.vertical + '\n';
+    }
+    box += '  ' + boxChars.bottomLeft + boxChars.horizontalDouble.repeat(width) + boxChars.bottomRight;
+    return box;
+  }
+}
+
 // Wrapper for prompts to handle Escape key gracefully
 async function safePrompt(config) {
   try {

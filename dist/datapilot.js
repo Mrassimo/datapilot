@@ -30950,7 +30950,7 @@ function suggestModels(columnTypes, analysis, assessment) {
 
 // Detect Windows environment for ASCII fallback
 const isWindows$1 = process.platform === 'win32';
-const useAscii = isWindows$1 || process.env.DATAPILOT_ASCII === 'true';
+const useAscii$1 = isWindows$1 || process.env.DATAPILOT_ASCII === 'true';
 
 // Define missing exports that were previously in unifiedFormat.js
 const colors = {
@@ -30963,11 +30963,11 @@ const colors = {
 };
 
 const createHeader = (text) => {
-  const border = useAscii ? '='.repeat(60) : '═'.repeat(60);
+  const border = useAscii$1 ? '='.repeat(60) : '═'.repeat(60);
   return `\n${colors.primary(border)}\n${colors.primary(text.toUpperCase().padStart((60 + text.length) / 2))}\n${colors.primary(border)}`;
 };
 const createSubsection = (title, content = '') => {
-  const divider = useAscii ? '-'.repeat(40) : '─'.repeat(40);
+  const divider = useAscii$1 ? '-'.repeat(40) : '─'.repeat(40);
   return `\n${colors.info(title)}\n${divider}\n${content}`;
 };
 
@@ -31050,7 +31050,7 @@ function formatDataTable(records, columns) {
   
   // Build header
   let table;
-  if (useAscii) {
+  if (useAscii$1) {
     // ASCII table format for Windows
     table = '\n+' + columns.map(col => '-'.repeat(columnWidths[col] + 2)).join('+') + '+\n';
     table += '| ' + columns.map(col => col.padEnd(columnWidths[col])).join(' | ') + ' |\n';
@@ -75761,7 +75761,51 @@ const { prompt } = enquirer;
 
 // Detect Windows environment for ASCII fallback
 const isWindows = process.platform === 'win32';
-isWindows || process.env.DATAPILOT_ASCII === 'true';
+const useAscii = isWindows || process.env.DATAPILOT_ASCII === 'true';
+
+// Box drawing characters with ASCII fallback
+const boxChars = useAscii ? {
+  topLeft: '+',
+  topRight: '+',
+  bottomLeft: '+',
+  bottomRight: '+',
+  vertical: '|',
+  horizontalDouble: '='
+} : {
+  topLeft: '╔',
+  topRight: '╗',
+  bottomLeft: '╚',
+  bottomRight: '╝',
+  vertical: '║',
+  horizontalDouble: '═'
+};
+
+// Helper function to create formatted boxes
+function createBox(title, subtitle = '') {
+  const width = 61; // Standard width for boxes
+  const titlePadding = Math.floor((width - title.length - 2) / 2);
+  const subtitlePadding = subtitle ? Math.floor((width - subtitle.length - 2) / 2) : 0;
+  
+  if (useAscii) {
+    // ASCII box format
+    let box = '\n  +' + '='.repeat(width) + '+\n';
+    box += '  |' + ' '.repeat(titlePadding) + title + ' '.repeat(width - titlePadding - title.length) + '|\n';
+    if (subtitle) {
+      box += '  |' + ' '.repeat(subtitlePadding) + subtitle + ' '.repeat(width - subtitlePadding - subtitle.length) + '|\n';
+    }
+    box += '  +' + '='.repeat(width) + '+';
+    return box;
+  } else {
+    // Unicode box format
+    let box = '\n  ' + boxChars.topLeft + boxChars.horizontalDouble.repeat(width) + boxChars.topRight + '\n';
+    box += '  ' + boxChars.vertical + ' '.repeat(titlePadding) + title + ' '.repeat(width - titlePadding - title.length) + boxChars.vertical + '\n';
+    if (subtitle) {
+      box += '  ' + boxChars.vertical + ' '.repeat(subtitlePadding) + subtitle + ' '.repeat(width - subtitlePadding - subtitle.length) + boxChars.vertical + '\n';
+    }
+    box += '  ' + boxChars.bottomLeft + boxChars.horizontalDouble.repeat(width) + boxChars.bottomRight;
+    return box;
+  }
+}
 
 // Wrapper for prompts to handle Escape key gracefully
 async function safePrompt(config) {
