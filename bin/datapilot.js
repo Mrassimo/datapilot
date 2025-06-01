@@ -15,7 +15,6 @@ import { visualize } from '../src/commands/vis.js';
 import { engineering } from '../src/commands/eng.js';
 import { llmContext } from '../src/commands/llm.js';
 import { runAll } from '../src/commands/all.js';
-import { interactiveUI } from '../src/commands/ui.js';
 
 // Import enhanced parser utilities
 import { normalizePath } from '../src/utils/parser.js';
@@ -348,16 +347,6 @@ program
   });
 
 // UI command - Interactive Terminal Interface
-program
-  .command('ui')
-  .description('🎨 Interactive UI - Fun, colorful, beginner-friendly interface')
-  .action(async () => {
-    // Check terminal capabilities
-    if (process.platform === 'win32' && !process.env.WT_SESSION) {
-      console.log(chalk.yellow('⚠️  Note: For best experience on Windows, use Windows Terminal'));
-    }
-    await interactiveUI();
-  });
 
 // Help text with enhanced examples
 program.on('--help', () => {
