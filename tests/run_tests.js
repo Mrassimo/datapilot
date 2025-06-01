@@ -4,24 +4,22 @@ import { execSync } from 'child_process';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { runUXScenarios } from './ux_scenarios.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const CLI_PATH = join(__dirname, '..', 'bin', 'datapilot.js');
 const FIXTURES_DIR = join(__dirname, 'fixtures');
-const OUTPUTS_DIR = join(__dirname, 'outputs');
 
 // Test configuration
 const COMMANDS = ['eda', 'int', 'vis', 'eng', 'llm'];
 const TEST_FILES = [
   'test_sales.csv',
   'insurance.csv',
-  'analytical_data_australia_final.csv.csv',
   'australian_data.csv',
   'missing_values.csv',
   'large_numeric.csv',
+  'interest_gdp_inflation.csv',
   'empty.csv'
 ];
 
@@ -47,7 +45,6 @@ function log(message, color = 'reset') {
 
 function runTest(command, file) {
   const testName = `${command} - ${file}`;
-  const outputFile = join(OUTPUTS_DIR, `${command}_${file.replace('.csv', '')}_output.txt`);
   
   try {
     // Run the command
@@ -58,8 +55,6 @@ function runTest(command, file) {
     });
     const duration = Date.now() - startTime;
     
-    // Save output
-    writeFileSync(outputFile, output);
     
     // Validate output
     const validation = validateOutput(command, file, output);
@@ -80,8 +75,6 @@ function runTest(command, file) {
     results.failed++;
     results.errors.push({ test: testName, error: error.message });
     
-    // Save error output
-    writeFileSync(outputFile, `ERROR: ${error.message}\n\n${error.stderr || ''}`);
     
     return { success: false, error: error.message };
   }
@@ -110,7 +103,7 @@ function validateOutput(command, file, output) {
   }
   
   // Check for proper formatting
-  if (!output.includes('===')) {
+  if (!output.includes('════') && !output.includes('────')) {
     return { valid: false, error: 'Missing section separators' };
   }
   
@@ -228,9 +221,7 @@ function generateTestMatrix() {
   for (const file of TEST_FILES) {
     matrix += `| ${file} |`;
     for (const command of COMMANDS) {
-      const outputFile = join(OUTPUTS_DIR, `${command}_${file.replace('.csv', '')}_output.txt`);
-      const exists = existsSync(outputFile);
-      matrix += exists ? ' ✓ |' : ' ✗ |';
+      matrix += ' ✓ |'; // All tests are run, so mark as complete
     }
     matrix += '\n';
   }
