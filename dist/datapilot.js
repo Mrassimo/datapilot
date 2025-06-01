@@ -33833,11 +33833,10 @@ async function parseCSVWithEncoding(filePath, encoding, delimiter, useSampling, 
   // Handle headerless CSV files
   const hasHeader = options.header !== false;
   const parserOptions = {
-    columns: hasHeader ? true : false,
+    columns: hasHeader,
     skip_empty_lines: true,
     trim: true,
     delimiter,
-    encoding,
     relax_quotes: true,
     relax_column_count: true,
     quote: '"',
@@ -33857,7 +33856,12 @@ async function parseCSVWithEncoding(filePath, encoding, delimiter, useSampling, 
       }
       return record;
     },
-    cast: (value) => {
+    cast: (value, { column, lines }) => {
+      // Don't cast header row (line 1) - let csv-parse handle column names
+      if (lines === 1) {
+        return value;
+      }
+      
       // Enhanced type casting with better error handling and debugging
       if (value === '' || value === null || value === undefined) return null;
       
@@ -33912,7 +33916,7 @@ async function parseCSVWithEncoding(filePath, encoding, delimiter, useSampling, 
     }
   };
 
-  const parser = parse({ ...parserOptions, ...options });
+  const parser = parse(parserOptions);
 
   parser.on('skip', (err) => {
     errorCount++;
@@ -34010,7 +34014,7 @@ async function parseCSVWithEncoding(filePath, encoding, delimiter, useSampling, 
     return { success: true, data: records };
     
   } catch (error) {
-    if (spinner) spinner.error({ text: 'Failed to parse CSV' });
+    if (spinner) spinner.fail('Failed to parse CSV');
     return { success: false, error };
   }
 }
