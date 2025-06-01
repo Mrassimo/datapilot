@@ -13,7 +13,7 @@ import fs from 'fs';
 import path from 'path';
 
 import { TUIEngine } from './engine.js';
-import { browseForFileSimple } from './simpleBrowser.js';
+import { browseForFileSimple, browseForMultipleFiles } from './simpleBrowser.js';
 
 // Detect Windows environment for ASCII fallback
 const isWindows = process.platform === 'win32';
@@ -241,17 +241,33 @@ async function showGuidedAnalysis(engine, analysisResult) {
   console.log();
   
   // Step 1: File selection
-  const filePath = await selectFile(engine, analysisResult.csvFiles);
-  if (!filePath) return;
+  const fileSelection = await selectFile(engine, analysisResult.csvFiles);
+  if (!fileSelection) return;
   
-  // Step 2: File preview
-  await showFilePreview(engine, filePath);
+  // Handle both single file and multiple files
+  const isMultiple = Array.isArray(fileSelection);
+  const filePaths = isMultiple ? fileSelection : [fileSelection];
+  
+  // Step 2: File preview(s)
+  if (isMultiple) {
+    console.log(chalk.cyan(`\n📊 Selected ${filePaths.length} files for analysis:`));
+    filePaths.forEach((filePath, index) => {
+      console.log(chalk.gray(`  ${index + 1}. ${path.basename(filePath)}`));
+    });
+    console.log();
+  } else {
+    await showFilePreview(engine, filePaths[0]);
+  }
   
   // Step 3: Analysis type selection
   const analysisType = await selectAnalysisType(engine);
   
   // Step 4: Run analysis with beautiful loading
-  await runAnalysisWithAnimation(engine, filePath, analysisType);
+  if (isMultiple) {
+    await runMultipleFilesAnalysis(engine, filePaths, analysisType);
+  } else {
+    await runAnalysisWithAnimation(engine, filePaths[0], analysisType);
+  }
   
   // Step 5: Show results
   await showResults(engine);
@@ -396,6 +412,14 @@ async function selectFile(engine, csvFiles) {
     return selectedFile;
   }
   
+  if (response.file === 'multiple') {
+    // Use multiple file browser
+    const selectedFiles = await browseForMultipleFiles();
+    // Clear and redraw after browser closes
+    console.clear();
+    return selectedFiles; // Return array of files
+  }
+  
   return response.file;
 }
 
@@ -475,6 +499,38 @@ async function runAnalysisWithAnimation(engine, filePath, analysisType) {
     
   } catch (error) {
     spinner.error({ text: 'Analysis failed: ' + error.message });
+  }
+}
+
+async function runMultipleFilesAnalysis(engine, filePaths, analysisType) {
+  const spinner = createSpinner('Preparing multiple file analysis...').start();
+  
+  try {
+    spinner.update({ text: `Running analysis on ${filePaths.length} files...` });
+    const results = await engine.runMultipleFilesAnalysis(filePaths, analysisType);
+    
+    if (results.error) {
+      spinner.error({ text: 'Analysis failed: ' + results.error });
+    } else {
+      spinner.success({ text: 'All analyses complete!' });
+      
+      // Display basic results info
+      console.log('\n' + boxen(
+        `✅ Multiple file analysis completed successfully!\n` +
+        `📊 Type: ${chalk.cyan(analysisType.toUpperCase())}\n` +
+        `📄 Files: ${chalk.green(filePaths.length + ' files')}\n` +
+        `⏱️  Time: ${chalk.yellow(new Date(results.timestamp).toLocaleTimeString())}`,
+        {
+          padding: 1,
+          borderColor: 'green',
+          title: '🎉 Multiple File Analysis Results',
+          titleAlignment: 'center'
+        }
+      ));
+    }
+    
+  } catch (error) {
+    spinner.error({ text: 'Multiple file analysis failed: ' + error.message });
   }
 }
 
@@ -883,48 +939,81 @@ async function showResults(engine) {
     return;
   }
   
+  const isMultiple = Array.isArray(analysisResults.filePaths);
+  
   console.log('\n' + boxen(
     gradients.success('📊 Analysis Complete!'),
     {
       padding: 1,
       borderColor: 'green',
-      title: '✨ Results Summary',
+      title: isMultiple ? '✨ Multiple Files Results Summary' : '✨ Results Summary',
       titleAlignment: 'center'
     }
   ));
   
   // Collect all results text
   let fullResults = '';
-  const resultTypes = Object.keys(analysisResults.results);
   
-  resultTypes.forEach(type => {
-    const result = analysisResults.results[type];
-    if (result) {
-      fullResults += `\n=== ${type.toUpperCase()} Analysis ===\n`;
-      
-      // Handle different result formats
-      if (typeof result === 'string') {
-        fullResults += result;
-      } else if (result.output) {
-        fullResults += result.output;
-      } else if (result.text) {
-        fullResults += result.text;
-      } else if (result.summary) {
-        fullResults += result.summary;
-      } else {
-        // Fallback to JSON stringification for structured data
-        fullResults += JSON.stringify(result, null, 2);
-      }
-      fullResults += '\n';
+  if (isMultiple) {
+    // Handle multiple files results
+    if (analysisResults.results.combined && analysisResults.results.combined.output) {
+      fullResults = analysisResults.results.combined.output;
+    } else {
+      // Fallback: combine individual file results
+      analysisResults.fileResults.forEach((fileResult, index) => {
+        fullResults += `\n${'='.repeat(60)}\n`;
+        fullResults += `FILE ${index + 1}: ${fileResult.fileName}\n`;
+        fullResults += `${'='.repeat(60)}\n`;
+        
+        if (fileResult.error) {
+          fullResults += `ERROR: ${fileResult.error}\n`;
+        } else {
+          Object.entries(fileResult.results).forEach(([type, result]) => {
+            if (result && result.output) {
+              fullResults += `\n--- ${type.toUpperCase()} ---\n`;
+              fullResults += result.output + '\n';
+            }
+          });
+        }
+      });
     }
-  });
+  } else {
+    // Handle single file results
+    const resultTypes = Object.keys(analysisResults.results);
+    
+    resultTypes.forEach(type => {
+      const result = analysisResults.results[type];
+      if (result) {
+        fullResults += `\n=== ${type.toUpperCase()} Analysis ===\n`;
+        
+        // Handle different result formats
+        if (typeof result === 'string') {
+          fullResults += result;
+        } else if (result.output) {
+          fullResults += result.output;
+        } else if (result.text) {
+          fullResults += result.text;
+        } else if (result.summary) {
+          fullResults += result.summary;
+        } else {
+          // Fallback to JSON stringification for structured data
+          fullResults += JSON.stringify(result, null, 2);
+        }
+        fullResults += '\n';
+      }
+    });
+  }
   
   // Store results for clipboard functionality
   engine.state.lastResultsText = fullResults;
   
   // Create formatted text for clipboard/saving
+  const filesInfo = isMultiple 
+    ? `Files: ${analysisResults.filePaths.length} files (${analysisResults.filePaths.map(p => path.basename(p)).join(', ')})`
+    : `File: ${analysisResults.filePath}`;
+    
   const formattedResultsText = `DataPilot Analysis Results
-File: ${analysisResults.filePath}
+${filesInfo}
 Analysis Type: ${analysisResults.analysisType}
 Timestamp: ${new Date(analysisResults.timestamp).toLocaleString()}
 ${'='.repeat(60)}
@@ -967,7 +1056,14 @@ ${fullResults}`;
       case 'view':
         console.clear();
         console.log(gradients.title('📊 FULL ANALYSIS RESULTS'));
-        console.log(gradients.subtle(`File: ${analysisResults.filePath}`));
+        if (isMultiple) {
+          console.log(gradients.subtle(`Files: ${analysisResults.filePaths.length} files`));
+          analysisResults.filePaths.forEach((filePath, index) => {
+            console.log(gradients.subtle(`  ${index + 1}. ${path.basename(filePath)}`));
+          });
+        } else {
+          console.log(gradients.subtle(`File: ${analysisResults.filePath}`));
+        }
         console.log(gradients.subtle(`Analysis Type: ${analysisResults.analysisType}`));
         console.log(gradients.subtle(`Timestamp: ${new Date(analysisResults.timestamp).toLocaleString()}`));
         console.log(gradients.subtle('─'.repeat(60)));
@@ -1007,7 +1103,8 @@ ${fullResults}`;
         break;
         
       case 'save':
-        const filename = `datapilot-results-${new Date().toISOString().replace(/[:.]/g, '-')}.txt`;
+        const filenameSuffix = isMultiple ? 'multiple-files' : 'single-file';
+        const filename = `datapilot-results-${filenameSuffix}-${new Date().toISOString().replace(/[:.]/g, '-')}.txt`;
         try {
           fs.writeFileSync(filename, formattedResultsText, 'utf8');
           console.log(gradients.success(`\n✅ Results saved to: ${filename}`));

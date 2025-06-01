@@ -5,6 +5,7 @@
 
 import fs from 'fs';
 import path from 'path';
+import chalk from 'chalk';
 import { parseCSV, detectColumnTypes } from '../../utils/parser.js';
 import { eda } from '../eda.js';
 import { integrity } from '../int.js';
@@ -184,8 +185,13 @@ export class TUIEngine {
     choices.push({ name: 'separator', message: '─────────────────────', role: 'separator' });
     choices.push({
       name: 'manual',
-      message: '📂 Browse for File',
-      hint: 'Enter file path manually'
+      message: '📂 Browse for Single File',
+      hint: 'Navigate and select one CSV file'
+    });
+    choices.push({
+      name: 'multiple',
+      message: '📁 Browse for Multiple Files',
+      hint: 'Navigate and select multiple CSV files'
     });
     choices.push({
       name: 'back',
@@ -362,6 +368,147 @@ export class TUIEngine {
         default:
           throw new Error(`Unknown analysis type: ${analysisType}`);
       }
+      
+      this.state.lastAnalysisResults = results;
+      return results;
+      
+    } catch (error) {
+      results.error = error.message;
+      return results;
+    }
+  }
+
+  async runMultipleFilesAnalysis(filePaths, analysisType, options = {}) {
+    // Add all files to recent files
+    filePaths.forEach(filePath => this.addToRecentFiles(filePath));
+    
+    const results = {
+      filePaths,
+      analysisType,
+      timestamp: new Date().toISOString(),
+      results: {},
+      fileResults: []
+    };
+    
+    try {
+      const analysisOptions = {
+        ...options,
+        quiet: false,
+        structuredOutput: false
+      };
+      
+      // Helper function to capture console output
+      const captureOutput = async (fn) => {
+        const originalLog = console.log;
+        let output = '';
+        
+        console.log = (...args) => {
+          const text = args.map(arg => 
+            typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+          ).join(' ');
+          output += text + '\n';
+          originalLog(...args);
+        };
+        
+        try {
+          const result = await fn();
+          console.log = originalLog;
+          return {
+            result,
+            output: output.trim()
+          };
+        } catch (error) {
+          console.log = originalLog;
+          throw error;
+        }
+      };
+      
+      // Analyze each file
+      let combinedOutput = '';
+      
+      for (let i = 0; i < filePaths.length; i++) {
+        const filePath = filePaths[i];
+        const fileName = path.basename(filePath);
+        
+        console.log(`\n${'='.repeat(60)}`);
+        console.log(`📄 ANALYZING FILE ${i + 1}/${filePaths.length}: ${fileName}`);
+        console.log(`${'='.repeat(60)}\n`);
+        
+        const fileResult = {
+          filePath,
+          fileName,
+          results: {}
+        };
+        
+        try {
+          switch (analysisType) {
+            case 'all':
+              fileResult.results.eda = await captureOutput(() => 
+                this.dependencies.eda(filePath, analysisOptions)
+              );
+              fileResult.results.int = await captureOutput(() => 
+                this.dependencies.integrity(filePath, analysisOptions)
+              );
+              fileResult.results.vis = await captureOutput(() => 
+                this.dependencies.visualize(filePath, analysisOptions)
+              );
+              fileResult.results.eng = await captureOutput(() => 
+                this.dependencies.eda(filePath, { ...analysisOptions, command: 'eng' })
+              );
+              fileResult.results.llm = await captureOutput(() => 
+                this.dependencies.llmContext(filePath, analysisOptions)
+              );
+              break;
+            case 'eda':
+              fileResult.results.eda = await captureOutput(() => 
+                this.dependencies.eda(filePath, analysisOptions)
+              );
+              break;
+            case 'int':
+              fileResult.results.int = await captureOutput(() => 
+                this.dependencies.integrity(filePath, analysisOptions)
+              );
+              break;
+            case 'vis':
+              fileResult.results.vis = await captureOutput(() => 
+                this.dependencies.visualize(filePath, analysisOptions)
+              );
+              break;
+            case 'eng':
+              fileResult.results.eng = await captureOutput(() => 
+                this.dependencies.eda(filePath, { ...analysisOptions, command: 'eng' })
+              );
+              break;
+            case 'llm':
+              fileResult.results.llm = await captureOutput(() => 
+                this.dependencies.llmContext(filePath, analysisOptions)
+              );
+              break;
+            default:
+              throw new Error(`Unknown analysis type: ${analysisType}`);
+          }
+          
+          results.fileResults.push(fileResult);
+          
+          // Collect combined output
+          Object.values(fileResult.results).forEach(result => {
+            if (result.output) {
+              combinedOutput += `\n\n=== ${fileName} ===\n${result.output}`;
+            }
+          });
+          
+        } catch (error) {
+          fileResult.error = error.message;
+          results.fileResults.push(fileResult);
+          console.log(chalk.red(`Error analyzing ${fileName}: ${error.message}`));
+        }
+      }
+      
+      // Create summary results
+      results.results.combined = {
+        output: combinedOutput.trim(),
+        summary: `Analysis of ${filePaths.length} files completed. ${results.fileResults.filter(r => !r.error).length} successful, ${results.fileResults.filter(r => r.error).length} failed.`
+      };
       
       this.state.lastAnalysisResults = results;
       return results;

@@ -74867,8 +74867,13 @@ class TUIEngine {
     choices.push({ name: 'separator', message: '─────────────────────', role: 'separator' });
     choices.push({
       name: 'manual',
-      message: '📂 Browse for File',
-      hint: 'Enter file path manually'
+      message: '📂 Browse for Single File',
+      hint: 'Navigate and select one CSV file'
+    });
+    choices.push({
+      name: 'multiple',
+      message: '📁 Browse for Multiple Files',
+      hint: 'Navigate and select multiple CSV files'
     });
     choices.push({
       name: 'back',
@@ -75045,6 +75050,147 @@ class TUIEngine {
         default:
           throw new Error(`Unknown analysis type: ${analysisType}`);
       }
+      
+      this.state.lastAnalysisResults = results;
+      return results;
+      
+    } catch (error) {
+      results.error = error.message;
+      return results;
+    }
+  }
+
+  async runMultipleFilesAnalysis(filePaths, analysisType, options = {}) {
+    // Add all files to recent files
+    filePaths.forEach(filePath => this.addToRecentFiles(filePath));
+    
+    const results = {
+      filePaths,
+      analysisType,
+      timestamp: new Date().toISOString(),
+      results: {},
+      fileResults: []
+    };
+    
+    try {
+      const analysisOptions = {
+        ...options,
+        quiet: false,
+        structuredOutput: false
+      };
+      
+      // Helper function to capture console output
+      const captureOutput = async (fn) => {
+        const originalLog = console.log;
+        let output = '';
+        
+        console.log = (...args) => {
+          const text = args.map(arg => 
+            typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+          ).join(' ');
+          output += text + '\n';
+          originalLog(...args);
+        };
+        
+        try {
+          const result = await fn();
+          console.log = originalLog;
+          return {
+            result,
+            output: output.trim()
+          };
+        } catch (error) {
+          console.log = originalLog;
+          throw error;
+        }
+      };
+      
+      // Analyze each file
+      let combinedOutput = '';
+      
+      for (let i = 0; i < filePaths.length; i++) {
+        const filePath = filePaths[i];
+        const fileName = path$1.basename(filePath);
+        
+        console.log(`\n${'='.repeat(60)}`);
+        console.log(`📄 ANALYZING FILE ${i + 1}/${filePaths.length}: ${fileName}`);
+        console.log(`${'='.repeat(60)}\n`);
+        
+        const fileResult = {
+          filePath,
+          fileName,
+          results: {}
+        };
+        
+        try {
+          switch (analysisType) {
+            case 'all':
+              fileResult.results.eda = await captureOutput(() => 
+                this.dependencies.eda(filePath, analysisOptions)
+              );
+              fileResult.results.int = await captureOutput(() => 
+                this.dependencies.integrity(filePath, analysisOptions)
+              );
+              fileResult.results.vis = await captureOutput(() => 
+                this.dependencies.visualize(filePath, analysisOptions)
+              );
+              fileResult.results.eng = await captureOutput(() => 
+                this.dependencies.eda(filePath, { ...analysisOptions, command: 'eng' })
+              );
+              fileResult.results.llm = await captureOutput(() => 
+                this.dependencies.llmContext(filePath, analysisOptions)
+              );
+              break;
+            case 'eda':
+              fileResult.results.eda = await captureOutput(() => 
+                this.dependencies.eda(filePath, analysisOptions)
+              );
+              break;
+            case 'int':
+              fileResult.results.int = await captureOutput(() => 
+                this.dependencies.integrity(filePath, analysisOptions)
+              );
+              break;
+            case 'vis':
+              fileResult.results.vis = await captureOutput(() => 
+                this.dependencies.visualize(filePath, analysisOptions)
+              );
+              break;
+            case 'eng':
+              fileResult.results.eng = await captureOutput(() => 
+                this.dependencies.eda(filePath, { ...analysisOptions, command: 'eng' })
+              );
+              break;
+            case 'llm':
+              fileResult.results.llm = await captureOutput(() => 
+                this.dependencies.llmContext(filePath, analysisOptions)
+              );
+              break;
+            default:
+              throw new Error(`Unknown analysis type: ${analysisType}`);
+          }
+          
+          results.fileResults.push(fileResult);
+          
+          // Collect combined output
+          Object.values(fileResult.results).forEach(result => {
+            if (result.output) {
+              combinedOutput += `\n\n=== ${fileName} ===\n${result.output}`;
+            }
+          });
+          
+        } catch (error) {
+          fileResult.error = error.message;
+          results.fileResults.push(fileResult);
+          console.log(chalk.red(`Error analyzing ${fileName}: ${error.message}`));
+        }
+      }
+      
+      // Create summary results
+      results.results.combined = {
+        output: combinedOutput.trim(),
+        summary: `Analysis of ${filePaths.length} files completed. ${results.fileResults.filter(r => !r.error).length} successful, ${results.fileResults.filter(r => r.error).length} failed.`
+      };
       
       this.state.lastAnalysisResults = results;
       return results;
@@ -75462,6 +75608,149 @@ async function browseForFileSimple() {
   return selectedFile;
 }
 
+async function browseForMultipleFiles() {
+  let currentPath = process.cwd();
+  let selectedFiles = [];
+  let browsing = true;
+  
+  while (browsing) {
+    try {
+      // Get directory contents
+      const items = [];
+      const actions = new Map();
+      
+      // Add parent directory if not at root
+      if (currentPath !== '/') {
+        const parentOption = '📁 .. (parent directory)';
+        items.push(parentOption);
+        actions.set(parentOption, { type: 'parent', path: path$1.dirname(currentPath) });
+      }
+      
+      // Read directory
+      const files = fs.readdirSync(currentPath);
+      const dirs = [];
+      const csvs = [];
+      
+      for (const file of files) {
+        const fullPath = path$1.join(currentPath, file);
+        try {
+          const stats = fs.statSync(fullPath);
+          if (stats.isDirectory()) {
+            dirs.push({ name: file, path: fullPath });
+          } else if (file.toLowerCase().endsWith('.csv')) {
+            csvs.push({ name: file, path: fullPath, size: stats.size });
+          }
+        } catch (e) {
+          // Skip inaccessible items
+        }
+      }
+      
+      // Sort and add to items
+      dirs.sort((a, b) => a.name.localeCompare(b.name));
+      csvs.sort((a, b) => a.name.localeCompare(b.name));
+      
+      dirs.forEach(dir => {
+        const option = `📁 ${dir.name}/`;
+        items.push(option);
+        actions.set(option, { type: 'dir', path: dir.path });
+      });
+      
+      csvs.forEach(csv => {
+        const sizeStr = csv.size < 1024 ? `${csv.size}B` :
+                       csv.size < 1024 * 1024 ? `${(csv.size / 1024).toFixed(1)}KB` :
+                       `${(csv.size / (1024 * 1024)).toFixed(1)}MB`;
+        
+        // Show checkbox indicator
+        const isSelected = selectedFiles.includes(csv.path);
+        const checkbox = isSelected ? '✅' : '☐';
+        const option = `${checkbox} ${csv.name} (${sizeStr})`;
+        items.push(option);
+        actions.set(option, { type: 'file', path: csv.path });
+      });
+      
+      // Add separator and actions
+      if (csvs.length > 0) {
+        items.push('─────────────────────');
+        actions.set('─────────────────────', { type: 'separator' });
+        
+        // Add selection actions
+        if (selectedFiles.length > 0) {
+          const continueOption = `✅ Continue with ${selectedFiles.length} selected file${selectedFiles.length !== 1 ? 's' : ''}`;
+          items.push(continueOption);
+          actions.set(continueOption, { type: 'continue' });
+          
+          const clearOption = '🗑️  Clear all selections';
+          items.push(clearOption);
+          actions.set(clearOption, { type: 'clear' });
+        }
+      }
+      
+      // Add cancel option
+      const cancelOption = '❌ Cancel';
+      items.push(cancelOption);
+      actions.set(cancelOption, { type: 'cancel' });
+      
+      // Clear screen before prompt
+      process.stdout.write('\u001b[2J\u001b[0;0H');
+      console.log(chalk.cyan('📂 MULTIPLE FILE BROWSER'));
+      console.log(chalk.yellow(`Current: ${currentPath}`));
+      if (selectedFiles.length > 0) {
+        console.log(chalk.green(`Selected: ${selectedFiles.length} file${selectedFiles.length !== 1 ? 's' : ''}`));
+        selectedFiles.forEach(filePath => {
+          console.log(chalk.gray(`  • ${path$1.basename(filePath)}`));
+        });
+      }
+      console.log('');
+      
+      // Use standard Select prompt
+      const prompt = new Select({
+        name: 'selection',
+        message: 'Space to toggle, ↑↓ to navigate, Enter to select:',
+        choices: items,
+        initial: 0
+      });
+      
+      const answer = await prompt.run();
+      const action = actions.get(answer);
+      
+      if (!action) continue;
+      
+      if (action.type === 'cancel') {
+        return null;
+      } else if (action.type === 'parent' || action.type === 'dir') {
+        currentPath = action.path;
+        // Clear screen before next iteration
+        process.stdout.write('\u001b[2J\u001b[0;0H');
+      } else if (action.type === 'file') {
+        // Toggle file selection
+        const filePath = action.path;
+        const index = selectedFiles.indexOf(filePath);
+        if (index > -1) {
+          selectedFiles.splice(index, 1);
+        } else {
+          selectedFiles.push(filePath);
+        }
+        // Clear screen before next iteration
+        process.stdout.write('\u001b[2J\u001b[0;0H');
+      } else if (action.type === 'continue') {
+        if (selectedFiles.length > 0) {
+          return selectedFiles;
+        }
+      } else if (action.type === 'clear') {
+        selectedFiles = [];
+        // Clear screen before next iteration
+        process.stdout.write('\u001b[2J\u001b[0;0H');
+      }
+      
+    } catch (error) {
+      console.log(chalk.red(`Error: ${error.message}`));
+      return null;
+    }
+  }
+  
+  return selectedFiles.length > 0 ? selectedFiles : null;
+}
+
 /**
  * Interactive Terminal UI Command - Refactored with TUI Engine
  * Fun, colorful, beginner-friendly interface with animations
@@ -75658,17 +75947,33 @@ async function showGuidedAnalysis(engine, analysisResult) {
   console.log();
   
   // Step 1: File selection
-  const filePath = await selectFile(engine, analysisResult.csvFiles);
-  if (!filePath) return;
+  const fileSelection = await selectFile(engine, analysisResult.csvFiles);
+  if (!fileSelection) return;
   
-  // Step 2: File preview
-  await showFilePreview(engine, filePath);
+  // Handle both single file and multiple files
+  const isMultiple = Array.isArray(fileSelection);
+  const filePaths = isMultiple ? fileSelection : [fileSelection];
+  
+  // Step 2: File preview(s)
+  if (isMultiple) {
+    console.log(chalk.cyan(`\n📊 Selected ${filePaths.length} files for analysis:`));
+    filePaths.forEach((filePath, index) => {
+      console.log(chalk.gray(`  ${index + 1}. ${path$1.basename(filePath)}`));
+    });
+    console.log();
+  } else {
+    await showFilePreview(engine, filePaths[0]);
+  }
   
   // Step 3: Analysis type selection
   const analysisType = await selectAnalysisType(engine);
   
   // Step 4: Run analysis with beautiful loading
-  await runAnalysisWithAnimation(engine, filePath, analysisType);
+  if (isMultiple) {
+    await runMultipleFilesAnalysis(engine, filePaths, analysisType);
+  } else {
+    await runAnalysisWithAnimation(engine, filePaths[0], analysisType);
+  }
   
   // Step 5: Show results
   await showResults(engine);
@@ -75699,6 +76004,14 @@ async function selectFile(engine, csvFiles) {
     // Clear and redraw after browser closes
     console.clear();
     return selectedFile;
+  }
+  
+  if (response.file === 'multiple') {
+    // Use multiple file browser
+    const selectedFiles = await browseForMultipleFiles();
+    // Clear and redraw after browser closes
+    console.clear();
+    return selectedFiles; // Return array of files
   }
   
   return response.file;
@@ -75780,6 +76093,38 @@ async function runAnalysisWithAnimation(engine, filePath, analysisType) {
     
   } catch (error) {
     spinner.error({ text: 'Analysis failed: ' + error.message });
+  }
+}
+
+async function runMultipleFilesAnalysis(engine, filePaths, analysisType) {
+  const spinner = distExports.createSpinner('Preparing multiple file analysis...').start();
+  
+  try {
+    spinner.update({ text: `Running analysis on ${filePaths.length} files...` });
+    const results = await engine.runMultipleFilesAnalysis(filePaths, analysisType);
+    
+    if (results.error) {
+      spinner.error({ text: 'Analysis failed: ' + results.error });
+    } else {
+      spinner.success({ text: 'All analyses complete!' });
+      
+      // Display basic results info
+      console.log('\n' + boxen(
+        `✅ Multiple file analysis completed successfully!\n` +
+        `📊 Type: ${chalk.cyan(analysisType.toUpperCase())}\n` +
+        `📄 Files: ${chalk.green(filePaths.length + ' files')}\n` +
+        `⏱️  Time: ${chalk.yellow(new Date(results.timestamp).toLocaleTimeString())}`,
+        {
+          padding: 1,
+          borderColor: 'green',
+          title: '🎉 Multiple File Analysis Results',
+          titleAlignment: 'center'
+        }
+      ));
+    }
+    
+  } catch (error) {
+    spinner.error({ text: 'Multiple file analysis failed: ' + error.message });
   }
 }
 
@@ -76188,48 +76533,81 @@ async function showResults(engine) {
     return;
   }
   
+  const isMultiple = Array.isArray(analysisResults.filePaths);
+  
   console.log('\n' + boxen(
     gradients.success('📊 Analysis Complete!'),
     {
       padding: 1,
       borderColor: 'green',
-      title: '✨ Results Summary',
+      title: isMultiple ? '✨ Multiple Files Results Summary' : '✨ Results Summary',
       titleAlignment: 'center'
     }
   ));
   
   // Collect all results text
   let fullResults = '';
-  const resultTypes = Object.keys(analysisResults.results);
   
-  resultTypes.forEach(type => {
-    const result = analysisResults.results[type];
-    if (result) {
-      fullResults += `\n=== ${type.toUpperCase()} Analysis ===\n`;
-      
-      // Handle different result formats
-      if (typeof result === 'string') {
-        fullResults += result;
-      } else if (result.output) {
-        fullResults += result.output;
-      } else if (result.text) {
-        fullResults += result.text;
-      } else if (result.summary) {
-        fullResults += result.summary;
-      } else {
-        // Fallback to JSON stringification for structured data
-        fullResults += JSON.stringify(result, null, 2);
-      }
-      fullResults += '\n';
+  if (isMultiple) {
+    // Handle multiple files results
+    if (analysisResults.results.combined && analysisResults.results.combined.output) {
+      fullResults = analysisResults.results.combined.output;
+    } else {
+      // Fallback: combine individual file results
+      analysisResults.fileResults.forEach((fileResult, index) => {
+        fullResults += `\n${'='.repeat(60)}\n`;
+        fullResults += `FILE ${index + 1}: ${fileResult.fileName}\n`;
+        fullResults += `${'='.repeat(60)}\n`;
+        
+        if (fileResult.error) {
+          fullResults += `ERROR: ${fileResult.error}\n`;
+        } else {
+          Object.entries(fileResult.results).forEach(([type, result]) => {
+            if (result && result.output) {
+              fullResults += `\n--- ${type.toUpperCase()} ---\n`;
+              fullResults += result.output + '\n';
+            }
+          });
+        }
+      });
     }
-  });
+  } else {
+    // Handle single file results
+    const resultTypes = Object.keys(analysisResults.results);
+    
+    resultTypes.forEach(type => {
+      const result = analysisResults.results[type];
+      if (result) {
+        fullResults += `\n=== ${type.toUpperCase()} Analysis ===\n`;
+        
+        // Handle different result formats
+        if (typeof result === 'string') {
+          fullResults += result;
+        } else if (result.output) {
+          fullResults += result.output;
+        } else if (result.text) {
+          fullResults += result.text;
+        } else if (result.summary) {
+          fullResults += result.summary;
+        } else {
+          // Fallback to JSON stringification for structured data
+          fullResults += JSON.stringify(result, null, 2);
+        }
+        fullResults += '\n';
+      }
+    });
+  }
   
   // Store results for clipboard functionality
   engine.state.lastResultsText = fullResults;
   
   // Create formatted text for clipboard/saving
+  const filesInfo = isMultiple 
+    ? `Files: ${analysisResults.filePaths.length} files (${analysisResults.filePaths.map(p => path$1.basename(p)).join(', ')})`
+    : `File: ${analysisResults.filePath}`;
+    
   const formattedResultsText = `DataPilot Analysis Results
-File: ${analysisResults.filePath}
+${filesInfo}
 Analysis Type: ${analysisResults.analysisType}
 Timestamp: ${new Date(analysisResults.timestamp).toLocaleString()}
 ${'='.repeat(60)}
@@ -76272,7 +76650,14 @@ ${fullResults}`;
       case 'view':
         console.clear();
         console.log(gradients.title('📊 FULL ANALYSIS RESULTS'));
-        console.log(gradients.subtle(`File: ${analysisResults.filePath}`));
+        if (isMultiple) {
+          console.log(gradients.subtle(`Files: ${analysisResults.filePaths.length} files`));
+          analysisResults.filePaths.forEach((filePath, index) => {
+            console.log(gradients.subtle(`  ${index + 1}. ${path$1.basename(filePath)}`));
+          });
+        } else {
+          console.log(gradients.subtle(`File: ${analysisResults.filePath}`));
+        }
         console.log(gradients.subtle(`Analysis Type: ${analysisResults.analysisType}`));
         console.log(gradients.subtle(`Timestamp: ${new Date(analysisResults.timestamp).toLocaleString()}`));
         console.log(gradients.subtle('─'.repeat(60)));
@@ -76312,7 +76697,8 @@ ${fullResults}`;
         break;
         
       case 'save':
-        const filename = `datapilot-results-${new Date().toISOString().replace(/[:.]/g, '-')}.txt`;
+        const filenameSuffix = isMultiple ? 'multiple-files' : 'single-file';
+        const filename = `datapilot-results-${filenameSuffix}-${new Date().toISOString().replace(/[:.]/g, '-')}.txt`;
         try {
           fs.writeFileSync(filename, formattedResultsText, 'utf8');
           console.log(gradients.success(`\n✅ Results saved to: ${filename}`));
