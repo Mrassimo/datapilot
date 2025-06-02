@@ -34,6 +34,9 @@ export async function edaComprehensive(filePath, options = {}) {
   // Structured data mode for LLM consumption
   const structuredMode = options.structuredOutput || options.llmMode;
   
+  // Incremental output for large datasets
+  const incrementalMode = options.incremental || false;
+  
   // Set timeout for analysis (default 60 seconds for large datasets)
   const timeoutMs = options.timeout || 60000;
   
@@ -107,16 +110,20 @@ export async function edaComprehensive(filePath, options = {}) {
       const fileName = basename(filePath);
       const columns = Object.keys(columnTypes);
       
-      // Handle large datasets with user notification
+      // Handle large datasets with user notification and incremental processing
       const originalRecordCount = records.length;
       const samplingStart = Date.now();
+      let useIncrementalOutput = false;
+      
       if (records.length > 10000) {
         console.log(chalk.yellow(`\n⚠️  Large dataset detected: ${records.length.toLocaleString()} rows`));
         
         if (records.length > 50000) {
-          // Very large dataset - use sampling
+          // Very large dataset - use sampling and incremental output
           console.log(chalk.cyan('📊 Dataset is very large. Using intelligent sampling for performance.'));
           console.log(chalk.cyan(`   Processing a representative sample of ${Math.min(10000, records.length).toLocaleString()} rows...`));
+          
+          useIncrementalOutput = true; // Enable incremental output for very large datasets
           
           const samplingStrategy = createSamplingStrategy(records, 'basic');
           samplingStrategy.sampleSize = Math.min(10000, samplingStrategy.sampleSize);
@@ -278,6 +285,17 @@ export async function edaComprehensive(filePath, options = {}) {
       }
       timingLog.push(`Column statistics: ${Date.now() - statsStart}ms`);
       
+      // Incremental output: Show basic statistics immediately for large datasets
+      if (useIncrementalOutput && !structuredMode) {
+        outputIncrementalResults('BASIC_STATS', {
+          fileName,
+          rowCount: originalRecordCount,
+          columnCount: columns.length,
+          columns: analysis.columns.slice(0, 5), // Show first 5 columns
+          completeness: analysis.completeness
+        });
+      }
+      
       analysis.completeness = totalNonNull / (records.length * columns.length);
       analysis.completenessLevel = analysis.completeness > 0.9 ? 'good' : 
                                    analysis.completeness > 0.7 ? 'fair' : 'poor';
@@ -372,7 +390,7 @@ export async function edaComprehensive(filePath, options = {}) {
           const targets = findPotentialTargets(records, columnTypes);
           
           if (targets.length > 0) {
-            analysis.cartAnalysis = performCARTAnalysis(
+            analysis.cartAnalysis = await performCARTAnalysis(
               records, 
               columns, 
               columnTypes, 
@@ -393,7 +411,7 @@ export async function edaComprehensive(filePath, options = {}) {
         if (spinner) spinner.text = 'Performing regression analysis...';
         
         try {
-          analysis.regressionAnalysis = performRegressionAnalysis(
+          analysis.regressionAnalysis = await performRegressionAnalysis(
             records, 
             columns, 
             columnTypes
@@ -467,7 +485,7 @@ export async function edaComprehensive(filePath, options = {}) {
         if (spinner) spinner.text = 'Validating Australian data patterns...';
         
         try {
-          analysis.australianValidation = validateAustralianData(records, columns, columnTypes);
+          analysis.australianValidation = await validateAustralianData(records, columns, columnTypes);
           
           if (analysis.australianValidation.detected) {
             const australianInsights = generateAustralianInsights(analysis.australianValidation);
@@ -698,4 +716,35 @@ function calculateConsistencyScore(analysis) {
   }
   
   return Math.max(0, Math.round(score));
+}
+
+function outputIncrementalResults(stage, data) {
+  // Output partial results immediately for large datasets
+  console.log(chalk.cyan(`\n📊 ${stage} Results Available:`));
+  
+  switch (stage) {
+    case 'BASIC_STATS':
+      console.log(chalk.white(`Dataset: ${data.fileName}`));
+      console.log(chalk.white(`Rows: ${data.rowCount.toLocaleString()}, Columns: ${data.columnCount}`));
+      console.log(chalk.white(`Completeness: ${(data.completeness * 100).toFixed(1)}%`));
+      
+      if (data.columns && data.columns.length > 0) {
+        console.log(chalk.white('\nFirst 5 Columns:'));
+        data.columns.forEach((col, idx) => {
+          console.log(chalk.gray(`  ${idx + 1}. ${col.name} (${col.type})`));
+        });
+      }
+      console.log(chalk.gray('Continuing analysis...'));
+      break;
+      
+    case 'DISTRIBUTIONS':
+      console.log(chalk.white(`Distribution analysis complete for ${Object.keys(data).length} columns`));
+      console.log(chalk.gray('Proceeding to outlier detection...'));
+      break;
+      
+    case 'PATTERNS':
+      console.log(chalk.white(`Pattern detection complete`));
+      console.log(chalk.gray('Finalizing report...'));
+      break;
+  }
 }

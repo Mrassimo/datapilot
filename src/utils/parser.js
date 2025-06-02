@@ -10,7 +10,7 @@ import path from 'path';
 import os from 'os';
 
 // Constants
-const SAMPLE_THRESHOLD = 2 * 1024 * 1024; // 2MB - lowered for better performance
+const SAMPLE_THRESHOLD = 512 * 1024; // 512KB - optimized for faster small file processing
 const MAX_MEMORY_ROWS = 50000; // Maximum rows to keep in memory - reduced
 const SAMPLE_RATE = 0.01; // 1% sampling for files > 1M rows
 const MAX_ROWS_FOR_FULL_ANALYSIS = 20000; // Reduced for faster processing
@@ -465,16 +465,31 @@ async function parseCSVWithEncoding(filePath, encoding, delimiter, useSampling, 
             });
           }
           
-          // Memory management - check less frequently to avoid spam
+          // Memory management with exponential backoff for efficiency
           let aggressiveSampling = false;
-          if (rowCount % 50000 === 0) {  // Check every 50k rows instead of 5k
+          
+          // Initialize memory check intervals if not set
+          if (!records._memoryCheckInterval) {
+            records._memoryCheckInterval = 10000; // Start with 10K rows
+            records._lastMemoryCheck = 0;
+          }
+          
+          // Check memory at exponentially increasing intervals
+          if (rowCount - records._lastMemoryCheck >= records._memoryCheckInterval) {
             const memoryStatus = checkMemoryUsage();
+            records._lastMemoryCheck = rowCount;
+            
             if (memoryStatus.shouldUseAggressiveSampling && !aggressiveSampling) {
               if (!options.quiet && !records._memoryWarningShown) {
                 console.warn(chalk.red(`\nHigh memory usage detected (${memoryStatus.heapUsedGB.toFixed(1)}GB), enabling aggressive sampling`));
-                records._memoryWarningShown = true;  // Flag to avoid repeating message
+                records._memoryWarningShown = true;
               }
               aggressiveSampling = true;
+              // Increase check frequency under memory pressure
+              records._memoryCheckInterval = Math.min(records._memoryCheckInterval, 5000);
+            } else {
+              // Exponential backoff: double interval up to 100K max
+              records._memoryCheckInterval = Math.min(records._memoryCheckInterval * 2, 100000);
             }
           }
           
@@ -1095,15 +1110,24 @@ export function getFileHash(filePath) {
   });
 }
 
-// Configuration loader with Windows path support
-export function loadConfig() {
+// Configuration system - loads user preferences and performance settings
+let cachedConfig = null;
+
+export function loadConfig(forceReload = false) {
+  // Return cached config unless forced to reload
+  if (cachedConfig && !forceReload) {
+    return cachedConfig;
+  }
+
   const defaultConfig = {
     performance: {
-      maxMemoryRows: 100000,
-      chunkSize: 10000,
-      sampleRate: 0.01,
-      workerThreads: "auto",
-      progressUpdateInterval: 250
+      maxMemoryRows: MAX_MEMORY_ROWS,
+      chunkSize: CHUNK_SIZE,
+      sampleRate: SAMPLE_RATE,
+      sampleThreshold: SAMPLE_THRESHOLD,
+      maxRowsForFullAnalysis: MAX_ROWS_FOR_FULL_ANALYSIS,
+      progressUpdateInterval: 1000, // Optimized from 250ms
+      memoryCheckInterval: 10000 // Start interval for memory checks
     },
     parsing: {
       encoding: "auto",
@@ -1111,36 +1135,142 @@ export function loadConfig() {
       quoteChar: '"',
       escapeChar: '"',
       maxRecordSize: 1048576,
-      dateFormats: ["DD/MM/YYYY", "YYYY-MM-DD", "DD-MM-YYYY"]
+      dateFormats: ["DD/MM/YYYY", "YYYY-MM-DD", "DD-MM-YYYY"], // Australian first
+      fallbackEncodings: ["utf8", "latin1", "utf16le", "ascii"]
     },
     ui: {
       showProgress: true,
       colorOutput: true,
-      verboseErrors: false
+      verboseErrors: false,
+      compactOutput: false
+    },
+    analysis: {
+      enableFuzzyDuplicates: true,
+      fuzzyDuplicateThreshold: 10000, // Skip fuzzy analysis for files > 10k rows
+      australianDataDetection: true,
+      mlReadinessAssessment: true,
+      timeSeriesAnalysis: true
     }
   };
 
-  // Look for config file in multiple locations
+  // Look for config file in multiple locations (order matters - project > user > global)
   const configPaths = [
-    './datapilot.config.json',
-    path.join(process.cwd(), 'datapilot.config.json'),
-    path.join(os.homedir(), '.datapilot', 'config.json'),
-    path.join(process.env.APPDATA || '', 'datapilot', 'config.json')
+    './datapilot.config.json',                                    // Project-specific
+    path.join(process.cwd(), 'datapilot.config.json'),          // Current directory  
+    path.join(os.homedir(), '.datapilot', 'config.json'),       // User home
+    path.join(process.env.APPDATA || os.homedir(), 'datapilot', 'config.json') // System/Windows
   ].filter(p => p);
+
+  let loadedConfig = { ...defaultConfig };
+  let configSource = 'default';
 
   for (const configPath of configPaths) {
     try {
       const normalizedConfigPath = normalizePath(configPath);
       if (existsSync(normalizedConfigPath)) {
         const userConfig = JSON.parse(readFileSync(normalizedConfigPath, 'utf8'));
-        return { ...defaultConfig, ...userConfig };
+        
+        // Deep merge configurations (not shallow merge)
+        loadedConfig = mergeConfigs(loadedConfig, userConfig);
+        configSource = configPath;
+        
+        // Validate config after loading
+        validateConfig(loadedConfig, configPath);
+        break; // Use first found config
       }
     } catch (error) {
-      console.warn(chalk.yellow(`Warning: Invalid config file at ${configPath}, using defaults`));
+      console.warn(chalk.yellow(`⚠️  Invalid config file at ${configPath}: ${error.message}`));
+      console.warn(chalk.yellow(`    Using default configuration instead`));
     }
   }
 
-  return defaultConfig;
+  cachedConfig = loadedConfig;
+  
+  // Add metadata about config source for debugging
+  cachedConfig._meta = {
+    source: configSource,
+    loadedAt: new Date().toISOString()
+  };
+
+  return cachedConfig;
+}
+
+// Deep merge two configuration objects
+function mergeConfigs(defaultConfig, userConfig) {
+  const merged = { ...defaultConfig };
+  
+  for (const [key, value] of Object.entries(userConfig)) {
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      // Recursively merge objects
+      merged[key] = { ...(merged[key] || {}), ...value };
+    } else {
+      // Override primitive values and arrays
+      merged[key] = value;
+    }
+  }
+  
+  return merged;
+}
+
+// Validate configuration values to prevent runtime errors
+function validateConfig(config, source) {
+  const errors = [];
+  
+  // Validate performance settings
+  if (config.performance) {
+    const perf = config.performance;
+    if (perf.maxMemoryRows && (perf.maxMemoryRows < 1000 || perf.maxMemoryRows > 1000000)) {
+      errors.push('performance.maxMemoryRows must be between 1,000 and 1,000,000');
+    }
+    if (perf.chunkSize && (perf.chunkSize < 100 || perf.chunkSize > 100000)) {
+      errors.push('performance.chunkSize must be between 100 and 100,000');
+    }
+    if (perf.sampleRate && (perf.sampleRate <= 0 || perf.sampleRate > 1)) {
+      errors.push('performance.sampleRate must be between 0 and 1');
+    }
+  }
+  
+  // Validate parsing settings
+  if (config.parsing) {
+    const parsing = config.parsing;
+    if (parsing.maxRecordSize && parsing.maxRecordSize < 1024) {
+      errors.push('parsing.maxRecordSize must be at least 1024 bytes');
+    }
+    if (parsing.fallbackEncodings && !Array.isArray(parsing.fallbackEncodings)) {
+      errors.push('parsing.fallbackEncodings must be an array');
+    }
+  }
+  
+  // Validate analysis settings
+  if (config.analysis) {
+    const analysis = config.analysis;
+    if (analysis.fuzzyDuplicateThreshold && analysis.fuzzyDuplicateThreshold < 0) {
+      errors.push('analysis.fuzzyDuplicateThreshold must be non-negative');
+    }
+  }
+  
+  if (errors.length > 0) {
+    console.warn(chalk.yellow(`⚠️  Configuration validation errors in ${source}:`));
+    errors.forEach(error => console.warn(chalk.yellow(`    • ${error}`)));
+    console.warn(chalk.yellow(`    Continuing with default values for invalid settings`));
+  }
+}
+
+// Apply configuration to constants at runtime
+export function applyConfig(config = null) {
+  const cfg = config || loadConfig();
+  
+  // Update module-level constants based on config
+  // Note: These are readonly after initial load, but this allows customization
+  return {
+    SAMPLE_THRESHOLD: cfg.performance.sampleThreshold || SAMPLE_THRESHOLD,
+    MAX_MEMORY_ROWS: cfg.performance.maxMemoryRows || MAX_MEMORY_ROWS,
+    SAMPLE_RATE: cfg.performance.sampleRate || SAMPLE_RATE,
+    MAX_ROWS_FOR_FULL_ANALYSIS: cfg.performance.maxRowsForFullAnalysis || MAX_ROWS_FOR_FULL_ANALYSIS,
+    CHUNK_SIZE: cfg.performance.chunkSize || CHUNK_SIZE,
+    PROGRESS_UPDATE_INTERVAL: cfg.performance.progressUpdateInterval || 1000,
+    MEMORY_CHECK_INTERVAL: cfg.performance.memoryCheckInterval || 10000
+  };
 }
 
 // Export additional utilities

@@ -81,8 +81,7 @@ export class QualityEngine {
       return results;
 
     } catch (error) {
-      console.error(chalk.yellow(`⚠️ Quality Engine error: ${error.message}`));
-      return results; // Return partial results
+      return this.handleEngineError(error, results, 'Quality Engine');
     }
   }
 
@@ -189,5 +188,120 @@ export class QualityEngine {
       riskLevel: avgScore < 0.5 ? 'High' : avgScore < 0.7 ? 'Medium' : 'Low',
       readyForAnalysis: avgScore > 0.7
     };
+  }
+
+  handleEngineError(error, partialResults, engineName) {
+    console.error(chalk.yellow(`⚠️ ${engineName} error: ${error.message}`));
+    
+    // Log detailed error for debugging
+    if (this.options.verbose || process.env.NODE_ENV === 'development') {
+      console.error(chalk.gray(`Stack trace: ${error.stack}`));
+    }
+
+    // Attempt to salvage usable results
+    const salvageableResults = this.salvageQualityResults(partialResults, error);
+    
+    // Add error information to results
+    salvageableResults.error = {
+      message: error.message,
+      timestamp: new Date().toISOString(),
+      engineName,
+      partialDataAvailable: Object.keys(partialResults).length > 0
+    };
+
+    // Provide recovery recommendations
+    salvageableResults.recoveryRecommendations = this.generateQualityRecoveryRecommendations(error, partialResults);
+    
+    return salvageableResults;
+  }
+
+  salvageQualityResults(partialResults, error) {
+    // Ensure we always return a valid quality structure
+    const defaultResults = {
+      dimensions: {
+        completeness: { score: 0, incomplete: true },
+        validity: { score: 0, incomplete: true },
+        accuracy: { score: 0, incomplete: true },
+        consistency: { score: 0, incomplete: true },
+        timeliness: { score: 0, incomplete: true },
+        uniqueness: { score: 0, incomplete: true }
+      },
+      businessRules: [],
+      patterns: {},
+      anomalies: [],
+      australianValidation: {},
+      fuzzyDuplicates: [],
+      overallQuality: { score: 0, grade: 'Unknown', error: true },
+      recommendations: ['Analysis incomplete due to error - retry with smaller dataset']
+    };
+
+    // Merge partial results with defaults, keeping what we have
+    const salvaged = { ...defaultResults, ...partialResults };
+    
+    // Validate dimensions and mark incomplete ones
+    Object.keys(salvaged.dimensions || {}).forEach(dimension => {
+      const dimensionResult = salvaged.dimensions[dimension];
+      if (!dimensionResult || typeof dimensionResult.score !== 'number') {
+        salvaged.dimensions[dimension] = { 
+          score: 0, 
+          incomplete: true, 
+          reason: 'Analysis failed before completion' 
+        };
+      }
+    });
+
+    // Ensure other sections have valid fallbacks
+    ['businessRules', 'anomalies', 'fuzzyDuplicates'].forEach(section => {
+      if (!Array.isArray(salvaged[section])) {
+        salvaged[section] = [];
+      }
+    });
+
+    ['patterns', 'australianValidation'].forEach(section => {
+      if (!salvaged[section] || typeof salvaged[section] !== 'object') {
+        salvaged[section] = { incomplete: true };
+      }
+    });
+
+    return salvaged;
+  }
+
+  generateQualityRecoveryRecommendations(error, partialResults) {
+    const recommendations = [];
+
+    // Memory-related errors
+    if (error.message.includes('memory') || error.message.includes('heap')) {
+      recommendations.push('Reduce dataset size or disable fuzzy duplicate analysis for large files');
+      recommendations.push('Use --quick mode to skip memory-intensive quality checks');
+      recommendations.push('Consider processing file in smaller chunks');
+    }
+
+    // Data validation errors
+    if (error.message.includes('validation') || error.message.includes('schema')) {
+      recommendations.push('Check for corrupt or malformed data in the CSV file');
+      recommendations.push('Verify column headers and data types consistency');
+      recommendations.push('Use --force flag to bypass strict validation');
+    }
+
+    // Analysis-specific errors
+    if (error.message.includes('duplicate') || error.message.includes('fuzzy')) {
+      recommendations.push('Disable fuzzy duplicate analysis for large datasets');
+      recommendations.push('Check for extremely long text fields that may cause comparison issues');
+    }
+
+    // Check what partial results are available
+    const availableResults = Object.keys(partialResults).filter(key => 
+      partialResults[key] && typeof partialResults[key] === 'object' && Object.keys(partialResults[key]).length > 0
+    );
+
+    if (availableResults.length > 0) {
+      recommendations.push(`Partial quality analysis available for: ${availableResults.join(', ')}`);
+      recommendations.push('Consider using partial results for preliminary quality assessment');
+    }
+
+    recommendations.push('Enable verbose mode for detailed error diagnostics');
+    recommendations.push('Report persistent quality analysis failures');
+
+    return recommendations;
   }
 }

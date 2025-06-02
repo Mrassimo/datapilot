@@ -105,8 +105,7 @@ export class EDAEngine {
       return results;
 
     } catch (error) {
-      console.error(chalk.yellow(`⚠️ EDA Engine error: ${error.message}`));
-      return results; // Return partial results
+      return this.handleEngineError(error, results, 'EDA Engine');
     }
   }
 
@@ -234,6 +233,94 @@ export class EDAEngine {
     if (results.correlations?.significantCorrelations?.length > 0) {
       recommendations.push('Strong correlations detected - suitable for predictive modeling');
     }
+
+    return recommendations;
+  }
+
+  handleEngineError(error, partialResults, engineName) {
+    console.error(chalk.yellow(`⚠️ ${engineName} error: ${error.message}`));
+    
+    // Log detailed error for debugging
+    if (this.options.verbose || process.env.NODE_ENV === 'development') {
+      console.error(chalk.gray(`Stack trace: ${error.stack}`));
+    }
+
+    // Attempt to salvage usable results
+    const salvageableResults = this.salvageResults(partialResults, error);
+    
+    // Add error information to results
+    salvageableResults.error = {
+      message: error.message,
+      timestamp: new Date().toISOString(),
+      engineName,
+      partialDataAvailable: Object.keys(partialResults).length > 0
+    };
+
+    // Provide recovery recommendations
+    salvageableResults.recoveryRecommendations = this.generateRecoveryRecommendations(error, partialResults);
+    
+    return salvageableResults;
+  }
+
+  salvageResults(partialResults, error) {
+    // Ensure we always return a valid structure
+    const defaultResults = {
+      basicStats: {},
+      distributions: {},
+      correlations: {},
+      outliers: {},
+      patterns: {},
+      australianInsights: {},
+      mlReadiness: {},
+      timeSeries: null,
+      summary: { error: true, message: 'Analysis incomplete due to error' }
+    };
+
+    // Merge partial results with defaults, keeping what we have
+    const salvaged = { ...defaultResults, ...partialResults };
+    
+    // Validate each section and mark incomplete ones
+    Object.keys(salvaged).forEach(key => {
+      if (key !== 'error' && key !== 'recoveryRecommendations') {
+        try {
+          // Basic validation - if it's an empty object or null, mark as incomplete
+          if (!salvaged[key] || (typeof salvaged[key] === 'object' && Object.keys(salvaged[key]).length === 0)) {
+            salvaged[key] = { incomplete: true, reason: 'Analysis failed before completion' };
+          }
+        } catch (validationError) {
+          salvaged[key] = { incomplete: true, reason: 'Data corrupted during error' };
+        }
+      }
+    });
+
+    return salvaged;
+  }
+
+  generateRecoveryRecommendations(error, partialResults) {
+    const recommendations = [];
+
+    // Memory-related errors
+    if (error.message.includes('memory') || error.message.includes('heap')) {
+      recommendations.push('Try using a smaller dataset or enable aggressive sampling');
+      recommendations.push('Consider running analysis in smaller chunks');
+      recommendations.push('Close other applications to free up memory');
+    }
+
+    // Data-related errors
+    if (error.message.includes('column') || error.message.includes('type')) {
+      recommendations.push('Check data consistency - some columns may have mixed types');
+      recommendations.push('Verify CSV format and encoding');
+      recommendations.push('Use --force flag to skip problematic data validation');
+    }
+
+    // General recovery
+    if (Object.keys(partialResults).length > 0) {
+      recommendations.push('Partial results available - check which analysis sections completed');
+      recommendations.push('Try re-running individual analysis components');
+    }
+
+    recommendations.push('Enable verbose mode for detailed error information');
+    recommendations.push('Report this issue if the error persists');
 
     return recommendations;
   }

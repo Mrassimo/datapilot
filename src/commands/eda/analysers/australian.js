@@ -1,6 +1,17 @@
-import { parsePhoneNumberFromString } from 'libphonenumber-js';
+// Dynamic import for phone number validation
+let parsePhoneNumberFromString = null;
 
-export function validateAustralianData(records, columns, columnTypes) {
+export async function validateAustralianData(records, columns, columnTypes) {
+  // Load phone number library only when Australian data is detected
+  if (!parsePhoneNumberFromString) {
+    try {
+      const phoneLib = await import('libphonenumber-js');
+      parsePhoneNumberFromString = phoneLib.parsePhoneNumberFromString;
+    } catch (error) {
+      // Fallback: continue without phone validation
+      console.warn('Phone validation library not available, skipping phone number analysis');
+    }
+  }
   const validation = {
     detected: false,
     results: {}
@@ -149,19 +160,37 @@ function validatePhoneNumbers(values) {
     const cleaned = String(phone).replace(/[\s\-\(\)]/g, '');
     
     try {
-      const parsed = parsePhoneNumberFromString(cleaned, 'AU');
-      if (parsed && parsed.isValid()) {
-        validNumbers.push(phone);
-        
-        if (cleaned.match(/^(?:\+?61|0)4/)) {
-          types.mobile++;
-        } else if (cleaned.match(/^1[38]/)) {
-          types.special++;
+      // Use libphonenumber-js if available, otherwise fallback to pattern matching
+      if (parsePhoneNumberFromString) {
+        const parsed = parsePhoneNumberFromString(cleaned, 'AU');
+        if (parsed && parsed.isValid()) {
+          validNumbers.push(phone);
+          
+          if (cleaned.match(/^(?:\+?61|0)4/)) {
+            types.mobile++;
+          } else if (cleaned.match(/^1[38]/)) {
+            types.special++;
+          } else {
+            types.landline++;
+          }
         } else {
-          types.landline++;
+          invalidNumbers.push(phone);
         }
       } else {
-        invalidNumbers.push(phone);
+        // Fallback: Basic pattern validation without library
+        if (phonePatterns.some(pattern => pattern.test(cleaned))) {
+          validNumbers.push(phone);
+          
+          if (cleaned.match(/^(?:\+?61|0)4/)) {
+            types.mobile++;
+          } else if (cleaned.match(/^1[38]/)) {
+            types.special++;
+          } else {
+            types.landline++;
+          }
+        } else {
+          invalidNumbers.push(phone);
+        }
       }
     } catch {
       invalidNumbers.push(phone);

@@ -1,6 +1,19 @@
-import { DecisionTreeRegression } from 'ml-cart';
+// Dynamic import for better bundle size optimization
+let DecisionTreeRegression = null;
 
-export function performCARTAnalysis(records, columns, columnTypes, targetColumn = null) {
+export async function performCARTAnalysis(records, columns, columnTypes, targetColumn = null) {
+  // Load ml-cart only when needed
+  if (!DecisionTreeRegression) {
+    try {
+      const mlCart = await import('ml-cart');
+      DecisionTreeRegression = mlCart.DecisionTreeRegression;
+    } catch (error) {
+      return {
+        applicable: false,
+        reason: 'ml-cart library not available for CART analysis'
+      };
+    }
+  }
   // Early exit for very large datasets that would be too slow
   if (records.length > 50000) {
     return {

@@ -18,13 +18,13 @@ import { llmContext } from '../src/commands/llm.js';
 import { runAll } from '../src/commands/all.js';
 
 // Import enhanced parser utilities
-import { normalizePath } from '../src/utils/parser.js';
+import { normalizePath, loadConfig } from '../src/utils/parser.js';
 
 // Import format utilities
 import { createError } from '../src/utils/format.js';
 
 // ASCII art banner with version
-const VERSION = '1.1.1';
+const VERSION = '1.2.0-cli-only';
 const banner = `
 ╔═══════════════════════════════════════╗
 ║          ${chalk.cyan('DataPilot CLI')}              ║
@@ -34,6 +34,9 @@ const banner = `
 `;
 
 console.log(banner);
+
+// Load configuration early
+const globalConfig = loadConfig();
 
 // Configure program
 program
@@ -80,33 +83,36 @@ function validateFile(filePath) {
 
 // Progress tracking wrapper for commands
 async function runWithProgress(command, filePath, options) {
-  const spinner = ora({
+  const showProgress = globalConfig.ui.showProgress && !options.quiet;
+  
+  const spinner = showProgress ? ora({
     text: 'Initializing analysis...',
     color: 'cyan'
-  }).start();
+  }).start() : null;
   
   try {
-    // Add progress callback to options
+    // Add progress callback and config to options
     const enhancedOptions = {
       ...options,
+      config: globalConfig, // Pass config to commands
       onProgress: (progress, details) => {
-        if (progress < 100) {
+        if (spinner && progress < 100) {
           spinner.text = `Processing: ${Math.round(progress)}%${details ? ` - ${details}` : ''}`;
-        } else {
+        } else if (spinner) {
           spinner.text = 'Finalizing analysis...';
         }
       }
     };
     
-    spinner.stop();
+    if (spinner) spinner.stop();
     const result = await command(filePath, enhancedOptions);
     // Ensure process exits cleanly after successful completion
     process.exit(0);
     return result;
   } catch (error) {
-    spinner.fail(`Analysis failed: ${error.message}`);
+    if (spinner) spinner.fail(`Analysis failed: ${error.message}`);
     console.error(chalk.red('Analysis failed'));
-    if (error.stack) {
+    if (error.stack && (globalConfig.ui.verboseErrors || options.verbose)) {
       console.error(error.stack);
     }
     process.exit(1);
@@ -162,18 +168,18 @@ program
     await runWithProgress(visualize, filePath, options);
   });
 
-// Individual command components are available but not shown in CLI
-// They are now integrated into the main commands:
-// - EDA (Exploratory Data Analysis) → part of 'run' command
-// - INT (Data Integrity Check) → part of 'run' command  
-// - Original VIS → part of new 'vis' command
-// - ENG (Data Engineering) → part of new 'vis' command
-// - LLM formatting → integrated into 'run' command
+// Legacy Commands (Hidden)
+// These individual components are now integrated into the main 3-command structure:
+// - EDA (Exploratory Data Analysis) → integrated into 'run'
+// - INT (Data Integrity Check) → integrated into 'run'  
+// - Original VIS → integrated into new 'vis'
+// - ENG (Data Engineering) → integrated into new 'vis'
+// - LLM formatting → integrated into 'run'
+//
+// Legacy commands are preserved for backward compatibility and power users
+// but are hidden from main help to avoid confusion with the new streamlined interface
 
-// Advanced data archaeology features (integrated into 'vis' command)
-// The following subcommands are preserved for power users:
-
-// ENG command - hidden from main help but still functional
+// ENG command - Advanced data archaeology (hidden, use 'vis' for most users)
 const eng = program.command('eng', { hidden: true });
 eng.description('Data Engineering Archaeology - builds collective intelligence about your warehouse');
 
@@ -323,11 +329,14 @@ eng
     await engineering(null, { showMap: true });
   });
 
-// Hidden individual commands for backward compatibility
-// EDA command - now part of 'run'
+// Legacy individual commands (hidden for backward compatibility)
+// Note: These are preserved for existing scripts/workflows but hidden from main help
+// New users should use the consolidated commands: run, vis, all
+
+// EDA command - Legacy (use 'run' command instead)
 program
   .command('eda <file>', { hidden: true })
-  .description('Exploratory Data Analysis - comprehensive statistical analysis')
+  .description('[LEGACY] Exploratory Data Analysis - use "run" command instead')
   .option('-o, --output <path>', 'Save analysis to file')
   .option('-q, --quick', 'Quick mode - basic statistics only')
   .option('--no-header', 'CSV file has no header row')
@@ -336,29 +345,31 @@ program
   .option('--timeout <ms>', 'Set timeout in milliseconds (default: 30000)', '30000')
   .option('--force', 'Continue analysis despite data quality warnings')
   .action(async (file, options) => {
+    console.log(chalk.yellow('ℹ️  Note: "eda" command is legacy. Use "datapilot run" for comprehensive analysis.'));
     const filePath = validateFile(file);
     if (options.timeout) options.timeout = parseInt(options.timeout);
     await runWithProgress(eda, filePath, options);
   });
 
-// INT command - now part of 'run'
+// INT command - Legacy (use 'run' command instead)
 program
   .command('int <file>', { hidden: true })
-  .description('Data Integrity Check - find quality issues and inconsistencies')
+  .description('[LEGACY] Data Integrity Check - use "run" command instead')
   .option('-o, --output <path>', 'Save analysis to file')
   .option('--no-header', 'CSV file has no header row')
   .option('--encoding <encoding>', 'Force specific encoding (utf8, latin1, etc.)')
   .option('--delimiter <delimiter>', 'Force specific delimiter (comma, semicolon, tab, pipe)')
   .option('--force', 'Continue analysis despite data quality warnings')
   .action(async (file, options) => {
+    console.log(chalk.yellow('ℹ️  Note: "int" command is legacy. Use "datapilot run" for comprehensive analysis.'));
     const filePath = validateFile(file);
     await runWithProgress(integrity, filePath, options);
   });
 
-// LLM command - now integrated into 'run'
+// LLM command - Legacy (integrated into 'run' command)
 program
   .command('llm <file>', { hidden: true })
-  .description('LLM Context Generation - perfect summary for AI analysis')
+  .description('[LEGACY] LLM Context Generation - now integrated into "run" command')
   .option('-o, --output <path>', 'Save analysis to file')
   .option('--no-header', 'CSV file has no header row')
   .option('--encoding <encoding>', 'Force specific encoding (utf8, latin1, etc.)')
@@ -367,6 +378,7 @@ program
   .option('--force', 'Continue analysis despite data quality warnings')
   .option('--comprehensive <bool>', 'Use comprehensive analysis (default: true)', 'true')
   .action(async (file, options) => {
+    console.log(chalk.yellow('ℹ️  Note: "llm" command is legacy. Use "datapilot run" for LLM-optimized output.'));
     const filePath = validateFile(file);
     if (options.timeout) options.timeout = parseInt(options.timeout);
     if (options.comprehensive) options.comprehensive = options.comprehensive === 'true';
@@ -391,6 +403,9 @@ program.on('--help', () => {
   console.log(chalk.gray('  • run: Statistical analysis (EDA) + Quality checks (INT) + AI-ready output'));
   console.log(chalk.gray('  • vis: Chart recommendations + Data engineering insights'));
   console.log(chalk.gray('  • all: Everything above in one comprehensive report'));
+  console.log('');
+  console.log(chalk.gray('Note: Legacy commands (eda, int, llm) are available but hidden.'));
+  console.log(chalk.gray('Use the new consolidated commands above for the best experience.'));
   console.log(chalk.cyan('Common Options:'));
   console.log('  -o, --output <path>      Save analysis to file');
   console.log('  -q, --quick              Quick mode - skip detailed analyses');

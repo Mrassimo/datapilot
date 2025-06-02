@@ -1,8 +1,27 @@
-import regression from 'regression';
-import * as ss from 'simple-statistics';
-import jstat from 'jstat';
+// Dynamic imports for better bundle optimization
+let regression = null;
+let ss = null;
+let jstat = null;
 
-export function performRegressionAnalysis(records, columns, columnTypes, targetColumn = null) {
+export async function performRegressionAnalysis(records, columns, columnTypes, targetColumn = null) {
+  // Load heavy statistical libraries only when needed
+  if (!regression || !ss || !jstat) {
+    try {
+      const [regressionModule, ssModule, jstatModule] = await Promise.all([
+        import('regression'),
+        import('simple-statistics'),
+        import('jstat')
+      ]);
+      regression = regressionModule.default;
+      ss = ssModule;
+      jstat = jstatModule.default;
+    } catch (error) {
+      return {
+        applicable: false,
+        reason: 'Statistical libraries not available for regression analysis'
+      };
+    }
+  }
   const numericColumns = columns.filter(col => 
     ['integer', 'float'].includes(columnTypes[col].type)
   );
