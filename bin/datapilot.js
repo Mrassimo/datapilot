@@ -9,6 +9,7 @@ import ora from 'ora';
 import os from 'os';
 
 // Import commands
+import { run } from '../src/commands/run.js';
 import { eda } from '../src/commands/eda.js';
 import { integrity } from '../src/commands/int.js';
 import { visualize } from '../src/commands/vis.js';
@@ -111,6 +112,23 @@ async function runWithProgress(command, filePath, options) {
     process.exit(1);
   }
 }
+
+// RUN command - comprehensive data analysis (EDA + INT + LLM)
+program
+  .command('run <file>')
+  .description('Run comprehensive analysis - combines statistical analysis and quality checks')
+  .option('-o, --output <path>', 'Save analysis to file')
+  .option('--no-header', 'CSV file has no header row')
+  .option('--encoding <encoding>', 'Force specific encoding (utf8, latin1, etc.)')
+  .option('--delimiter <delimiter>', 'Force specific delimiter (comma, semicolon, tab, pipe)')
+  .option('--timeout <ms>', 'Set timeout in milliseconds (default: 60000)', '60000')
+  .option('--force', 'Continue analysis despite data quality warnings')
+  .action(async (file, options) => {
+    const filePath = validateFile(file);
+    // Convert timeout to number
+    if (options.timeout) options.timeout = parseInt(options.timeout);
+    await runWithProgress(run, filePath, options);
+  });
 
 // ALL command - run complete analysis suite
 program

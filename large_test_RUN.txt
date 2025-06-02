@@ -1,0 +1,45 @@
+📊 Parsing CSV: /Users/massimoraso/Code/jseda/datapilot/tests/fixtures/large_test.csv
+📏 File size: 0.31MB
+🔤 Detected encoding: utf8
+📋 Detected delimiter: ,
+✅ Successfully parsed with utf8 encoding
+📊 Records: 10,000
+📋 Columns: 5
+🤖 Running automated intelligence...
+🤖 DATAPILOT ANALYSIS REPORT
+============================
+DATASET: large_test.csv (10,000 records)
+DOMAIN: General Analytics
+ANALYSIS: Automated Pattern Discovery
+GENERATED: 2025-06-01 12:27:02
+
+📊 EXECUTIVE SUMMARY
+==================
+KEY FINDING: No statistically significant patterns detected
+BUSINESS IMPACT: Variables appear independent - no clear optimization opportunities
+CONFIDENCE: High (thorough statistical testing performed)
+ACTIONABLE: Limited - consider additional data collection
+
+📋 DATA QUALITY ASSESSMENT
+==========================
+Completeness: 100% (excellent)
+Size: Large enough for reliable analysis (10,000 records)
+Variables: 5 columns (3 categorical, 2 numeric)
+Quality Score: B+ (good for analysis)
+Bias Indicators: None detected
+Temporal Coverage: Time series data available
+
+🔬 STATISTICAL APPENDIX
+======================
+Methods Used: Pearson correlation, Welch t-test, Cohen d effect size
+Multiple Testing: Bonferroni correction applied
+Confidence Level: 95% (α=0.05)
+Effect Size Thresholds: Small(0.2), Medium(0.5), Large(0.8)
+Sample Size Power: >99% for detected effects
+
+📊 SUGGESTED FOLLOW-UP ANALYSES
+==============================
+3. Causal inference analysis to establish causation
+4. A/B testing framework for optimization
+5. Longitudinal analysis if temporal data available
+

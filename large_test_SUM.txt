@@ -1,0 +1,41 @@
+📊 Parsing CSV: /Users/massimoraso/Code/jseda/datapilot/tests/fixtures/large_test.csv
+📏 File size: 0.31MB
+🔤 Detected encoding: utf8
+📋 Detected delimiter: ,
+✅ Successfully parsed with utf8 encoding
+📊 Records: 10,000
+📋 Columns: 5
+🤖 Running automated intelligence...
+📊 EXECUTIVE SUMMARY
+===================
+Dataset: large_test.csv • 10,000 records • 2025-06-01 12:27:07
+
+🎯 KEY FINDING
+--------------
+No statistically significant patterns detected in the data.
+
+💼 BUSINESS IMPACT
+------------------
+Variables appear independent - no clear optimization opportunities.
+This suggests current operations may already be optimized,
+or additional data collection may be needed.
+
+💡 IMMEDIATE ACTIONS
+-------------------
+1. Consider collecting additional business metrics
+2. Explore external data sources for new insights
+3. Focus on operational efficiency improvements
+
+📋 DATA RELIABILITY
+-------------------
+Data Quality: Excellent
+Sample Size: Statistically robust
+Analysis Confidence: Limited
+
+🏛️ DATA ARCHITECTURE INTELLIGENCE
+-----------------------------------
+For warehouse analysis and table relationships:
+• Multi-table analysis: datapilot eng analyze *.csv
+• Architecture report: datapilot eng report
+• Relationship map: datapilot eng map
+

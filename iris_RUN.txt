@@ -1,0 +1,105 @@
+📊 Parsing CSV: /Users/massimoraso/Code/jseda/datapilot/tests/fixtures/iris.csv
+📏 File size: 0.00MB
+🔤 Detected encoding: utf8
+📋 Detected delimiter: ,
+✅ Successfully parsed with utf8 encoding
+📊 Records: 150
+📋 Columns: 5
+🤖 Running automated intelligence...
+🤖 DATAPILOT ANALYSIS REPORT
+============================
+DATASET: iris.csv (150 records)
+DOMAIN: Scientific/Laboratory
+ANALYSIS: Automated Pattern Discovery
+GENERATED: 2025-06-01 12:27:41
+
+📊 EXECUTIVE SUMMARY
+==================
+KEY FINDING: Very strong correlation between petal length and petal width (r=0.963)
+BUSINESS IMPACT: Strong relationship between petal length and petal width - investigate for business value
+CONFIDENCE: High (p<0.01, medium effect)
+ACTIONABLE: Yes - predictive modeling opportunities
+
+🎯 RANKED INSIGHTS (by business importance)
+===========================================
+
+[INSIGHT 1] CORRELATION: Very strong correlation between petal length and petal width (r=0.963)
+Variables: petal_length ↔ petal_width
+Correlation: r=0.963 (very strong)
+P-value: 0.0010
+Business Context: Strong relationship between petal length and petal width - investigate for business value
+Pattern: As petal_length increases, petal_width increases
+Recommendation: Use petal_length to predict petal_width
+
+[INSIGHT 2] CORRELATION: Very strong correlation between sepal length and petal length (r=0.872)
+Variables: sepal_length ↔ petal_length
+Correlation: r=0.872 (very strong)
+P-value: 0.0010
+Business Context: Strong relationship between sepal length and petal length - investigate for business value
+Pattern: As sepal_length increases, petal_length increases
+Recommendation: Use sepal_length to predict petal_length
+
+[INSIGHT 3] CORRELATION: Very strong correlation between sepal length and petal width (r=0.818)
+Variables: sepal_length ↔ petal_width
+Correlation: r=0.818 (very strong)
+P-value: 0.0010
+Business Context: Strong relationship between sepal length and petal width - investigate for business value
+Pattern: As sepal_length increases, petal_width increases
+Recommendation: Use sepal_length to predict petal_width
+
+[INSIGHT 4] CORRELATION: Moderate correlation between sepal width and petal length (r=-0.428)
+Variables: sepal_width ↔ petal_length
+Correlation: r=-0.428 (moderate)
+P-value: 0.0010
+Business Context: Strong relationship between sepal width and petal length - investigate for business value
+Pattern: As sepal_width increases, petal_length decreases
+Recommendation: Use sepal_width to predict petal_length
+
+[INSIGHT 5] CORRELATION: Weak correlation between sepal width and petal width (r=-0.366)
+Variables: sepal_width ↔ petal_width
+Correlation: r=-0.366 (weak)
+P-value: 0.0010
+Business Context: Strong relationship between sepal width and petal width - investigate for business value
+Pattern: As sepal_width increases, petal_width decreases
+Recommendation: Use sepal_width to predict petal_width
+
+📋 DATA QUALITY ASSESSMENT
+==========================
+Completeness: 100% (excellent)
+Size: Adequate for analysis (150 records)
+Variables: 5 columns (1 categorical, 4 numeric)
+Quality Score: A+ (excellent for analysis)
+Bias Indicators: None detected
+Temporal Coverage: Single snapshot (no time series)
+
+💡 BUSINESS RECOMMENDATIONS
+===========================
+IMMEDIATE (implement this quarter):
+1. Leverage petal_length/petal_width relationship for optimization
+2. Leverage sepal_length/petal_length relationship for optimization
+
+STRATEGIC (implement this year):
+1. Develop predictive models using identified relationships
+2. Create segmentation strategies based on group differences
+3. Design A/B tests to validate optimization opportunities
+
+ANALYTICAL (for data team):
+1. Collect additional variables to improve prediction accuracy
+2. Implement tracking for temporal trend analysis
+3. Set up automated monitoring for pattern changes
+
+🔬 STATISTICAL APPENDIX
+======================
+Methods Used: Pearson correlation, Welch t-test, Cohen d effect size
+Multiple Testing: Bonferroni correction applied
+Confidence Level: 95% (α=0.05)
+Effect Size Thresholds: Small(0.2), Medium(0.5), Large(0.8)
+Sample Size Power: >99% for detected effects
+
+📊 SUGGESTED FOLLOW-UP ANALYSES
+==============================
+2. Predictive modeling for forecasting
+3. Causal inference analysis to establish causation
+4. A/B testing framework for optimization
+5. Longitudinal analysis if temporal data available
+
