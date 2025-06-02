@@ -39,12 +39,25 @@ export async function visualize(filePath, options = {}) {
       headers
     };
     
+    // Load knowledge base once here to avoid concurrent access in sub-commands
+    if (spinner) spinner.text = 'Loading warehouse knowledge...';
+    let warehouseKnowledge;
+    try {
+      const { KnowledgeBase } = await import('../utils/knowledgeBase.js');
+      const knowledgeBase = new KnowledgeBase();
+      warehouseKnowledge = await knowledgeBase.load();
+    } catch (error) {
+      console.warn('Warning: Knowledge base unavailable, running without warehouse context');
+      warehouseKnowledge = { warehouse: {}, patterns: {}, relationships: {} };
+    }
+    
     // Create enhanced options
     const enhancedOptions = {
       ...options,
       preloadedData,
       structuredOutput: true,
-      quiet: true
+      quiet: true,
+      preloadedKnowledge: warehouseKnowledge  // Pass knowledge to avoid loading again
     };
     
     // Run visualization analysis
@@ -55,9 +68,11 @@ export async function visualize(filePath, options = {}) {
     if (spinner) spinner.text = 'Performing data archaeology...';
     const engResults = await engineeringAnalysis(filePath, enhancedOptions);
     
-    // Load knowledge base
-    const knowledgeBase = new KnowledgeBase();
-    const warehouseKnowledge = await knowledgeBase.load();
+    // Use the preloaded knowledge base data
+    // (we loaded it once above to avoid lock conflicts)
+    
+    // Extract the report from engineering results if it's in structured format
+    const engineeringReport = engResults.report || engResults;
     
     if (spinner) spinner.succeed('Business intelligence analysis complete!');
     
@@ -66,7 +81,7 @@ export async function visualize(filePath, options = {}) {
       fileName, 
       data.length, 
       visResults, 
-      engResults, 
+      engineeringReport, 
       warehouseKnowledge
     );
     
@@ -75,7 +90,7 @@ export async function visualize(filePath, options = {}) {
     
     return {
       visualization: visResults,
-      engineering: engResults,
+      engineering: engineeringReport,
       report
     };
     
@@ -100,8 +115,29 @@ function generateBusinessIntelligenceReport(fileName, recordCount, visResults, e
   // Visualization Section
   report += createSection('VISUALIZATION RECOMMENDATIONS', '');
   
-  if (visResults && visResults !== '') {
-    // Extract key visualization recommendations
+  if (visResults && typeof visResults === 'object' && visResults.analysis) {
+    // Extract visualization recommendations from structured object
+    const visualizationPlans = visResults.analysis.visualizationPlans || [];
+    
+    if (visualizationPlans.length > 0) {
+      visualizationPlans.slice(0, 3).forEach((plan, idx) => {
+        report += chalk.yellow(`\nPriority ${idx + 1}: ${plan.title || plan.chartType}\n`);
+        report += `- Chart: ${plan.chartType}\n`;
+        if (plan.variables) {
+          report += `- Variables: ${plan.variables}\n`;
+        }
+        if (plan.insight) {
+          report += `- Insight: ${plan.insight}\n`;
+        }
+        if (plan.enhancement) {
+          report += `- Enhancement: ${plan.enhancement}\n`;
+        }
+      });
+    } else {
+      report += chalk.gray('No suitable visualizations found for this dataset\n');
+    }
+  } else if (typeof visResults === 'string' && visResults !== '') {
+    // Handle string format (legacy)
     const visLines = visResults.split('\n');
     const startIdx = visLines.findIndex(line => line.includes('RECOMMENDED VISUALISATIONS'));
     if (startIdx !== -1) {
@@ -209,25 +245,43 @@ function generateBusinessIntelligenceReport(fileName, recordCount, visResults, e
   report += createSection('RECOMMENDATIONS', '');
   
   // Schema recommendations from engineering
-  if (typeof engResults === 'object' && engResults.analysis && engResults.analysis.schema_recommendations) {
-    report += chalk.yellow('🔧 Schema Improvements:\n');
-    engResults.analysis.schema_recommendations.slice(0, 3).forEach((rec, idx) => {
-      report += `   ${idx + 1}. ${rec}\n`;
-    });
-    report += '\n';
+  if (typeof engResults === 'string' && engResults.includes('SCHEMA RECOMMENDATIONS')) {
+    // Extract schema recommendations from engineering report
+    const engLines = engResults.split('\n');
+    const schemaStart = engLines.findIndex(line => line.includes('SCHEMA RECOMMENDATIONS'));
+    if (schemaStart !== -1) {
+      report += chalk.yellow('🔧 Schema Improvements:\n');
+      let recCount = 0;
+      for (let i = schemaStart + 1; i < engLines.length && recCount < 3; i++) {
+        const line = engLines[i].trim();
+        if (line && !line.includes('═══') && !line.startsWith('─')) {
+          if (line.includes('CREATE TABLE') || line.includes('--')) {
+            report += `   ${recCount + 1}. ${line.replace(/CREATE TABLE.*\(/, 'Database schema design available').replace(/--/, '')}\n`;
+            recCount++;
+          }
+        }
+      }
+      report += '\n';
+    }
   }
   
-  // ETL recommendations
-  if (typeof engResults === 'object' && engResults.analysis && engResults.analysis.etl_recommendations) {
-    report += chalk.yellow('🔄 ETL Pipeline Suggestions:\n');
-    const etl = engResults.analysis.etl_recommendations;
-    if (etl.cleaning_steps && etl.cleaning_steps.length > 0) {
-      report += `   • Cleaning: ${etl.cleaning_steps[0]}\n`;
+  // ETL recommendations  
+  if (typeof engResults === 'string' && engResults.includes('ETL')) {
+    // Extract ETL recommendations from engineering report
+    const engLines = engResults.split('\n');
+    const etlStart = engLines.findIndex(line => line.includes('ETL') || line.includes('WAREHOUSE'));
+    if (etlStart !== -1) {
+      report += chalk.yellow('🔄 Data Engineering Suggestions:\n');
+      let etlCount = 0;
+      for (let i = etlStart + 1; i < engLines.length && etlCount < 3; i++) {
+        const line = engLines[i].trim();
+        if (line && line.startsWith('-') && etlCount < 3) {
+          report += `   ${etlCount + 1}. ${line.replace(/^-\s*/, '')}\n`;
+          etlCount++;
+        }
+      }
+      report += '\n';
     }
-    if (etl.transformation_steps && etl.transformation_steps.length > 0) {
-      report += `   • Transform: ${etl.transformation_steps[0]}\n`;
-    }
-    report += '\n';
   }
   
   // LLM prompt for deeper analysis

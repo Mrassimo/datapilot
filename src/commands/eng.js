@@ -18,7 +18,25 @@ class ArchaeologyEngine {
 
   async analyzeTable(csvPath, options = {}) {
     const outputHandler = new OutputHandler(options);
-    const knowledge = await this.knowledgeBase.load();
+    
+    // Use preloaded knowledge if provided (e.g., from vis command) or load it
+    let knowledge;
+    if (options.preloadedKnowledge) {
+      knowledge = options.preloadedKnowledge;
+    } else {
+      // Try to load knowledge base with graceful fallback
+      try {
+        knowledge = await this.knowledgeBase.load();
+      } catch (error) {
+        console.warn('Warning: Knowledge base unavailable, running analysis without historical context');
+        knowledge = { 
+          warehouse: this.knowledgeBase.createEmptyWarehouse(),
+          patterns: { naming_conventions: [], common_issues: [] },
+          relationships: { confirmed: [], suspected: [] },
+          tables: {}
+        };
+      }
+    }
     
     const spinner = options.quiet ? null : ora('Reading CSV file...').start();
     
@@ -73,7 +91,11 @@ class ArchaeologyEngine {
     const prompt = this.generateContextualPrompt(enhanced, knowledge);
     
     const tableName = basename(csvPath, '.csv');
-    await this.knowledgeBase.update(tableName, enhanced);
+    
+    // Skip knowledge base update if using preloaded knowledge (e.g., from vis command)
+    if (!options.preloadedKnowledge) {
+      await this.knowledgeBase.update(tableName, enhanced);
+    }
     
     // Auto-save the analysis if requested
     if (options.autoSave) {
@@ -362,6 +384,17 @@ NEXT_INVESTIGATE: [what tables to analyze next]`;
         keywords: ['log', 'event', 'audit', 'trace', 'debug', 'error', 
                   'warning', 'info', 'activity'],
         weight: 0.9
+      },
+      'Insurance': {
+        keywords: ['insurance', 'premium', 'claim', 'policy', 'coverage', 
+                  'deductible', 'charges', 'smoker', 'bmi', 'medical', 
+                  'health', 'healthcare', 'patient', 'diagnosis'],
+        weight: 2.0
+      },
+      'Ecommerce': {
+        keywords: ['ecommerce', 'shop', 'store', 'cart', 'basket', 'checkout',
+                  'category', 'brand', 'rating', 'review', 'discount'],
+        weight: 1.1
       }
     };
     
@@ -2250,7 +2283,33 @@ export async function engineering(filePath, options = {}) {
   
   outputHandler.finalize();
   
-  // Return the report for structured consumption
+  // Return enhanced data for structured consumption (e.g., vis command)
+  if (options.structuredOutput) {
+    if (options.preloadedKnowledge) {
+      // Use preloaded knowledge when provided (e.g., from vis command)
+      return {
+        report,
+        warehouseKnowledge: options.preloadedKnowledge
+      };
+    } else {
+      try {
+        const knowledge = await engine.knowledgeBase.load();
+        return {
+          report,
+          warehouseKnowledge: knowledge
+        };
+      } catch (error) {
+        // Graceful fallback if knowledge base is locked - don't crash the analysis
+        console.warn('Warning: Knowledge base temporarily unavailable, continuing without warehouse context');
+        return {
+          report,
+          warehouseKnowledge: { warehouse: {}, patterns: {}, relationships: {} }
+        };
+      }
+    }
+  }
+  
+  // Return just the report for normal usage
   return report;
 }
 

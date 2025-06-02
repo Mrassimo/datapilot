@@ -183,43 +183,66 @@ function calculateReadinessScores(assessment, totalRows, totalColumns) {
     dataSize: 0,
     dataQuality: 0,
     featureQuality: 0,
+    targetDetection: 0,
     overall: 0
   };
   
-  // Data size score (0-10)
-  if (totalRows >= 10000) scores.dataSize = 10;
+  // Data size score (0-10) - More realistic for real-world datasets
+  if (totalRows >= 50000) scores.dataSize = 10;
+  else if (totalRows >= 10000) scores.dataSize = 9;
   else if (totalRows >= 5000) scores.dataSize = 8;
-  else if (totalRows >= 1000) scores.dataSize = 6;
-  else if (totalRows >= 500) scores.dataSize = 4;
-  else if (totalRows >= 100) scores.dataSize = 2;
+  else if (totalRows >= 1000) scores.dataSize = 7; // 1000+ is quite good for ML
+  else if (totalRows >= 500) scores.dataSize = 5;
+  else if (totalRows >= 100) scores.dataSize = 3;
   else scores.dataSize = 1;
   
   // Data quality score (0-10)
   const qualityMetrics = assessment.dataQuality;
-  scores.dataQuality = (
+  scores.dataQuality = Math.min(10, (
     qualityMetrics.completeness * 2.5 +
     qualityMetrics.consistency * 2.5 +
     qualityMetrics.uniqueness * 2.5 +
     qualityMetrics.validity * 2.5
-  );
+  ));
   
-  // Feature quality score (0-10)
+  // Feature quality score (0-10) - Only count usable features
+  const usableFeatures = assessment.featureQuality.filter(f => 
+    f.quality !== 'exclude' && f.quality !== 'poor'
+  );
   const goodFeatures = assessment.featureQuality.filter(f => 
     ['good', 'excellent'].includes(f.quality)
   ).length;
-  const totalFeatures = assessment.featureQuality.filter(f => 
-    f.quality !== 'exclude'
-  ).length;
   
-  if (totalFeatures > 0) {
-    scores.featureQuality = (goodFeatures / totalFeatures) * 10;
+  if (usableFeatures.length > 0) {
+    // If we have any usable features, that's already good
+    scores.featureQuality = Math.max(5, (goodFeatures / usableFeatures.length) * 10);
   }
   
-  // Overall score (weighted average)
+  // Target detection bonus (0-10) - Critical for supervised learning
+  const hasTargetVariable = assessment.featureQuality.some(f => 
+    f.feature.toLowerCase().match(/charge|cost|price|premium|amount|fee|total|revenue|target|label|outcome/)
+  );
+  
+  // Check if we have mixed feature types (good for ML)
+  const hasNumeric = assessment.featureQuality.some(f => ['integer', 'float'].includes(f.type));
+  const hasCategorical = assessment.featureQuality.some(f => f.type === 'categorical');
+  
+  if (hasTargetVariable) {
+    scores.targetDetection = 10; // Perfect target detection
+  } else if (hasNumeric && hasCategorical && usableFeatures.length >= 3) {
+    scores.targetDetection = 7; // Good mixed features suggest ML potential
+  } else if (usableFeatures.length >= 2) {
+    scores.targetDetection = 5; // Some ML potential
+  } else {
+    scores.targetDetection = 2; // Limited ML potential
+  }
+  
+  // Overall score (weighted average) - Target detection is crucial
   scores.overall = (
-    scores.dataSize * 0.2 +
-    scores.dataQuality * 0.4 +
-    scores.featureQuality * 0.4
+    scores.dataSize * 0.15 +
+    scores.dataQuality * 0.25 +
+    scores.featureQuality * 0.25 +
+    scores.targetDetection * 0.35  // Target detection is most important
   );
   
   return scores;

@@ -10,7 +10,7 @@ export class FileLockManager {
   constructor(filePath) {
     this.filePath = filePath;
     this.lockPath = `${filePath}.lock`;
-    this.maxRetries = 50; // 5 seconds with 100ms intervals
+    this.maxRetries = 150; // 15 seconds with 100ms intervals
     this.retryInterval = 100;
   }
 
@@ -19,7 +19,7 @@ export class FileLockManager {
    * @param {number} timeout - Maximum time to wait for lock (ms)
    * @returns {Promise<boolean>} - true if lock acquired
    */
-  async acquireLock(timeout = 5000) {
+  async acquireLock(timeout = 15000) { // Increased from 5000ms to 15000ms
     const startTime = Date.now();
     let attempts = 0;
     
@@ -154,7 +154,7 @@ export class FileLockManager {
    * @param {number} timeout - Lock timeout
    * @returns {Promise<any>}
    */
-  async withLock(fn, timeout = 5000) {
+  async withLock(fn, timeout = 15000) {
     await this.acquireLock(timeout);
     
     try {
@@ -192,7 +192,7 @@ export class KnowledgeBaseLockManager {
    * @param {number} timeout 
    * @returns {Promise<any>}
    */
-  async withLock(filePath, fn, timeout = 5000) {
+  async withLock(filePath, fn, timeout = 15000) {
     const lockManager = this.getLockManager(filePath);
     return await lockManager.withLock(fn, timeout);
   }

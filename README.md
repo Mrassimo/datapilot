@@ -14,7 +14,7 @@ DataPilot is a powerful command-line tool that performs comprehensive analysis o
 **✨ Key Benefits:**
 - 🚀 **Instant Analysis**: Get statistical summaries, quality checks, and visualization recommendations in one command
 - 🧠 **AI-Ready Output**: All results formatted for easy copy-paste into ChatGPT, Claude, or any LLM
-- 📊 **Five Analysis Modes**: From basic statistics to advanced data engineering insights
+- 📊 **Smart 3-Command Structure**: Simple yet powerful - run, vis, or all
 - 🎯 **Smart & Fast**: Handles massive files with intelligent sampling and streaming
 - 🔧 **Zero Configuration**: Works out-of-the-box with auto-detection of formats, encodings, and delimiters
 - 💪 **Production Ready**: Battle-tested on real-world datasets with robust error handling
@@ -48,264 +48,151 @@ npm link
 ## Quick Start
 
 ```bash
-# Complete analysis suite - runs all 5 analysis modes
+# Complete analysis - everything in one go
 datapilot all data.csv
+
+# Comprehensive analysis - statistics and quality checks
+datapilot run data.csv
+
+# Business intelligence - visualization and data engineering insights
+datapilot vis data.csv
 
 # Save output to file
 datapilot all data.csv --output analysis.txt
 
 # Quick mode for large files
 datapilot all large_dataset.csv --quick
-
-# Specific analysis mode
-datapilot eda sales.csv      # Exploratory Data Analysis
-datapilot int quality.csv    # Data Integrity Check
-datapilot vis metrics.csv    # Visualization Recommendations
 ```
 
-## 📊 Five Specialized Analysis Modes
+## 📊 The Smart 3-Command Structure
 
-### 1. **EDA (Exploratory Data Analysis)**
-Comprehensive statistical analysis that provides deep insights into your data:
+### 1. **`run` - Comprehensive Data Analysis**
+Combines statistical analysis with quality assessment in one powerful command:
 
 ```bash
-datapilot eda dataset.csv
+datapilot run dataset.csv
 ```
 
-**Features:**
-- **Descriptive Statistics**: Mean, median, mode, standard deviation, variance
-- **Distribution Analysis**: Skewness, kurtosis, normality tests (Shapiro-Wilk, Jarque-Bera)
-- **Percentile Breakdown**: 5th, 25th, 50th, 75th, 95th percentiles
-- **Correlation Analysis**: Pearson correlations between all numeric columns
-- **Outlier Detection**: Both IQR and Z-score methods with detailed reporting
-- **Pattern Detection**: Benford's Law analysis for fraud detection
-- **Missing Value Analysis**: Patterns and impact assessment
-- **Column Type Detection**: Automatic inference of data types (numeric, categorical, date, email, phone, etc.)
+**What's Included:**
+- **Exploratory Data Analysis (EDA)**
+  - Descriptive statistics (mean, median, mode, std dev, variance)
+  - Distribution analysis (skewness, kurtosis, normality tests)
+  - Correlation analysis between numeric columns
+  - Outlier detection (IQR and Z-score methods)
+  - Pattern detection (Benford's Law for fraud detection)
+  
+- **Data Integrity Checks (INT)**
+  - Six quality dimensions: Completeness, Validity, Accuracy, Consistency, Timeliness, Uniqueness
+  - Business rule detection and validation
+  - Format validation (emails, phones, dates, etc.)
+  - Duplicate and anomaly detection
+  
+- **LLM-Optimized Formatting**
+  - Key findings highlighted upfront
+  - Structured output ready for AI consumption
+  - Actionable insights and recommendations
 
 **Example Output:**
 ```
-════════════════════════════════════════════════════════════
-              EXPLORATORY DATA ANALYSIS REPORT
-════════════════════════════════════════════════════════════
+🤖 DATAPILOT COMPREHENSIVE ANALYSIS
+===================================
+Dataset: sales.csv (10,234 records)
 
-DATASET OVERVIEW
-────────────────────────────────────────
-- Total rows: 10,234
-- Total columns: 15
-- Memory usage: ~2.4 MB
-- Numeric columns: 8
-- Categorical columns: 5
-- Date columns: 2
-- Data completeness: 96.3%
+EXECUTIVE SUMMARY
+═════════════════
+📊 Data Quality: A+ (96/100)
+🎯 Key Statistical Insights:
+   1. Revenue shows strong seasonal patterns (Q4 +35%)
+   2. Customer segmentation reveals 80/20 distribution
+   3. 3 numeric columns show non-normal distributions
 
-COLUMN ANALYSIS
-────────────────────────────────────────
-[Column: revenue]
-Type: float | Non-null: 98.5%
-
-CENTRAL TENDENCY:
-  Mean: $2,345.67 | Median: $1,987.50 | Mode: $1,500.00
-
-SPREAD:
-  Std Dev: $1,234.56 | Variance: 1.52M
-  IQR: $1,876.25 | Range: [$10.00, $9,999.00]
-  CV: 52.6%
-
-OUTLIERS:
-  IQR method: 23 outliers (2.2%)
-  Z-score method: 18 outliers (1.8%)
+DATA QUALITY ASSESSMENT
+══════════════════════
+📊 Quality Dimensions:
+   • Completeness: 98.5% ✅
+   • Validity: 99.2% ✅
+   • Accuracy: 97.8% ✅
+   • Consistency: 96.3% ✅
+   • Uniqueness: 94.1% ✅
+   • Timeliness: Current ✅
 ```
 
-### 2. **INT (Data Integrity Check)**
-Deep quality assessment that examines data reliability across multiple dimensions:
-
-```bash
-datapilot int dataset.csv
-```
-
-**Features:**
-- **Six Quality Dimensions**: 
-  - Completeness: Missing value analysis
-  - Validity: Format and constraint validation
-  - Accuracy: Statistical anomaly detection
-  - Consistency: Cross-column validation
-  - Timeliness: Temporal pattern analysis
-  - Uniqueness: Duplicate detection
-- **Pattern Validation**: Emails, phones, postcodes, URLs, dates
-- **Referential Integrity**: Foreign key and relationship validation
-- **Business Rule Detection**: Automatically inferred constraints
-- **Fix Generation**: Python and SQL code to clean your data
-- **Australian Format Support**: ABN, ACN, postcodes, phone numbers
-
-**Example Output:**
-```
-════════════════════════════════════════════════════════════
-                 DATA INTEGRITY REPORT
-════════════════════════════════════════════════════════════
-
-DATA QUALITY SCORES
-────────────────────────────────────────
-Overall Quality Score: 87.3% (Good)
-
-Dimension Scores:
-- Completeness: 94.2% ✓
-- Validity: 89.7% ✓
-- Accuracy: 91.3% ✓
-- Consistency: 78.5% ⚠
-- Timeliness: 85.9% ✓
-- Uniqueness: 93.1% ✓
-
-CRITICAL ISSUES FOUND
-────────────────────────────────────────
-1. Invalid email formats: 234 records (2.3%)
-   Pattern: Missing '@' symbol
-   Fix: Apply email validation regex
-
-2. Inconsistent date formats: 89 records
-   Found: MM/DD/YYYY mixed with DD/MM/YYYY
-   Fix: Standardize to ISO format
-```
-
-### 3. **VIS (Visualization Recommendations)**
-Intelligent chart selection based on data characteristics:
+### 2. **`vis` - Business Intelligence Suite**
+Combines visualization recommendations with data engineering insights:
 
 ```bash
 datapilot vis dataset.csv
 ```
 
-**Features:**
-- **Automated Chart Selection**: Based on data types and relationships
-- **Task-Based Recommendations**: Comparison, distribution, correlation, time-series
-- **Color Palette Suggestions**: Optimized for accessibility and clarity
-- **Anti-Pattern Detection**: Warns against misleading visualizations
-- **Implementation Guidance**: Specific code examples for popular libraries
-- **Dashboard Composition**: Multi-chart layout recommendations
+**What's Included:**
+- **Visualization Recommendations (VIS)**
+  - Task-based chart selection (compare, trend, distribute, etc.)
+  - Perceptual optimization for clarity
+  - Color palette recommendations
+  - Accessibility considerations
+  
+- **Data Engineering Archaeology (ENG)**
+  - Schema inference and documentation
+  - Relationship detection (foreign keys, joins)
+  - Technical debt identification
+  - Performance recommendations
+  - Persistent knowledge base that learns over time
 
 **Example Output:**
 ```
-════════════════════════════════════════════════════════════
-              VISUALIZATION ANALYSIS
-════════════════════════════════════════════════════════════
+📊 DATAPILOT BUSINESS INTELLIGENCE SUITE
+=======================================
+Dataset: orders.csv (45,678 records)
 
-RECOMMENDED VISUALIZATIONS
-────────────────────────────────────────
+VISUALIZATION RECOMMENDATIONS
+════════════════════════════
+Priority 1: Time Series Analysis
+- Chart: Multi-line chart with annotations
+- Variables: order_date (x) vs revenue, quantity (y)
+- Insight: Strong weekly seasonality detected
+- Enhancement: Add moving average overlay
 
-1. Revenue Distribution
-   Chart Type: Histogram with KDE overlay
-   Rationale: Shows distribution shape and identifies modes
-   Implementation: Use 20-30 bins with sqrt(n) rule
-   Color: Sequential palette (Blues)
+DATA ENGINEERING INSIGHTS
+════════════════════════
+📋 Table Analysis:
+   • Purpose: Transactional order data
+   • Domain: E-commerce
+   • Quality Score: 8/10
+   • Technical Debt: 12 hours estimated
 
-2. Revenue vs Quantity Relationship  
-   Chart Type: Scatter plot with trend line
-   Rationale: Strong correlation (r=0.85) worth exploring
-   Enhancement: Add size encoding for profit margin
-   Color: Diverging palette for profit/loss
+🔗 Detected Relationships:
+   1. orders.customer_id → customers.id (many-to-one)
+   2. orders.product_id → products.id (many-to-one)
 ```
 
-### 4. **ENG (Data Engineering Archaeology)**
-Discovers hidden data architecture and builds knowledge over time:
+### 3. **`all` - Complete Analysis Suite**
+Runs both `run` and `vis` for the most comprehensive analysis:
 
 ```bash
-datapilot eng analyze *.csv    # Analyze multiple files
-datapilot eng report           # Generate architecture report
+datapilot all dataset.csv
 ```
 
-**Features:**
-- **Schema Inference**: Automatic documentation generation
-- **Relationship Detection**: Foreign keys and join opportunities
-- **Data Lineage**: Track data flow and dependencies
-- **Technical Debt Identification**: Anti-patterns and improvement opportunities
-- **Persistent Knowledge Base**: Learns from each analysis
-- **Multi-Table Analysis**: Understand entire data warehouses
-
-**Example Output:**
-```
-════════════════════════════════════════════════════════════
-          DATA ENGINEERING ARCHAEOLOGY REPORT
-════════════════════════════════════════════════════════════
-
-DISCOVERED RELATIONSHIPS
-────────────────────────────────────────
-orders.customer_id → customers.id (1:n)
-- Join compatibility: 100%
-- Orphaned records: 0
-- Suggested index: CREATE INDEX idx_orders_customer_id
-
-products.category_id → categories.id (n:1)
-- Join compatibility: 98.5%
-- Orphaned records: 12
-- Data quality issue detected
-
-SCHEMA RECOMMENDATIONS
-────────────────────────────────────────
-Table: orders
-- Add NOT NULL constraint to: order_date, customer_id
-- Add CHECK constraint: total_amount > 0
-- Add DEFAULT: status = 'pending'
-- Consider partitioning by: order_date (3 years of data)
-```
-
-### 5. **LLM (AI Context Generation)**
-Creates perfectly structured context for AI assistants:
-
-```bash
-datapilot llm dataset.csv
-```
-
-**Features:**
-- **Structured Summaries**: Key findings in hierarchical format
-- **Statistical Highlights**: Most important metrics upfront
-- **Insight Synthesis**: Combines findings from all analyses
-- **Prompt-Ready Format**: Optimized for LLM consumption
-- **Actionable Recommendations**: Prioritized next steps
-- **Context Preservation**: Maintains nuance while being concise
-
-**Example Output:**
-```
-════════════════════════════════════════════════════════════
-              LLM-READY CONTEXT
-════════════════════════════════════════════════════════════
-
-DATASET SUMMARY FOR AI ANALYSIS
-────────────────────────────────────────
-
-Dataset: sales_data.csv (10,234 rows × 15 columns)
-
-KEY CHARACTERISTICS:
-• Time Period: 2020-01-01 to 2023-12-31 (4 years)
-• Primary Metrics: revenue ($10-$9,999), quantity (1-100 units)
-• Data Quality: 87.3% (Good, but consistency issues noted)
-• Strong Patterns: Seasonal trends, customer segments
-
-CRITICAL INSIGHTS:
-1. Revenue Distribution: Right-skewed with outliers >$8,000 (2.2%)
-2. Customer Behavior: 80% of revenue from 22% of customers
-3. Temporal Pattern: 35% increase in Q4 vs other quarters
-4. Data Quality: Date format inconsistencies affecting 89 records
-
-RECOMMENDED ANALYSIS FOCUS:
-→ Investigate high-value outlier transactions
-→ Segment analysis on top 22% customers
-→ Seasonal forecasting for Q4 optimization
-→ Data cleaning required before modeling
-```
+This command provides:
+- Everything from `run` (statistics + quality)
+- Everything from `vis` (visualization + engineering)
+- Integrated insights across all dimensions
+- Complete documentation ready for any use case
 
 ## 🎯 Advanced Features
 
 ### Smart File Handling
 ```bash
 # Auto-detect encoding and delimiter
-datapilot all data.csv
+datapilot run data.csv
 
 # Force specific encoding
-datapilot all data.csv --encoding latin1
+datapilot run data.csv --encoding latin1
 
 # Force specific delimiter  
-datapilot all data.csv --delimiter ";"
+datapilot run data.csv --delimiter ";"
 
 # Handle files without headers
-datapilot all data.csv --no-header
+datapilot run data.csv --no-header
 ```
 
 ### Performance Options
@@ -314,7 +201,7 @@ datapilot all data.csv --no-header
 datapilot all large.csv --quick
 
 # Custom timeout for complex analyses
-datapilot eda complex.csv --timeout 120000
+datapilot run complex.csv --timeout 120000
 
 # Force analysis despite warnings
 datapilot all problematic.csv --force
@@ -325,23 +212,8 @@ datapilot all problematic.csv --force
 # Save to file
 datapilot all data.csv --output report.txt
 
-# Append to existing file
-datapilot all data.csv --output report.txt --append
-
 # Quiet mode (no progress indicators)
 datapilot all data.csv --quiet
-```
-
-### Multi-File Analysis
-```bash
-# Analyze multiple files for relationships
-datapilot eng analyze sales.csv customers.csv products.csv
-
-# Use wildcards
-datapilot eng analyze *.csv
-
-# Generate warehouse documentation
-datapilot eng report
 ```
 
 ## 📈 Performance & Scalability
@@ -372,97 +244,82 @@ Native support for Australian formats:
 ### Data Scientists & Analysts
 ```bash
 # Quick profiling before modeling
-datapilot eda train.csv
-datapilot int train.csv  # Check quality issues
+datapilot run train.csv
 
 # Generate insights for stakeholders
-datapilot llm results.csv --output insights.txt
+datapilot all results.csv --output insights.txt
 ```
 
 ### Data Engineers
 ```bash
-# Understand unfamiliar schemas
-datapilot eng analyze legacy_db/*.csv
+# Understand schemas and relationships
+datapilot vis legacy_db.csv
 
-# Document data warehouse
-datapilot eng report --output documentation.md
+# Complete documentation
+datapilot all database_export.csv --output docs.txt
 ```
 
 ### Business Analysts
 ```bash
-# Validate data before reporting
-datapilot int monthly_sales.csv
+# Validate data quality
+datapilot run monthly_sales.csv
 
 # Get visualization recommendations
 datapilot vis kpi_metrics.csv
 ```
 
-### AI/LLM Users
-```bash
-# Create context for ChatGPT/Claude
-datapilot llm dataset.csv | pbcopy  # Mac
-datapilot llm dataset.csv | clip    # Windows
-```
+## 📚 What's Under the Hood?
 
-## 🛠️ Troubleshooting
+While DataPilot presents a simple 3-command interface, it's powered by sophisticated analysis engines:
+
+- **Statistical Engine**: Advanced statistics including distribution tests, correlation analysis, and pattern detection
+- **Quality Engine**: Six-dimensional data quality assessment based on industry standards
+- **Visualization Engine**: Task-based chart selection with perceptual optimization
+- **Engineering Engine**: Schema inference, relationship detection, and architectural insights
+- **AI Formatting Engine**: Structured output optimized for LLM consumption
+
+All these engines work together seamlessly when you run any of the three main commands.
+
+## 🔧 Troubleshooting
 
 ### Common Issues
 
-**"No data found in CSV file"**
-- Check file encoding: `file -I yourfile.csv`
-- Try forcing encoding: `--encoding latin1` or `--encoding utf16le`
-
-**"Parser error: Invalid column definition"**
-- Usually caused by special characters in headers
-- Try `--no-header` flag or clean column names
-
-**"Analysis timeout"**
-- Increase timeout: `--timeout 300000` (5 minutes)
-- Use quick mode: `--quick`
-
-**Windows Path Issues**
-- Use quotes for paths with spaces: `"C:\My Data\file.csv"`
-- Forward slashes also work: `C:/My Data/file.csv`
-
-### Debug Mode
+**Large files taking too long?**
 ```bash
-# Enable verbose output
-datapilot all data.csv --verbose
-
-# Check version
-datapilot --version
-
-# Get help
-datapilot --help
-datapilot eda --help  # Command-specific help
+datapilot all large.csv --quick  # Use sampling
+datapilot run large.csv --timeout 300000  # 5-minute timeout
 ```
 
-## 📚 Documentation
-
-- [Installation Guide](docs/INSTALLATION.md) - Detailed setup instructions
-- [Command Deep Dive](docs/COMMAND_DEEP_DIVE.md) - Advanced usage for each command
-- [API Integration](docs/API.md) - Using DataPilot programmatically
-- [Contributing](CONTRIBUTING.md) - How to contribute to DataPilot
-
-## 🤝 Contributing
-
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
-
+**Encoding problems?**
 ```bash
-# Setup development environment
-git clone https://github.com/yourusername/datapilot.git
-cd datapilot
-npm install
-npm run build
+datapilot run data.csv --encoding latin1
+datapilot run data.csv --encoding utf16le
+```
 
-# Run tests
-npm test
+**Unusual delimiters?**
+```bash
+datapilot run data.csv --delimiter ";"
+datapilot run data.csv --delimiter "|"
+datapilot run data.csv --delimiter "\\t"  # Tab
 ```
 
 ## 📄 License
 
-MIT © DataPilot Contributors
+MIT License - see [LICENSE](LICENSE) file for details.
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## 🙏 Acknowledgments
+
+DataPilot is built with powerful open-source libraries including csv-parse, simple-statistics, chalk, and ora.
 
 ---
 
-**Made with ❤️ by the data community, for the data community**
+**Ready to transform your data into insights?** Install DataPilot today and see what your data has been trying to tell you!
+
+```bash
+npm install -g datapilot
+datapilot all your-data.csv
+```

@@ -148,42 +148,10 @@ program
     await runWithProgress(runAll, filePath, options);
   });
 
-// EDA command
-program
-  .command('eda <file>')
-  .description('Exploratory Data Analysis - comprehensive statistical analysis')
-  .option('-o, --output <path>', 'Save analysis to file')
-  .option('-q, --quick', 'Quick mode - basic statistics only')
-  .option('--no-header', 'CSV file has no header row')
-  .option('--encoding <encoding>', 'Force specific encoding (utf8, latin1, etc.)')
-  .option('--delimiter <delimiter>', 'Force specific delimiter (comma, semicolon, tab, pipe)')
-  .option('--timeout <ms>', 'Set timeout in milliseconds (default: 30000)', '30000')
-  .option('--force', 'Continue analysis despite data quality warnings')
-  .action(async (file, options) => {
-    const filePath = validateFile(file);
-    // Convert timeout to number
-    if (options.timeout) options.timeout = parseInt(options.timeout);
-    await runWithProgress(eda, filePath, options);
-  });
-
-// INT command
-program
-  .command('int <file>')
-  .description('Data Integrity Check - find quality issues and inconsistencies')
-  .option('-o, --output <path>', 'Save analysis to file')
-  .option('--no-header', 'CSV file has no header row')
-  .option('--encoding <encoding>', 'Force specific encoding (utf8, latin1, etc.)')
-  .option('--delimiter <delimiter>', 'Force specific delimiter (comma, semicolon, tab, pipe)')
-  .option('--force', 'Continue analysis despite data quality warnings')
-  .action(async (file, options) => {
-    const filePath = validateFile(file);
-    await runWithProgress(integrity, filePath, options);
-  });
-
-// VIS command
+// VIS command - Business Intelligence Suite
 program
   .command('vis <file>')
-  .description('Visualization Recommendations - what charts would be most insightful')
+  .description('Business Intelligence Suite - visualization insights and data archaeology')
   .option('-o, --output <path>', 'Save analysis to file')
   .option('--no-header', 'CSV file has no header row')
   .option('--encoding <encoding>', 'Force specific encoding (utf8, latin1, etc.)')
@@ -194,8 +162,19 @@ program
     await runWithProgress(visualize, filePath, options);
   });
 
-// ENG command - Data Archaeology System with subcommands
-const eng = program.command('eng');
+// Individual command components are available but not shown in CLI
+// They are now integrated into the main commands:
+// - EDA (Exploratory Data Analysis) → part of 'run' command
+// - INT (Data Integrity Check) → part of 'run' command  
+// - Original VIS → part of new 'vis' command
+// - ENG (Data Engineering) → part of new 'vis' command
+// - LLM formatting → integrated into 'run' command
+
+// Advanced data archaeology features (integrated into 'vis' command)
+// The following subcommands are preserved for power users:
+
+// ENG command - hidden from main help but still functional
+const eng = program.command('eng', { hidden: true });
 eng.description('Data Engineering Archaeology - builds collective intelligence about your warehouse');
 
 // Default action for single file (backward compatible)
@@ -344,9 +323,41 @@ eng
     await engineering(null, { showMap: true });
   });
 
-// LLM command
+// Hidden individual commands for backward compatibility
+// EDA command - now part of 'run'
 program
-  .command('llm <file>')
+  .command('eda <file>', { hidden: true })
+  .description('Exploratory Data Analysis - comprehensive statistical analysis')
+  .option('-o, --output <path>', 'Save analysis to file')
+  .option('-q, --quick', 'Quick mode - basic statistics only')
+  .option('--no-header', 'CSV file has no header row')
+  .option('--encoding <encoding>', 'Force specific encoding (utf8, latin1, etc.)')
+  .option('--delimiter <delimiter>', 'Force specific delimiter (comma, semicolon, tab, pipe)')
+  .option('--timeout <ms>', 'Set timeout in milliseconds (default: 30000)', '30000')
+  .option('--force', 'Continue analysis despite data quality warnings')
+  .action(async (file, options) => {
+    const filePath = validateFile(file);
+    if (options.timeout) options.timeout = parseInt(options.timeout);
+    await runWithProgress(eda, filePath, options);
+  });
+
+// INT command - now part of 'run'
+program
+  .command('int <file>', { hidden: true })
+  .description('Data Integrity Check - find quality issues and inconsistencies')
+  .option('-o, --output <path>', 'Save analysis to file')
+  .option('--no-header', 'CSV file has no header row')
+  .option('--encoding <encoding>', 'Force specific encoding (utf8, latin1, etc.)')
+  .option('--delimiter <delimiter>', 'Force specific delimiter (comma, semicolon, tab, pipe)')
+  .option('--force', 'Continue analysis despite data quality warnings')
+  .action(async (file, options) => {
+    const filePath = validateFile(file);
+    await runWithProgress(integrity, filePath, options);
+  });
+
+// LLM command - now integrated into 'run'
+program
+  .command('llm <file>', { hidden: true })
   .description('LLM Context Generation - perfect summary for AI analysis')
   .option('-o, --output <path>', 'Save analysis to file')
   .option('--no-header', 'CSV file has no header row')
@@ -357,9 +368,7 @@ program
   .option('--comprehensive <bool>', 'Use comprehensive analysis (default: true)', 'true')
   .action(async (file, options) => {
     const filePath = validateFile(file);
-    // Convert timeout to number
     if (options.timeout) options.timeout = parseInt(options.timeout);
-    // Convert comprehensive to boolean
     if (options.comprehensive) options.comprehensive = options.comprehensive === 'true';
     await runWithProgress(llmContext, filePath, options);
   });
@@ -370,28 +379,27 @@ program
 program.on('--help', () => {
   console.log('');
   console.log(chalk.cyan('Examples:'));
-  console.log('  $ datapilot all data.csv                    # Run complete analysis');
+  console.log('  $ datapilot run data.csv                    # Comprehensive analysis (stats + quality)');
+  console.log('  $ datapilot vis data.csv                    # Business intelligence (charts + engineering)');
+  console.log('  $ datapilot all data.csv                    # Complete suite (everything)');
   console.log('  $ datapilot all "C:\\My Data\\sales.csv"      # Path with spaces (use quotes)');
-  console.log('  $ datapilot all data.csv -o analysis.txt    # Save to file');
-  console.log('  $ datapilot all data.csv --quick            # Quick mode');
-  console.log('  $ datapilot eda sales.csv --encoding latin1 # Force encoding');
-  console.log('  $ datapilot int data.csv --delimiter ";"    # Force delimiter');
+  console.log('  $ datapilot run data.csv -o report.txt      # Save to file');
+  console.log('  $ datapilot vis sales.csv --encoding latin1 # Force encoding');
+  console.log('  $ datapilot all data.csv --delimiter ";"    # Force delimiter');
   console.log('');
-  console.log(chalk.cyan('Data Archaeology Workflow:'));
-  console.log('  1. Analyze all tables: datapilot eng analyze *.csv');
-  console.log('  2. Copy LLM prompts and get insights from your AI');
-  console.log('  3. Save insights: datapilot eng save <table> "<insights>"');
-  console.log('  4. Generate report: datapilot eng report');
-  console.log('');
+  console.log(chalk.gray('What\'s included in each command:'));
+  console.log(chalk.gray('  • run: Statistical analysis (EDA) + Quality checks (INT) + AI-ready output'));
+  console.log(chalk.gray('  • vis: Chart recommendations + Data engineering insights'));
+  console.log(chalk.gray('  • all: Everything above in one comprehensive report'));
   console.log(chalk.cyan('Common Options:'));
   console.log('  -o, --output <path>      Save analysis to file');
   console.log('  -q, --quick              Quick mode - skip detailed analyses');
   console.log('  --no-header              CSV has no header row');
   console.log('  --encoding <type>        Force encoding (utf8, latin1, utf16le)');
   console.log('  --delimiter <char>       Force delimiter (comma, semicolon, tab, pipe)');
-  console.log('  --timeout <ms>           Set timeout in milliseconds (default: 30s for EDA, 60s for LLM)');
+  console.log('  --timeout <ms>           Set timeout in milliseconds (default: 60s)');
   console.log('  --force                  Continue analysis despite data quality warnings');
-  console.log('  --comprehensive          Use comprehensive analysis for LLM mode (default: true)');
+  console.log('  --comprehensive          Use comprehensive analysis (default: true)');
   console.log('');
   console.log(chalk.cyan('Troubleshooting:'));
   console.log('  • For paths with spaces, use quotes: "C:\\My Folder\\data.csv"');

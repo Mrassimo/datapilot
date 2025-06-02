@@ -76,9 +76,17 @@ export function createSamplingStrategy(records, analysisType) {
       if (totalRows > thresholds.streaming) {
         strategy = {
           method: 'reservoir',
-          sampleSize: 100000,
-          samplingRate: 100000 / totalRows,
+          sampleSize: 20000,  // Reduced for performance
+          samplingRate: 20000 / totalRows,
           useStreaming: true,
+          stratify: false
+        };
+      } else if (totalRows > thresholds.lightSampling) {
+        strategy = {
+          method: 'random',
+          sampleSize: Math.min(15000, Math.ceil(totalRows * 0.15)),
+          samplingRate: 15000 / totalRows,
+          useStreaming: false,
           stratify: false
         };
       }

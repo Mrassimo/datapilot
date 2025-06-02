@@ -121,11 +121,11 @@ function generateCombinedReport(fileName, recordCount, edaResults, intResults) {
   // Six dimensions
   if (dimensions.completeness) {
     report += chalk.cyan('📊 Quality Dimensions:\n');
-    report += `   • Completeness: ${formatPercentage(dimensions.completeness.score)} ${dimensions.completeness.score > 0.9 ? '✅' : '⚠️'}\n`;
-    report += `   • Validity: ${formatPercentage(dimensions.validity?.score || 0)} ${dimensions.validity?.score > 0.9 ? '✅' : '⚠️'}\n`;
-    report += `   • Accuracy: ${formatPercentage(dimensions.accuracy?.score || 0)} ${dimensions.accuracy?.score > 0.9 ? '✅' : '⚠️'}\n`;
-    report += `   • Consistency: ${formatPercentage(dimensions.consistency?.score || 0)} ${dimensions.consistency?.score > 0.9 ? '✅' : '⚠️'}\n`;
-    report += `   • Uniqueness: ${formatPercentage(dimensions.uniqueness?.score || 0)} ${dimensions.uniqueness?.score > 0.9 ? '✅' : '⚠️'}\n`;
+    report += `   • Completeness: ${formatPercentage(dimensions.completeness.score / 100)} ${dimensions.completeness.score > 90 ? '✅' : '⚠️'}\n`;
+    report += `   • Validity: ${formatPercentage((dimensions.validity?.score || 0) / 100)} ${(dimensions.validity?.score || 0) > 90 ? '✅' : '⚠️'}\n`;
+    report += `   • Accuracy: ${formatPercentage((dimensions.accuracy?.score || 0) / 100)} ${(dimensions.accuracy?.score || 0) > 90 ? '✅' : '⚠️'}\n`;
+    report += `   • Consistency: ${formatPercentage((dimensions.consistency?.score || 0) / 100)} ${(dimensions.consistency?.score || 0) > 90 ? '✅' : '⚠️'}\n`;
+    report += `   • Uniqueness: ${formatPercentage((dimensions.uniqueness?.score || 0) / 100)} ${(dimensions.uniqueness?.score || 0) > 90 ? '✅' : '⚠️'}\n`;
     report += `   • Timeliness: ${dimensions.timeliness?.status || 'Unknown'}\n`;
   }
   report += '\n';
@@ -156,7 +156,7 @@ function generateCombinedReport(fileName, recordCount, edaResults, intResults) {
       report += chalk.cyan('📈 Numeric Column Summary:\n');
       numericCols.slice(0, 5).forEach(col => {
         if (col.stats && !col.stats.error) {
-          report += `   ${col.name}: mean=${formatNumber(col.stats.mean)}, std=${formatNumber(col.stats.std)}\n`;
+          report += `   ${col.name}: mean=${formatNumber(col.stats.mean)}, std=${formatNumber(col.stats.standardDeviation)}\n`;
         }
       });
       report += '\n';
@@ -214,7 +214,11 @@ function generateCombinedReport(fileName, recordCount, edaResults, intResults) {
   // ML Readiness
   if (structuredEDA.mlReadiness) {
     report += chalk.cyan('🤖 Machine Learning Readiness:\n');
-    report += `   • Overall Score: ${(structuredEDA.mlReadiness.overallScore * 100).toFixed(0)}%\n`;
+    // Ensure score is between 0-100 and handle both decimal and percentage formats
+    const mlScore = structuredEDA.mlReadiness.overallScore > 1 
+      ? Math.min(structuredEDA.mlReadiness.overallScore, 100) 
+      : (structuredEDA.mlReadiness.overallScore * 100);
+    report += `   • Overall Score: ${mlScore.toFixed(0)}%\n`;
     if (structuredEDA.mlReadiness.majorIssues && structuredEDA.mlReadiness.majorIssues.length > 0) {
       report += `   • Major Issues: ${structuredEDA.mlReadiness.majorIssues.join(', ')}\n`;
     }

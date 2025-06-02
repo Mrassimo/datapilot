@@ -67,6 +67,10 @@ export async function edaComprehensive(filePath, options = {}) {
   
   async function performAnalysis() {
     try {
+      // Performance timing for detailed analysis
+      const timingLog = [];
+      const startTime = Date.now();
+      
       // Use preloaded data if available
       let records, columnTypes;
       if (options.preloadedData) {
@@ -75,8 +79,10 @@ export async function edaComprehensive(filePath, options = {}) {
       } else {
         // Parse CSV with enhanced error handling
         if (spinner) spinner.text = 'Reading CSV file...';
+        const parseStart = Date.now();
         try {
           records = await parseCSV(filePath, { quiet: options.quiet, header: options.header });
+          timingLog.push(`CSV parsing: ${Date.now() - parseStart}ms`);
         } catch (parseError) {
           throw new Error(`CSV parsing failed: ${parseError.message}`);
         }
@@ -90,7 +96,7 @@ export async function edaComprehensive(filePath, options = {}) {
         const typeStart = Date.now();
         try {
           columnTypes = detectColumnTypes(records);
-          console.log(`Column type detection took ${Date.now() - typeStart}ms`);
+          timingLog.push(`Column type detection: ${Date.now() - typeStart}ms`);
         } catch (typeError) {
           throw new Error(`Column type detection failed: ${typeError.message}`);
         }
@@ -103,6 +109,7 @@ export async function edaComprehensive(filePath, options = {}) {
       
       // Handle large datasets with user notification
       const originalRecordCount = records.length;
+      const samplingStart = Date.now();
       if (records.length > 10000) {
         console.log(chalk.yellow(`\n⚠️  Large dataset detected: ${records.length.toLocaleString()} rows`));
         
@@ -122,6 +129,7 @@ export async function edaComprehensive(filePath, options = {}) {
           if (spinner) spinner.text = `Processing ${records.length.toLocaleString()} rows (this may take a moment)...`;
         }
       }
+      timingLog.push(`Sampling: ${Date.now() - samplingStart}ms`);
       
       // Handle empty dataset
       if (records.length === 0) {
@@ -146,9 +154,10 @@ export async function edaComprehensive(filePath, options = {}) {
       
       // Detect what analyses to run with timeout protection
       if (spinner) spinner.text = 'Detecting analysis requirements...';
-      
+      const analysisStart = Date.now();
       
       const analysisNeeds = detectAnalysisNeeds(records, columnTypes);
+      timingLog.push(`Analysis detection: ${Date.now() - analysisStart}ms`);
       
       // For very large datasets, disable expensive analyses
       if (records.length > 10000) {
@@ -179,6 +188,7 @@ export async function edaComprehensive(filePath, options = {}) {
       
       // Basic column analysis with enhanced stats and timeout protection
       if (spinner) spinner.text = 'Calculating enhanced statistics...';
+      const statsStart = Date.now();
       
       const columnAnalyses = {};
       let totalNonNull = 0;
@@ -266,7 +276,7 @@ export async function edaComprehensive(filePath, options = {}) {
           // Continue with next column
         }
       }
-      
+      timingLog.push(`Column statistics: ${Date.now() - statsStart}ms`);
       
       analysis.completeness = totalNonNull / (records.length * columns.length);
       analysis.completenessLevel = analysis.completeness > 0.9 ? 'good' : 
@@ -274,6 +284,7 @@ export async function edaComprehensive(filePath, options = {}) {
       
       
       // Count duplicates with timeout protection
+      const duplicateStart = Date.now();
       try {
         if (spinner) spinner.text = 'Checking for duplicates...';
         const duplicatePromise = Promise.resolve((() => {
@@ -294,13 +305,16 @@ export async function edaComprehensive(filePath, options = {}) {
         });
         
         analysis.duplicateCount = await Promise.race([duplicatePromise, duplicateTimeout]);
+        timingLog.push(`Duplicate check: ${Date.now() - duplicateStart}ms`);
       } catch (dupError) {
         console.log(chalk.yellow(`⚠️  Skipping duplicate check: ${dupError.message}`));
         analysis.duplicateCount = 0;
+        timingLog.push(`Duplicate check (failed): ${Date.now() - duplicateStart}ms`);
       }
       
       // Distribution analysis
       if (analysisNeeds.distributionTesting) {
+        const distStart = Date.now();
         if (spinner) spinner.text = 'Analyzing distributions...';
         analysis.distributionAnalysis = {};
         
@@ -317,10 +331,12 @@ export async function edaComprehensive(filePath, options = {}) {
             throw distError;
           }
         }
+        timingLog.push(`Distribution analysis: ${Date.now() - distStart}ms`);
       }
       
       // Outlier analysis
       if (analysisNeeds.outlierAnalysis) {
+        const outlierStart = Date.now();
         if (spinner) spinner.text = 'Detecting outliers...';
         analysis.outlierAnalysis = {};
         
@@ -345,6 +361,7 @@ export async function edaComprehensive(filePath, options = {}) {
         }
         
         analysis.outlierRate = totalOutliers / (records.length * numericColumns.length);
+        timingLog.push(`Outlier analysis: ${Date.now() - outlierStart}ms`);
       }
       
       // CART analysis (skip for large datasets)
@@ -361,9 +378,11 @@ export async function edaComprehensive(filePath, options = {}) {
               columnTypes, 
               targets[0].column
             );
+          } else {
+            analysis.cartAnalysis = { applicable: false, reason: 'No suitable target variables found' };
           }
         } catch (cartError) {
-          throw cartError;
+          analysis.cartAnalysis = { applicable: false, reason: `Error: ${cartError.message}` };
         }
       } else if (analysisNeeds.cart) {
         analysis.cartAnalysis = { skipped: true, reason: 'Dataset too large' };
@@ -538,6 +557,18 @@ export async function edaComprehensive(filePath, options = {}) {
         } catch (structuredError) {
           throw structuredError;
         }
+      }
+      
+      // Output timing analysis for debugging
+      timingLog.push(`Total analysis time: ${Date.now() - startTime}ms`);
+      
+      // Show timing breakdown for large datasets or debug mode
+      if (records.length > 50000 || options.debug) {
+        console.log(chalk.cyan('\n⏱️  Performance Timing Breakdown:'));
+        timingLog.forEach((timing, idx) => {
+          console.log(chalk.gray(`   ${idx + 1}. ${timing}`));
+        });
+        console.log(''); // Add spacing
       }
       
       // Format and output report

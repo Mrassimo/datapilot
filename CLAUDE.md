@@ -19,13 +19,18 @@ node tests/run_tests.js
 npm install -g datapilot
 ```
 
-### Available CLI Commands
-- `all` - Complete analysis suite (runs all commands)
-- `eda` - Exploratory Data Analysis with statistics
-- `int` - Data Integrity Check
-- `vis` - Visualization Recommendations
-- `eng` - Data Engineering Archaeology (persistent learning)
-- `llm` - LLM Context Generation
+### Available CLI Commands (3-Command Structure)
+- `run` - Comprehensive analysis (combines EDA + INT + LLM formatting)
+- `vis` - Business Intelligence Suite (combines visualization + data engineering)
+- `all` - Complete analysis suite (runs both run + vis)
+
+### Component Commands (Internal)
+The following commands are integrated into the main commands above:
+- `eda` - Exploratory Data Analysis → integrated into `run`
+- `int` - Data Integrity Check → integrated into `run`
+- `llm` - LLM Context Generation → integrated into `run`
+- `eng` - Data Engineering Archaeology → integrated into `vis`
+- Original `vis` - Visualization Recommendations → integrated into new `vis`
 
 ## Architecture
 
@@ -34,13 +39,40 @@ npm install -g datapilot
 - **Entry Point**: `bin/datapilot.js` - Commander.js CLI setup
 - **Commands**: `/src/commands/` - Each command is a separate module exporting an async function
 - **Utilities**: `/src/utils/` - Shared functionality (parser, stats, format, output, knowledgeBase)
+- **Analysis Engines**: `/src/analysis/` - Shared analysis engines (edaEngine, qualityEngine, visualEngine)
 - **Tests**: Custom test framework in `/tests/run_tests.js` - no external testing library
+
+### Command Integration Architecture
+
+The 3-command structure integrates multiple analysis components:
+
+1. **`run` Command** integrates:
+   - EDA analysis (via edaComprehensive from eda/index.js)
+   - INT analysis (via comprehensiveIntegrityAnalysis from int/index.js)
+   - LLM-optimized formatting (inline formatting)
+   - Shared data parsing and column type detection
+
+2. **`vis` Command** integrates:
+   - Visualization analysis (via visualize from vis/index.js)
+   - Engineering analysis (via engineering from eng.js)
+   - Knowledge base persistence (via KnowledgeBase utility)
+
+3. **`all` Command**:
+   - Sequentially runs `run` then `vis`
+   - Shares parsed data between commands for efficiency
+   - Provides comprehensive output with both analyses
 
 ### Key Architectural Patterns
 
-1. **Command Pattern**: Each command exports an async function that receives parsed data and options:
+1. **Command Pattern**: Each command exports an async function:
 ```javascript
-export async function commandName(data, headers, filePath, options) {
+// Main commands (run.js, vis.js)
+export async function commandName(filePath, options) {
+  // Implementation
+}
+
+// Component commands (still available internally)
+export async function componentCommand(filePath, options) {
   // Implementation
 }
 ```
