@@ -303,6 +303,37 @@ datapilot run data.csv --delimiter "|"
 datapilot run data.csv --delimiter "\\t"  # Tab
 ```
 
+## 📁 Repository Structure
+
+```
+datapilot/
+├── bin/                    # CLI entry point
+├── src/                    # Source code
+│   ├── commands/          # Command implementations (eda, int, vis, eng, llm)
+│   └── utils/             # Shared utilities
+├── docs/                   # Documentation
+│   ├── examples/          # Sample outputs from DataPilot
+│   ├── planning/          # Business strategy documents
+│   ├── QUICK-START.md     # Getting started guide
+│   ├── INSTALLATION.md    # Installation instructions
+│   └── ...               # Additional documentation
+├── tests/                 # Test suite
+│   ├── fixtures/          # Test datasets
+│   ├── unit/             # Unit tests
+│   └── benchmarks/       # Performance tests
+├── data/                  # Sample datasets
+│   └── samples/          # Real-world example datasets
+└── scripts/              # Build and installation scripts
+```
+
+### Key Directories
+
+- **`docs/examples/`** - Contains sample outputs from DataPilot commands showing what to expect
+- **`docs/planning/`** - Business strategy and evaluation documents  
+- **`data/samples/`** - Sample datasets for testing and demonstration
+- **`tests/fixtures/`** - Curated test datasets for comprehensive testing
+- **`src/commands/`** - Implementation of each DataPilot command (eda, int, vis, eng, llm)
+
 ## 📄 License
 
 MIT License - see [LICENSE](LICENSE) file for details.

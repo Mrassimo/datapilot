@@ -1,0 +1,47 @@
+📊 Parsing CSV: /Users/massimoraso/Code/jseda/datapilot/tests/fixtures/iris.csv
+📏 File size: 0.00MB
+🔤 Detected encoding: utf8
+📋 Detected delimiter: ,
+✅ Successfully parsed with utf8 encoding
+📊 Records: 150
+📋 Columns: 5
+🤖 Running automated intelligence...
+📊 EXECUTIVE SUMMARY
+===================
+Dataset: iris.csv • 150 records • 2025-06-01 12:27:46
+
+🎯 KEY FINDING
+--------------
+Very strong correlation between petal length and petal width (r=0.963)
+
+💼 BUSINESS IMPACT
+------------------
+Strong relationship between petal length and petal width - investigate for business value
+Confidence Level: High
+
+📈 ADDITIONAL INSIGHTS
+----------------------
+2. Very strong correlation between sepal length and petal length (r=0.872)
+   Impact: Strong relationship between sepal length and petal length - investigate for business value
+
+3. Very strong correlation between sepal length and petal width (r=0.818)
+   Impact: Strong relationship between sepal length and petal width - investigate for business value
+
+💡 IMMEDIATE ACTIONS
+-------------------
+1. Leverage petal_length/petal_width relationship for predictive optimization
+2. Leverage sepal_length/petal_length relationship for predictive optimization
+
+📋 DATA RELIABILITY
+-------------------
+Data Quality: Excellent
+Sample Size: Reliable for analysis
+Analysis Confidence: High
+
+🏛️ DATA ARCHITECTURE INTELLIGENCE
+-----------------------------------
+For warehouse analysis and table relationships:
+• Multi-table analysis: datapilot eng analyze *.csv
+• Architecture report: datapilot eng report
+• Relationship map: datapilot eng map
+

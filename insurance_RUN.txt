@@ -1,7 +1,0 @@
-📊 Parsing CSV: /Users/massimoraso/Code/jseda/datapilot/tests/fixtures/insurance.csv
-📏 File size: 0.05MB
-🔤 Detected encoding: utf8
-📋 Detected delimiter: ,
-✅ Successfully parsed with utf8 encoding
-📊 Records: 1,338
-📋 Columns: 7
