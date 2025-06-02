@@ -2,10 +2,20 @@ export function detectBusinessRules(data, headers, columnTypes) {
   const rules = [];
   
   headers.forEach((header, colIndex) => {
-    const columnData = data.map(row => row[colIndex]);
-    const type = columnTypes[header];
+    // Handle both array and object data formats
+    const columnData = data.map(row => {
+      // If row is an array, use index
+      if (Array.isArray(row)) {
+        return row[colIndex];
+      }
+      // If row is an object, use header name
+      return row[header];
+    });
+    const type = columnTypes[header]?.type || columnTypes[header];
 
-    if (type === 'numeric') {
+    // Check if it's a numeric type (integer or float)
+    const isNumeric = type === 'numeric' || type === 'integer' || type === 'float';
+    if (isNumeric) {
       const numericRules = detectNumericRules(columnData, header, data, headers, colIndex);
       rules.push(...numericRules);
     }
@@ -39,6 +49,7 @@ function detectNumericRules(values, fieldName, allData, allHeaders, colIndex) {
   const max = Math.max(...numericValues);
   const mean = numericValues.reduce((a, b) => a + b, 0) / numericValues.length;
 
+<<<<<<< Updated upstream
   if (min >= 0 && max <= 150 && fieldName.toLowerCase().includes('age')) {
     const violations = numericValues.filter(v => v < 0 || v > 120);
     const confidence = ((numericValues.length - violations.length) / numericValues.length) * 100;
@@ -58,6 +69,36 @@ function detectNumericRules(values, fieldName, allData, allHeaders, colIndex) {
   }
 
   if (min >= 0 && fieldName.toLowerCase().match(/price|amount|cost|revenue|total/)) {
+=======
+  // Age constraints - detect actual range in data
+  if (fieldName.toLowerCase().includes('age')) {
+    // Check if all values fall within a reasonable age range
+    if (min >= 0 && max <= 150) {
+      const violations = numericValues.filter(v => v < min || v > max);
+      const confidence = ((numericValues.length - violations.length) / numericValues.length) * 100;
+      
+      if (confidence >= 95) {
+        // Use actual min/max from data if they make sense
+        const lowerBound = min >= 18 ? Math.floor(min) : 0;
+        const upperBound = max <= 120 ? Math.ceil(max) : 120;
+        
+        rules.push({
+          type: 'RANGE_CONSTRAINT',
+          field: fieldName,
+          rule: `${fieldName} BETWEEN ${lowerBound} AND ${upperBound}`,
+          confidence: confidence,
+          violations: violations.length,
+          examples: violations.slice(0, 3),
+          sql: `CHECK (${fieldName} >= ${lowerBound} AND ${fieldName} <= ${upperBound})`,
+          description: `Age must be between ${lowerBound} and ${upperBound} years`
+        });
+      }
+    }
+  }
+
+  // Non-negative constraints for monetary and count fields
+  if (min >= 0 && fieldName.toLowerCase().match(/price|amount|cost|revenue|total|charge|fee|payment/)) {
+>>>>>>> Stashed changes
     const violations = numericValues.filter(v => v < 0);
     const confidence = ((numericValues.length - violations.length) / numericValues.length) * 100;
     
@@ -111,6 +152,7 @@ function detectConstraintRules(values, fieldName) {
     });
   }
 
+<<<<<<< Updated upstream
   const lengthCounts = {};
   nonNullValues.forEach(value => {
     const length = String(value).length;
@@ -134,6 +176,38 @@ function detectConstraintRules(values, fieldName) {
       sql: `CHECK (LENGTH(${fieldName}) = ${expectedLength})`,
       description: `Field has fixed length of ${expectedLength} characters`
     });
+=======
+  // Only check length constraints for string fields that likely have fixed formats
+  // Don't apply to numeric fields or general text fields
+  const isLikelyFixedFormat = fieldName.toLowerCase().match(/code|reference|id|sku|isbn|serial/);
+  const hasNumericValues = nonNullValues.some(v => !isNaN(parseFloat(v)));
+  
+  if (isLikelyFixedFormat && !hasNumericValues) {
+    const lengthCounts = {};
+    nonNullValues.forEach(value => {
+      const length = String(value).length;
+      lengthCounts[length] = (lengthCounts[length] || 0) + 1;
+    });
+
+    const dominantLength = Object.entries(lengthCounts)
+      .sort((a, b) => b[1] - a[1])[0];
+    
+    if (dominantLength && dominantLength[1] / nonNullValues.length > 0.95) {
+      const expectedLength = parseInt(dominantLength[0]);
+      const violations = nonNullValues.filter(v => String(v).length !== expectedLength);
+      
+      rules.push({
+        type: 'LENGTH_CONSTRAINT',
+        field: fieldName,
+        rule: `LENGTH(${fieldName}) = ${expectedLength}`,
+        confidence: (dominantLength[1] / nonNullValues.length) * 100,
+        violations: violations.length,
+        examples: violations.slice(0, 3),
+        sql: `CHECK (LENGTH(${fieldName}) = ${expectedLength})`,
+        description: `Field has fixed length of ${expectedLength} characters`
+      });
+    }
+>>>>>>> Stashed changes
   }
 
   const patternMatches = detectPatternConstraint(nonNullValues, fieldName);
@@ -224,8 +298,14 @@ function analyseConditionalPatterns(data, conditionCol, targetCol, conditionHead
   const conditionalValues = {};
   
   data.forEach(row => {
+<<<<<<< Updated upstream
     const condition = row[conditionCol];
     const target = row[targetCol];
+=======
+    // Handle both array and object data formats
+    const condition = Array.isArray(row) ? row[conditionCol] : row[conditionHeader];
+    const target = Array.isArray(row) ? row[targetCol] : row[targetHeader];
+>>>>>>> Stashed changes
     
     if (condition !== null && condition !== '' && target !== null && target !== '') {
       if (!conditionalValues[condition]) {
@@ -243,6 +323,19 @@ function analyseConditionalPatterns(data, conditionCol, targetCol, conditionHead
       const percentage = (count / totalCount) * 100;
       
       if (percentage >= 95 && totalCount >= 10) {
+<<<<<<< Updated upstream
+=======
+        // Skip nonsensical rules about 'undefined' values
+        if (conditionValue === 'undefined' || targetValue === 'undefined') {
+          return;
+        }
+        
+        // Skip trivial rules where condition and target are the same
+        if (conditionHeader === targetHeader && conditionValue === targetValue) {
+          return;
+        }
+        
+>>>>>>> Stashed changes
         patterns.push({
           type: 'CONDITIONAL_CONSTRAINT',
           field: targetHeader,
@@ -296,11 +389,20 @@ function detectDerivedFieldRules(data, headers, columnTypes) {
       let totalCount = 0;
 
       data.forEach(row => {
+<<<<<<< Updated upstream
         const targetValue = parseFloat(row[colIndex]);
         if (isNaN(targetValue)) return;
 
         const sum = components.reduce((acc, compIndex) => {
           const val = parseFloat(row[compIndex]);
+=======
+        // Handle both array and object data formats
+        const targetValue = parseFloat(Array.isArray(row) ? row[colIndex] : row[header]);
+        if (isNaN(targetValue)) return;
+
+        const sum = components.reduce((acc, compIndex) => {
+          const val = parseFloat(Array.isArray(row) ? row[compIndex] : row[headers[compIndex]]);
+>>>>>>> Stashed changes
           return acc + (isNaN(val) ? 0 : val);
         }, 0);
 
@@ -438,8 +540,15 @@ function detectRelationshipRules(data, headers) {
       .replace('_id', '')
       .replace('id_', '');
     
+<<<<<<< Updated upstream
     const values = data.map(row => row[idCol.index])
       .filter(v => v !== null && v !== '');
+=======
+    const values = data.map(row => {
+      // Handle both array and object data formats
+      return Array.isArray(row) ? row[idCol.index] : row[idCol.header];
+    }).filter(v => v !== null && v !== '');
+>>>>>>> Stashed changes
     
     const uniqueValues = [...new Set(values)];
     const cardinality = uniqueValues.length / values.length;

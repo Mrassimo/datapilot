@@ -225,6 +225,26 @@ export async function edaComprehensive(filePath, options = {}) {
               columnAnalysis.stats = { error: 'Calculation timeout' };
               analysis.numericColumnCount++;
             }
+          } else if (type.type === 'boolean' && values.length > 0) {
+            // Treat boolean columns as categorical for better insights
+            // Especially for columns like smoker (yes/no) which are more meaningful as categories
+            columnAnalysis.type = 'categorical'; // Override type for display
+            try {
+              // Convert boolean values back to meaningful labels if possible
+              const categoricalValues = values.map(v => {
+                if (column.toLowerCase().includes('smoker')) {
+                  return v === true ? 'yes' : 'no';
+                } else {
+                  return v ? 'true' : 'false';
+                }
+              });
+              columnAnalysis.stats = calculateCategoricalStats(categoricalValues);
+              analysis.categoricalColumnCount++;
+            } catch (catError) {
+              console.log(chalk.yellow(`⚠️  Skipping categorical stats for boolean column ${column}: ${catError.message}`));
+              columnAnalysis.stats = { error: 'Calculation failed' };
+              analysis.categoricalColumnCount++;
+            }
           } else if (type.type === 'categorical' && values.length > 0) {
             try {
               columnAnalysis.stats = calculateCategoricalStats(values);
