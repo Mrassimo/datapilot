@@ -269,7 +269,7 @@ export async function visualize(filePath, options = {}) {
     
     report += '━━━ COMPUTATIONAL SUMMARY ━━━\n';
     report += `Dataset: ${fileName} | Rows: ${formatNumber(records.length)} | Columns: ${Object.keys(columnTypes).length}\n`;
-    report += `Processing Time: ${processingTime.toFixed(2)}s | Visualizations Analyzed: ${visualizationPlans.length} | Advanced Charts: ${advancedVisualizations.length}\n`;
+    report += `Processing Time: ${(processingTime || 0).toFixed(2)}s | Visualizations Analyzed: ${visualizationPlans.length} | Advanced Charts: ${advancedVisualizations.length}\n`;
     report += `Perceptual Tests: 29 | Chart Types Available: ${visualizationPlans.length + advancedVisualizations.length}\n`;
     report += `Framework: Cleveland-McGill + Bertin + Tufte Principles | Generated: ${formatTimestamp()}\n\n`;
     
@@ -709,7 +709,7 @@ function generateVisualizationAIPrompts(visualizationPlans, dataProfile, fileNam
   // Missing data prompts
   const completeness = dataProfile.density.overall * 100;
   if (completeness < 95) {
-    prompts.push(`Data completeness is ${completeness.toFixed(1)}%. What data collection or business processes could explain these missing values?`);
+    prompts.push(`Data completeness is ${(completeness || 0).toFixed(1)}%. What data collection or business processes could explain these missing values?`);
   }
   
   // General domain prompt

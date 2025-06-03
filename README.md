@@ -1,338 +1,356 @@
-# 🛩️ DataPilot CLI
+# 🤖 DataPilot 2.0 - AI-Companion Statistical Engine
 
-**Professional CSV analysis CLI. Transform data into insights in seconds.**
+**Pure statistical computation optimized for AI interpretation. "DataPilot does the math, AI does the meaning"**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js](https://img.shields.io/badge/Node.js-14+-green.svg)](https://nodejs.org/)
 [![npm](https://img.shields.io/npm/v/datapilot.svg)](https://www.npmjs.com/package/datapilot)
-[![Tests](https://img.shields.io/badge/Tests-Passing-brightgreen.svg)](#)
+[![Version](https://img.shields.io/badge/Version-2.0.0-blue.svg)](#)
 
-## What is DataPilot?
+## What is DataPilot 2.0?
 
-DataPilot is a powerful command-line tool that performs comprehensive analysis on CSV files in seconds. It's designed for data professionals who need quick, thorough insights without writing code or loading data into complex tools.
+DataPilot 2.0 is a revolutionary **AI-companion statistical computation engine** that processes CSV data and outputs pure mathematical facts optimized for AI interpretation. Instead of making domain assumptions, DataPilot focuses on comprehensive statistical analysis while letting AI assistants provide the contextual meaning.
 
-**✨ Key Benefits:**
-- 🚀 **Instant Analysis**: Get statistical summaries, quality checks, and visualization recommendations in one command
-- 🧠 **AI-Ready Output**: All results formatted for easy copy-paste into ChatGPT, Claude, or any LLM
-- 📊 **Smart 3-Command Structure**: Simple yet powerful - run, vis, or all
-- 🎯 **Smart & Fast**: Handles massive files with intelligent sampling and streaming
-- 🔧 **Zero Configuration**: Works out-of-the-box with auto-detection of formats, encodings, and delimiters
-- 💪 **Production Ready**: Battle-tested on real-world datasets with robust error handling
+**🔄 The New Paradigm:**
+- **DataPilot**: Executes 60+ statistical tests, analyzes 29 chart types, processes distributions, correlations, and quality metrics
+- **AI Assistant**: Interprets statistical facts within domain context, provides business insights, recommends actions
+
+**✨ Key Features:**
+- 🧮 **Statistical Powerhouse**: 60+ automated tests, distribution analysis, correlation matrices
+- 🎨 **Advanced Visualization**: 29 specialized chart types with Cleveland-McGill perceptual rankings  
+- 🤖 **AI-Optimized Output**: Pure statistical facts without domain assumptions
+- ⚡ **High Performance**: Handles 50K+ rows with intelligent sampling
+- 🔧 **Zero Configuration**: Auto-detects formats, encodings, delimiters
+- 💻 **Cross-Platform**: Works offline on Windows, macOS, Linux
 
 ## Installation
 
-### Global Install (Recommended)
+### 🌍 Global Install (Recommended)
 ```bash
 npm install -g datapilot
 ```
 
-### Via npx (No Install Required)
+### 🚀 Quick Test (No Install)
 ```bash
-npx datapilot all data.csv
+npx datapilot run https://raw.githubusercontent.com/mwaskom/seaborn-data/master/iris.csv
 ```
 
-### Local/Offline Install
+### 🔒 Offline/Enterprise Install
 ```bash
-# Clone the repository
-git clone https://github.com/yourusername/datapilot.git
+# Download and install offline
+git clone https://github.com/Mrassimo/datapilot.git
 cd datapilot
-
-# Install dependencies and build
 npm install
 npm run build
 
-# Link globally
+# Link globally for system-wide access
 npm link
+
+# Windows: Run additional setup
+scripts\install\install_windows.bat
 ```
 
-## Quick Start
+## 🎯 The 3-Command AI-Companion Structure
 
-```bash
-# Complete analysis - everything in one go
-datapilot all data.csv
-
-# Comprehensive analysis - statistics and quality checks
-datapilot run data.csv
-
-# Business intelligence - visualization and data engineering insights
-datapilot vis data.csv
-
-# Save output to file
-datapilot all data.csv --output analysis.txt
-
-# Quick mode for large files
-datapilot all large_dataset.csv --quick
-```
-
-## 📊 The Smart 3-Command Structure
-
-### 1. **`run` - Comprehensive Data Analysis**
-Combines statistical analysis with quality assessment in one powerful command:
+### 1. **`run` - Statistical Computation Engine**
+Comprehensive statistical analysis with 60+ automated tests:
 
 ```bash
 datapilot run dataset.csv
 ```
 
-**What's Included:**
-- **Exploratory Data Analysis (EDA)**
-  - Descriptive statistics (mean, median, mode, std dev, variance)
-  - Distribution analysis (skewness, kurtosis, normality tests)
-  - Correlation analysis between numeric columns
-  - Outlier detection (IQR and Z-score methods)
-  - Pattern detection (Benford's Law for fraud detection)
-  
-- **Data Integrity Checks (INT)**
-  - Six quality dimensions: Completeness, Validity, Accuracy, Consistency, Timeliness, Uniqueness
-  - Business rule detection and validation
-  - Format validation (emails, phones, dates, etc.)
-  - Duplicate and anomaly detection
-  
-- **LLM-Optimized Formatting**
-  - Key findings highlighted upfront
-  - Structured output ready for AI consumption
-  - Actionable insights and recommendations
-
-**Example Output:**
+**Output Example:**
 ```
-🤖 DATAPILOT COMPREHENSIVE ANALYSIS
-===================================
-Dataset: sales.csv (10,234 records)
+🤖 DATAPILOT STATISTICAL COMPUTATION ENGINE
+==========================================
 
-EXECUTIVE SUMMARY
-═════════════════
-📊 Data Quality: A+ (96/100)
-🎯 Key Statistical Insights:
-   1. Revenue shows strong seasonal patterns (Q4 +35%)
-   2. Customer segmentation reveals 80/20 distribution
-   3. 3 numeric columns show non-normal distributions
+━━━ COMPUTATIONAL SUMMARY ━━━
+Dataset: sales.csv | Rows: 10,234 | Columns: 15
+Processing Time: 2.3s | Statistical Tests: 87 | Patterns Detected: 12
+Quality Score: 92/100 | ML Readiness: 85%
 
-DATA QUALITY ASSESSMENT
-══════════════════════
-📊 Quality Dimensions:
-   • Completeness: 98.5% ✅
-   • Validity: 99.2% ✅
-   • Accuracy: 97.8% ✅
-   • Consistency: 96.3% ✅
-   • Uniqueness: 94.1% ✅
-   • Timeliness: Current ✅
+━━━ STATISTICAL FACTS ━━━
+📊 Data Completeness Matrix:
+• Overall: 98.5% complete
+• Missing Value Distribution: customer_id(12), region(0), revenue(3)
+
+📈 Numerical Distribution Facts:
+• revenue: mean=2.34K, std=1.12K, range=[0.00, 15.67K], skew=2.341, kurtosis=8.123
+• age: mean=42.3, std=12.8, range=[18.0, 85.0], skew=0.123, kurtosis=-0.456
+
+📊 Distribution Test Results:
+• revenue: Shapiro-Wilk p=0.001 (non-normal)
+• age: Shapiro-Wilk p=0.234 (normal)
+
+━━━ AI INVESTIGATION PROMPTS ━━━
+🤖 "Strong correlation (r=0.847) detected between age and revenue. What business relationship could explain this statistical dependency?"
+
+🤖 "Data quality score is 92/100. What domain factors could explain the missing customer_id values?"
 ```
 
-### 2. **`vis` - Business Intelligence Suite**
-Combines visualization recommendations with data engineering insights:
+### 2. **`vis` - Advanced Visualization Intelligence**
+29 specialized chart types with perceptual optimization:
 
 ```bash
 datapilot vis dataset.csv
 ```
 
-**What's Included:**
-- **Visualization Recommendations (VIS)**
-  - Task-based chart selection (compare, trend, distribute, etc.)
-  - Perceptual optimization for clarity
-  - Color palette recommendations
-  - Accessibility considerations
-  
-- **Data Engineering Archaeology (ENG)**
-  - Schema inference and documentation
-  - Relationship detection (foreign keys, joins)
-  - Technical debt identification
-  - Performance recommendations
-  - Persistent knowledge base that learns over time
-
-**Example Output:**
+**Output Example:**
 ```
-📊 DATAPILOT BUSINESS INTELLIGENCE SUITE
-=======================================
-Dataset: orders.csv (45,678 records)
+🤖 DATAPILOT VISUALIZATION COMPUTATION ENGINE
+============================================
 
-VISUALIZATION RECOMMENDATIONS
-════════════════════════════
-Priority 1: Time Series Analysis
-- Chart: Multi-line chart with annotations
-- Variables: order_date (x) vs revenue, quantity (y)
-- Insight: Strong weekly seasonality detected
-- Enhancement: Add moving average overlay
+━━━ COMPUTATIONAL SUMMARY ━━━
+Processing Time: 1.8s | Visualizations Analyzed: 25 | Advanced Charts: 15
+Perceptual Tests: 29 | Framework: Cleveland-McGill + Bertin + Tufte
 
-DATA ENGINEERING INSIGHTS
-════════════════════════
-📋 Table Analysis:
-   • Purpose: Transactional order data
-   • Domain: E-commerce
-   • Quality Score: 8/10
-   • Technical Debt: 12 hours estimated
+━━━ VISUALIZATION STATISTICAL FACTS ━━━
+📊 Data Profile Matrix:
+• Dimensions: 10,234 rows × 15 columns
+• Data Types: 8 continuous, 5 categorical, 2 temporal
+• Completeness: 98.5% | Size Category: large
 
-🔗 Detected Relationships:
-   1. orders.customer_id → customers.id (many-to-one)
-   2. orders.product_id → products.id (many-to-one)
+📈 Chart Effectiveness Matrix:
+• scatter: 93% effectiveness | Encoding: Position on common scale (most accurate)
+• parallel_coordinates: 90% effectiveness | 8 dimensions require parallel coordinates
+• violin_plot: 85% effectiveness | Complex distribution visualization
+
+🔬 Advanced Statistical Graphics Results:
+• Statistical Graphics: 12 recommendations
+• Multivariate Patterns: 8 recommendations  
+• Time Series Analysis: 3 recommendations
+
+━━━ AI INVESTIGATION PROMPTS ━━━
+🤖 "Top chart recommendation is scatter (93% effective). What domain context would make this visualization most valuable?"
+
+🤖 "8 continuous variables detected. What analytical questions would benefit from multivariate visualization techniques?"
 ```
 
-### 3. **`all` - Complete Analysis Suite**
-Runs both `run` and `vis` for the most comprehensive analysis:
+### 3. **`all` - Complete Parallel Processing**
+Runs both statistical and visualization engines with shared data optimization:
 
 ```bash
 datapilot all dataset.csv
 ```
 
-This command provides:
-- Everything from `run` (statistics + quality)
-- Everything from `vis` (visualization + engineering)
-- Integrated insights across all dimensions
-- Complete documentation ready for any use case
+Provides the complete output from both `run` and `vis` commands with integrated insights.
 
-## 🎯 Advanced Features
+## 🛠️ Underlying Technology Stack
 
-### Smart File Handling
-```bash
-# Auto-detect encoding and delimiter
-datapilot run data.csv
+DataPilot 2.0 is built with best-in-class open-source libraries:
 
-# Force specific encoding
-datapilot run data.csv --encoding latin1
+### Core Dependencies
+- **[csv-parse](https://csv.js.org/parse/)** - High-performance CSV parsing
+- **[simple-statistics](https://simplestatistics.org/)** - Statistical computation library
+- **[jStat](https://jstat.github.io/)** - Advanced statistical functions
+- **[ml-cart](https://github.com/mljs/cart)** - Decision tree analysis
+- **[regression](https://github.com/Tom-Alexander/regression-js)** - Regression analysis
 
-# Force specific delimiter  
-datapilot run data.csv --delimiter ";"
+### Visualization & Analysis Libraries  
+- **[ml-kmeans](https://github.com/mljs/kmeans)** - Clustering analysis
+- **[validator](https://github.com/validatorjs/validator.js)** - Data validation
+- **[libphonenumber-js](https://github.com/catamphetamine/libphonenumber-js)** - Phone number parsing
+- **[fuzzyset.js](https://github.com/Glench/fuzzyset.js)** - Fuzzy string matching
 
-# Handle files without headers
-datapilot run data.csv --no-header
+### CLI & Output Libraries
+- **[commander](https://github.com/tj/commander.js)** - CLI framework
+- **[chalk](https://github.com/chalk/chalk)** - Terminal styling
+- **[ora](https://github.com/sindresorhus/ora)** - Terminal spinners
+- **[boxen](https://github.com/sindresorhus/boxen)** - Terminal boxes
+- **[cli-table3](https://github.com/cli-table/cli-table3)** - Terminal tables
+
+### Utility Libraries
+- **[js-yaml](https://github.com/nodeca/js-yaml)** - YAML parsing
+- **[chardet](https://github.com/runk/node-chardet)** - Character encoding detection
+- **[glob](https://github.com/isaacs/node-glob)** - File pattern matching
+
+## 🎨 Advanced Visualization Features
+
+DataPilot 2.0 includes sophisticated visualization analysis based on established theories:
+
+### Theoretical Frameworks
+- **[Cleveland-McGill Perceptual Rankings](https://www.cs.ubc.ca/~tmm/vadbook/cleveland.pdf)** - Quantifies visual encoding effectiveness
+- **[Bertin's Visual Variables](https://www.esri.com/news/arcuser/0700/bertin.html)** - Systematic approach to visual encoding
+- **[Tufte's Data-Ink Principles](https://www.edwardtufte.com/tufte/books_vdqi)** - Maximizes information density
+
+### Specialized Chart Types
+**Statistical Graphics (12 types):**
+- Violin plots, QQ plots, Box-and-whisker plots
+- Correlation heatmaps with significance testing  
+- Regression diagnostic panels
+- Distribution fitting visualizations
+
+**Multivariate Analysis (8 types):**
+- Parallel coordinates plots
+- Scatterplot matrices (SPLOM)
+- Principal component analysis (PCA) plots
+- Radar/spider charts
+
+**Time Series Analysis (9 types):**
+- Horizon charts, Calendar heatmaps
+- Decomposition plots (trend/seasonal/residual)
+- Autocorrelation function (ACF/PACF) plots
+
+## 🚀 Performance & Scalability
+
+| Dataset Size | Processing Time | Memory Usage | Strategy |
+|-------------|----------------|--------------|----------|
+| < 1K rows | < 1 second | < 50MB | Full analysis |
+| 1K-10K rows | 1-3 seconds | 50-100MB | Optimized analysis |
+| 10K-50K rows | 3-10 seconds | 100-200MB | Smart sampling |
+| 50K-100K rows | 10-30 seconds | 200-300MB | Reservoir sampling |
+| > 100K rows | 30-60 seconds | < 500MB | Progressive analysis |
+
+**Tested with datasets up to 500K rows successfully.**
+
+## 💻 Windows Offline Installation
+
+DataPilot 2.0 includes comprehensive Windows support:
+
+### Automated Windows Setup
+```cmd
+REM Download and extract DataPilot
+REM Run the automated installer
+scripts\install\install_windows.bat
+
+REM Verify offline functionality
+scripts\install\verify_offline.bat
 ```
 
-### Performance Options
-```bash
-# Quick mode for large files (>50MB)
-datapilot all large.csv --quick
+### PowerShell Integration
+```powershell
+# DataPilot PowerShell module provides convenient aliases
+Import-Module DataPilot
 
-# Custom timeout for complex analyses
-datapilot run complex.csv --timeout 120000
-
-# Force analysis despite warnings
-datapilot all problematic.csv --force
+# Use short commands
+dp run data.csv        # datapilot run
+dpvis data.csv         # datapilot vis  
+dpall data.csv         # datapilot all
 ```
 
-### Output Management
-```bash
-# Save to file
-datapilot all data.csv --output report.txt
+### Manual Windows Setup
+1. Install [Node.js 14+](https://nodejs.org/en/download/)
+2. Download DataPilot and extract
+3. Run `npm install` and `npm run build`
+4. Add DataPilot folder to Windows PATH
+5. Verify with `datapilot --help`
 
-# Quiet mode (no progress indicators)
-datapilot all data.csv --quiet
+## 🤖 AI Assistant Integration Examples
+
+### ChatGPT Integration
+```
+Prompt: "Analyze these DataPilot statistical facts and provide business insights for an e-commerce dataset:"
+
+[Paste DataPilot output]
+
+Response: Based on the statistical analysis:
+1. The high skewness (8.65) in revenue suggests a small percentage of high-value customers...
+2. The strong correlation (r=0.92) between time_on_site and conversion_rate indicates...
+3. The non-normal distribution in customer_age suggests segmentation opportunities...
 ```
 
-## 📈 Performance & Scalability
-
-DataPilot is optimized for real-world datasets:
-
-| File Size | Performance | Strategy |
-|-----------|------------|----------|
-| < 1MB | < 1 second | Full analysis |
-| 1-10MB | 2-5 seconds | Full analysis with optimizations |
-| 10-100MB | 5-15 seconds | Smart sampling (configurable) |
-| 100MB-1GB | 15-60 seconds | Streaming with reservoir sampling |
-| > 1GB | 1-5 minutes | Progressive sampling with early stopping |
-
-**Memory Usage**: Designed to use <500MB RAM even for massive files
-
-## 🌏 Australian Data Support
-
-Native support for Australian formats:
-- **Postcodes**: 4-digit validation with state mapping
-- **Phone Numbers**: Mobile and landline formats
-- **ABN/ACN**: Validation with check digit verification
-- **Dates**: DD/MM/YYYY format priority
-- **States**: NSW, VIC, QLD, WA, SA, TAS, ACT, NT recognition
-
-## 🚀 Real-World Use Cases
-
-### Data Scientists & Analysts
-```bash
-# Quick profiling before modeling
-datapilot run train.csv
-
-# Generate insights for stakeholders
-datapilot all results.csv --output insights.txt
+### Claude Integration  
 ```
+Prompt: "What business questions should I investigate based on these statistical patterns?"
 
-### Data Engineers
-```bash
-# Understand schemas and relationships
-datapilot vis legacy_db.csv
+[Paste DataPilot output]
 
-# Complete documentation
-datapilot all database_export.csv --output docs.txt
-```
-
-### Business Analysts
-```bash
-# Validate data quality
-datapilot run monthly_sales.csv
-
-# Get visualization recommendations
-datapilot vis kpi_metrics.csv
-```
-
-## 📚 What's Under the Hood?
-
-While DataPilot presents a simple 3-command interface, it's powered by sophisticated analysis engines:
-
-- **Statistical Engine**: Advanced statistics including distribution tests, correlation analysis, and pattern detection
-- **Quality Engine**: Six-dimensional data quality assessment based on industry standards
-- **Visualization Engine**: Task-based chart selection with perceptual optimization
-- **Engineering Engine**: Schema inference, relationship detection, and architectural insights
-- **AI Formatting Engine**: Structured output optimized for LLM consumption
-
-All these engines work together seamlessly when you run any of the three main commands.
-
-## 🔧 Troubleshooting
-
-### Common Issues
-
-**Large files taking too long?**
-```bash
-datapilot all large.csv --quick  # Use sampling
-datapilot run large.csv --timeout 300000  # 5-minute timeout
-```
-
-**Encoding problems?**
-```bash
-datapilot run data.csv --encoding latin1
-datapilot run data.csv --encoding utf16le
-```
-
-**Unusual delimiters?**
-```bash
-datapilot run data.csv --delimiter ";"
-datapilot run data.csv --delimiter "|"
-datapilot run data.csv --delimiter "\\t"  # Tab
+Response: The statistical evidence suggests several investigation areas:
+1. Customer Lifetime Value: The extreme revenue distribution indicates...
+2. Seasonal Patterns: The autocorrelation analysis shows...
+3. Quality Issues: The missing data patterns in customer_id suggest...
 ```
 
 ## 📁 Repository Structure
 
 ```
 datapilot/
-├── bin/                    # CLI entry point
+├── bin/                    # CLI entry points
+├── dist/                   # Built distribution files
 ├── src/                    # Source code
-│   ├── commands/          # Command implementations (eda, int, vis, eng, llm)
+│   ├── commands/          # Command implementations
+│   │   ├── run.js         # Statistical computation engine
+│   │   ├── vis.js         # Visualization intelligence
+│   │   ├── all.js         # Complete analysis suite
+│   │   ├── eda/           # Exploratory data analysis
+│   │   ├── int/           # Data integrity checks
+│   │   └── vis/           # Visualization analysis
+│   ├── analysis/          # Analysis engines
 │   └── utils/             # Shared utilities
-├── docs/                   # Documentation
-│   ├── examples/          # Sample outputs from DataPilot
-│   ├── planning/          # Business strategy documents
-│   ├── QUICK-START.md     # Getting started guide
-│   ├── INSTALLATION.md    # Installation instructions
-│   └── ...               # Additional documentation
-├── tests/                 # Test suite
+├── scripts/               # Installation and build scripts
+│   └── install/           # Platform-specific installers
+├── tests/                 # Comprehensive test suite
 │   ├── fixtures/          # Test datasets
-│   ├── unit/             # Unit tests
-│   └── benchmarks/       # Performance tests
+│   └── unit/             # Unit tests
 ├── data/                  # Sample datasets
-│   └── samples/          # Real-world example datasets
-└── scripts/              # Build and installation scripts
+│   └── samples/          # Real-world examples
+└── docs/                  # Documentation
 ```
 
-### Key Directories
+## 🔧 Advanced Usage
 
-- **`docs/examples/`** - Contains sample outputs from DataPilot commands showing what to expect
-- **`docs/planning/`** - Business strategy and evaluation documents  
-- **`data/samples/`** - Sample datasets for testing and demonstration
-- **`tests/fixtures/`** - Curated test datasets for comprehensive testing
-- **`src/commands/`** - Implementation of each DataPilot command (eda, int, vis, eng, llm)
+### Handling Large Files
+```bash
+# Use timeout for complex analyses
+datapilot run large_dataset.csv --timeout 300000
+
+# Force analysis despite warnings  
+datapilot all problematic.csv --force
+
+# Quiet mode for scripts
+datapilot run data.csv --quiet --output results.txt
+```
+
+### Custom Formatting
+```bash
+# Control delimiter detection
+datapilot run data.tsv --delimiter "\t"
+
+# Handle encoding issues
+datapilot run data.csv --encoding latin1
+
+# Process files without headers
+datapilot run data.csv --no-header
+```
+
+### Output Management
+```bash
+# Save comprehensive analysis
+datapilot all sales.csv --output full_report.txt
+
+# Create separate statistical and visual reports
+datapilot run sales.csv --output stats.txt
+datapilot vis sales.csv --output charts.txt
+```
+
+## 🐛 Troubleshooting
+
+### Common Issues
+
+**Node.js not found?**
+- Install [Node.js 14+](https://nodejs.org/en/download/) 
+- Verify: `node --version`
+
+**Command not found after install?**
+```bash
+# Reinstall globally
+npm uninstall -g datapilot
+npm install -g datapilot
+
+# Or use npx
+npx datapilot run data.csv
+```
+
+**Large file timeout?**
+```bash
+datapilot run large.csv --timeout 600000  # 10 minutes
+```
+
+**Encoding problems?**
+```bash
+datapilot run data.csv --encoding utf8
+datapilot run data.csv --encoding latin1
+```
 
 ## 📄 License
 
@@ -340,17 +358,37 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions welcome! Please see our [Contributing Guide](CONTRIBUTING.md).
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests
+5. Submit a pull request
 
 ## 🙏 Acknowledgments
 
-DataPilot is built with powerful open-source libraries including csv-parse, simple-statistics, chalk, and ora.
+DataPilot 2.0 stands on the shoulders of giants. Special thanks to:
+
+- **csv-parse team** for blazing-fast CSV processing
+- **simple-statistics contributors** for robust statistical functions
+- **Cleveland & McGill** for foundational perception research
+- **Edward Tufte** for data visualization principles
+- **Jacques Bertin** for visual variable theory
+
+## 📊 Version History
+
+- **2.0.0** (2025-06-03): AI-Companion transformation, 29 chart types, 60+ statistical tests
+- **1.2.0** (2024): 3-command structure, performance optimizations
+- **1.0.0** (2024): Initial release
 
 ---
 
-**Ready to transform your data into insights?** Install DataPilot today and see what your data has been trying to tell you!
+**Ready to revolutionize your data analysis workflow?**
 
 ```bash
 npm install -g datapilot
 datapilot all your-data.csv
 ```
+
+*"DataPilot does the math, AI does the meaning" - Experience the future of human-AI collaborative data analysis.*

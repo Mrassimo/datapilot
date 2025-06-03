@@ -99,3 +99,8 @@ test_report*.md
 # Temporary migration scripts
 scripts/reorganize-*.js
 scripts/migrate-*.js
+# Temporary outputs
+temp_outputs/
+*.csv
+!tests/fixtures/*.csv
+!data/samples/README.md
