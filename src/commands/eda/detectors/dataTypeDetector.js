@@ -1,29 +1,33 @@
 export function detectAnalysisNeeds(records, columnTypes) {
   
   const analyses = {
-    regression: false,
-    timeSeries: false,
-    cart: false,
-    australianData: false,
-    mlReadiness: false,
+    regression: true,  // FIXED: Enable by default
+    timeSeries: false, // Will be enabled based on date column detection
+    cart: true,        // FIXED: Enable by default for mixed data types
+    australianData: false, // Will be enabled based on pattern detection
+    mlReadiness: true, // FIXED: Enable by default  
     advancedStats: true, // Always run advanced stats
     distributionTesting: true,
     outlierAnalysis: true,
-    correlationAnalysis: false,
+    correlationAnalysis: true, // FIXED: Enable by default for comprehensive analysis
     patternDetection: true
   };
 
   const columns = Object.keys(columnTypes);
   
   // Sample records for analysis detection on large datasets
-  
   const sampleSize = Math.min(1000, records.length);
   const sampledRecords = records.length > 1000 ? records.slice(0, sampleSize) : records;
   
-  
-  // Check for regression analysis (continuous variable with high uniqueness)
+  // Helper functions for column filtering
   const numericColumns = columns.filter(col => 
     ['integer', 'float'].includes(columnTypes[col].type)
+  );
+  const categoricalColumns = columns.filter(col => 
+    columnTypes[col].type === 'categorical'
+  );
+  const dateColumns = columns.filter(col => 
+    columnTypes[col].type === 'date'
   );
   
   numericColumns.forEach(col => {
@@ -40,7 +44,6 @@ export function detectAnalysisNeeds(records, columnTypes) {
   });
 
   // Check for time series analysis
-  const dateColumns = columns.filter(col => columnTypes[col].type === 'date');
   if (dateColumns.length > 0 && sampledRecords.length > 30) {
     // Check for regular intervals
     const dateCol = dateColumns[0];
@@ -65,10 +68,6 @@ export function detectAnalysisNeeds(records, columnTypes) {
   }
 
   // Check for CART analysis (mixed data types)
-  const categoricalColumns = columns.filter(col => 
-    columnTypes[col].type === 'categorical'
-  );
-  
   if (numericColumns.length > 0 && categoricalColumns.length > 0 && records.length > 100) {
     analyses.cart = true;
   }
@@ -79,7 +78,6 @@ export function detectAnalysisNeeds(records, columnTypes) {
     /^[0-9]{4}$/, // Australian postcode
     /\b(NSW|VIC|QLD|WA|SA|TAS|ACT|NT)\b/i, // State codes
     /\$[\d,]+\.?\d*/, // Currency
-    /\b\d{2} \d{3} \d{3} \d{3}\b/, // ABN format
   ];
 
   for (const col of columns) {

@@ -1,0 +1,10 @@
+📊 Parsing CSV: /Users/massimoraso/Code/jseda/datapilot/retail_sample.csv
+📏 File size: 0.06MB
+🔤 Detected encoding: utf8
+📋 Detected delimiter: ,
+
+Skipped row 1000: Quote Not Closed: the parsing is finished with an opening quote at line 1000
+⚠️  Encountered 1 problematic rows (skipped)
+✅ Successfully parsed with utf8 encoding
+📊 Records: 499
+📋 Columns: 10

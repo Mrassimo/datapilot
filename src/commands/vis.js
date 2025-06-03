@@ -51,47 +51,26 @@ export async function visualize(filePath, options = {}) {
       warehouseKnowledge = { warehouse: {}, patterns: {}, relationships: {} };
     }
     
-    // Create enhanced options
+    // Create enhanced options - disable structuredOutput to get AI-companion format
     const enhancedOptions = {
       ...options,
       preloadedData,
-      structuredOutput: true,
+      structuredOutput: false,  // Use AI-companion format instead of structured output
       quiet: true,
       preloadedKnowledge: warehouseKnowledge  // Pass knowledge to avoid loading again
     };
     
-    // Run visualization analysis
+    // Run visualization analysis with AI-companion format
     if (spinner) spinner.text = 'Analyzing visualization opportunities...';
     const visResults = await visualizeAnalysis(filePath, enhancedOptions);
     
-    // Run engineering analysis (data archaeology)
-    if (spinner) spinner.text = 'Performing data archaeology...';
-    const engResults = await engineeringAnalysis(filePath, enhancedOptions);
+    if (spinner) spinner.succeed('Visualization analysis complete!');
     
-    // Use the preloaded knowledge base data
-    // (we loaded it once above to avoid lock conflicts)
-    
-    // Extract the report from engineering results if it's in structured format
-    const engineeringReport = engResults.report || engResults;
-    
-    if (spinner) spinner.succeed('Business intelligence analysis complete!');
-    
-    // Generate combined report
-    const report = generateBusinessIntelligenceReport(
-      fileName, 
-      data.length, 
-      visResults, 
-      engineeringReport, 
-      warehouseKnowledge
-    );
-    
-    console.log(report);
+    // The AI-companion format is already output by visualizeAnalysis
     outputHandler.finalize();
     
     return {
-      visualization: visResults,
-      engineering: engineeringReport,
-      report
+      visualization: visResults
     };
     
   } catch (error) {
@@ -121,16 +100,25 @@ function generateBusinessIntelligenceReport(fileName, recordCount, visResults, e
     
     if (visualizationPlans.length > 0) {
       visualizationPlans.slice(0, 3).forEach((plan, idx) => {
-        report += chalk.yellow(`\nPriority ${idx + 1}: ${plan.title || plan.chartType}\n`);
-        report += `- Chart: ${plan.chartType}\n`;
-        if (plan.variables) {
-          report += `- Variables: ${plan.variables}\n`;
+        const chartType = plan.visualization?.type || 'Unknown';
+        const purpose = plan.visualization?.recommendation?.purpose || plan.task?.description || 'Analysis';
+        
+        report += chalk.yellow(`\nPriority ${idx + 1}: ${chartType.toUpperCase()}\n`);
+        report += `- Chart: ${chartType}\n`;
+        report += `- Purpose: ${purpose}\n`;
+        
+        if (plan.task?.columns) {
+          const variables = Object.values(plan.task.columns).join(', ');
+          report += `- Variables: ${variables}\n`;
         }
-        if (plan.insight) {
-          report += `- Insight: ${plan.insight}\n`;
+        
+        if (plan.visualization?.recommendation?.encoding) {
+          report += `- Encoding: ${plan.visualization.recommendation.encoding.primary}\n`;
         }
-        if (plan.enhancement) {
-          report += `- Enhancement: ${plan.enhancement}\n`;
+        
+        if (plan.visualization?.perceptualScore?.overall) {
+          const score = Math.round(plan.visualization.perceptualScore.overall * 100);
+          report += `- Effectiveness: ${score}%\n`;
         }
       });
     } else {
@@ -182,7 +170,9 @@ function generateBusinessIntelligenceReport(fileName, recordCount, visResults, e
     if (analysis.relationships && analysis.relationships.length > 0) {
       report += chalk.cyan('🔗 Detected Relationships:\n');
       analysis.relationships.slice(0, 3).forEach((rel, idx) => {
-        report += `   ${idx + 1}. ${rel.type}: ${rel.description || rel}\n`;
+        const relType = rel.type || (typeof rel === 'string' ? rel : 'unknown');
+        const relDesc = rel.description || rel.related_table || rel.target || (typeof rel === 'string' ? rel : JSON.stringify(rel));
+        report += `   ${idx + 1}. ${relType}: ${relDesc}\n`;
       });
       report += '\n';
     }
@@ -191,7 +181,8 @@ function generateBusinessIntelligenceReport(fileName, recordCount, visResults, e
     if (analysis.patterns && Object.keys(analysis.patterns).length > 0) {
       report += chalk.cyan('🔍 Data Patterns:\n');
       Object.entries(analysis.patterns).slice(0, 3).forEach(([key, value]) => {
-        report += `   • ${key}: ${value}\n`;
+        const displayValue = typeof value === 'object' ? JSON.stringify(value) : value;
+        report += `   • ${key}: ${displayValue}\n`;
       });
       report += '\n';
     }

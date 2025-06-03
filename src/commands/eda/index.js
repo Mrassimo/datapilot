@@ -20,12 +20,15 @@ import { assessMLReadiness } from './analysers/mlReadiness.js';
 
 // Import formatters
 import { formatComprehensiveEDAReport } from './formatters/textFormatter.js';
+import { formatCompactEDAReport } from './formatters/compactFormatter.js';
 
 // Import utilities
 import { parseCSV, detectColumnTypes } from '../../utils/parser.js';
 import { OutputHandler } from '../../utils/output.js';
 import { formatFileSize } from '../../utils/format.js';
 import { createSamplingStrategy, performSampling, createProgressTracker } from './utils/sampling.js';
+import { ResumeManager, ResumableProgressTracker } from '../../utils/resumeManager.js';
+import { estimateProcessingTime, formatEstimatedTime, shouldUseSampling, askUserForSampling, displaySamplingInfo, isNonInteractive } from '../../utils/progressEstimator.js';
 
 export async function edaComprehensive(filePath, options = {}) {
   const outputHandler = new OutputHandler(options);
@@ -74,14 +77,38 @@ export async function edaComprehensive(filePath, options = {}) {
       const timingLog = [];
       const startTime = Date.now();
       
-      // Use preloaded data if available
+      // Resume capability for large files
+      const resumeManager = new ResumeManager(filePath, 'eda');
+      let resumeData = null;
+      
+      // Check for existing resume data
+      if (resumeManager.hasResumeData()) {
+        resumeData = await ResumeManager.promptForResume(resumeManager);
+      }
+      
+      // Initialize progress tracker with time estimation for large files
+      const shouldEstimateProgress = options.estimateProgress || 
+        (resumeManager.fileStats && resumeManager.fileStats.size > 10 * 1024 * 1024); // > 10MB
+      
+      const progressTracker = shouldEstimateProgress ? 
+        new EstimatedProgressTracker(filePath, 'eda') :
+        new ResumableProgressTracker(8, resumeManager, 0);
+      
+      // Use preloaded data if available or resume from saved state
       let records, columnTypes;
-      if (options.preloadedData) {
+      if (resumeData && resumeData.data.records) {
+        records = resumeData.data.records;
+        columnTypes = resumeData.data.columnTypes;
+        console.log(chalk.green('📂 Loaded data from resume checkpoint'));
+        progressTracker.currentStage = 2; // Skip parsing stages
+      } else if (options.preloadedData) {
         records = options.preloadedData.records;
         columnTypes = options.preloadedData.columnTypes;
       } else {
         // Parse CSV with enhanced error handling
         if (spinner) spinner.text = 'Reading CSV file...';
+        progressTracker.advance('Reading CSV file');
+        
         const parseStart = Date.now();
         try {
           records = await parseCSV(filePath, { quiet: options.quiet, header: options.header });
@@ -100,6 +127,13 @@ export async function edaComprehensive(filePath, options = {}) {
         try {
           columnTypes = detectColumnTypes(records);
           timingLog.push(`Column type detection: ${Date.now() - typeStart}ms`);
+          
+          // Save checkpoint after parsing for large files
+          if (records.length > 50000) {
+            resumeManager.createCheckpoint('parsing_complete', { records, columnTypes }, 20);
+          }
+          
+          progressTracker.advance('Column type detection', { records: records.length, columns: Object.keys(columnTypes).length });
         } catch (typeError) {
           throw new Error(`Column type detection failed: ${typeError.message}`);
         }
@@ -110,33 +144,9 @@ export async function edaComprehensive(filePath, options = {}) {
       const fileName = basename(filePath);
       const columns = Object.keys(columnTypes);
       
-      // Handle large datasets with user notification and incremental processing
-      const originalRecordCount = records.length;
-      const samplingStart = Date.now();
-      let useIncrementalOutput = false;
-      
-      if (records.length > 10000) {
-        console.log(chalk.yellow(`\n⚠️  Large dataset detected: ${records.length.toLocaleString()} rows`));
-        
-        if (records.length > 50000) {
-          // Very large dataset - use sampling and incremental output
-          console.log(chalk.cyan('📊 Dataset is very large. Using intelligent sampling for performance.'));
-          console.log(chalk.cyan(`   Processing a representative sample of ${Math.min(10000, records.length).toLocaleString()} rows...`));
-          
-          useIncrementalOutput = true; // Enable incremental output for very large datasets
-          
-          const samplingStrategy = createSamplingStrategy(records, 'basic');
-          samplingStrategy.sampleSize = Math.min(10000, samplingStrategy.sampleSize);
-          records = performSampling(records, samplingStrategy);
-          
-          if (spinner) spinner.text = `Analyzing ${records.length.toLocaleString()} sampled rows...`;
-        } else {
-          // Medium-large dataset - process all but with warning
-          console.log(chalk.cyan('⏱️  This analysis may take up to 30 seconds...'));
-          if (spinner) spinner.text = `Processing ${records.length.toLocaleString()} rows (this may take a moment)...`;
-        }
-      }
-      timingLog.push(`Sampling: ${Date.now() - samplingStart}ms`);
+      // Note: Smart sampling is now handled earlier based on time estimation
+      // Set up incremental output for very large remaining datasets  
+      let useIncrementalOutput = records.length > 50000;
       
       // Handle empty dataset
       if (records.length === 0) {
@@ -166,8 +176,72 @@ export async function edaComprehensive(filePath, options = {}) {
       const analysisNeeds = detectAnalysisNeeds(records, columnTypes);
       timingLog.push(`Analysis detection: ${Date.now() - analysisStart}ms`);
       
-      // For very large datasets, disable expensive analyses
-      if (records.length > 10000) {
+      // Store original record count before any sampling
+      const originalRecordCount = records.length;
+      
+      // Smart time estimation and sampling
+      const estimatedTime = estimateProcessingTime(records.length, analysisNeeds);
+      const samplingDecision = shouldUseSampling(records.length, estimatedTime, {
+        alwaysSample: options.alwaysSample || 120,
+        askUser: options.askUser || 60,
+        autoSample: options.autoSample || 30,
+        minRowsForSampling: options.minRowsForSampling || 5000
+      });
+      
+      // Handle sampling based on time estimation
+      if (samplingDecision.shouldSample === true) {
+        // Auto-sampling
+        console.log(chalk.yellow(`\n⏱️  Processing Time Estimate: ${formatEstimatedTime(estimatedTime)}`));
+        console.log(chalk.cyan('🚀 Auto-applying smart sampling for optimal performance...'));
+        
+        const samplingStrategy = createSamplingStrategy(records, 'basic');
+        samplingStrategy.method = 'random';  // Force sampling method
+        samplingStrategy.sampleSize = samplingDecision.sampleSize;
+        samplingStrategy.samplingRate = samplingDecision.sampleSize / records.length;
+        records = performSampling(records, samplingStrategy);
+        displaySamplingInfo(originalRecordCount, records.length, samplingDecision.reason);
+        
+      } else if (samplingDecision.shouldSample === 'ask_user' && !isNonInteractive() && !options.force) {
+        // Interactive user prompt
+        const userChoice = await askUserForSampling(records.length, estimatedTime, samplingDecision.sampleSize);
+        
+        if (userChoice.useSampling) {
+          const samplingStrategy = createSamplingStrategy(records, 'basic');
+          samplingStrategy.method = 'random';  // Force sampling method
+          samplingStrategy.sampleSize = userChoice.sampleSize;
+          samplingStrategy.samplingRate = userChoice.sampleSize / records.length;
+          records = performSampling(records, samplingStrategy);
+          displaySamplingInfo(originalRecordCount, records.length, 'user_choice');
+        } else {
+          console.log(chalk.yellow(`⏱️  Processing full dataset (${formatEstimatedTime(estimatedTime)})...`));
+        }
+        
+      } else if (samplingDecision.shouldSample === 'ask_user' && (isNonInteractive() || options.force)) {
+        // Non-interactive environment - auto-sample
+        console.log(chalk.yellow(`\n⏱️  Processing Time Estimate: ${formatEstimatedTime(estimatedTime)}`));
+        console.log(chalk.cyan('🤖 Non-interactive mode: Auto-applying smart sampling...'));
+        
+        const samplingStrategy = createSamplingStrategy(records, 'basic');
+        samplingStrategy.method = 'random';  // Force sampling method
+        samplingStrategy.sampleSize = samplingDecision.sampleSize;
+        samplingStrategy.samplingRate = samplingDecision.sampleSize / records.length;
+        records = performSampling(records, samplingStrategy);
+        displaySamplingInfo(originalRecordCount, records.length, 'auto_sample_non_interactive');
+        
+      } else if (estimatedTime > 30) {
+        // Show time estimate even if not sampling
+        console.log(chalk.yellow(`\n⏱️  Processing Time Estimate: ${formatEstimatedTime(estimatedTime)}`));
+      }
+      
+      // Update spinner with current processing status
+      if (spinner && records.length !== originalRecordCount) {
+        spinner.text = `Analyzing ${records.length.toLocaleString()} sampled rows...`;
+      } else if (spinner) {
+        spinner.text = `Processing ${records.length.toLocaleString()} rows...`;
+      }
+      
+      // For extremely large datasets, disable expensive analyses (smart sampling should handle most cases)
+      if (records.length > 50000) {
         analysisNeeds.regression = false;
         analysisNeeds.cart = false;
         analysisNeeds.correlationAnalysis = false;
@@ -284,6 +358,12 @@ export async function edaComprehensive(filePath, options = {}) {
         }
       }
       timingLog.push(`Column statistics: ${Date.now() - statsStart}ms`);
+      progressTracker.advance('Column statistics analysis', { completeness: analysis.completeness });
+      
+      // Save checkpoint after basic statistics for large files
+      if (records.length > 20000) {
+        resumeManager.createCheckpoint('basic_stats_complete', { analysis }, 40);
+      }
       
       // Incremental output: Show basic statistics immediately for large datasets
       if (useIncrementalOutput && !structuredMode) {
@@ -382,8 +462,8 @@ export async function edaComprehensive(filePath, options = {}) {
         timingLog.push(`Outlier analysis: ${Date.now() - outlierStart}ms`);
       }
       
-      // CART analysis (skip for large datasets)
-      if (analysisNeeds.cart && records.length < 5000) {
+      // CART analysis (reasonable limit with smart sampling)
+      if (analysisNeeds.cart && records.length < 10000) {
         if (spinner) spinner.text = 'Performing CART analysis...';
         
         try {
@@ -423,8 +503,8 @@ export async function edaComprehensive(filePath, options = {}) {
         analysis.regressionAnalysis = { skipped: true, reason: 'Dataset too large' };
       }
       
-      // Correlation analysis (skip for large datasets)
-      if (analysisNeeds.correlationAnalysis && records.length < 5000) {
+      // Correlation analysis (reasonable limit with smart sampling)
+      if (analysisNeeds.correlationAnalysis && records.length < 15000) {
         if (spinner) spinner.text = 'Analyzing correlations...';
         
         try {
@@ -591,9 +671,12 @@ export async function edaComprehensive(filePath, options = {}) {
       
       // Format and output report
       try {
-        const report = formatComprehensiveEDAReport(analysis);
+        const report = options.compact ? 
+          formatCompactEDAReport(analysis) : 
+          formatComprehensiveEDAReport(analysis);
         
         if (spinner) spinner.succeed('Comprehensive EDA analysis complete!');
+        progressTracker.complete();
         console.log(report);
         
         outputHandler.finalize();

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { program } from 'commander';
-import { existsSync } from 'fs';
+import { existsSync, accessSync, constants as fsConstants } from 'fs';
 import { resolve, basename } from 'path';
 import path from 'path';
 import chalk from 'chalk';
@@ -45,32 +45,44 @@ program
   .version(VERSION);
 
 // Enhanced file validation with better error messages
-function validateFile(filePath) {
+async function validateFile(filePath) {
   try {
+    // Import enhanced error handling
+    const { DataPilotError } = await import('../src/utils/errorHandler.js');
+    
     // Use enhanced path normalization
     const resolvedPath = normalizePath(filePath);
     
     if (!existsSync(resolvedPath)) {
-      // Provide helpful error message for common issues
-      console.error(chalk.red(`❌ Error: File not found: ${filePath}`));
-      
-      // Check if it's a path with spaces issue
-      if (filePath.includes(' ') && !filePath.startsWith('"')) {
-        console.error(chalk.yellow(`💡 Tip: For paths with spaces, use quotes: "${filePath}"`));
-      }
-      
-      // Check if it's a relative path issue
-      if (!path.isAbsolute(filePath)) {
-        const suggestedPath = path.resolve(filePath);
-        console.error(chalk.yellow(`💡 Tip: Try using the full path: ${suggestedPath}`));
-      }
-      
+      const error = new DataPilotError(
+        `File not found: ${filePath}`,
+        'FILE_NOT_FOUND',
+        { filePath, resolvedPath }
+      );
+      console.error(error.getFormattedMessage());
       process.exit(1);
     }
     
     if (!filePath.toLowerCase().endsWith('.csv')) {
-      console.error(chalk.red(`❌ Error: File must be a CSV file: ${filePath}`));
-      console.error(chalk.yellow(`💡 Tip: DataPilot works with CSV files only`));
+      const error = new DataPilotError(
+        `File must be a CSV file: ${filePath}`,
+        'INVALID_CSV_FORMAT',
+        { filePath, extension: path.extname(filePath) }
+      );
+      console.error(error.getFormattedMessage());
+      process.exit(1);
+    }
+    
+    // Check file permissions
+    try {
+      accessSync(resolvedPath, fsConstants.R_OK);
+    } catch (permError) {
+      const error = new DataPilotError(
+        `Permission denied accessing file: ${filePath}`,
+        'PERMISSION_DENIED',
+        { filePath, resolvedPath }
+      );
+      console.error(error.getFormattedMessage());
       process.exit(1);
     }
     
@@ -84,6 +96,7 @@ function validateFile(filePath) {
 // Progress tracking wrapper for commands
 async function runWithProgress(command, filePath, options) {
   const showProgress = globalConfig.ui.showProgress && !options.quiet;
+  const timeout = options.timeout || 60000; // Default 60 seconds
   
   const spinner = showProgress ? ora({
     text: 'Initializing analysis...',
@@ -105,7 +118,15 @@ async function runWithProgress(command, filePath, options) {
     };
     
     if (spinner) spinner.stop();
-    const result = await command(filePath, enhancedOptions);
+    
+    // Add timeout wrapper
+    const analysisPromise = command(filePath, enhancedOptions);
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error(`Analysis timed out after ${timeout/1000} seconds. Try using a smaller dataset or increase timeout with --timeout.`)), timeout)
+    );
+    
+    const result = await Promise.race([analysisPromise, timeoutPromise]);
+    
     // Ensure process exits cleanly after successful completion
     process.exit(0);
     return result;
@@ -124,13 +145,14 @@ program
   .command('run <file>')
   .description('Run comprehensive analysis - combines statistical analysis and quality checks')
   .option('-o, --output <path>', 'Save analysis to file')
+  .option('-c, --compact', 'Compact output mode for terminal viewing')
   .option('--no-header', 'CSV file has no header row')
   .option('--encoding <encoding>', 'Force specific encoding (utf8, latin1, etc.)')
   .option('--delimiter <delimiter>', 'Force specific delimiter (comma, semicolon, tab, pipe)')
   .option('--timeout <ms>', 'Set timeout in milliseconds (default: 60000)', '60000')
   .option('--force', 'Continue analysis despite data quality warnings')
   .action(async (file, options) => {
-    const filePath = validateFile(file);
+    const filePath = await validateFile(file);
     // Convert timeout to number
     if (options.timeout) options.timeout = parseInt(options.timeout);
     await runWithProgress(run, filePath, options);
@@ -141,14 +163,14 @@ program
   .command('all <file>')
   .description('Run complete analysis suite - all commands in one go')
   .option('-o, --output <path>', 'Save analysis to file')
-  .option('-q, --quick', 'Quick mode - skip detailed analyses for speed')
+  .option('-c, --compact', 'Compact output mode for terminal viewing')
   .option('--no-header', 'CSV file has no header row')
   .option('--encoding <encoding>', 'Force specific encoding (utf8, latin1, etc.)')
   .option('--delimiter <delimiter>', 'Force specific delimiter (comma, semicolon, tab, pipe)')
   .option('--timeout <ms>', 'Set timeout in milliseconds (default: 60000)', '60000')
   .option('--force', 'Continue analysis despite data quality warnings')
   .action(async (file, options) => {
-    const filePath = validateFile(file);
+    const filePath = await validateFile(file);
     // Convert timeout to number
     if (options.timeout) options.timeout = parseInt(options.timeout);
     await runWithProgress(runAll, filePath, options);
@@ -162,9 +184,12 @@ program
   .option('--no-header', 'CSV file has no header row')
   .option('--encoding <encoding>', 'Force specific encoding (utf8, latin1, etc.)')
   .option('--delimiter <delimiter>', 'Force specific delimiter (comma, semicolon, tab, pipe)')
+  .option('--timeout <ms>', 'Set timeout in milliseconds (default: 60000)', '60000')
   .option('--force', 'Continue analysis despite data quality warnings')
   .action(async (file, options) => {
-    const filePath = validateFile(file);
+    const filePath = await validateFile(file);
+    // Convert timeout to number
+    if (options.timeout) options.timeout = parseInt(options.timeout);
     await runWithProgress(visualize, filePath, options);
   });
 
@@ -193,7 +218,7 @@ eng
   .option('--force', 'Continue analysis despite data quality warnings')
   .action(async (file, options) => {
     if (file) {
-      const filePath = validateFile(file);
+      const filePath = await validateFile(file);
       await runWithProgress(engineering, filePath, options);
     } else {
       // Show help if no file provided
@@ -329,6 +354,75 @@ eng
     await engineering(null, { showMap: true });
   });
 
+// CONFIG command - manage configuration settings
+program
+  .command('config')
+  .description('Manage DataPilot configuration settings')
+  .option('--show', 'Show current configuration')
+  .option('--reset', 'Reset to default configuration')
+  .option('--path', 'Show configuration file paths')
+  .action((options) => {
+    if (options.show) {
+      console.log(chalk.cyan('📄 Current DataPilot Configuration:'));
+      console.log(chalk.cyan('═'.repeat(40)));
+      
+      const config = loadConfig();
+      const configDisplay = JSON.stringify(config, null, 2)
+        .replace(/"([^"]+)":/g, chalk.yellow('"$1"') + ':')
+        .replace(/: "([^"]*)"([,\n])/g, ': ' + chalk.green('"$1"') + '$2')
+        .replace(/: (\d+)([,\n])/g, ': ' + chalk.blue('$1') + '$2')
+        .replace(/: (true|false)([,\n])/g, ': ' + chalk.magenta('$1') + '$2');
+      
+      console.log(configDisplay);
+      
+      if (config._meta) {
+        console.log(chalk.gray('\nConfiguration loaded from: ' + config._meta.source));
+        console.log(chalk.gray('Loaded at: ' + config._meta.loadedAt));
+      }
+    } else if (options.path) {
+      console.log(chalk.cyan('📁 Configuration file locations (in order of priority):'));
+      console.log(chalk.cyan('═'.repeat(50)));
+      console.log('1. ' + chalk.yellow('./datapilot.config.json') + chalk.gray(' (project-specific)'));
+      console.log('2. ' + chalk.yellow(path.join(process.cwd(), 'datapilot.config.json')) + chalk.gray(' (current directory)'));
+      console.log('3. ' + chalk.yellow(path.join(os.homedir(), '.datapilot', 'config.json')) + chalk.gray(' (user home)'));
+      console.log('4. ' + chalk.yellow(path.join(process.env.APPDATA || os.homedir(), 'datapilot', 'config.json')) + chalk.gray(' (system)'));
+      
+      console.log(chalk.cyan('\n📋 Example configuration file:'));
+      const exampleConfig = {
+        performance: {
+          maxMemoryRows: 50000,
+          progressUpdateInterval: 1000
+        },
+        parsing: {
+          encoding: "auto",
+          dateFormats: ["DD/MM/YYYY", "YYYY-MM-DD"]
+        },
+        ui: {
+          showProgress: true,
+          compactOutput: false
+        },
+        analysis: {
+          enableFuzzyDuplicates: true,
+          australianDataDetection: true
+        }
+      };
+      console.log(JSON.stringify(exampleConfig, null, 2));
+    } else if (options.reset) {
+      console.log(chalk.yellow('⚠️  Configuration reset would require removing user config files manually.'));
+      console.log(chalk.yellow('    Run with --path to see configuration file locations.'));
+    } else {
+      console.log(chalk.cyan('🔧 DataPilot Configuration Management'));
+      console.log(chalk.cyan('═'.repeat(35)));
+      console.log('Usage:');
+      console.log('  datapilot config --show     Show current configuration');
+      console.log('  datapilot config --path     Show config file locations and example');
+      console.log('  datapilot config --reset    Instructions to reset configuration');
+      console.log('');
+      console.log(chalk.gray('Configuration affects performance, parsing behavior, and UI preferences.'));
+      console.log(chalk.gray('Higher priority configs override lower priority ones.'));
+    }
+  });
+
 // Legacy individual commands (hidden for backward compatibility)
 // Note: These are preserved for existing scripts/workflows but hidden from main help
 // New users should use the consolidated commands: run, vis, all
@@ -346,7 +440,7 @@ program
   .option('--force', 'Continue analysis despite data quality warnings')
   .action(async (file, options) => {
     console.log(chalk.yellow('ℹ️  Note: "eda" command is legacy. Use "datapilot run" for comprehensive analysis.'));
-    const filePath = validateFile(file);
+    const filePath = await validateFile(file);
     if (options.timeout) options.timeout = parseInt(options.timeout);
     await runWithProgress(eda, filePath, options);
   });
@@ -362,7 +456,7 @@ program
   .option('--force', 'Continue analysis despite data quality warnings')
   .action(async (file, options) => {
     console.log(chalk.yellow('ℹ️  Note: "int" command is legacy. Use "datapilot run" for comprehensive analysis.'));
-    const filePath = validateFile(file);
+    const filePath = await validateFile(file);
     await runWithProgress(integrity, filePath, options);
   });
 
@@ -379,7 +473,7 @@ program
   .option('--comprehensive <bool>', 'Use comprehensive analysis (default: true)', 'true')
   .action(async (file, options) => {
     console.log(chalk.yellow('ℹ️  Note: "llm" command is legacy. Use "datapilot run" for LLM-optimized output.'));
-    const filePath = validateFile(file);
+    const filePath = await validateFile(file);
     if (options.timeout) options.timeout = parseInt(options.timeout);
     if (options.comprehensive) options.comprehensive = options.comprehensive === 'true';
     await runWithProgress(llmContext, filePath, options);
@@ -398,6 +492,7 @@ program.on('--help', () => {
   console.log('  $ datapilot run data.csv -o report.txt      # Save to file');
   console.log('  $ datapilot vis sales.csv --encoding latin1 # Force encoding');
   console.log('  $ datapilot all data.csv --delimiter ";"    # Force delimiter');
+  console.log('  $ datapilot config --show                   # View current configuration');
   console.log('');
   console.log(chalk.gray('What\'s included in each command:'));
   console.log(chalk.gray('  • run: Statistical analysis (EDA) + Quality checks (INT) + AI-ready output'));

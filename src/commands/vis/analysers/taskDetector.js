@@ -1,3 +1,11 @@
+// Import consolidated column utilities
+import { 
+  getNumericColumns, 
+  getCategoricalColumns, 
+  getDateColumns, 
+  getGeographicColumns 
+} from '../../../utils/columnDetector.js';
+
 export class VisualTaskDetector {
   constructor() {
     this.tasks = {
@@ -532,15 +540,8 @@ export class VisualTaskDetector {
   }
   
   findGeographicColumns(columns, columnTypes) {
-    const geoKeywords = ['state', 'country', 'city', 'region', 'location', 'address', 
-                        'postcode', 'zip', 'latitude', 'longitude', 'lat', 'lon', 'lng'];
-    
-    return columns.filter(col => {
-      const isGeo = geoKeywords.some(keyword => col.toLowerCase().includes(keyword));
-      const isAppropriateType = ['categorical', 'postcode', 'string', 'float', 'integer']
-        .includes(columnTypes[col]?.type || 'unknown');
-      return isGeo && isAppropriateType;
-    });
+    // Use consolidated geographic detection
+    return getGeographicColumns(columnTypes);
   }
   
   detectHierarchy(data, columns) {

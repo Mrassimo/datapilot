@@ -29,12 +29,14 @@ jobs:
     - name: Install dependencies
       run: npm ci
 
+    - name: Build project
+      run: npm run build
+
     - name: Verify test files exist (Unix)
       if: runner.os != 'Windows'
       run: |
         echo "Checking test files..."
         ls -la tests/unit/
-        ls -la tests/tui/
         ls -la tests/fixtures/
 
     - name: Verify test files exist (Windows)
@@ -42,43 +44,41 @@ jobs:
       run: |
         echo "Checking test files..."
         dir tests\unit\
-        dir tests\tui\
         dir tests\fixtures\
       shell: cmd
 
     - name: Run comprehensive test suite
-      run: node tests/run_all_tests.js
+      run: npm test
       timeout-minutes: 10
-
-    - name: Test safe knowledge base features
-      run: node tests/test_safe_knowledge_base.js
-      timeout-minutes: 5
-      continue-on-error: true
 
     - name: Verify CLI help functionality
       run: |
         node bin/datapilot.js --help
-        node bin/datapilot.js eda --help
-        node bin/datapilot.js int --help
+        node bin/datapilot.js run --help
         node bin/datapilot.js vis --help
-        node bin/datapilot.js eng --help
-        node bin/datapilot.js llm --help
+        node bin/datapilot.js all --help
+        node bin/datapilot.js config --help
 
     - name: Test core functionality (Unix)
       if: runner.os != 'Windows'
       run: |
-        echo "Testing EDA analysis..."
-        node bin/datapilot.js eda tests/fixtures/iris.csv --output /tmp/test_eda_output.txt
-        echo "Testing Knowledge Base..."
-        node bin/datapilot.js eng tests/fixtures/iris.csv
+        echo "Testing RUN command..."
+        node bin/datapilot.js run tests/fixtures/iris.csv --output /tmp/test_run_output.txt
+        echo "Testing VIS command..."
+        node bin/datapilot.js vis tests/fixtures/iris.csv --output /tmp/test_vis_output.txt
+        echo "Testing ALL command..."
+        node bin/datapilot.js all tests/fixtures/test_sales.csv --output /tmp/test_all_output.txt
 
     - name: Test core functionality (Windows)
       if: runner.os == 'Windows'
       run: |
-        echo "Testing EDA analysis..."
-        node bin/datapilot.js eda tests/fixtures/iris.csv --output C:\temp\test_eda_output.txt
-        echo "Testing Knowledge Base..."
-        node bin/datapilot.js eng tests/fixtures/iris.csv
+        if not exist C:\temp mkdir C:\temp
+        echo "Testing RUN command..."
+        node bin/datapilot.js run tests/fixtures/iris.csv --output C:\temp\test_run_output.txt
+        echo "Testing VIS command..."
+        node bin/datapilot.js vis tests/fixtures/iris.csv --output C:\temp\test_vis_output.txt
+        echo "Testing ALL command..."
+        node bin/datapilot.js all tests/fixtures/test_sales.csv --output C:\temp\test_all_output.txt
       shell: cmd
 
     - name: Create test output directory (Windows)

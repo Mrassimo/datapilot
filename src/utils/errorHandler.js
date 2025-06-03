@@ -10,6 +10,117 @@ export class DataPilotError extends Error {
     this.code = code;
     this.context = context;
     this.timestamp = new Date().toISOString();
+    this.solution = this.getSolution(code, context);
+  }
+
+  getSolution(code, context) {
+    const solutions = {
+      'FILE_NOT_FOUND': {
+        message: 'The specified file could not be found.',
+        actions: [
+          'Check if the file path is correct',
+          'Ensure the file exists in the specified location',
+          'Use absolute paths or check your current directory',
+          'Example: datapilot run ./data/myfile.csv'
+        ]
+      },
+      'PERMISSION_DENIED': {
+        message: 'Permission denied accessing the file.',
+        actions: [
+          'Check file permissions (read access required)',
+          'Try running with appropriate permissions',
+          'On Windows: Right-click → Properties → Security',
+          'On macOS/Linux: chmod 644 filename.csv'
+        ]
+      },
+      'INVALID_CSV_FORMAT': {
+        message: 'The file is not a valid CSV format.',
+        actions: [
+          'Ensure the file has a .csv extension',
+          'Check if the file contains proper CSV data',
+          'Try specifying delimiter: --delimiter ";" or --delimiter "|"',
+          'Check for encoding issues: --encoding utf8 or --encoding latin1'
+        ]
+      },
+      'MEMORY_LIMIT_EXCEEDED': {
+        message: 'Insufficient memory to process this file.',
+        actions: [
+          'Use --quick mode for basic analysis only',
+          'Try processing a smaller sample of your data',
+          'Close other applications to free memory',
+          'Consider splitting large files into smaller chunks'
+        ]
+      },
+      'TIMEOUT_ERROR': {
+        message: 'Analysis timed out - file may be too large or complex.',
+        actions: [
+          'Increase timeout: --timeout 120000 (for 2 minutes)',
+          'Use --quick mode for faster analysis',
+          'Try with a smaller sample of your data',
+          'Check if the file has formatting issues'
+        ]
+      },
+      'ENCODING_ERROR': {
+        message: 'Unable to read file - encoding issues detected.',
+        actions: [
+          'Try different encodings: --encoding utf8, --encoding latin1',
+          'Check if file was saved with correct encoding',
+          'For Excel exports, save as CSV (UTF-8)',
+          'Use a text editor to verify file contents'
+        ]
+      },
+      'NO_DATA_FOUND': {
+        message: 'File is empty or contains no valid data.',
+        actions: [
+          'Check if the file contains actual data',
+          'Verify the file is not corrupted',
+          'Ensure proper CSV headers and data rows',
+          'Try opening the file in a text editor'
+        ]
+      },
+      'COLUMN_MISMATCH': {
+        message: 'Inconsistent column structure detected.',
+        actions: [
+          'Check for irregular row lengths in your CSV',
+          'Ensure all rows have the same number of columns',
+          'Look for unescaped quotes or commas in data',
+          'Use --force to continue despite data issues'
+        ]
+      }
+    };
+
+    return solutions[code] || {
+      message: 'An unexpected error occurred.',
+      actions: [
+        'Try the analysis again',
+        'Check if your CSV file is properly formatted',
+        'Use --force to continue despite warnings',
+        'Report this issue if it persists'
+      ]
+    };
+  }
+
+  getFormattedMessage() {
+    const solution = this.solution;
+    let message = `\n❌ ${this.message}\n`;
+    
+    if (solution) {
+      message += `\n💡 ${solution.message}\n`;
+      message += '\n🔧 Suggested Actions:\n';
+      solution.actions.forEach((action, index) => {
+        message += `   ${index + 1}. ${action}\n`;
+      });
+      
+      if (this.context.filePath) {
+        message += `\n📁 File: ${this.context.filePath}`;
+      }
+      
+      if (this.context.lineNumber) {
+        message += `\n📍 Line: ${this.context.lineNumber}`;
+      }
+    }
+    
+    return message;
   }
 }
 

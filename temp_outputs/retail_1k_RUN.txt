@@ -1,0 +1,7 @@
+📊 Parsing CSV: /Users/massimoraso/Code/jseda/datapilot/retail_1k_sample.csv
+📏 File size: 0.06MB
+🔤 Detected encoding: utf8
+📋 Detected delimiter: ,
+✅ Successfully parsed with utf8 encoding
+📊 Records: 500
+📋 Columns: 10

@@ -66,12 +66,13 @@ function displayWindowsInstructions() {
 function displaySuccessMessage() {
   console.log(chalk.green('\n🎉 DataPilot installed successfully!\n'));
   
-  if (!isWindows) {
-    console.log(chalk.white('Run DataPilot with:'));
-    console.log(chalk.cyan('  datapilot <command> <file.csv>\n'));
-    console.log(chalk.white('Try the interactive UI:'));
-    console.log(chalk.cyan('  datapilot ui\n'));
-  }
+  console.log(chalk.white('Run DataPilot with:'));
+  console.log(chalk.cyan('  datapilot <command> <file.csv>\n'));
+  
+  console.log(chalk.white('Available commands:'));
+  console.log(chalk.cyan('  datapilot run <file.csv>    # Comprehensive analysis'));
+  console.log(chalk.cyan('  datapilot vis <file.csv>    # Business Intelligence'));
+  console.log(chalk.cyan('  datapilot all <file.csv>    # Complete suite\n'));
 }
 
 // Main execution

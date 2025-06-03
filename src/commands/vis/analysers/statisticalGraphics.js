@@ -524,6 +524,54 @@ export class StatisticalGraphicsAnalyzer {
     };
   }
   
+  identifyQQDeviations(values) {
+    // Simplified QQ deviation analysis
+    const n = values.length;
+    if (n < 10) return [];
+    
+    const sorted = [...values].sort((a, b) => a - b);
+    const mean = values.reduce((a, b) => a + b) / n;
+    const std = Math.sqrt(values.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / (n - 1));
+    
+    const deviations = [];
+    
+    // Check for heavy tails
+    const q1 = sorted[Math.floor(n * 0.25)];
+    const q3 = sorted[Math.floor(n * 0.75)];
+    const iqr = q3 - q1;
+    
+    if (iqr > 0) {
+      const lowerTail = sorted.filter(v => v < q1 - 1.5 * iqr).length;
+      const upperTail = sorted.filter(v => v > q3 + 1.5 * iqr).length;
+      
+      if (lowerTail > n * 0.05) {
+        deviations.push('Heavy lower tail detected');
+      }
+      if (upperTail > n * 0.05) {
+        deviations.push('Heavy upper tail detected');
+      }
+    }
+    
+    // Check for skewness
+    const skewness = this.calculateSkewness(values);
+    if (Math.abs(skewness) > 1) {
+      deviations.push(`Strong ${skewness > 0 ? 'right' : 'left'} skew detected`);
+    }
+    
+    return deviations;
+  }
+  
+  calculateSkewness(values) {
+    const n = values.length;
+    const mean = values.reduce((a, b) => a + b) / n;
+    const std = Math.sqrt(values.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / (n - 1));
+    
+    if (std === 0) return 0;
+    
+    const skewness = values.reduce((sum, v) => sum + Math.pow((v - mean) / std, 3), 0) / n;
+    return skewness;
+  }
+  
   // Code generation methods
   generateViolinPlotCode(column, stats) {
     return `# Python/Seaborn implementation

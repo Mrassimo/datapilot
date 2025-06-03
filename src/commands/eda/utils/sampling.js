@@ -3,8 +3,8 @@ export function createSamplingStrategy(records, analysisType) {
   
   // Define sampling thresholds
   const thresholds = {
-    noSampling: 10000,      // No sampling needed
-    lightSampling: 50000,   // Light sampling for some operations
+    noSampling: 5000,       // No sampling needed - FIXED: lowered from 10000
+    lightSampling: 25000,   // Light sampling for some operations  
     heavySampling: 100000,  // Heavy sampling for expensive operations
     streaming: 1000000      // Stream processing required
   };

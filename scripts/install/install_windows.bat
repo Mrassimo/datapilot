@@ -97,9 +97,10 @@ echo   Installation Complete!
 echo ====================================
 echo.
 echo You can now use DataPilot from anywhere:
-echo   datapilot ui
+echo   datapilot run mydata.csv
+echo   datapilot vis mydata.csv
 echo   datapilot all mydata.csv
-echo   datapilot help
+echo   datapilot --help
 echo.
 echo For detailed usage, see EASY_INSTALL.md
 echo.

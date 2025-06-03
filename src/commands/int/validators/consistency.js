@@ -134,6 +134,23 @@ function checkCrossColumnConsistency(data, headers) {
     }
   }
 
+  // Enhanced validation for name/gender consistency
+  const nameColumn = headers.find(h => h.toLowerCase().includes('name'));
+  const genderColumn = headers.find(h => h.toLowerCase().includes('gender') || h.toLowerCase().includes('sex'));
+  
+  if (nameColumn && genderColumn) {
+    const genderNameIssues = checkGenderNameConsistency(data, nameColumn, genderColumn);
+    if (genderNameIssues) {
+      issues.push(genderNameIssues);
+    }
+  }
+
+  // Check for inconsistent capitalization patterns
+  const capitalizationIssues = checkCapitalizationConsistency(data, headers);
+  if (capitalizationIssues.length > 0) {
+    issues.push(...capitalizationIssues);
+  }
+
   return issues;
 }
 
@@ -561,4 +578,140 @@ function parseDate(value) {
   if (!value) return null;
   const date = new Date(value);
   return isNaN(date.getTime()) ? null : date;
+}
+
+function checkGenderNameConsistency(data, nameColumn, genderColumn) {
+  // Common first names associated with genders
+  const maleNames = new Set([
+    'john', 'james', 'robert', 'michael', 'william', 'david', 'richard', 'joseph', 'thomas', 'christopher',
+    'charles', 'daniel', 'matthew', 'anthony', 'mark', 'donald', 'steven', 'paul', 'andrew', 'joshua',
+    'kenneth', 'kevin', 'brian', 'george', 'edward', 'ronald', 'timothy', 'jason', 'jeffrey', 'ryan',
+    'jacob', 'gary', 'nicholas', 'eric', 'jonathan', 'stephen', 'larry', 'justin', 'scott', 'brandon',
+    'benjamin', 'samuel', 'gregory', 'alexander', 'patrick', 'frank', 'raymond', 'jack', 'dennis', 'jerry',
+    'luke', 'connor', 'bobby', 'aaron', 'kyle', 'eric', 'peter', 'christian', 'christopher', 'chris'
+  ]);
+  
+  const femaleNames = new Set([
+    'mary', 'patricia', 'jennifer', 'linda', 'elizabeth', 'barbara', 'susan', 'jessica', 'sarah', 'karen',
+    'nancy', 'lisa', 'betty', 'helen', 'sandra', 'donna', 'carol', 'ruth', 'sharon', 'michelle',
+    'laura', 'sarah', 'kimberly', 'deborah', 'dorothy', 'lisa', 'nancy', 'karen', 'betty', 'helen',
+    'sandra', 'donna', 'carol', 'ruth', 'sharon', 'michelle', 'laura', 'emily', 'kimberly', 'deborah',
+    'amy', 'angela', 'ashley', 'brenda', 'emma', 'olivia', 'cynthia', 'marie', 'janet', 'catherine',
+    'frances', 'samantha', 'debra', 'rachel', 'carolyn', 'janet', 'virginia', 'maria', 'heather', 'diane',
+    'julie', 'joyce', 'victoria', 'kelly', 'christina', 'joan', 'evelyn', 'lauren', 'judith', 'megan',
+    'adrienne', 'brooke', 'haley', 'denise', 'cassandra', 'nicole', 'pamela', 'lynn', 'katherine', 'erin'
+  ]);
+
+  let mismatches = 0;
+  const examples = [];
+
+  data.forEach((row, index) => {
+    const name = row[nameColumn];
+    const gender = row[genderColumn];
+    
+    if (name && gender && typeof name === 'string') {
+      // Extract first name
+      const firstName = name.split(/[\s,]+/)[0].toLowerCase().replace(/[^a-z]/g, '');
+      const genderLower = gender.toLowerCase();
+      
+      // Check for obvious mismatches
+      if (maleNames.has(firstName) && (genderLower === 'female' || genderLower === 'f')) {
+        mismatches++;
+        if (examples.length < 5) {
+          examples.push({
+            row: index + 1,
+            name: name,
+            gender: gender,
+            issue: 'Typically male name with female gender'
+          });
+        }
+      } else if (femaleNames.has(firstName) && (genderLower === 'male' || genderLower === 'm')) {
+        mismatches++;
+        if (examples.length < 5) {
+          examples.push({
+            row: index + 1,
+            name: name,
+            gender: gender,
+            issue: 'Typically female name with male gender'
+          });
+        }
+      }
+    }
+  });
+
+  if (mismatches > 0) {
+    return {
+      severity: mismatches > data.length * 0.05 ? 'warning' : 'observation',
+      message: `Found ${mismatches} potential name/gender mismatches`,
+      count: mismatches,
+      examples: examples,
+      fix: 'Review and correct name/gender inconsistencies'
+    };
+  }
+
+  return null;
+}
+
+function checkCapitalizationConsistency(data, headers) {
+  const issues = [];
+  
+  // Check for fields that should have consistent capitalization
+  const nameFields = headers.filter(h => 
+    h.toLowerCase().includes('name') || 
+    h.toLowerCase().includes('title') ||
+    h.toLowerCase().includes('city') ||
+    h.toLowerCase().includes('state') ||
+    h.toLowerCase().includes('country')
+  );
+
+  nameFields.forEach(field => {
+    const values = data.map(row => row[field]).filter(val => val && typeof val === 'string');
+    
+    if (values.length > 10) {
+      const inconsistentCasing = findInconsistentCasing(values);
+      
+      if (inconsistentCasing.issues > 0) {
+        issues.push({
+          severity: 'observation',
+          field: field,
+          message: `Inconsistent capitalization in ${field}`,
+          inconsistentCount: inconsistentCasing.issues,
+          examples: inconsistentCasing.examples.slice(0, 3),
+          recommendation: 'Standardize capitalization (e.g., Title Case for names)'
+        });
+      }
+    }
+  });
+
+  return issues;
+}
+
+function findInconsistentCasing(values) {
+  let issueCount = 0;
+  const examples = [];
+  
+  values.forEach((value, index) => {
+    const trimmed = value.trim();
+    
+    // Check for inconsistent patterns
+    const hasRandomCase = /[a-z][A-Z]/.test(trimmed) || /[A-Z][a-z][A-Z]/.test(trimmed);
+    const hasAllCaps = trimmed === trimmed.toUpperCase() && trimmed.length > 2;
+    const hasAllLower = trimmed === trimmed.toLowerCase() && /[a-z]/.test(trimmed);
+    
+    if (hasRandomCase || (hasAllCaps && trimmed.split(' ').length > 1) || hasAllLower) {
+      issueCount++;
+      if (examples.length < 10) {
+        examples.push({
+          value: value,
+          issue: hasRandomCase ? 'Random casing' : 
+                 hasAllCaps ? 'All uppercase' : 'All lowercase'
+        });
+      }
+    }
+  });
+
+  return {
+    issues: issueCount,
+    examples: examples
+  };
 }

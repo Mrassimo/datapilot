@@ -1,0 +1,9 @@
+📊 Parsing CSV: /Users/massimoraso/Code/jseda/datapilot/Retail_Transaction_Dataset.csv
+📏 File size: 12.21MB
+🔤 Detected encoding: utf8
+📋 Detected delimiter: ,
+Large file detected (~159,989 estimated rows). Using 12.5% sampling for performance.
+ℹ️  Sampled 12,494 rows from 100,000 total rows
+✅ Successfully parsed with utf8 encoding
+📊 Records: 12,494
+📋 Columns: 10

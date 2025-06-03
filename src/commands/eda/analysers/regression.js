@@ -90,6 +90,10 @@ function selectRegressionTarget(records, columns) {
   
   columns.forEach(col => {
     const values = records.map(r => r[col]).filter(v => v !== null && !isNaN(v));
+    
+    // Only calculate variance if we have at least 2 data points
+    if (values.length < 2) return;
+    
     const variance = ss.variance(values);
     
     if (variance > maxVariance) {
@@ -496,7 +500,8 @@ function findInfluentialPoints(data, residuals, predicted) {
   residuals.forEach((r, i) => {
     // Cook's distance (simplified)
     const h = leverage[i];
-    const standardizedResidual = r / (Math.sqrt(ss.variance(residuals)) * Math.sqrt(1 - h));
+    const varianceResiduals = residuals.length > 1 ? ss.variance(residuals) : 1;
+    const standardizedResidual = r / (Math.sqrt(varianceResiduals) * Math.sqrt(1 - h));
     const cooksD = (standardizedResidual * standardizedResidual * h) / (p * (1 - h));
     
     if (cooksD > 4 / n || h > 2 * p / n) {
@@ -533,7 +538,9 @@ function detectResidualPatterns(residuals, predicted) {
   for (let i = 0; i < bins; i++) {
     const binData = sortedByPredicted.slice(i * binSize, (i + 1) * binSize);
     const binResiduals = binData.map(d => d.residual);
-    binVariances.push(ss.variance(binResiduals));
+    // Only calculate variance if we have enough data points
+    const variance = binResiduals.length > 1 ? ss.variance(binResiduals) : 0;
+    binVariances.push(variance);
   }
   
   const varianceRatio = Math.max(...binVariances) / Math.min(...binVariances);

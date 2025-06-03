@@ -39,7 +39,7 @@ export async function runAll(filePath, options = {}) {
     spinner.text = 'Parsing CSV file...';
     const records = await parseCSV(filePath, { 
       quiet: true,
-      noSampling: !options.quick,
+      noSampling: true,
       header: options.header 
     });
     

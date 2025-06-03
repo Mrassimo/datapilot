@@ -1,0 +1,79 @@
+
+╔═══════════════════════════════════════╗
+║          DataPilot CLI              ║
+║    Simple & LLM-Ready Analysis      ║
+║         Version 1.2.0-cli-only             ║
+╚═══════════════════════════════════════╝
+
+- Initializing analysis...
+- Starting comprehensive analysis...
+📊 Parsing CSV: /Users/massimoraso/Code/jseda/datapilot/kaggle_dataset.csv
+📏 File size: 0.06MB
+🔤 Detected encoding: utf8
+📋 Detected delimiter: ,
+- Reading CSV file...
+✔ Processed 891 rows
+✅ Successfully parsed with utf8 encoding
+📊 Records: 891
+📋 Columns: 12
+📊 Column statistics analysis (1/8)
+💾 Progress saved: Column statistics analysis (12.5%)
+✔ Analysis complete!
+🤖 DATAPILOT COMPREHENSIVE ANALYSIS
+===================================
+Dataset: kaggle_dataset.csv (891 records)
+Generated: 2025-06-03 02:54:49
+
+
+════════════════════════════════════════════════════════════
+                     EXECUTIVE SUMMARY
+════════════════════════════════════════════════════════════📊 Data Quality: B+ (88/100)
+
+🎯 Key Statistical Insights:
+   1. 5 numeric columns show non-normal distributions
+   2. 3 distinct business segments identified
+
+
+════════════════════════════════════════════════════════════
+                  DATA QUALITY ASSESSMENT
+════════════════════════════════════════════════════════════📊 Quality Dimensions:
+   • Completeness: 79.0% ⚠️
+   • Validity: 100.0% ✅
+   • Accuracy: 100.0% ✅
+   • Consistency: 90.0% ⚠️
+   • Uniqueness: 40.0% ⚠️
+   • Timeliness: Unknown
+
+
+════════════════════════════════════════════════════════════
+                    STATISTICAL ANALYSIS
+════════════════════════════════════════════════════════════📊 Column Overview:
+   • Numeric columns: 5
+   • Categorical columns: 4
+   • Date columns: 0
+
+📈 Numeric Column Summary:
+   PassengerId: mean=446.50, std=256.92
+   Pclass: mean=2.73, std=0.45
+   Age: mean=29.98, std=14.30
+   Ticket: mean=260.32K, std=471.25K
+   Fare: mean=32.76, std=49.91
+
+📋 Business Rules Discovered:
+   1. Field contains only whole numbers
+   2. All values are currently unique
+   3. Only uppercase letters and numbers
+
+
+════════════════════════════════════════════════════════════
+                      RECOMMENDATIONS
+════════════════════════════════════════════════════════════📊 Further Analysis Suggestions:
+   1. Entity Resolution: Duplicate patterns suggest potential entity matching issues
+
+🤖 Machine Learning Readiness:
+   • Overall Score: 7%
+
+──────────────────────────────────────────────────
+Use `datapilot vis` for visualization recommendations
+Use `datapilot all` for complete analysis including visualizations
+

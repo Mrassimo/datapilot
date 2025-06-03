@@ -1,0 +1,8 @@
+
+╔═══════════════════════════════════════╗
+║          DataPilot CLI              ║
+║    Simple & LLM-Ready Analysis      ║
+║         Version 1.2.0-cli-only             ║
+╚═══════════════════════════════════════╝
+
+error: unknown option '--verbose'

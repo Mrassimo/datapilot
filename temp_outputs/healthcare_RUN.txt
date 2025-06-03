@@ -1,0 +1,9 @@
+📊 Parsing CSV: /Users/massimoraso/Code/jseda/datapilot/data/samples/healthcare-dataset/healthcare_dataset.csv
+📏 File size: 8.01MB
+🔤 Detected encoding: utf8
+📋 Detected delimiter: ,
+Large file detected (~104,990 estimated rows). Using 19.0% sampling for performance.
+ℹ️  Sampled 10,414 rows from 55,500 total rows
+✅ Successfully parsed with utf8 encoding
+📊 Records: 10,414
+📋 Columns: 15

@@ -1,3 +1,13 @@
+// Import consolidated column utilities
+import { 
+  getNumericColumns, 
+  getCategoricalColumns, 
+  getDateColumns, 
+  getGeographicColumns,
+  generateColumnSummary,
+  GEOGRAPHIC_KEYWORDS 
+} from '../../../utils/columnDetector.js';
+
 export class DataProfiler {
   analyzeData(data, columnTypes) {
     const profile = {
@@ -6,7 +16,8 @@ export class DataProfiler {
       density: this.analyzeDensity(data, columnTypes),
       patterns: this.analyzePatterns(data, columnTypes),
       quality: this.analyzeQuality(data, columnTypes),
-      relationships: this.analyzeRelationships(data, columnTypes)
+      relationships: this.analyzeRelationships(data, columnTypes),
+      summary: generateColumnSummary(columnTypes) // Use consolidated summary
     };
     
     return profile;
@@ -15,20 +26,26 @@ export class DataProfiler {
   analyzeDimensions(data, columnTypes) {
     const columns = Object.keys(columnTypes);
     
+    // Use consolidated column utilities
+    const numericColumns = getNumericColumns(columnTypes);
+    const categoricalColumns = getCategoricalColumns(columnTypes);
+    const dateColumns = getDateColumns(columnTypes);
+    const geographicColumns = getGeographicColumns(columnTypes);
+    
     return {
       rows: data.length,
       columns: columns.length,
-      continuous: columns.filter(col => ['integer', 'float'].includes(columnTypes[col].type)).length,
-      discrete: columns.filter(col => columnTypes[col].type === 'categorical').length,
-      temporal: columns.filter(col => columnTypes[col].type === 'date').length,
+      continuous: numericColumns.length,
+      discrete: categoricalColumns.length,
+      temporal: dateColumns.length,
       text: columns.filter(col => columnTypes[col].type === 'string').length,
-      geographic: this.countGeographicColumns(columns, columnTypes),
+      geographic: geographicColumns.length,
       density: data.length * columns.length,
-      sizeCategory: this.categorizeSze(data.length)
+      sizeCategory: this.categorizeSize(data.length)
     };
   }
   
-  categorizeSze(rowCount) {
+  categorizeSize(rowCount) {
     if (rowCount < 100) return 'small';
     if (rowCount < 1000) return 'medium';
     if (rowCount < 10000) return 'large';
@@ -511,51 +528,16 @@ export class DataProfiler {
     return denominator === 0 ? 0 : numerator / denominator;
   }
   
+  // Note: Geographic column detection now handled by consolidated columnDetector.js
+  // These methods are now redundant but kept for compatibility
+  
   countGeographicColumns(columns, columnTypes) {
-    const geoKeywords = ['state', 'country', 'city', 'region', 'location', 'address', 
-                        'postcode', 'zip', 'latitude', 'longitude', 'lat', 'lon', 'lng',
-                        'suburb', 'district', 'province', 'county', 'area'];
-    
-    return columns.filter(col => {
-      const colLower = col.toLowerCase();
-      const colType = columnTypes[col]?.type;
-      
-      // Check for geographic keywords
-      const hasGeoKeyword = geoKeywords.some(keyword => colLower.includes(keyword));
-      
-      // Check for coordinate patterns (lat/long)
-      const isCoordinate = (colLower.includes('lat') || colLower.includes('lon') || 
-                           colLower.includes('lng')) && ['float', 'integer'].includes(colType);
-      
-      // Check for appropriate data type (exclude 'unknown' type)
-      const isAppropriateType = colType && colType !== 'unknown' && 
-        ['categorical', 'postcode', 'string', 'float', 'integer'].includes(colType);
-      
-      return (hasGeoKeyword || isCoordinate) && isAppropriateType;
-    }).length;
+    // Use consolidated geographic detection
+    return getGeographicColumns(columnTypes).length;
   }
   
   findGeographicColumns(columns, columnTypes) {
-    const geoKeywords = ['state', 'country', 'city', 'region', 'location', 'address', 
-                        'postcode', 'zip', 'latitude', 'longitude', 'lat', 'lon', 'lng',
-                        'suburb', 'district', 'province', 'county', 'area'];
-    
-    return columns.filter(col => {
-      const colLower = col.toLowerCase();
-      const colType = columnTypes[col]?.type;
-      
-      // Check for geographic keywords
-      const hasGeoKeyword = geoKeywords.some(keyword => colLower.includes(keyword));
-      
-      // Check for coordinate patterns (lat/long)
-      const isCoordinate = (colLower.includes('lat') || colLower.includes('lon') || 
-                           colLower.includes('lng')) && ['float', 'integer'].includes(colType);
-      
-      // Check for appropriate data type (exclude 'unknown' type)
-      const isAppropriateType = colType && colType !== 'unknown' && 
-        ['categorical', 'postcode', 'string', 'float', 'integer'].includes(colType);
-      
-      return (hasGeoKeyword || isCoordinate) && isAppropriateType;
-    });
+    // Use consolidated geographic detection
+    return getGeographicColumns(columnTypes);
   }
 }

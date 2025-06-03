@@ -116,7 +116,8 @@ function assessFeatureQuality(records, columns, columnTypes, analysis) {
     
     // Check variance
     if (['integer', 'float'].includes(type.type)) {
-      const variance = ss.variance(nonNullValues.filter(v => typeof v === 'number'));
+      const numericValues = nonNullValues.filter(v => typeof v === 'number');
+      const variance = numericValues.length > 1 ? ss.variance(numericValues) : 0;
       const uniqueRatio = new Set(nonNullValues).size / nonNullValues.length;
       
       if (variance === 0 || uniqueRatio < 0.01) {
