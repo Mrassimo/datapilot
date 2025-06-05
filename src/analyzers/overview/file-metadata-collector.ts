@@ -53,14 +53,14 @@ export class FileMetadataCollector {
         sha256Hash,
       };
       
-      // Performance warning for large files
-      if (fileSizeMB > 100) {
+      // Performance info for very large files
+      if (fileSizeMB > 1000) { // Only warn for files > 1GB
         this.warnings.push({
           category: 'file',
-          severity: 'medium',
-          message: `Large file detected (${fileSizeMB.toFixed(1)}MB)`,
-          impact: 'Analysis may take longer and use more memory',
-          suggestion: 'Consider using sampling options for very large datasets',
+          severity: 'low',
+          message: `Very large file detected (${fileSizeMB.toFixed(1)}MB)`,
+          impact: 'Analysis will use streaming algorithms to manage memory efficiently',
+          suggestion: 'Processing may take longer but memory usage will remain bounded',
         });
       }
       

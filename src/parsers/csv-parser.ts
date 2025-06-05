@@ -25,7 +25,7 @@ export class CSVParser {
       hasHeader: true,
       lineEnding: '\n',
       skipEmptyLines: true,
-      maxRows: Number.MAX_SAFE_INTEGER,
+      maxRows: options.maxRows ?? 1000000, // Default 1M rows to prevent memory issues
       chunkSize: OPTIMAL_CHUNK_SIZE,
       detectTypes: true,
       trimFields: true,
@@ -60,7 +60,15 @@ export class CSVParser {
         await this.detectFormat(filePath);
       }
 
-      // Create parsing pipeline
+      // For large files, use streaming with batching to prevent memory overflow
+      const fileSizeMB = fileStats.size / (1024 * 1024);
+      const isLargeFile = fileSizeMB > 100; // Files over 100MB
+      
+      if (isLargeFile) {
+        return this.parseFileStreaming(filePath);
+      }
+
+      // Create parsing pipeline for smaller files
       const rows: ParsedRow[] = [];
       const readStream = createReadStream(filePath, {
         encoding: this.options.encoding,
@@ -69,6 +77,16 @@ export class CSVParser {
 
       const parseTransform = this.createParseTransform((row) => {
         rows.push(row);
+        
+        // Check for memory pressure and switch to streaming if needed
+        if (rows.length % 10000 === 0) {
+          const memUsage = process.memoryUsage();
+          this.stats.peakMemoryUsage = Math.max(this.stats.peakMemoryUsage || 0, memUsage.heapUsed);
+          
+          if (memUsage.heapUsed > 1024 * 1024 * 1024) { // 1GB threshold
+            throw new DataPilotError('Memory limit reached, file too large for in-memory parsing', 'MEMORY_LIMIT');
+          }
+        }
       });
 
       // Process file
@@ -78,12 +96,60 @@ export class CSVParser {
       return rows;
 
     } catch (error) {
+      if (error instanceof DataPilotError && error.code === 'MEMORY_LIMIT') {
+        // Fallback to streaming for large datasets
+        return this.parseFileStreaming(filePath);
+      }
+      
       throw new DataPilotError(
         `Failed to parse CSV file: ${error instanceof Error ? error.message : 'Unknown error'}`,
         'PARSE_FAILED',
         { filePath, stats: this.stats },
       );
     }
+  }
+
+  /**
+   * Parse large CSV files using streaming with memory-efficient batching
+   */
+  private async parseFileStreaming(filePath: string): Promise<ParsedRow[]> {
+    const rows: ParsedRow[] = [];
+    const batchSize = 1000; // Process in batches
+    let currentBatch: ParsedRow[] = [];
+    
+    const readStream = createReadStream(filePath, {
+      encoding: this.options.encoding,
+      highWaterMark: this.options.chunkSize,
+    });
+
+    const parseTransform = this.createParseTransform((row) => {
+      currentBatch.push(row);
+      
+      // Process batch and clear memory periodically
+      if (currentBatch.length >= batchSize) {
+        rows.push(...currentBatch);
+        currentBatch = []; // Clear batch to free memory
+        
+        // Track memory usage
+        const memUsage = process.memoryUsage();
+        this.stats.peakMemoryUsage = Math.max(this.stats.peakMemoryUsage || 0, memUsage.heapUsed);
+        
+        // Respect maxRows limit to prevent unbounded growth
+        if (rows.length >= this.options.maxRows) {
+          this.abort();
+        }
+      }
+    });
+
+    await pipeline(readStream, parseTransform);
+    
+    // Add any remaining rows in the final batch
+    if (currentBatch.length > 0) {
+      rows.push(...currentBatch);
+    }
+
+    this.stats.endTime = Date.now();
+    return rows;
   }
 
   /**

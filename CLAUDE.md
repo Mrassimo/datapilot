@@ -47,3 +47,6 @@ npm test          # Run tests
 npm run lint      # Lint code
 npm run typecheck # Type checking
 ```
+
+## Development Workflow
+- push to git after a feature is complete
