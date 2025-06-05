@@ -11,6 +11,8 @@ import { OutputManager } from './output-manager';
 import { Section1Analyzer } from '../analyzers/overview';
 import { StreamingAnalyzer } from '../analyzers/streaming/streaming-analyzer';
 import { Section3Formatter } from '../analyzers/eda/section3-formatter';
+import { Section4Analyzer, Section4Formatter } from '../analyzers/visualization';
+import { RecommendationType } from '../analyzers/visualization/types';
 import { CSVParser } from '../parsers/csv-parser';
 import { logger, LogLevel } from '../utils/logger';
 import type { CLIResult } from './types';
@@ -103,6 +105,9 @@ export class DataPilotCLI {
         
       case 'eda':
         return await this.executeSection3Analysis(filePath, options, startTime);
+        
+      case 'viz':
+        return await this.executeSection4Analysis(filePath, options, startTime);
         
       case 'validate':
         return await this.executeValidation(filePath, options);
@@ -274,6 +279,146 @@ export class DataPilotCLI {
 
     } catch (error) {
       this.progressReporter.errorPhase('EDA analysis failed');
+      throw error;
+    }
+  }
+
+  /**
+   * Execute Section 4 (Visualization Intelligence) analysis
+   */
+  private async executeSection4Analysis(
+    filePath: string,
+    options: any,
+    startTime: number
+  ): Promise<CLIResult> {
+    
+    if (!this.outputManager) {
+      throw new Error('Output manager not initialised');
+    }
+
+    try {
+      this.progressReporter.startPhase('section4', 'Starting visualization intelligence analysis...');
+
+      // Section 4 requires both Section 1 and Section 3 data
+      // First run Section 1 analysis
+      this.progressReporter.updateProgress({
+        phase: 'prerequisites',
+        progress: 25,
+        message: 'Running prerequisite Section 1 analysis...',
+        timeElapsed: Date.now() - startTime,
+      });
+
+      const section1Result = await this.executeSection1Analysis(filePath, options, startTime);
+      if (!section1Result.success) {
+        return section1Result;
+      }
+
+      // Then run Section 3 analysis
+      this.progressReporter.updateProgress({
+        phase: 'prerequisites',
+        progress: 50,
+        message: 'Running prerequisite Section 3 analysis...',
+        timeElapsed: Date.now() - startTime,
+      });
+
+      const section3Result = await this.executeSection3Analysis(filePath, options, Date.now());
+      if (!section3Result.success) {
+        return section3Result;
+      }
+
+      // Extract the analysis results from the output files
+      this.progressReporter.updateProgress({
+        phase: 'visualization',
+        progress: 75,
+        message: 'Generating visualization recommendations...',
+        timeElapsed: Date.now() - startTime,
+      });
+
+      // Create Section4Analyzer with user options
+      const section4Analyzer = new Section4Analyzer({
+        accessibilityLevel: options.accessibility || 'good',
+        complexityThreshold: options.complexity || 'moderate',
+        maxRecommendationsPerChart: options.maxRecommendations || 3,
+        includeCodeExamples: options.includeCode || false,
+        enabledRecommendations: [
+          RecommendationType.UNIVARIATE, 
+          RecommendationType.BIVARIATE, 
+          RecommendationType.DASHBOARD, 
+          RecommendationType.ACCESSIBILITY, 
+          RecommendationType.PERFORMANCE
+        ],
+        targetLibraries: ['d3', 'plotly', 'observable'],
+      });
+
+      // We need to get the actual analysis results, not just CLI results
+      // For now, we'll need to re-run the analyses to get the data structures
+      // This is not ideal but necessary until we refactor to return analysis results
+      
+      // Re-run Section 1 to get actual result data
+      const section1Analyzer = new Section1Analyzer({
+        enableFileHashing: options.enableHashing !== false,
+        includeHostEnvironment: options.includeEnvironment !== false,
+        privacyMode: options.privacyMode || 'redacted',
+        detailedProfiling: options.verbose || false,
+        maxSampleSizeForSparsity: 10000,
+      });
+
+      const section1Data = await section1Analyzer.analyze(
+        filePath,
+        `datapilot ${options.command || 'viz'} ${filePath}`,
+        ['overview']
+      );
+
+      // Re-run Section 3 to get actual result data
+      const section3Analyzer = new StreamingAnalyzer({
+        chunkSize: options.chunkSize || 500,
+        memoryThresholdMB: options.memoryLimit || 100,
+        maxRowsAnalyzed: options.maxRows || 500000,
+        enabledAnalyses: ['univariate', 'bivariate', 'correlations'],
+        significanceLevel: 0.05,
+        maxCorrelationPairs: 50,
+      });
+
+      const section3Data = await section3Analyzer.analyzeFile(filePath);
+
+      // Perform Section 4 analysis
+      const section4Result = await section4Analyzer.analyze(section1Data, section3Data);
+
+      const processingTime = Date.now() - startTime;
+      this.progressReporter.completePhase('Visualization analysis completed', processingTime);
+
+      // Generate Section 4 markdown report
+      const section4Report = Section4Formatter.formatSection4(section4Result);
+      
+      // Generate output files
+      const outputFiles = this.outputManager.outputSection4(
+        section4Report,
+        section4Result,
+        filePath.split('/').pop()
+      );
+
+      // Show summary
+      this.progressReporter.showSummary({
+        processingTime,
+        rowsProcessed: section1Data.overview.structuralDimensions.totalDataRows || 0,
+        warnings: section4Result.warnings.length,
+        errors: 0,
+      });
+
+      return {
+        success: true,
+        exitCode: 0,
+        outputFiles,
+        stats: {
+          processingTime,
+          rowsProcessed: section1Data.overview.structuralDimensions.totalDataRows || 0,
+          warnings: section4Result.warnings.length,
+          errors: 0,
+        },
+      };
+
+    } catch (error) {
+      this.progressReporter.errorPhase('Visualization analysis failed');
       throw error;
     }
   }

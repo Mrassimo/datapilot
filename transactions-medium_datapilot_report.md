@@ -1,7 +1,7 @@
 🤖 DATAPILOT COMPLETE ANALYSIS ENGINE
 ======================================
 Analysis Target: transactions-medium.csv
-Report Generated: 2025-06-05 22:48:30 (UTC)
+Report Generated: 2025-06-05 23:35:12 (UTC)
 DataPilot Version: v1.0.0 (TypeScript Edition)
 
 ---
@@ -19,7 +19,7 @@ This section provides a detailed snapshot of the dataset properties, how it was 
 **1.2. Data Ingestion & Parsing Parameters:**
     * Data Source Type: Local File System
     * Parsing Engine Utilized: DataPilot Advanced CSV Parser v1.0.0
-    * Time Taken for Parsing & Initial Load: 0.298 seconds
+    * Time Taken for Parsing & Initial Load: 0.256 seconds
     * Detected Character Encoding: `utf8`
         * Encoding Detection Method: Statistical Character Pattern Analysis
         * Encoding Confidence: High (95%)
@@ -64,10 +64,10 @@ This section provides a detailed snapshot of the dataset properties, how it was 
 **1.4. Analysis Configuration & Execution Context:**
     * Full Command Executed: `datapilot overview /Users/massimoraso/plum/test-datasets/large/transactions-medium.csv`
     * Analysis Mode Invoked: Comprehensive Deep Scan
-    * Timestamp of Analysis Start: 2025-06-05 22:48:29 (UTC)
+    * Timestamp of Analysis Start: 2025-06-05 23:35:12 (UTC)
     * Global Dataset Sampling Strategy: Full dataset analysis (No record sampling applied for initial overview)
     * DataPilot Modules Activated for this Run: File I/O Manager, Advanced CSV Parser, Metadata Collector, Structural Analyzer, Report Generator
-    * Processing Time for Section 1 Generation: 0.345 seconds
+    * Processing Time for Section 1 Generation: 0.304 seconds
     * Host Environment Details:
         * Operating System: macOS (Unknown Version)
         * System Architecture: ARM64 (Apple Silicon/ARM 64-bit)
@@ -78,7 +78,7 @@ This section provides a detailed snapshot of the dataset properties, how it was 
 ### Performance Metrics
 
 **Processing Performance:**
-    * Total Analysis Time: 0.346 seconds
-    * File analysis: 0.039s
-    * Parsing: 0.299s
+    * Total Analysis Time: 0.304 seconds
+    * File analysis: 0.04s
+    * Parsing: 0.258s
     * Structural analysis: 0.006s

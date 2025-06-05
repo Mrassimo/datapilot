@@ -7,6 +7,7 @@ import { dirname, extname } from 'path';
 import type { CLIOptions } from './types';
 import type { Section1Result } from '../analyzers/overview/types';
 import type { Section3Result } from '../analyzers/eda/types';
+import type { Section4Result } from '../analyzers/visualization/types';
 import { Section1Formatter } from '../analyzers/overview';
 
 export class OutputManager {
@@ -126,6 +127,75 @@ export class OutputManager {
         insights.topFindings.slice(0, 3).forEach((finding: string, i: number) => {
           console.log(`   ${i + 1}. ${finding}`);
         });
+      }
+    }
+
+    return outputFiles;
+  }
+
+  /**
+   * Output Section 4 (Visualization Intelligence) results in the specified format
+   */
+  outputSection4(
+    section4Report: string, 
+    result: Section4Result, 
+    filename?: string
+  ): string[] {
+    const outputFiles: string[] = [];
+
+    // Generate content based on format
+    let content: string;
+    let extension: string;
+
+    switch (this.options.output) {
+      case 'json':
+        content = this.formatSection4AsJSON(result);
+        extension = '.json';
+        break;
+      
+      case 'yaml':
+        content = this.formatSection4AsYAML(result);
+        extension = '.yaml';
+        break;
+      
+      case 'markdown':
+      default:
+        content = section4Report;
+        extension = '.md';
+        break;
+    }
+
+    // Output to file or stdout
+    if (this.options.outputFile) {
+      const outputPath = this.ensureExtension(this.options.outputFile, extension);
+      this.writeToFile(outputPath, content);
+      outputFiles.push(outputPath);
+    } else if (filename) {
+      // Auto-generate filename based on input
+      const outputPath = this.generateSection4OutputFilename(filename, extension);
+      this.writeToFile(outputPath, content);
+      outputFiles.push(outputPath);
+    } else {
+      // Output to stdout
+      console.log(content);
+    }
+
+    // Also generate summary if verbose and not quiet
+    if (this.options.verbose && !this.options.quiet) {
+      const recommendations = result.performanceMetrics?.recommendationsGenerated || 0;
+      const chartTypes = result.performanceMetrics?.chartTypesConsidered || 0;
+      const confidence = result.metadata?.recommendationConfidence || 0;
+      
+      console.log('\n📊 Visualization Intelligence Quick Summary:');
+      console.log(`   • Generated ${recommendations} chart recommendations across ${chartTypes} types`);
+      console.log(`   • Overall confidence: ${(confidence * 100).toFixed(0)}%`);
+      console.log(`   • Accessibility: WCAG 2.1 AA Ready`);
+      
+      if (result.warnings && result.warnings.length > 0) {
+        const criticalWarnings = result.warnings.filter(w => w.severity === 'critical' || w.severity === 'high');
+        if (criticalWarnings.length > 0) {
+          console.log(`   ⚠️  ${criticalWarnings.length} critical considerations identified`);
+        }
       }
     }
 
@@ -278,6 +348,54 @@ export class OutputManager {
   private generateSection3OutputFilename(inputFilename: string, extension: string): string {
     const baseName = inputFilename.replace(/\.[^/.]+$/, ''); // Remove extension
     return `${baseName}_datapilot_eda${extension}`;
+  }
+
+  /**
+   * Format Section 4 result as JSON
+   */
+  private formatSection4AsJSON(result: Section4Result): string {
+    const jsonOutput = {
+      metadata: {
+        version: '1.0.0',
+        generatedAt: new Date().toISOString(),
+        command: 'datapilot viz',
+        analysisType: 'Visualization Intelligence',
+      },
+      visualizationAnalysis: result.visualizationAnalysis,
+      warnings: result.warnings,
+      performanceMetrics: result.performanceMetrics,
+      analysisMetadata: result.metadata,
+    };
+
+    return JSON.stringify(jsonOutput, null, 2);
+  }
+
+  /**
+   * Format Section 4 result as YAML
+   */
+  private formatSection4AsYAML(result: Section4Result): string {
+    const yaml = this.objectToYAML({
+      metadata: {
+        version: '1.0.0',
+        generatedAt: new Date().toISOString(),
+        command: 'datapilot viz',
+        analysisType: 'Visualization Intelligence',
+      },
+      visualizationAnalysis: result.visualizationAnalysis,
+      warnings: result.warnings,
+      performanceMetrics: result.performanceMetrics,
+      analysisMetadata: result.metadata,
+    });
+
+    return yaml;
+  }
+
+  /**
+   * Generate Section 4 output filename
+   */
+  private generateSection4OutputFilename(inputFilename: string, extension: string): string {
+    const baseName = inputFilename.replace(/\.[^/.]+$/, ''); // Remove extension
+    return `${baseName}_datapilot_viz${extension}`;
   }
 
   /**

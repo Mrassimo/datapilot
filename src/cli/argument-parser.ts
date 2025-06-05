@@ -108,8 +108,13 @@ export class ArgumentParser {
       .command('viz')
       .argument('<file>', 'CSV file to analyze')
       .description('Generate visualization recommendations (Section 4)')
-      .option('-o, --output <format>', 'Output format', 'markdown')
-      .action(this.createStubHandler('viz', 'Visualization Intelligence'));
+      .option('-o, --output <format>', 'Output format (markdown, json, yaml)', 'markdown')
+      .option('--output-file <file>', 'Write output to file instead of stdout')
+      .option('--accessibility <level>', 'Accessibility level (excellent, good, adequate)', 'good')
+      .option('--complexity <level>', 'Complexity threshold (simple, moderate, complex)', 'moderate')
+      .option('--max-recommendations <number>', 'Maximum recommendations per chart', this.parseInteger)
+      .option('--include-code', 'Include implementation code examples')
+      .action(this.createCommandHandler('viz'));
 
     this.program
       .command('engineering')
