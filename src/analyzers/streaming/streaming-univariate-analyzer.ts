@@ -9,10 +9,18 @@ import {
   ReservoirSampler,
   BoundedFrequencyCounter
 } from './online-statistics';
+import {
+  ShapiroWilkTest,
+  JarqueBeraTest,
+  KolmogorovSmirnovTest
+} from './statistical-tests';
 import type {
   BaseColumnProfile,
   NumericalColumnAnalysis,
   CategoricalColumnAnalysis,
+  DateTimeAnalysis,
+  BooleanAnalysis,
+  TextColumnAnalysis,
   DescriptiveStatistics,
   QuantileStatistics,
   DistributionAnalysis,
@@ -23,6 +31,8 @@ import type {
   DiversityMetrics,
   CategoryLabelAnalysis,
   CategoricalRecommendations,
+  TextStatistics,
+  TextPatterns,
   ColumnAnalysis,
   Section3Warning,
 } from '../eda/types';
@@ -32,6 +42,7 @@ export interface StreamingColumnAnalyzer {
   processValue(value: string | number | null | undefined): void;
   finalize(): ColumnAnalysis;
   getWarnings(): Section3Warning[];
+  clearMemory?(): void; // Optional method for memory cleanup
 }
 
 /**
@@ -40,8 +51,8 @@ export interface StreamingColumnAnalyzer {
 export class StreamingNumericalAnalyzer implements StreamingColumnAnalyzer {
   private stats = new OnlineStatistics();
   private quantiles: Map<number, P2Quantile>;
-  private reservoir = new ReservoirSampler<number>(1000);
-  private frequencies = new BoundedFrequencyCounter<number>(1000);
+  private reservoir = new ReservoirSampler<number>(100); // Reduced from 1000
+  private frequencies = new BoundedFrequencyCounter<number>(100); // Reduced from 1000
   private warnings: Section3Warning[] = [];
   private totalValues = 0;
   private validValues = 0;
@@ -248,7 +259,6 @@ export class StreamingNumericalAnalyzer implements StreamingColumnAnalyzer {
   }
 
   private getNormalityTests(): NormalityTests {
-    // Simplified normality tests based on skewness and kurtosis
     const n = this.validValues;
     
     if (n < 3) {
@@ -264,32 +274,42 @@ export class StreamingNumericalAnalyzer implements StreamingColumnAnalyzer {
       };
     }
 
-    const skewness = this.stats.getSkewness();
-    const kurtosis = this.stats.getKurtosis();
+    // Get sample data for testing (from reservoir sampler)
+    const sampleData = this.reservoir.getSample();
+    
+    if (sampleData.length < 3) {
+      const insufficientSample = {
+        statistic: 0,
+        pValue: 1,
+        interpretation: 'Insufficient sample data for normality testing',
+      };
+      return {
+        shapiroWilk: insufficientSample,
+        jarqueBera: insufficientSample,
+        kolmogorovSmirnov: insufficientSample,
+      };
+    }
 
-    // Simplified Shapiro-Wilk approximation
-    const w = Math.max(0, 1 - (Math.abs(skewness) + Math.abs(kurtosis)) / 10);
-    const swInterpretation = w > 0.95 ? 'Likely normal' : w > 0.90 ? 'Possibly normal' : 'Likely not normal';
-
-    // Jarque-Bera test
-    const jbStatistic = (n / 6) * (Math.pow(skewness, 2) + Math.pow(kurtosis, 2) / 4);
-    const jbPValue = jbStatistic > 5.99 ? 0.01 : 0.1; // Simplified
+    // Use proper statistical tests from statistical-tests library
+    const shapiroResult = ShapiroWilkTest.test(sampleData);
+    const jarqueBeraResult = JarqueBeraTest.test(sampleData);
+    const ksResult = KolmogorovSmirnovTest.test(sampleData);
 
     return {
       shapiroWilk: {
-        statistic: Number(w.toFixed(4)),
-        pValue: w > 0.95 ? 0.1 : 0.01,
-        interpretation: swInterpretation,
+        statistic: shapiroResult.statistic,
+        pValue: shapiroResult.pValue,
+        interpretation: shapiroResult.interpretation,
       },
       jarqueBera: {
-        statistic: Number(jbStatistic.toFixed(4)),
-        pValue: Number(jbPValue.toFixed(4)),
-        interpretation: jbPValue > 0.05 ? 'Consistent with normality' : 'Deviates from normality',
+        statistic: jarqueBeraResult.statistic,
+        pValue: jarqueBeraResult.pValue,
+        interpretation: jarqueBeraResult.interpretation,
       },
       kolmogorovSmirnov: {
-        statistic: Number((0.8 + Math.random() * 0.2).toFixed(4)), // Placeholder
-        pValue: 0.05,
-        interpretation: 'Requires larger sample for reliable results',
+        statistic: ksResult.statistic,
+        pValue: ksResult.pValue,
+        interpretation: ksResult.interpretation,
       },
     };
   }
@@ -405,13 +425,18 @@ export class StreamingNumericalAnalyzer implements StreamingColumnAnalyzer {
   getWarnings(): Section3Warning[] {
     return [...this.warnings];
   }
+
+  clearMemory(): void {
+    // Clear reservoir sample to free memory
+    this.reservoir = new ReservoirSampler<number>(100);
+  }
 }
 
 /**
  * Streaming Categorical Column Analyzer
  */
 export class StreamingCategoricalAnalyzer implements StreamingColumnAnalyzer {
-  private frequencies = new BoundedFrequencyCounter<string>(10000);
+  private frequencies = new BoundedFrequencyCounter<string>(500); // Reduced from 10000
   private warnings: Section3Warning[] = [];
   private totalValues = 0;
   private validValues = 0;
@@ -579,5 +604,477 @@ export class StreamingCategoricalAnalyzer implements StreamingColumnAnalyzer {
   }
 }
 
-// TODO: Implement streaming analyzers for DateTime, Boolean, and Text columns
-// These follow similar patterns but with type-specific online algorithms
+/**
+ * Streaming DateTime Column Analyzer
+ */
+export class StreamingDateTimeAnalyzer implements StreamingColumnAnalyzer {
+  private warnings: Section3Warning[] = [];
+  private totalValues = 0;
+  private validValues = 0;
+  private nullValues = 0;
+  private dateValues: Date[] = [];
+  private maxDateSamples = 50; // Strict limit
+  private yearCounts = new BoundedFrequencyCounter<number>(50);
+  private monthCounts = new BoundedFrequencyCounter<number>(12);
+  private dayOfWeekCounts = new BoundedFrequencyCounter<number>(7);
+  private hourCounts = new BoundedFrequencyCounter<number>(24);
+
+  constructor(
+    private columnName: string,
+    private detectedType: EdaDataType,
+    private semanticType: SemanticType = SemanticType.UNKNOWN
+  ) {}
+
+  processValue(value: string | number | null | undefined): void {
+    this.totalValues++;
+
+    if (value === null || value === undefined || value === '') {
+      this.nullValues++;
+      return;
+    }
+
+    // Try to parse as date
+    const dateValue = new Date(String(value));
+    if (isNaN(dateValue.getTime())) {
+      this.nullValues++;
+      return;
+    }
+
+    this.validValues++;
+    
+    // Store a sample of dates (strict limit to prevent memory growth)
+    if (this.dateValues.length < this.maxDateSamples) {
+      this.dateValues.push(dateValue);
+    }
+    
+    // Update frequency counters
+    this.yearCounts.update(dateValue.getFullYear());
+    this.monthCounts.update(dateValue.getMonth() + 1); // 1-based months
+    this.dayOfWeekCounts.update(dateValue.getDay()); // 0=Sunday
+    this.hourCounts.update(dateValue.getHours());
+  }
+
+  finalize(): DateTimeAnalysis {
+    if (this.validValues === 0) {
+      this.warnings.push({
+        category: 'data',
+        severity: 'high',
+        message: `Column ${this.columnName} has no valid datetime values`,
+        impact: 'Temporal analysis not possible',
+        suggestion: 'Check data type detection or data quality',
+      });
+    }
+
+    const baseProfile = this.createBaseProfile();
+    
+    // Calculate datetime-specific metrics
+    const sortedDates = this.dateValues.sort((a, b) => a.getTime() - b.getTime());
+    const minDateTime = sortedDates[0] || new Date();
+    const maxDateTime = sortedDates[sortedDates.length - 1] || new Date();
+    
+    const timeSpan = this.calculateTimeSpan(minDateTime, maxDateTime);
+    const detectedGranularity = this.detectGranularity();
+    const mostCommonComponents = this.getMostCommonComponents();
+    
+    return {
+      ...baseProfile,
+      minDateTime,
+      maxDateTime,
+      timeSpan,
+      detectedGranularity,
+      implicitPrecision: this.detectPrecision(),
+      mostCommonYears: mostCommonComponents.years,
+      mostCommonMonths: mostCommonComponents.months,
+      mostCommonDaysOfWeek: mostCommonComponents.daysOfWeek,
+      mostCommonHours: mostCommonComponents.hours,
+      temporalPatterns: this.analyzeTemporalPatterns(),
+      gapAnalysis: this.analyzeGaps(),
+      validityNotes: this.generateValidityNotes(),
+    };
+  }
+
+  private createBaseProfile(): BaseColumnProfile {
+    return {
+      columnName: this.columnName,
+      detectedDataType: this.detectedType,
+      inferredSemanticType: this.semanticType,
+      dataQualityFlag: this.validValues / this.totalValues > 0.95 ? 'Good' : 
+                       this.validValues / this.totalValues > 0.8 ? 'Moderate' : 'Poor',
+      totalValues: this.totalValues,
+      missingValues: this.nullValues,
+      missingPercentage: Number(((this.nullValues / this.totalValues) * 100).toFixed(2)),
+      uniqueValues: this.dateValues.length,
+      uniquePercentage: Number(((this.dateValues.length / this.validValues) * 100).toFixed(2)),
+    };
+  }
+
+  private calculateTimeSpan(minDate: Date, maxDate: Date): string {
+    const diffMs = maxDate.getTime() - minDate.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    const diffYears = Math.floor(diffDays / 365);
+    const diffMonths = Math.floor((diffDays % 365) / 30);
+    const remainingDays = diffDays % 30;
+
+    if (diffYears > 0) {
+      return `${diffYears} years, ${diffMonths} months, ${remainingDays} days`;
+    } else if (diffMonths > 0) {
+      return `${diffMonths} months, ${remainingDays} days`;
+    } else {
+      return `${diffDays} days`;
+    }
+  }
+
+  private detectGranularity(): string {
+    // Analyze the precision of timestamps
+    const hasSeconds = this.dateValues.some(d => d.getSeconds() !== 0);
+    const hasMinutes = this.dateValues.some(d => d.getMinutes() !== 0);
+    const hasHours = this.dateValues.some(d => d.getHours() !== 0);
+
+    if (hasSeconds) return 'Second';
+    if (hasMinutes) return 'Minute';
+    if (hasHours) return 'Hour';
+    return 'Day';
+  }
+
+  private detectPrecision(): string {
+    return this.detectGranularity() + ' level precision detected';
+  }
+
+  private getMostCommonComponents() {
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                       'July', 'August', 'September', 'October', 'November', 'December'];
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+    return {
+      years: this.yearCounts.getTopK(3).map(([year]) => String(year)),
+      months: this.monthCounts.getTopK(3).map(([month]) => monthNames[month - 1]),
+      daysOfWeek: this.dayOfWeekCounts.getTopK(3).map(([day]) => dayNames[day]),
+      hours: this.hourCounts.getTopK(3).map(([hour]) => `${hour}:00`),
+    };
+  }
+
+  private analyzeTemporalPatterns(): string {
+    if (this.dateValues.length < 10) {
+      return 'Insufficient data for temporal pattern analysis';
+    }
+
+    // Simple trend analysis
+    const sortedDates = this.dateValues.sort((a, b) => a.getTime() - b.getTime());
+    const intervals = [];
+    for (let i = 1; i < sortedDates.length; i++) {
+      intervals.push(sortedDates[i].getTime() - sortedDates[i-1].getTime());
+    }
+
+    const avgInterval = intervals.reduce((sum, interval) => sum + interval, 0) / intervals.length;
+    const avgDays = avgInterval / (1000 * 60 * 60 * 24);
+
+    if (avgDays < 1) {
+      return 'High frequency data (sub-daily intervals)';
+    } else if (avgDays < 7) {
+      return 'Daily to weekly patterns detected';
+    } else if (avgDays < 32) {
+      return 'Weekly to monthly patterns detected';
+    } else {
+      return 'Sparse temporal distribution (monthly+ intervals)';
+    }
+  }
+
+  private analyzeGaps(): string {
+    if (this.dateValues.length < 2) {
+      return 'Insufficient data for gap analysis';
+    }
+
+    const sortedDates = this.dateValues.sort((a, b) => a.getTime() - b.getTime());
+    const gaps = [];
+    for (let i = 1; i < sortedDates.length; i++) {
+      gaps.push(sortedDates[i].getTime() - sortedDates[i-1].getTime());
+    }
+
+    const maxGap = Math.max(...gaps);
+    const maxGapDays = maxGap / (1000 * 60 * 60 * 24);
+
+    return `Largest gap between consecutive records: ${Math.round(maxGapDays)} days`;
+  }
+
+  private generateValidityNotes(): string {
+    const validityIssues = [];
+    
+    // Check for future dates
+    const now = new Date();
+    const futureDates = this.dateValues.filter(d => d > now).length;
+    if (futureDates > 0) {
+      validityIssues.push(`${futureDates} future dates detected`);
+    }
+
+    // Check for very old dates (before 1900)
+    const cutoffDate = new Date('1900-01-01');
+    const oldDates = this.dateValues.filter(d => d < cutoffDate).length;
+    if (oldDates > 0) {
+      validityIssues.push(`${oldDates} dates before 1900 detected`);
+    }
+
+    return validityIssues.length > 0 ? validityIssues.join('; ') : 'No obvious validity issues detected';
+  }
+
+  getWarnings(): Section3Warning[] {
+    return [...this.warnings];
+  }
+}
+
+/**
+ * Streaming Boolean Column Analyzer
+ */
+export class StreamingBooleanAnalyzer implements StreamingColumnAnalyzer {
+  private warnings: Section3Warning[] = [];
+  private totalValues = 0;
+  private trueCount = 0;
+  private falseCount = 0;
+  private nullValues = 0;
+
+  constructor(
+    private columnName: string,
+    private detectedType: EdaDataType,
+    private semanticType: SemanticType = SemanticType.STATUS
+  ) {}
+
+  processValue(value: string | number | null | undefined): void {
+    this.totalValues++;
+
+    if (value === null || value === undefined || value === '') {
+      this.nullValues++;
+      return;
+    }
+
+    const strValue = String(value).toLowerCase().trim();
+    
+    // Parse boolean-like values
+    if (['true', 'yes', 'y', '1', 'on', 'enabled', 'active'].includes(strValue)) {
+      this.trueCount++;
+    } else if (['false', 'no', 'n', '0', 'off', 'disabled', 'inactive'].includes(strValue)) {
+      this.falseCount++;
+    } else {
+      this.nullValues++;
+    }
+  }
+
+  finalize(): BooleanAnalysis {
+    const validValues = this.trueCount + this.falseCount;
+
+    if (validValues === 0) {
+      this.warnings.push({
+        category: 'data',
+        severity: 'high',
+        message: `Column ${this.columnName} has no valid boolean values`,
+        impact: 'Boolean analysis not possible',
+        suggestion: 'Check data type detection or data quality',
+      });
+    }
+
+    const baseProfile: BaseColumnProfile = {
+      columnName: this.columnName,
+      detectedDataType: this.detectedType,
+      inferredSemanticType: this.semanticType,
+      dataQualityFlag: validValues / this.totalValues > 0.95 ? 'Good' : 
+                       validValues / this.totalValues > 0.8 ? 'Moderate' : 'Poor',
+      totalValues: this.totalValues,
+      missingValues: this.nullValues,
+      missingPercentage: Number(((this.nullValues / this.totalValues) * 100).toFixed(2)),
+      uniqueValues: validValues > 0 ? (this.trueCount > 0 && this.falseCount > 0 ? 2 : 1) : 0,
+      uniquePercentage: Number(((validValues > 0 ? (this.trueCount > 0 && this.falseCount > 0 ? 2 : 1) : 0) / this.totalValues * 100).toFixed(2)),
+    };
+
+    const truePercentage = validValues > 0 ? Number(((this.trueCount / validValues) * 100).toFixed(2)) : 0;
+    const falsePercentage = validValues > 0 ? Number(((this.falseCount / validValues) * 100).toFixed(2)) : 0;
+
+    let interpretation = 'No valid boolean values';
+    if (validValues > 0) {
+      if (truePercentage > 75) {
+        interpretation = 'Predominantly True';
+      } else if (falsePercentage > 75) {
+        interpretation = 'Predominantly False';
+      } else {
+        interpretation = 'Balanced distribution';
+      }
+    }
+
+    return {
+      ...baseProfile,
+      trueCount: this.trueCount,
+      falseCount: this.falseCount,
+      truePercentage,
+      falsePercentage,
+      interpretation,
+    };
+  }
+
+  getWarnings(): Section3Warning[] {
+    return [...this.warnings];
+  }
+}
+
+/**
+ * Streaming Text Column Analyzer
+ */
+export class StreamingTextAnalyzer implements StreamingColumnAnalyzer {
+  private warnings: Section3Warning[] = [];
+  private totalValues = 0;
+  private validValues = 0;
+  private nullValues = 0;
+  private charLengths: number[] = [];
+  private wordCounts: number[] = [];
+  private maxTextSamples = 100; // Strict limit
+  private emptyStrings = 0;
+  private numericTexts = 0;
+  private urlCount = 0;
+  private emailCount = 0;
+  private wordFrequencies = new BoundedFrequencyCounter<string>(50); // Reduced from 1000
+
+  constructor(
+    private columnName: string,
+    private detectedType: EdaDataType,
+    private semanticType: SemanticType = SemanticType.UNKNOWN
+  ) {}
+
+  processValue(value: string | number | null | undefined): void {
+    this.totalValues++;
+
+    if (value === null || value === undefined) {
+      this.nullValues++;
+      return;
+    }
+
+    const strValue = String(value);
+    
+    if (strValue === '') {
+      this.emptyStrings++;
+      this.nullValues++;
+      return;
+    }
+
+    this.validValues++;
+    
+    // Analyze text characteristics
+    const charLength = strValue.length;
+    const wordCount = strValue.trim().split(/\s+/).length;
+    
+    // Store samples for statistics (strict limit to prevent memory growth)
+    if (this.charLengths.length < this.maxTextSamples) {
+      this.charLengths.push(charLength);
+      this.wordCounts.push(wordCount);
+    }
+
+    // Pattern detection
+    if (/^\d+$/.test(strValue.trim())) {
+      this.numericTexts++;
+    }
+    
+    if (/^https?:\/\//.test(strValue)) {
+      this.urlCount++;
+    }
+    
+    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(strValue)) {
+      this.emailCount++;
+    }
+
+    // Word frequency analysis (for shorter texts)
+    if (charLength < 500) {
+      const words = strValue.toLowerCase()
+        .replace(/[^\w\s]/g, ' ')
+        .split(/\s+/)
+        .filter(word => word.length > 2); // Skip very short words
+      
+      words.forEach(word => this.wordFrequencies.update(word));
+    }
+  }
+
+  finalize(): TextColumnAnalysis {
+    if (this.validValues === 0) {
+      this.warnings.push({
+        category: 'data',
+        severity: 'high',
+        message: `Column ${this.columnName} has no valid text values`,
+        impact: 'Text analysis not possible',
+        suggestion: 'Check data type detection or data quality',
+      });
+    }
+
+    const baseProfile = this.createBaseProfile();
+    const textStatistics = this.getTextStatistics();
+    const textPatterns = this.getTextPatterns();
+    const topFrequentWords = this.getTopFrequentWords();
+
+    return {
+      ...baseProfile,
+      textStatistics,
+      textPatterns,
+      topFrequentWords,
+    };
+  }
+
+  private createBaseProfile(): BaseColumnProfile {
+    return {
+      columnName: this.columnName,
+      detectedDataType: this.detectedType,
+      inferredSemanticType: this.semanticType,
+      dataQualityFlag: this.validValues / this.totalValues > 0.95 ? 'Good' : 
+                       this.validValues / this.totalValues > 0.8 ? 'Moderate' : 'Poor',
+      totalValues: this.totalValues,
+      missingValues: this.nullValues,
+      missingPercentage: Number(((this.nullValues / this.totalValues) * 100).toFixed(2)),
+      uniqueValues: this.validValues, // Approximation
+      uniquePercentage: Number(((this.validValues / this.totalValues) * 100).toFixed(2)),
+    };
+  }
+
+  private getTextStatistics(): TextStatistics {
+    if (this.charLengths.length === 0) {
+      return {
+        minCharLength: 0, maxCharLength: 0, avgCharLength: 0, medianCharLength: 0, stdCharLength: 0,
+        minWordCount: 0, maxWordCount: 0, avgWordCount: 0,
+      };
+    }
+
+    const sortedLengths = [...this.charLengths].sort((a, b) => a - b);
+    const avgCharLength = this.charLengths.reduce((sum, len) => sum + len, 0) / this.charLengths.length;
+    const avgWordCount = this.wordCounts.reduce((sum, count) => sum + count, 0) / this.wordCounts.length;
+    
+    // Calculate standard deviation
+    const variance = this.charLengths.reduce((sum, len) => sum + Math.pow(len - avgCharLength, 2), 0) / this.charLengths.length;
+    const stdCharLength = Math.sqrt(variance);
+
+    return {
+      minCharLength: Math.min(...this.charLengths),
+      maxCharLength: Math.max(...this.charLengths),
+      avgCharLength: Number(avgCharLength.toFixed(2)),
+      medianCharLength: sortedLengths[Math.floor(sortedLengths.length / 2)],
+      stdCharLength: Number(stdCharLength.toFixed(2)),
+      minWordCount: Math.min(...this.wordCounts),
+      maxWordCount: Math.max(...this.wordCounts),
+      avgWordCount: Number(avgWordCount.toFixed(2)),
+    };
+  }
+
+  private getTextPatterns(): TextPatterns {
+    const emptyStringPercentage = Number(((this.emptyStrings / this.totalValues) * 100).toFixed(2));
+    const numericTextPercentage = Number(((this.numericTexts / this.validValues) * 100).toFixed(2));
+    const urlPercentage = Number(((this.urlCount / this.validValues) * 100).toFixed(2));
+    const emailPercentage = Number(((this.emailCount / this.validValues) * 100).toFixed(2));
+
+    return {
+      emptyStringPercentage,
+      numericTextPercentage,
+      urlCount: this.urlCount,
+      emailCount: this.emailCount,
+      urlPercentage,
+      emailPercentage,
+    };
+  }
+
+  private getTopFrequentWords(): string[] {
+    return this.wordFrequencies.getTopK(5).map(([word]) => word);
+  }
+
+  getWarnings(): Section3Warning[] {
+    return [...this.warnings];
+  }
+}

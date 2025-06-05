@@ -6,6 +6,7 @@ import { writeFileSync, mkdirSync } from 'fs';
 import { dirname, extname } from 'path';
 import type { CLIOptions } from './types';
 import type { Section1Result } from '../analyzers/overview/types';
+import type { Section3Result } from '../analyzers/eda/types';
 import { Section1Formatter } from '../analyzers/overview';
 
 export class OutputManager {
@@ -65,6 +66,67 @@ export class OutputManager {
       const summary = formatter.formatSummary(result);
       console.log('\n📋 Quick Summary:');
       console.log(summary);
+    }
+
+    return outputFiles;
+  }
+
+  /**
+   * Output Section 3 (EDA) results in the specified format
+   */
+  outputSection3(
+    section3Report: string, 
+    result: Section3Result, 
+    filename?: string
+  ): string[] {
+    const outputFiles: string[] = [];
+
+    // Generate content based on format
+    let content: string;
+    let extension: string;
+
+    switch (this.options.output) {
+      case 'json':
+        content = this.formatSection3AsJSON(result);
+        extension = '.json';
+        break;
+      
+      case 'yaml':
+        content = this.formatSection3AsYAML(result);
+        extension = '.yaml';
+        break;
+      
+      case 'markdown':
+      default:
+        content = section3Report;
+        extension = '.md';
+        break;
+    }
+
+    // Output to file or stdout
+    if (this.options.outputFile) {
+      const outputPath = this.ensureExtension(this.options.outputFile, extension);
+      this.writeToFile(outputPath, content);
+      outputFiles.push(outputPath);
+    } else if (filename) {
+      // Auto-generate filename based on input
+      const outputPath = this.generateSection3OutputFilename(filename, extension);
+      this.writeToFile(outputPath, content);
+      outputFiles.push(outputPath);
+    } else {
+      // Output to stdout
+      console.log(content);
+    }
+
+    // Also generate summary if verbose and not quiet
+    if (this.options.verbose && !this.options.quiet) {
+      const insights = result.edaAnalysis?.crossVariableInsights;
+      if (insights?.topFindings && insights.topFindings.length > 0) {
+        console.log('\n📊 EDA Quick Summary:');
+        insights.topFindings.slice(0, 3).forEach((finding: string, i: number) => {
+          console.log(`   ${i + 1}. ${finding}`);
+        });
+      }
     }
 
     return outputFiles;
@@ -168,6 +230,54 @@ export class OutputManager {
     }
 
     return yaml;
+  }
+
+  /**
+   * Format Section 3 result as JSON
+   */
+  private formatSection3AsJSON(result: Section3Result): string {
+    const jsonOutput = {
+      metadata: {
+        version: '1.0.0',
+        generatedAt: new Date().toISOString(),
+        command: 'datapilot eda',
+        analysisType: 'Exploratory Data Analysis',
+      },
+      edaAnalysis: result.edaAnalysis,
+      warnings: result.warnings,
+      performanceMetrics: result.performanceMetrics,
+      analysisMetadata: result.metadata,
+    };
+
+    return JSON.stringify(jsonOutput, null, 2);
+  }
+
+  /**
+   * Format Section 3 result as YAML
+   */
+  private formatSection3AsYAML(result: Section3Result): string {
+    const yaml = this.objectToYAML({
+      metadata: {
+        version: '1.0.0',
+        generatedAt: new Date().toISOString(),
+        command: 'datapilot eda',
+        analysisType: 'Exploratory Data Analysis',
+      },
+      edaAnalysis: result.edaAnalysis,
+      warnings: result.warnings,
+      performanceMetrics: result.performanceMetrics,
+      analysisMetadata: result.metadata,
+    });
+
+    return yaml;
+  }
+
+  /**
+   * Generate Section 3 output filename
+   */
+  private generateSection3OutputFilename(inputFilename: string, extension: string): string {
+    const baseName = inputFilename.replace(/\.[^/.]+$/, ''); // Remove extension
+    return `${baseName}_datapilot_eda${extension}`;
   }
 
   /**

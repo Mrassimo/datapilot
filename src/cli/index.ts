@@ -9,6 +9,8 @@ import { ArgumentParser } from './argument-parser';
 import { ProgressReporter } from './progress-reporter';
 import { OutputManager } from './output-manager';
 import { Section1Analyzer } from '../analyzers/overview';
+import { StreamingAnalyzer } from '../analyzers/streaming/streaming-analyzer';
+import { Section3Formatter } from '../analyzers/eda/section3-formatter';
 import { CSVParser } from '../parsers/csv-parser';
 import { logger, LogLevel } from '../utils/logger';
 import type { CLIResult } from './types';
@@ -94,8 +96,13 @@ export class DataPilotCLI {
     
     switch (command) {
       case 'all':
+        return await this.executeFullAnalysis(filePath, options, startTime);
+        
       case 'overview':
         return await this.executeSection1Analysis(filePath, options, startTime);
+        
+      case 'eda':
+        return await this.executeSection3Analysis(filePath, options, startTime);
         
       case 'validate':
         return await this.executeValidation(filePath, options);
@@ -186,6 +193,148 @@ export class DataPilotCLI {
 
     } catch (error) {
       this.progressReporter.errorPhase('Analysis failed');
+      throw error;
+    }
+  }
+
+  /**
+   * Execute Section 3 (EDA) analysis
+   */
+  private async executeSection3Analysis(
+    filePath: string,
+    options: any,
+    startTime: number
+  ): Promise<CLIResult> {
+    
+    if (!this.outputManager) {
+      throw new Error('Output manager not initialised');
+    }
+
+    // Set up progress callback
+    const progressCallback = (progress: any) => {
+      this.progressReporter.updateProgress({
+        phase: progress.stage,
+        progress: progress.percentage,
+        message: progress.message,
+        timeElapsed: Date.now() - startTime,
+      });
+    };
+
+    try {
+      // Create streaming analyzer with progress reporting
+      const analyzer = new StreamingAnalyzer({
+        chunkSize: options.chunkSize || 500,
+        memoryThresholdMB: options.memoryLimit || 100,
+        maxRowsAnalyzed: options.maxRows || 500000,
+        enabledAnalyses: ['univariate', 'bivariate', 'correlations'],
+        significanceLevel: 0.05,
+        maxCorrelationPairs: 50,
+      });
+
+      // Set up progress callback
+      analyzer.setProgressCallback(progressCallback);
+
+      this.progressReporter.startPhase('eda', 'Starting exploratory data analysis...');
+
+      // Perform the EDA analysis
+      const result = await analyzer.analyzeFile(filePath);
+
+      const processingTime = Date.now() - startTime;
+      this.progressReporter.completePhase('EDA analysis completed', processingTime);
+
+      // Generate Section 3 markdown report
+      const section3Report = Section3Formatter.formatSection3(result);
+      
+      // Generate output files
+      const outputFiles = this.outputManager.outputSection3(
+        section3Report,
+        result,
+        filePath.split('/').pop()
+      );
+
+      // Show summary
+      this.progressReporter.showSummary({
+        processingTime,
+        rowsProcessed: result.performanceMetrics?.rowsAnalyzed || 0,
+        warnings: result.warnings.length,
+        errors: 0,
+      });
+
+      return {
+        success: true,
+        exitCode: 0,
+        outputFiles,
+        stats: {
+          processingTime,
+          rowsProcessed: result.performanceMetrics?.rowsAnalyzed || 0,
+          warnings: result.warnings.length,
+          errors: 0,
+        },
+      };
+
+    } catch (error) {
+      this.progressReporter.errorPhase('EDA analysis failed');
+      throw error;
+    }
+  }
+
+  /**
+   * Execute full analysis (Section 1 + Section 3)
+   */
+  private async executeFullAnalysis(
+    filePath: string,
+    options: any,
+    startTime: number
+  ): Promise<CLIResult> {
+    
+    if (!this.outputManager) {
+      throw new Error('Output manager not initialised');
+    }
+
+    try {
+      // First execute Section 1 analysis
+      this.progressReporter.startPhase('overview', 'Starting overview analysis...');
+      const section1Result = await this.executeSection1Analysis(filePath, options, startTime);
+      
+      if (!section1Result.success) {
+        return section1Result;
+      }
+
+      // Then execute Section 3 analysis
+      this.progressReporter.startPhase('eda', 'Starting EDA analysis...');
+      const section3Result = await this.executeSection3Analysis(filePath, options, Date.now());
+      
+      const totalProcessingTime = Date.now() - startTime;
+      this.progressReporter.completePhase('Full analysis completed', totalProcessingTime);
+
+      // Combine output files
+      const outputFiles = [
+        ...(section1Result.outputFiles || []),
+        ...(section3Result.outputFiles || [])
+      ];
+
+      // Show combined summary
+      this.progressReporter.showSummary({
+        processingTime: totalProcessingTime,
+        rowsProcessed: (section1Result.stats?.rowsProcessed || 0) + (section3Result.stats?.rowsProcessed || 0),
+        warnings: (section1Result.stats?.warnings || 0) + (section3Result.stats?.warnings || 0),
+        errors: 0,
+      });
+
+      return {
+        success: true,
+        exitCode: 0,
+        outputFiles,
+        stats: {
+          processingTime: totalProcessingTime,
+          rowsProcessed: (section1Result.stats?.rowsProcessed || 0),
+          warnings: (section1Result.stats?.warnings || 0) + (section3Result.stats?.warnings || 0),
+          errors: 0,
+        },
+      };
+
+    } catch (error) {
+      this.progressReporter.errorPhase('Full analysis failed');
       throw error;
     }
   }

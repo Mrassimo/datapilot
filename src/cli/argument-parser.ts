@@ -97,8 +97,12 @@ export class ArgumentParser {
       .command('eda')
       .argument('<file>', 'CSV file to analyze')
       .description('Perform exploratory data analysis (Section 3)')
-      .option('-o, --output <format>', 'Output format', 'markdown')
-      .action(this.createStubHandler('eda', 'Exploratory Data Analysis'));
+      .option('-o, --output <format>', 'Output format (markdown, json, yaml)', 'markdown')
+      .option('--output-file <file>', 'Write output to file instead of stdout')
+      .option('--max-rows <number>', 'Maximum rows to analyze', this.parseInteger)
+      .option('--chunk-size <number>', 'Chunk size for streaming processing', this.parseInteger)
+      .option('--memory-limit <mb>', 'Memory limit in MB', this.parseInteger)
+      .action(this.createCommandHandler('eda'));
 
     this.program
       .command('viz')

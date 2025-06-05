@@ -12,9 +12,13 @@ import type { ParsedRow } from '../../parsers/types';
 import {
   StreamingNumericalAnalyzer,
   StreamingCategoricalAnalyzer,
+  StreamingDateTimeAnalyzer,
+  StreamingBooleanAnalyzer,
+  StreamingTextAnalyzer,
   type StreamingColumnAnalyzer
 } from './streaming-univariate-analyzer';
 import { StreamingBivariateAnalyzer, type ColumnPair } from './streaming-bivariate-analyzer';
+import { EnhancedTypeDetector } from './enhanced-type-detector';
 import type {
   Section3Result,
   Section3EdaAnalysis,
@@ -60,13 +64,14 @@ export class StreamingAnalyzer {
   private detectedTypes: EdaDataType[] = [];
   private semanticTypes: SemanticType[] = [];
   private warnings: Section3Warning[] = [];
+  private typeDetectionResults: any[] = []; // Store enhanced detection results (limited)
 
   constructor(config: Partial<StreamingConfig> = {}) {
     this.config = {
       // Default streaming config
-      chunkSize: 1000,
-      memoryThresholdMB: 200,
-      maxRowsAnalyzed: 1000000,
+      chunkSize: 500, // Reduced from 1000
+      memoryThresholdMB: 100, // Reduced from 200
+      maxRowsAnalyzed: 500000, // Reduced from 1000000
       adaptiveChunkSizing: true,
       
       // Default Section3Config
@@ -258,16 +263,46 @@ export class StreamingAnalyzer {
       this.bivariateAnalyzer.processRow(row.data, this.detectedTypes);
     }
     
+    // Clear chunk from memory immediately
+    chunk.length = 0;
+    
     // Update progress periodically
     if (this.state.chunksProcessed % 10 === 0) {
       const progress = Math.min(90, (this.state.rowsProcessed / this.config.maxRowsAnalyzed) * 90);
       this.reportProgress('univariate', progress, 
         `Processed ${this.state.rowsProcessed.toLocaleString()} rows in ${this.state.chunksProcessed} chunks`);
     }
+    
+    // Aggressive memory cleanup every 20 chunks
+    if (this.state.chunksProcessed % 20 === 0) {
+      this.performMemoryCleanup();
+    }
   }
 
   /**
-   * Adaptive memory management
+   * Perform aggressive memory cleanup
+   */
+  private performMemoryCleanup(): void {
+    // Clear type detection results after initial setup
+    if (this.state.chunksProcessed > 10) {
+      this.typeDetectionResults = [];
+    }
+    
+    // Clear memory from all column analyzers
+    for (const analyzer of this.columnAnalyzers.values()) {
+      if (analyzer.clearMemory) {
+        analyzer.clearMemory();
+      }
+    }
+    
+    // Force garbage collection if available
+    if (global.gc) {
+      global.gc();
+    }
+  }
+
+  /**
+   * Adaptive memory management with aggressive cleanup
    */
   private manageMemory(): void {
     const memUsage = process.memoryUsage();
@@ -277,21 +312,24 @@ export class StreamingAnalyzer {
     if (this.config.adaptiveChunkSizing) {
       if (this.state.currentMemoryMB > this.config.memoryThresholdMB) {
         // Reduce chunk size to use less memory
-        this.state.currentChunkSize = Math.max(100, Math.floor(this.state.currentChunkSize * 0.8));
+        this.state.currentChunkSize = Math.max(50, Math.floor(this.state.currentChunkSize * 0.6)); // More aggressive reduction
+        
+        // Clear type detection results to free memory
+        this.typeDetectionResults = [];
         
         // Force garbage collection if available
         if (global.gc) {
           global.gc();
         }
         
-      } else if (this.state.currentMemoryMB < this.config.memoryThresholdMB * 0.5) {
-        // Increase chunk size for better performance
-        this.state.currentChunkSize = Math.min(10000, Math.floor(this.state.currentChunkSize * 1.2));
+      } else if (this.state.currentMemoryMB < this.config.memoryThresholdMB * 0.3) {
+        // Increase chunk size for better performance (less aggressive)
+        this.state.currentChunkSize = Math.min(2000, Math.floor(this.state.currentChunkSize * 1.1)); // Reduced max
       }
     }
 
     // Emergency brake if memory gets too high
-    if (this.state.currentMemoryMB > this.config.memoryThresholdMB * 2) {
+    if (this.state.currentMemoryMB > this.config.memoryThresholdMB * 1.5) { // Lower threshold
       this.warnings.push({
         category: 'performance',
         severity: 'high',
@@ -299,6 +337,12 @@ export class StreamingAnalyzer {
         impact: 'Analysis may slow down or fail',
         suggestion: 'Reduce dataset size or increase available memory',
       });
+      
+      // Aggressive memory cleanup
+      this.typeDetectionResults = [];
+      if (global.gc) {
+        global.gc();
+      }
     }
   }
 
@@ -383,38 +427,44 @@ export class StreamingAnalyzer {
     if (sampleData.length === 0) return [];
     
     const columnCount = sampleData[0].data.length;
-    const types: EdaDataType[] = new Array(columnCount).fill(EdaDataType.TEXT_GENERAL);
     
+    // Prepare column samples for enhanced detection
+    const columnSamples = [];
     for (let colIndex = 0; colIndex < columnCount; colIndex++) {
-      let numericCount = 0;
-      let totalNonNull = 0;
+      const values = sampleData.slice(0, 500).map(row => row.data[colIndex]); // Use more samples
+      const columnName = this.headers[colIndex] || `Column_${colIndex + 1}`;
       
-      for (const row of sampleData.slice(0, 100)) { // Sample first 100 rows
-        const value = row.data[colIndex];
-        if (value !== null && value !== undefined && value !== '') {
-          totalNonNull++;
-          if (!isNaN(Number(value))) {
-            numericCount++;
-          }
-        }
-      }
-      
-      if (totalNonNull > 0) {
-        const numericRatio = numericCount / totalNonNull;
-        if (numericRatio > 0.8) {
-          types[colIndex] = EdaDataType.NUMERICAL_FLOAT;
-        } else if (numericRatio > 0.5) {
-          types[colIndex] = EdaDataType.NUMERICAL_INTEGER;
-        } else {
-          types[colIndex] = EdaDataType.CATEGORICAL;
-        }
+      columnSamples.push({
+        values,
+        columnName,
+        columnIndex: colIndex,
+      });
+    }
+    
+    // Use enhanced type detection
+    const detectionResults = EnhancedTypeDetector.detectColumnTypes(columnSamples);
+    
+    // Store detection results for semantic type inference (clear after use to save memory)
+    this.typeDetectionResults = detectionResults;
+    
+    // Log detection results for debugging
+    for (let i = 0; i < detectionResults.length; i++) {
+      const result = detectionResults[i];
+      if (result.confidence > 0.7) {
+        logger.info(`Column ${this.headers[i]}: ${result.dataType} (${result.semanticType}) - Confidence: ${result.confidence.toFixed(2)}`);
       }
     }
     
-    return types;
+    return detectionResults.map(result => result.dataType);
   }
 
   private inferSemanticTypes(): SemanticType[] {
+    // Use enhanced detection results if available
+    if (this.typeDetectionResults && this.typeDetectionResults.length > 0) {
+      return this.typeDetectionResults.map(result => result.semanticType);
+    }
+    
+    // Fallback to simple inference
     return this.headers.map((header, index) => {
       const headerLower = header.toLowerCase();
       const type = this.detectedTypes[index];
@@ -442,10 +492,30 @@ export class StreamingAnalyzer {
       
       let analyzer: StreamingColumnAnalyzer;
       
-      if (columnType === EdaDataType.NUMERICAL_FLOAT || columnType === EdaDataType.NUMERICAL_INTEGER) {
-        analyzer = new StreamingNumericalAnalyzer(columnName, columnType, semanticType);
-      } else {
-        analyzer = new StreamingCategoricalAnalyzer(columnName, columnType, semanticType);
+      // Select appropriate analyzer based on detected column type
+      switch (columnType) {
+        case EdaDataType.NUMERICAL_FLOAT:
+        case EdaDataType.NUMERICAL_INTEGER:
+          analyzer = new StreamingNumericalAnalyzer(columnName, columnType, semanticType);
+          break;
+          
+        case EdaDataType.DATE_TIME:
+          analyzer = new StreamingDateTimeAnalyzer(columnName, columnType, semanticType);
+          break;
+          
+        case EdaDataType.BOOLEAN:
+          analyzer = new StreamingBooleanAnalyzer(columnName, columnType, semanticType);
+          break;
+          
+        case EdaDataType.TEXT_GENERAL:
+        case EdaDataType.TEXT_ADDRESS:
+          analyzer = new StreamingTextAnalyzer(columnName, columnType, semanticType);
+          break;
+          
+        case EdaDataType.CATEGORICAL:
+        default:
+          analyzer = new StreamingCategoricalAnalyzer(columnName, columnType, semanticType);
+          break;
       }
       
       this.columnAnalyzers.set(columnName, analyzer);

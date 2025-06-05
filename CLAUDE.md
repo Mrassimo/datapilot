@@ -50,3 +50,5 @@ npm run typecheck # Type checking
 
 ## Development Workflow
 - push to git after a feature is complete
+- make commits after any major task
+- leave notes after tasks are complete in CLAUDE.md

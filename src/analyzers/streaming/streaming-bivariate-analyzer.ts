@@ -4,6 +4,7 @@
  */
 
 import { OnlineCovariance, ReservoirSampler, BoundedFrequencyCounter } from './online-statistics';
+import { ChiSquaredTest, CorrelationSignificanceTest } from './statistical-tests';
 import type {
   BivariateAnalysis,
   NumericalBivariateAnalysis,
@@ -67,11 +68,11 @@ export class StreamingBivariateAnalyzer {
       if (this.isNumericalType(pair.col1Type) && this.isNumericalType(pair.col2Type)) {
         // Numerical vs Numerical
         this.numericalPairs.set(pairKey, new OnlineCovariance());
-        this.scatterSamples.set(pairKey, new ReservoirSampler<[number, number]>(1000));
+        this.scatterSamples.set(pairKey, new ReservoirSampler<[number, number]>(50)); // Reduced from 1000
         
       } else if (this.isCategoricalType(pair.col1Type) && this.isCategoricalType(pair.col2Type)) {
         // Categorical vs Categorical  
-        this.categoricalPairs.set(pairKey, new BoundedFrequencyCounter<string>(5000));
+        this.categoricalPairs.set(pairKey, new BoundedFrequencyCounter<string>(200)); // Reduced from 5000
         
       } else if (
         (this.isNumericalType(pair.col1Type) && this.isCategoricalType(pair.col2Type)) ||
@@ -180,14 +181,19 @@ export class StreamingBivariateAnalyzer {
       const count = covariance.getCount();
       
       if (count > 0) {
+        const significanceTest = CorrelationSignificanceTest.test(correlation, count);
+        
         correlationPairs.push({
           variable1: col1Name,
           variable2: col2Name,
           correlation: Number(correlation.toFixed(4)),
+          pearsonCorrelation: Number(correlation.toFixed(4)),
+          pValue: significanceTest.pValue,
           strength: this.interpretCorrelationStrength(Math.abs(correlation)),
           direction: correlation > 0 ? 'Positive' : correlation < 0 ? 'Negative' : 'None',
-          significance: this.assessSignificance(correlation, count),
+          significance: significanceTest.interpretation,
           sampleSize: count,
+          interpretation: `${this.interpretCorrelationStrength(Math.abs(correlation))} ${correlation > 0 ? 'positive' : correlation < 0 ? 'negative' : 'zero'} correlation (${significanceTest.interpretation})`,
         });
       }
     }
@@ -261,7 +267,7 @@ export class StreamingBivariateAnalyzer {
       
       const frequencies = frequencyCounter.getFrequencies();
       const contingencyTable = this.buildContingencyTable(frequencies);
-      const associationTests = this.generateMockAssociationTests();
+      const associationTests = this.generateAssociationTests(contingencyTable);
       
       results.push({
         variable1: col1Name,
@@ -342,21 +348,71 @@ export class StreamingBivariateAnalyzer {
     };
   }
 
-  private generateMockAssociationTests(): CategoricalAssociationTests {
+  private generateAssociationTests(contingencyTable: ContingencyTable): CategoricalAssociationTests {
+    const { table } = contingencyTable;
+    
+    // Convert contingency table to matrix format for chi-squared test
+    const rows = Object.keys(table);
+    const cols = rows.length > 0 ? Object.keys(table[rows[0]]) : [];
+    
+    if (rows.length < 2 || cols.length < 2) {
+      return {
+        chiSquare: {
+          statistic: 0,
+          pValue: 1,
+          degreesOfFreedom: 0,
+          interpretation: 'Insufficient data for chi-squared test',
+        },
+        cramersV: {
+          statistic: 0,
+          interpretation: 'Cannot calculate association strength',
+        },
+        contingencyCoefficient: {
+          statistic: 0,
+          interpretation: 'Cannot calculate contingency coefficient',
+        },
+      };
+    }
+    
+    const matrix: number[][] = [];
+    for (const row of rows) {
+      const rowData: number[] = [];
+      for (const col of cols) {
+        rowData.push(table[row][col] || 0);
+      }
+      matrix.push(rowData);
+    }
+    
+    const chiSquaredResult = ChiSquaredTest.test(matrix);
+    
+    // Calculate contingency coefficient
+    const contingencyCoeff = Math.sqrt(chiSquaredResult.statistic / 
+      (chiSquaredResult.statistic + matrix.flat().reduce((sum, val) => sum + val, 0)));
+    
+    const cramersVInterpretation = 
+      chiSquaredResult.cramersV > 0.5 ? 'Strong association' :
+      chiSquaredResult.cramersV > 0.3 ? 'Moderate association' :
+      chiSquaredResult.cramersV > 0.1 ? 'Weak association' : 'Very weak association';
+    
+    const contingencyInterpretation =
+      contingencyCoeff > 0.5 ? 'Strong association' :
+      contingencyCoeff > 0.3 ? 'Moderate association' :
+      contingencyCoeff > 0.1 ? 'Weak association' : 'Very weak association';
+    
     return {
       chiSquare: {
-        statistic: 5.2,
-        pValue: 0.1,
-        degreesOfFreedom: 4,
-        interpretation: 'Weak association between variables',
+        statistic: chiSquaredResult.statistic,
+        pValue: chiSquaredResult.pValue,
+        degreesOfFreedom: chiSquaredResult.degreesOfFreedom,
+        interpretation: chiSquaredResult.interpretation,
       },
       cramersV: {
-        statistic: 0.3,
-        interpretation: 'Moderate association strength',
+        statistic: chiSquaredResult.cramersV,
+        interpretation: cramersVInterpretation,
       },
       contingencyCoefficient: {
-        statistic: 0.25,
-        interpretation: 'Weak to moderate association',
+        statistic: Number(contingencyCoeff.toFixed(4)),
+        interpretation: contingencyInterpretation,
       },
     };
   }
@@ -404,11 +460,6 @@ export class StreamingBivariateAnalyzer {
     return 'Very Weak';
   }
 
-  private assessSignificance(correlation: number, sampleSize: number): string {
-    // Simplified significance test
-    const tStat = Math.abs(correlation) * Math.sqrt((sampleSize - 2) / (1 - correlation * correlation));
-    return tStat > 2 ? 'Significant' : 'Not Significant';
-  }
 
   private isNumericalType(type: EdaDataType): boolean {
     return type === EdaDataType.NUMERICAL_FLOAT || type === EdaDataType.NUMERICAL_INTEGER;
