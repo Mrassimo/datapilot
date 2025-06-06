@@ -37,7 +37,7 @@ export class DataPilotCLI {
     try {
       // Parse command line arguments
       const context = this.argumentParser.parse(argv);
-      
+
       // Handle help and version commands
       if (context.command === 'help' || context.args.length === 0) {
         this.argumentParser.showHelp();
@@ -49,7 +49,6 @@ export class DataPilotCLI {
       if (!commandContext) {
         throw new ValidationError('No command specified');
       }
-
 
       // Configure logger based on CLI options
       if (commandContext.options.quiet) {
@@ -63,9 +62,9 @@ export class DataPilotCLI {
       // Set up progress reporting and output management with merged options
       this.progressReporter = new ProgressReporter(
         commandContext.options.quiet || false,
-        commandContext.options.verbose || false
+        commandContext.options.verbose || false,
       );
-      
+
       this.outputManager = new OutputManager(commandContext.options);
 
       // Validate the input file
@@ -76,11 +75,10 @@ export class DataPilotCLI {
         commandContext.command,
         validatedFilePath,
         commandContext.options,
-        context.startTime
+        context.startTime,
       );
 
       return result;
-
     } catch (error) {
       return this.handleError(error);
     } finally {
@@ -95,31 +93,30 @@ export class DataPilotCLI {
     command: string,
     filePath: string,
     options: any,
-    startTime: number
+    startTime: number,
   ): Promise<CLIResult> {
-    
     switch (command) {
       case 'all':
         return await this.executeFullAnalysis(filePath, options, startTime);
-        
+
       case 'overview':
         return await this.executeSection1Analysis(filePath, options, startTime);
-        
+
       case 'quality':
         return await this.executeSection2Analysis(filePath, options, startTime);
-        
+
       case 'eda':
         return await this.executeSection3Analysis(filePath, options, startTime);
-        
+
       case 'viz':
         return await this.executeSection4Analysis(filePath, options, startTime);
-        
+
       case 'validate':
         return await this.executeValidation(filePath, options);
-        
+
       case 'info':
         return await this.executeInfo(filePath);
-        
+
       default:
         throw new ValidationError(`Unknown command: ${command}`);
     }
@@ -131,9 +128,8 @@ export class DataPilotCLI {
   private async executeSection1Analysis(
     filePath: string,
     options: any,
-    startTime: number
+    startTime: number,
   ): Promise<CLIResult> {
-    
     if (!this.outputManager) {
       throw new Error('Output manager not initialised');
     }
@@ -169,17 +165,14 @@ export class DataPilotCLI {
       const result = await analyzer.analyze(
         filePath,
         `datapilot ${options.command || 'overview'} ${filePath}`,
-        ['overview']
+        ['overview'],
       );
 
       const processingTime = Date.now() - startTime;
       this.progressReporter.completePhase('Analysis completed', processingTime);
 
       // Generate output
-      const outputFiles = this.outputManager.outputSection1(
-        result,
-        filePath.split('/').pop()
-      );
+      const outputFiles = this.outputManager.outputSection1(result, filePath.split('/').pop());
 
       // Show summary
       this.progressReporter.showSummary({
@@ -200,7 +193,6 @@ export class DataPilotCLI {
           errors: 0,
         },
       };
-
     } catch (error) {
       this.progressReporter.errorPhase('Analysis failed');
       throw error;
@@ -213,9 +205,8 @@ export class DataPilotCLI {
   private async executeSection2Analysis(
     filePath: string,
     options: any,
-    startTime: number
+    startTime: number,
   ): Promise<CLIResult> {
-    
     if (!this.outputManager) {
       throw new Error('Output manager not initialised');
     }
@@ -238,7 +229,7 @@ export class DataPilotCLI {
       });
 
       const rows = await parser.parseFile(filePath);
-      
+
       if (rows.length === 0) {
         throw new ValidationError('No data found in file');
       }
@@ -246,12 +237,11 @@ export class DataPilotCLI {
       // Prepare data for Section 2
       const hasHeader = parser.getOptions().hasHeader !== false;
       const dataStartIndex = hasHeader ? 1 : 0;
-      const headers = hasHeader && rows.length > 0 
-        ? rows[0].data 
-        : rows[0].data.map((_, i) => `Column_${i + 1}`);
+      const headers =
+        hasHeader && rows.length > 0 ? rows[0].data : rows[0].data.map((_, i) => `Column_${i + 1}`);
 
-      const data = rows.slice(dataStartIndex).map(row => row.data);
-      
+      const data = rows.slice(dataStartIndex).map((row) => row.data);
+
       // Simple type detection for Section 2
       const columnTypes = headers.map(() => DataType.STRING);
 
@@ -259,7 +249,7 @@ export class DataPilotCLI {
       const progressCallback = (progress: any) => {
         this.progressReporter.updateProgress({
           phase: progress.stage,
-          progress: 50 + (progress.percentage * 0.4), // Scale to 50-90%
+          progress: 50 + progress.percentage * 0.4, // Scale to 50-90%
           message: progress.message,
           timeElapsed: Date.now() - startTime,
         });
@@ -287,10 +277,7 @@ export class DataPilotCLI {
       this.progressReporter.completePhase('Data quality analysis completed', processingTime);
 
       // Generate output
-      const outputFiles = this.outputManager.outputSection2(
-        result,
-        filePath.split('/').pop()
-      );
+      const outputFiles = this.outputManager.outputSection2(result, filePath.split('/').pop());
 
       // Show summary
       this.progressReporter.showSummary({
@@ -311,7 +298,6 @@ export class DataPilotCLI {
           errors: 0,
         },
       };
-
     } catch (error) {
       this.progressReporter.errorPhase('Data quality analysis failed');
       throw error;
@@ -324,9 +310,8 @@ export class DataPilotCLI {
   private async executeSection3Analysis(
     filePath: string,
     options: any,
-    startTime: number
+    startTime: number,
   ): Promise<CLIResult> {
-    
     if (!this.outputManager) {
       throw new Error('Output manager not initialised');
     }
@@ -365,12 +350,12 @@ export class DataPilotCLI {
 
       // Generate Section 3 markdown report
       const section3Report = Section3Formatter.formatSection3(result);
-      
+
       // Generate output files
       const outputFiles = this.outputManager.outputSection3(
         section3Report,
         result,
-        filePath.split('/').pop()
+        filePath.split('/').pop(),
       );
 
       // Show summary
@@ -392,7 +377,6 @@ export class DataPilotCLI {
           errors: 0,
         },
       };
-
     } catch (error) {
       this.progressReporter.errorPhase('EDA analysis failed');
       throw error;
@@ -405,15 +389,17 @@ export class DataPilotCLI {
   private async executeSection4Analysis(
     filePath: string,
     options: any,
-    startTime: number
+    startTime: number,
   ): Promise<CLIResult> {
-    
     if (!this.outputManager) {
       throw new Error('Output manager not initialised');
     }
 
     try {
-      this.progressReporter.startPhase('section4', 'Starting visualization intelligence analysis...');
+      this.progressReporter.startPhase(
+        'section4',
+        'Starting visualization intelligence analysis...',
+      );
 
       // Section 4 requires both Section 1 and Section 3 data
       // First run Section 1 analysis
@@ -457,11 +443,11 @@ export class DataPilotCLI {
         maxRecommendationsPerChart: options.maxRecommendations || 3,
         includeCodeExamples: options.includeCode || false,
         enabledRecommendations: [
-          RecommendationType.UNIVARIATE, 
-          RecommendationType.BIVARIATE, 
-          RecommendationType.DASHBOARD, 
-          RecommendationType.ACCESSIBILITY, 
-          RecommendationType.PERFORMANCE
+          RecommendationType.UNIVARIATE,
+          RecommendationType.BIVARIATE,
+          RecommendationType.DASHBOARD,
+          RecommendationType.ACCESSIBILITY,
+          RecommendationType.PERFORMANCE,
         ],
         targetLibraries: ['d3', 'plotly', 'observable'],
       });
@@ -469,7 +455,7 @@ export class DataPilotCLI {
       // We need to get the actual analysis results, not just CLI results
       // For now, we'll need to re-run the analyses to get the data structures
       // This is not ideal but necessary until we refactor to return analysis results
-      
+
       // Re-run Section 1 to get actual result data
       const section1Analyzer = new Section1Analyzer({
         enableFileHashing: options.enableHashing !== false,
@@ -482,7 +468,7 @@ export class DataPilotCLI {
       const section1Data = await section1Analyzer.analyze(
         filePath,
         `datapilot ${options.command || 'viz'} ${filePath}`,
-        ['overview']
+        ['overview'],
       );
 
       // Re-run Section 3 to get actual result data
@@ -505,12 +491,12 @@ export class DataPilotCLI {
 
       // Generate Section 4 markdown report
       const section4Report = Section4Formatter.formatSection4(section4Result);
-      
+
       // Generate output files
       const outputFiles = this.outputManager.outputSection4(
         section4Report,
         section4Result,
-        filePath.split('/').pop()
+        filePath.split('/').pop(),
       );
 
       // Show summary
@@ -532,7 +518,6 @@ export class DataPilotCLI {
           errors: 0,
         },
       };
-
     } catch (error) {
       this.progressReporter.errorPhase('Visualization analysis failed');
       throw error;
@@ -545,9 +530,8 @@ export class DataPilotCLI {
   private async executeFullAnalysis(
     filePath: string,
     options: any,
-    startTime: number
+    startTime: number,
   ): Promise<CLIResult> {
-    
     if (!this.outputManager) {
       throw new Error('Output manager not initialised');
     }
@@ -561,7 +545,7 @@ export class DataPilotCLI {
       // First execute Section 1 analysis
       this.progressReporter.startPhase('overview', 'Starting overview analysis...');
       const section1Result = await this.executeSection1Analysis(filePath, options, startTime);
-      
+
       if (!section1Result.success) {
         return section1Result;
       }
@@ -569,7 +553,7 @@ export class DataPilotCLI {
       // Then execute Section 2 analysis
       this.progressReporter.startPhase('quality', 'Starting data quality analysis...');
       const section2Result = await this.executeSection2Analysis(filePath, options, Date.now());
-      
+
       if (!section2Result.success) {
         return section2Result;
       }
@@ -577,7 +561,7 @@ export class DataPilotCLI {
       // Then execute Section 3 analysis
       this.progressReporter.startPhase('eda', 'Starting EDA analysis...');
       const section3Result = await this.executeSection3Analysis(filePath, options, Date.now());
-      
+
       if (!section3Result.success) {
         return section3Result;
       }
@@ -585,7 +569,7 @@ export class DataPilotCLI {
       // Finally execute Section 4 analysis
       this.progressReporter.startPhase('viz', 'Starting visualization analysis...');
       const section4Result = await this.executeSection4Analysis(filePath, options, Date.now());
-      
+
       const totalProcessingTime = Date.now() - startTime;
       this.progressReporter.completePhase('Full analysis completed', totalProcessingTime);
 
@@ -599,18 +583,19 @@ export class DataPilotCLI {
           ...(section1Result.outputFiles || []),
           ...(section2Result.outputFiles || []),
           ...(section3Result.outputFiles || []),
-          ...(section4Result.outputFiles || [])
+          ...(section4Result.outputFiles || []),
         ];
       }
 
       // Show combined summary
       this.progressReporter.showSummary({
         processingTime: totalProcessingTime,
-        rowsProcessed: (section1Result.stats?.rowsProcessed || 0),
-        warnings: (section1Result.stats?.warnings || 0) + 
-                  (section2Result.stats?.warnings || 0) + 
-                  (section3Result.stats?.warnings || 0) + 
-                  (section4Result.stats?.warnings || 0),
+        rowsProcessed: section1Result.stats?.rowsProcessed || 0,
+        warnings:
+          (section1Result.stats?.warnings || 0) +
+          (section2Result.stats?.warnings || 0) +
+          (section3Result.stats?.warnings || 0) +
+          (section4Result.stats?.warnings || 0),
         errors: 0,
       });
 
@@ -620,15 +605,15 @@ export class DataPilotCLI {
         outputFiles,
         stats: {
           processingTime: totalProcessingTime,
-          rowsProcessed: (section1Result.stats?.rowsProcessed || 0),
-          warnings: (section1Result.stats?.warnings || 0) + 
-                    (section2Result.stats?.warnings || 0) + 
-                    (section3Result.stats?.warnings || 0) + 
-                    (section4Result.stats?.warnings || 0),
+          rowsProcessed: section1Result.stats?.rowsProcessed || 0,
+          warnings:
+            (section1Result.stats?.warnings || 0) +
+            (section2Result.stats?.warnings || 0) +
+            (section3Result.stats?.warnings || 0) +
+            (section4Result.stats?.warnings || 0),
           errors: 0,
         },
       };
-
     } catch (error) {
       this.progressReporter.errorPhase('Full analysis failed');
       throw error;
@@ -669,13 +654,12 @@ export class DataPilotCLI {
         success: isValid,
         exitCode: isValid ? 0 : 1,
       };
-
     } catch (error) {
       this.progressReporter.errorPhase('Validation failed');
       const errorMessage = error instanceof Error ? error.message : 'Unknown validation error';
-      
-      this.outputManager!.outputValidation(filePath, false, [errorMessage]);
-      
+
+      this.outputManager.outputValidation(filePath, false, [errorMessage]);
+
       return {
         success: false,
         exitCode: 1,
@@ -696,7 +680,9 @@ export class DataPilotCLI {
       this.progressReporter.startPhase('info', 'Collecting file information...');
 
       // Use the file metadata collector from Section 1
-      const { FileMetadataCollector } = await import('../analyzers/overview/file-metadata-collector');
+      const { FileMetadataCollector } = await import(
+        '../analyzers/overview/file-metadata-collector'
+      );
       const collector = new FileMetadataCollector({
         enableFileHashing: false,
         includeHostEnvironment: false,
@@ -704,7 +690,7 @@ export class DataPilotCLI {
         detailedProfiling: false,
         maxSampleSizeForSparsity: 1000,
       });
-      
+
       const metadata = await collector.collectMetadata(filePath);
 
       this.progressReporter.completePhase('Information collected', 500);
@@ -714,7 +700,6 @@ export class DataPilotCLI {
         success: true,
         exitCode: 0,
       };
-
     } catch (error) {
       this.progressReporter.errorPhase('Failed to collect file information');
       throw error;
@@ -746,7 +731,7 @@ export class DataPilotCLI {
     // Generic error handling
     const message = error instanceof Error ? error.message : 'Unknown error occurred';
     console.error(`❌ Unexpected Error: ${message}`);
-    
+
     if (process.env.NODE_ENV === 'development') {
       console.error(error);
     }

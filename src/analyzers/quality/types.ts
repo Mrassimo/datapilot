@@ -161,7 +161,11 @@ export interface InterRecordConsistency {
 
 export interface FormatConsistency {
   columnName: string;
-  analysisType: 'format_standardization' | 'casing_consistency' | 'unit_standardization' | 'boolean_representation';
+  analysisType:
+    | 'format_standardization'
+    | 'casing_consistency'
+    | 'unit_standardization'
+    | 'boolean_representation';
   currentFormats: Array<{
     format: string;
     count: number;
@@ -560,7 +564,13 @@ export interface Section2Progress {
 }
 
 export interface Section2Warning {
-  category: 'performance' | 'data' | 'computation' | 'threshold' | 'business_rules' | 'pattern_validation';
+  category:
+    | 'performance'
+    | 'data'
+    | 'computation'
+    | 'threshold'
+    | 'business_rules'
+    | 'pattern_validation';
   severity: 'low' | 'medium' | 'high';
   message: string;
   impact?: string;

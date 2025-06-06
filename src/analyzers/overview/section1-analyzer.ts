@@ -8,12 +8,7 @@ import { ParsingMetadataTracker } from './parsing-metadata-tracker';
 import { StructuralAnalyzer } from './structural-analyzer';
 import { EnvironmentProfiler } from './environment-profiler';
 import { logger } from '../../utils/logger';
-import type { 
-  Section1Result, 
-  Section1Config, 
-  Section1Progress,
-  Section1Warning 
-} from './types';
+import type { Section1Result, Section1Config, Section1Progress, Section1Warning } from './types';
 
 export class Section1Analyzer {
   private config: Section1Config;
@@ -54,18 +49,18 @@ export class Section1Analyzer {
   async analyze(
     filePath: string,
     command: string = `datapilot all ${filePath}`,
-    enabledSections: string[] = ['all']
+    enabledSections: string[] = ['all'],
   ): Promise<Section1Result> {
     logger.info('Starting Section 1 analysis');
     this.environmentProfiler.reset();
 
     const warnings: Section1Warning[] = [];
-    
+
     try {
       // Phase 1: File Analysis
       this.reportProgress('file-analysis', 0, 'Collecting file metadata...');
       this.environmentProfiler.startPhase('file-analysis');
-      
+
       // Validate file first
       const validation = this.fileCollector.validateFile(filePath);
       if (!validation.valid) {
@@ -74,41 +69,39 @@ export class Section1Analyzer {
 
       const fileDetails = await this.fileCollector.collectMetadata(filePath);
       warnings.push(...this.fileCollector.getWarnings());
-      
+
       const fileAnalysisTime = this.environmentProfiler.endPhase('file-analysis');
       this.reportProgress('file-analysis', 100, 'File metadata collected');
 
       // Phase 2: Parsing Analysis
       this.reportProgress('parsing', 0, 'Parsing CSV and analyzing format...');
       this.environmentProfiler.startPhase('parsing');
-      
-      const { rows, metadata: parsingMetadata } = await this.parsingTracker.parseWithMetadata(filePath);
+
+      const { rows, metadata: parsingMetadata } =
+        await this.parsingTracker.parseWithMetadata(filePath);
       warnings.push(...this.parsingTracker.getWarnings());
-      
+
       const parsingTime = this.environmentProfiler.endPhase('parsing');
       this.reportProgress('parsing', 100, 'CSV parsing completed');
 
       // Phase 3: Structural Analysis
       this.reportProgress('structural-analysis', 0, 'Analyzing dataset structure...');
       this.environmentProfiler.startPhase('structural-analysis');
-      
+
       const structuralDimensions = this.structuralAnalyzer.analyzeStructure(
-        rows, 
-        parsingMetadata.headerProcessing.headerPresence === 'Detected'
+        rows,
+        parsingMetadata.headerProcessing.headerPresence === 'Detected',
       );
       warnings.push(...this.structuralAnalyzer.getWarnings());
-      
+
       const structuralTime = this.environmentProfiler.endPhase('structural-analysis');
       this.reportProgress('structural-analysis', 100, 'Structural analysis completed');
 
       // Phase 4: Environment Context
       this.reportProgress('report-generation', 0, 'Finalizing analysis context...');
-      
+
       const modules = this.environmentProfiler.generateModuleList(enabledSections);
-      const executionContext = this.environmentProfiler.createExecutionContext(
-        command,
-        modules
-      );
+      const executionContext = this.environmentProfiler.createExecutionContext(command, modules);
 
       // Create comprehensive result
       const overview = {
@@ -124,7 +117,7 @@ export class Section1Analyzer {
         ...this.environmentProfiler.createPerformanceSummary(),
         phases: {
           'file-analysis': Number((fileAnalysisTime / 1000).toFixed(3)),
-          'parsing': Number((parsingTime / 1000).toFixed(3)),
+          parsing: Number((parsingTime / 1000).toFixed(3)),
           'structural-analysis': Number((structuralTime / 1000).toFixed(3)),
         },
       };
@@ -138,11 +131,10 @@ export class Section1Analyzer {
         warnings,
         performanceMetrics,
       };
-
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       logger.error(`Section 1 analysis failed: ${message}`);
-      
+
       warnings.push({
         category: 'structural',
         severity: 'high',
@@ -177,7 +169,7 @@ export class Section1Analyzer {
   private reportProgress(
     phase: Section1Progress['phase'],
     progress: number,
-    operation: string
+    operation: string,
   ): void {
     if (this.progressCallback) {
       this.progressCallback({
@@ -229,7 +221,7 @@ export class Section1Analyzer {
    */
   updateConfig(newConfig: Partial<Section1Config>): void {
     this.config = { ...this.config, ...newConfig };
-    
+
     // Recreate components with new config
     this.fileCollector = new FileMetadataCollector(this.config);
     this.parsingTracker = new ParsingMetadataTracker(this.config);

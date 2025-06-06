@@ -18,7 +18,6 @@ import type {
 import { ChartType } from './types';
 
 export class Section4Formatter {
-  
   /**
    * Generate complete Section 4 markdown report
    */
@@ -28,7 +27,9 @@ export class Section4Formatter {
       this.formatVisualizationStrategy(result.visualizationAnalysis.strategy),
       this.formatUnivariateRecommendations(result.visualizationAnalysis.univariateRecommendations),
       this.formatBivariateRecommendations(result.visualizationAnalysis.bivariateRecommendations),
-      this.formatMultivariateRecommendations(result.visualizationAnalysis.multivariateRecommendations),
+      this.formatMultivariateRecommendations(
+        result.visualizationAnalysis.multivariateRecommendations,
+      ),
       this.formatDashboardRecommendations(result.visualizationAnalysis.dashboardRecommendations),
       this.formatTechnicalGuidance(result.visualizationAnalysis.technicalGuidance),
       this.formatAccessibilityAssessment(result.visualizationAnalysis.accessibilityAssessment),
@@ -36,7 +37,7 @@ export class Section4Formatter {
       this.formatPerformanceMetrics(result.performanceMetrics, result.metadata),
     ];
 
-    return sections.filter(section => section.length > 0).join('\n\n');
+    return sections.filter((section) => section.length > 0).join('\n\n');
   }
 
   private static formatHeader(): string {
@@ -52,7 +53,7 @@ This section provides intelligent chart recommendations and visualization strate
     const performanceBadge = this.getPerformanceBadge(strategy.performance);
 
     const objectivesList = strategy.primaryObjectives
-      .map(objective => `    * ${objective}`)
+      .map((objective) => `    * ${objective}`)
       .join('\n');
 
     return `**4.1. Visualization Strategy Overview:**
@@ -80,9 +81,11 @@ ${objectivesList}
 *No column profiles available for visualization recommendations.*`;
     }
 
-    const sections = [`**4.2. Univariate Visualization Recommendations:**
+    const sections = [
+      `**4.2. Univariate Visualization Recommendations:**
 
-*Intelligent chart recommendations for individual variables, optimized for data characteristics and accessibility.*`];
+*Intelligent chart recommendations for individual variables, optimized for data characteristics and accessibility.*`,
+    ];
 
     for (const profile of profiles) {
       sections.push(this.formatColumnProfile(profile));
@@ -98,8 +101,9 @@ ${objectivesList}
     let distributionInfo = '';
     if (profile.distribution) {
       const outlierImpact = profile.distribution.outliers.impact;
-      const outlierBadge = outlierImpact === 'high' ? '🔴' : outlierImpact === 'medium' ? '🟡' : '🟢';
-      
+      const outlierBadge =
+        outlierImpact === 'high' ? '🔴' : outlierImpact === 'medium' ? '🟡' : '🟢';
+
       distributionInfo = `
 **Distribution Characteristics:**
 * **Shape:** ${profile.distribution.shape}
@@ -111,9 +115,10 @@ ${objectivesList}
       .map((rec, index) => this.formatChartRecommendation(rec, index + 1))
       .join('\n\n');
 
-    const warningsText = profile.warnings.length > 0 
-      ? `\n**⚠️ Visualization Warnings:**\n${profile.warnings.map(w => `* **${w.severity.toUpperCase()}:** ${w.message} - ${w.recommendation}`).join('\n')}`
-      : '';
+    const warningsText =
+      profile.warnings.length > 0
+        ? `\n**⚠️ Visualization Warnings:**\n${profile.warnings.map((w) => `* **${w.severity.toUpperCase()}:** ${w.message} - ${w.recommendation}`).join('\n')}`
+        : '';
 
     return `---
 **Column: \`${profile.columnName}\`** ${qualityBadge}
@@ -135,18 +140,25 @@ ${recommendationsText}${warningsText}`;
 
     // Format visual encoding details
     const encodingDetails = this.formatVisualEncoding(rec.encoding);
-    
+
     // Format library recommendations
-    const libraryText = rec.libraryRecommendations.slice(0, 2)
-      .map(lib => `**${lib.name}** (${lib.complexity}): ${lib.pros.slice(0, 2).join(', ')}`)
+    const libraryText = rec.libraryRecommendations
+      .slice(0, 2)
+      .map((lib) => `**${lib.name}** (${lib.complexity}): ${lib.pros.slice(0, 2).join(', ')}`)
       .join(' | ');
 
     // Format accessibility features
     const accessibilityFeatures = [
-      (rec.accessibility.colorBlindness.protanopia || rec.accessibility.colorBlindness.deuteranopia || rec.accessibility.colorBlindness.tritanopia) ? '🎨 Color-blind friendly' : '',
+      rec.accessibility.colorBlindness.protanopia ||
+      rec.accessibility.colorBlindness.deuteranopia ||
+      rec.accessibility.colorBlindness.tritanopia
+        ? '🎨 Color-blind friendly'
+        : '',
       rec.accessibility.wcagCompliance === 'AA' ? '♿ WCAG AA compliant' : '',
       rec.interactivity.keyboard.navigation ? '⌨️ Keyboard accessible' : '',
-    ].filter(Boolean).join(' | ');
+    ]
+      .filter(Boolean)
+      .join(' | ');
 
     return `**${index}. ${this.getChartTypeDisplayName(rec.chartType)}** ${priorityBadge} ${confidenceBadge} ${purposeBadge}
 
@@ -165,23 +177,26 @@ ${encodingDetails}
 
   private static formatVisualEncoding(encoding: any): string {
     const details = [];
-    
+
     if (encoding.xAxis) {
       details.push(`* **X-Axis:** ${encoding.xAxis.variable} (${encoding.xAxis.scale} scale)`);
     }
-    
+
     if (encoding.yAxis) {
       details.push(`* **Y-Axis:** ${encoding.yAxis.variable} (${encoding.yAxis.scale} scale)`);
     }
-    
+
     if (encoding.color) {
-      details.push(`* **Color:** ${encoding.color.scheme.type} palette (${encoding.color.accessibility.wcagLevel} compliant)`);
+      details.push(
+        `* **Color:** ${encoding.color.scheme.type} palette (${encoding.color.accessibility.wcagLevel} compliant)`,
+      );
     }
-    
+
     if (encoding.layout) {
-      const dimensions = typeof encoding.layout.width === 'number' 
-        ? `${encoding.layout.width}×${encoding.layout.height}`
-        : `${encoding.layout.width} (${encoding.layout.height}px height)`;
+      const dimensions =
+        typeof encoding.layout.width === 'number'
+          ? `${encoding.layout.width}×${encoding.layout.height}`
+          : `${encoding.layout.width} (${encoding.layout.height}px height)`;
       details.push(`* **Layout:** ${dimensions}`);
     }
 
@@ -195,9 +210,11 @@ ${encodingDetails}
 *No significant bivariate relationships identified for visualization. Focus on univariate analysis and dashboard composition.*`;
     }
 
-    const sections = [`**4.3. Bivariate Visualization Recommendations:**
+    const sections = [
+      `**4.3. Bivariate Visualization Recommendations:**
 
-*Chart recommendations for exploring relationships between variable pairs.*`];
+*Chart recommendations for exploring relationships between variable pairs.*`,
+    ];
 
     for (const profile of profiles) {
       sections.push(this.formatBivariateProfile(profile));
@@ -211,7 +228,10 @@ ${encodingDetails}
     const relationshipType = profile.relationshipType.replace(/_/g, ' ');
 
     const recommendationsText = profile.recommendations
-      .map((rec, index) => `**${index + 1}. ${this.getChartTypeDisplayName(rec.chartType)}** (${rec.confidence.toFixed(2)} confidence): ${rec.reasoning}`)
+      .map(
+        (rec, index) =>
+          `**${index + 1}. ${this.getChartTypeDisplayName(rec.chartType)}** (${rec.confidence.toFixed(2)} confidence): ${rec.reasoning}`,
+      )
       .join('\n');
 
     return `---
@@ -224,21 +244,27 @@ ${encodingDetails}
 ${recommendationsText}`;
   }
 
-  private static formatMultivariateRecommendations(recommendations: MultivariateRecommendation[]): string {
+  private static formatMultivariateRecommendations(
+    recommendations: MultivariateRecommendation[],
+  ): string {
     if (!recommendations || recommendations.length === 0) {
       return `**4.4. Multivariate Visualization Recommendations:**
 
 *Multivariate visualizations not recommended for current dataset characteristics. Consider advanced analysis if exploring complex variable interactions.*`;
     }
 
-    const sections = [`**4.4. Multivariate Visualization Recommendations:**
+    const sections = [
+      `**4.4. Multivariate Visualization Recommendations:**
 
-*Advanced visualizations for exploring complex multi-variable relationships.*`];
+*Advanced visualizations for exploring complex multi-variable relationships.*`,
+    ];
 
     for (const rec of recommendations) {
       const complexityBadge = this.getComplexityBadge(rec.complexity);
-      const variablesList = rec.variables.map(v => `\`${v}\``).join(', ');
-      const alternativesList = rec.alternatives.map(alt => this.getChartTypeDisplayName(alt)).join(', ');
+      const variablesList = rec.variables.map((v) => `\`${v}\``).join(', ');
+      const alternativesList = rec.alternatives
+        .map((alt) => this.getChartTypeDisplayName(alt))
+        .join(', ');
 
       sections.push(`---
 **${this.getChartTypeDisplayName(rec.chartType)}** ${complexityBadge}
@@ -362,16 +388,21 @@ ${recommendationsText}`;
     const totalRecommendations = result.performanceMetrics?.recommendationsGenerated || 0;
     const chartTypes = result.performanceMetrics?.chartTypesConsidered || 0;
     const confidence = result.metadata?.recommendationConfidence || 0;
-    
-    const warnings = result.warnings || [];
-    const criticalWarnings = warnings.filter(w => w.severity === 'critical' || w.severity === 'high');
-    
-    const keyFindings = this.generateKeyFindings(result.visualizationAnalysis);
-    const implementationPriorities = this.generateImplementationPriorities(result.visualizationAnalysis);
 
-    const warningsText = criticalWarnings.length > 0 
-      ? `\n**⚠️ Critical Considerations:**\n${criticalWarnings.map(w => `* **${w.type.toUpperCase()}:** ${w.message}`).join('\n')}`
-      : '';
+    const warnings = result.warnings || [];
+    const criticalWarnings = warnings.filter(
+      (w) => w.severity === 'critical' || w.severity === 'high',
+    );
+
+    const keyFindings = this.generateKeyFindings(result.visualizationAnalysis);
+    const implementationPriorities = this.generateImplementationPriorities(
+      result.visualizationAnalysis,
+    );
+
+    const warningsText =
+      criticalWarnings.length > 0
+        ? `\n**⚠️ Critical Considerations:**\n${criticalWarnings.map((w) => `* **${w.type.toUpperCase()}:** ${w.message}`).join('\n')}`
+        : '';
 
     return `**4.8. Visualization Strategy Summary:**
 
@@ -382,7 +413,7 @@ ${recommendationsText}`;
 * **Performance Optimization:** Implemented for all chart types
 
 **🎯 Key Strategic Findings:**
-${keyFindings.map(finding => `* ${finding}`).join('\n')}
+${keyFindings.map((finding) => `* ${finding}`).join('\n')}
 
 **🚀 Implementation Priorities:**
 ${implementationPriorities.map((priority, index) => `${index + 1}. **${priority.title}:** ${priority.description}`).join('\n')}
@@ -398,8 +429,12 @@ ${implementationPriorities.map((priority, index) => `${index + 1}. **${priority.
   private static formatPerformanceMetrics(metrics: any, metadata: any): string {
     if (!metrics) return '';
 
-    const efficiency = metrics.analysisTimeMs < 100 ? 'Excellent' : 
-                     metrics.analysisTimeMs < 500 ? 'Good' : 'Moderate';
+    const efficiency =
+      metrics.analysisTimeMs < 100
+        ? 'Excellent'
+        : metrics.analysisTimeMs < 500
+          ? 'Good'
+          : 'Moderate';
 
     return `
 
@@ -591,15 +626,17 @@ ${implementationPriorities.map((priority, index) => `${index + 1}. **${priority.
 
   private static generateKeyFindings(analysis: VisualizationAnalysis): string[] {
     const findings = [];
-    const numericalColumns = analysis.univariateRecommendations.filter(p => 
-      p.dataType.includes('numerical')).length;
-    const categoricalColumns = analysis.univariateRecommendations.filter(p => 
-      p.dataType.includes('categorical')).length;
+    const numericalColumns = analysis.univariateRecommendations.filter((p) =>
+      p.dataType.includes('numerical'),
+    ).length;
+    const categoricalColumns = analysis.univariateRecommendations.filter((p) =>
+      p.dataType.includes('categorical'),
+    ).length;
 
     if (numericalColumns > 0) {
       findings.push(`${numericalColumns} numerical variables suitable for distribution analysis`);
     }
-    
+
     if (categoricalColumns > 0) {
       findings.push(`${categoricalColumns} categorical variables optimal for comparison charts`);
     }
@@ -608,39 +645,44 @@ ${implementationPriorities.map((priority, index) => `${index + 1}. **${priority.
       findings.push('Simple visualization approach recommended for clear communication');
     }
 
-    findings.push(`${analysis.strategy.accessibility} accessibility level achieved with universal design principles`);
+    findings.push(
+      `${analysis.strategy.accessibility} accessibility level achieved with universal design principles`,
+    );
 
     return findings.slice(0, 4); // Limit to top 4 findings
   }
 
-  private static generateImplementationPriorities(analysis: VisualizationAnalysis): Array<{title: string, description: string}> {
+  private static generateImplementationPriorities(
+    analysis: VisualizationAnalysis,
+  ): Array<{ title: string; description: string }> {
     const priorities = [];
-    
-    const primaryCharts = analysis.univariateRecommendations
-      .flatMap(p => p.recommendations.filter(r => r.priority === 'primary'));
+
+    const primaryCharts = analysis.univariateRecommendations.flatMap((p) =>
+      p.recommendations.filter((r) => r.priority === 'primary'),
+    );
 
     if (primaryCharts.length > 0) {
       priorities.push({
         title: 'Primary Charts',
-        description: `Implement ${primaryCharts.length} primary chart recommendations first`
+        description: `Implement ${primaryCharts.length} primary chart recommendations first`,
       });
     }
 
     priorities.push({
       title: 'Accessibility Foundation',
-      description: 'Establish color schemes, ARIA labels, and keyboard navigation'
+      description: 'Establish color schemes, ARIA labels, and keyboard navigation',
     });
 
     if (analysis.strategy.interactivity !== 'static') {
       priorities.push({
-        title: 'Interactive Features', 
-        description: 'Add tooltips, hover effects, and progressive enhancement'
+        title: 'Interactive Features',
+        description: 'Add tooltips, hover effects, and progressive enhancement',
       });
     }
 
     priorities.push({
       title: 'Performance Testing',
-      description: 'Validate chart performance with representative data volumes'
+      description: 'Validate chart performance with representative data volumes',
     });
 
     return priorities.slice(0, 4); // Top 4 priorities

@@ -20,7 +20,6 @@ import type {
 import { EdaDataType } from './types';
 
 export class Section3Formatter {
-  
   /**
    * Generate complete Section 3 markdown report
    */
@@ -36,7 +35,7 @@ export class Section3Formatter {
       this.formatPerformanceMetrics(result.performanceMetrics, result.metadata),
     ];
 
-    return sections.filter(section => section.length > 0).join('\n\n');
+    return sections.filter((section) => section.length > 0).join('\n\n');
   }
 
   private static formatHeader(): string {
@@ -46,10 +45,10 @@ This section provides a comprehensive statistical exploration of the dataset. Th
   }
 
   private static formatMethodologyOverview(result: Section3Result): string {
-    const samplingNote = result.metadata?.samplingApplied ? 
-      'Intelligent sampling applied for intensive computations while preserving statistical integrity.' : 
-      'Analysis performed on the complete dataset.';
-    
+    const samplingNote = result.metadata?.samplingApplied
+      ? 'Intelligent sampling applied for intensive computations while preserving statistical integrity.'
+      : 'Analysis performed on the complete dataset.';
+
     return `**3.1. EDA Methodology Overview:**
 * **Approach:** Systematic univariate, bivariate, and multivariate analysis using streaming algorithms.
 * **Column Type Classification:** Each column is analysed based on its inferred data type (Numerical, Categorical, Date/Time, Boolean, Text).
@@ -65,9 +64,11 @@ This section provides a comprehensive statistical exploration of the dataset. Th
 *No column analyses available.*`;
     }
 
-    const sections = [`**3.2. Univariate Analysis (Per-Column In-Depth Profile):**
+    const sections = [
+      `**3.2. Univariate Analysis (Per-Column In-Depth Profile):**
 
-*This sub-section provides detailed statistical profiles for each column in the dataset, adapted based on detected data type.*`];
+*This sub-section provides detailed statistical profiles for each column in the dataset, adapted based on detected data type.*`,
+    ];
 
     for (const analysis of analyses) {
       sections.push(this.formatSingleColumnAnalysis(analysis));
@@ -88,17 +89,23 @@ This section provides a comprehensive statistical exploration of the dataset. Th
     * Unique Values: ${analysis.uniqueValues.toLocaleString()} (${analysis.uniquePercentage}% of total)`;
 
     // Format based on column type
-    if (analysis.detectedDataType === EdaDataType.NUMERICAL_FLOAT || 
-        analysis.detectedDataType === EdaDataType.NUMERICAL_INTEGER) {
+    if (
+      analysis.detectedDataType === EdaDataType.NUMERICAL_FLOAT ||
+      analysis.detectedDataType === EdaDataType.NUMERICAL_INTEGER
+    ) {
       return header + '\n\n' + this.formatNumericalAnalysis(analysis as NumericalColumnAnalysis);
     } else if (analysis.detectedDataType === EdaDataType.CATEGORICAL) {
-      return header + '\n\n' + this.formatCategoricalAnalysis(analysis as CategoricalColumnAnalysis);
+      return (
+        header + '\n\n' + this.formatCategoricalAnalysis(analysis as CategoricalColumnAnalysis)
+      );
     } else if (analysis.detectedDataType === EdaDataType.DATE_TIME) {
       return header + '\n\n' + this.formatDateTimeAnalysis(analysis as DateTimeAnalysis);
     } else if (analysis.detectedDataType === EdaDataType.BOOLEAN) {
       return header + '\n\n' + this.formatBooleanAnalysis(analysis as BooleanAnalysis);
-    } else if (analysis.detectedDataType === EdaDataType.TEXT_GENERAL || 
-               analysis.detectedDataType === EdaDataType.TEXT_ADDRESS) {
+    } else if (
+      analysis.detectedDataType === EdaDataType.TEXT_GENERAL ||
+      analysis.detectedDataType === EdaDataType.TEXT_ADDRESS
+    ) {
       return header + '\n\n' + this.formatTextAnalysis(analysis as TextColumnAnalysis);
     }
 
@@ -113,9 +120,10 @@ This section provides a comprehensive statistical exploration of the dataset. Th
     const outliers = analysis.outlierAnalysis;
     const patterns = analysis.numericalPatterns;
 
-    const modesText = stats.modes.length > 0 ? 
-      stats.modes.map(mode => `${mode.value} (Frequency: ${mode.percentage}%)`).join(', ') : 
-      'No clear mode detected';
+    const modesText =
+      stats.modes.length > 0
+        ? stats.modes.map((mode) => `${mode.value} (Frequency: ${mode.percentage}%)`).join(', ')
+        : 'No clear mode detected';
 
     return `**3.2.A. Numerical Column Analysis:**
 
@@ -182,9 +190,12 @@ This section provides a comprehensive statistical exploration of the dataset. Th
     const labels = analysis.labelAnalysis;
     const recommendations = analysis.recommendations;
 
-    const frequencyTableText = freqTable.map(freq => 
-      `| ${freq.label} | ${freq.count} | ${freq.percentage}% | ${freq.cumulativePercentage}% |`
-    ).join('\n');
+    const frequencyTableText = freqTable
+      .map(
+        (freq) =>
+          `| ${freq.label} | ${freq.count} | ${freq.percentage}% | ${freq.cumulativePercentage}% |`,
+      )
+      .join('\n');
 
     return `**3.2.B. Categorical Column Analysis:**
 
@@ -214,13 +225,13 @@ ${frequencyTableText}
 **Potential Issues & Recommendations:**
 ${recommendations.highCardinalityWarning ? `* High Cardinality Warning: ${recommendations.highCardinalityWarning}` : ''}
 ${recommendations.rareCategoriesNote ? `* Rare Categories: ${recommendations.rareCategoriesNote}` : ''}
-${(!recommendations.highCardinalityWarning && !recommendations.rareCategoriesNote) ? '* No significant issues detected.' : ''}`;
+${!recommendations.highCardinalityWarning && !recommendations.rareCategoriesNote ? '* No significant issues detected.' : ''}`;
   }
 
   private static formatDateTimeAnalysis(analysis: DateTimeAnalysis): string {
     const components = {
       years: analysis.mostCommonYears?.join(', ') || 'Not available',
-      months: analysis.mostCommonMonths?.join(', ') || 'Not available', 
+      months: analysis.mostCommonMonths?.join(', ') || 'Not available',
       daysOfWeek: analysis.mostCommonDaysOfWeek?.join(', ') || 'Not available',
       hours: analysis.mostCommonHours?.join(', ') || 'Not available',
     };
@@ -288,7 +299,9 @@ ${(!recommendations.highCardinalityWarning && !recommendations.rareCategoriesNot
   }
 
   private static formatBivariateAnalysis(bivariate: BivariateAnalysis): string {
-    const sections = [`**3.3. Bivariate Analysis (Exploring Relationships Between Pairs of Variables):**`];
+    const sections = [
+      `**3.3. Bivariate Analysis (Exploring Relationships Between Pairs of Variables):**`,
+    ];
 
     // Numerical vs Numerical
     sections.push(this.formatNumericalBivariateAnalysis(bivariate.numericalVsNumerical));
@@ -298,7 +311,7 @@ ${(!recommendations.highCardinalityWarning && !recommendations.rareCategoriesNot
       sections.push(this.formatNumericalCategoricalAnalysis(bivariate.numericalVsCategorical));
     }
 
-    // Categorical vs Categorical  
+    // Categorical vs Categorical
     if (bivariate.categoricalVsCategorical.length > 0) {
       sections.push(this.formatCategoricalBivariateAnalysis(bivariate.categoricalVsCategorical));
     }
@@ -312,22 +325,36 @@ ${(!recommendations.highCardinalityWarning && !recommendations.rareCategoriesNot
 * No numerical variable pairs available for correlation analysis.`;
     }
 
-    const topPositive = analysis.correlationPairs.filter(p => p.correlation > 0).slice(0, 5);
-    const topNegative = analysis.correlationPairs.filter(p => p.correlation < 0).slice(0, 5);
+    const topPositive = analysis.correlationPairs.filter((p) => p.correlation > 0).slice(0, 5);
+    const topNegative = analysis.correlationPairs.filter((p) => p.correlation < 0).slice(0, 5);
 
-    const positiveText = topPositive.length > 0 ? 
-      topPositive.map((pair, i) => 
-        `        ${i + 1}. \`${pair.variable1}\` vs \`${pair.variable2}\`: r = ${pair.correlation} (${pair.significance}) - ${pair.interpretation}.`
-      ).join('\n') : '        No strong positive correlations found.';
+    const positiveText =
+      topPositive.length > 0
+        ? topPositive
+            .map(
+              (pair, i) =>
+                `        ${i + 1}. \`${pair.variable1}\` vs \`${pair.variable2}\`: r = ${pair.correlation} (${pair.significance}) - ${pair.interpretation}.`,
+            )
+            .join('\n')
+        : '        No strong positive correlations found.';
 
-    const negativeText = topNegative.length > 0 ? 
-      topNegative.map((pair, i) => 
-        `        ${i + 1}. \`${pair.variable1}\` vs \`${pair.variable2}\`: r = ${pair.correlation} (${pair.significance}) - ${pair.interpretation}.`
-      ).join('\n') : '        No strong negative correlations found.';
+    const negativeText =
+      topNegative.length > 0
+        ? topNegative
+            .map(
+              (pair, i) =>
+                `        ${i + 1}. \`${pair.variable1}\` vs \`${pair.variable2}\`: r = ${pair.correlation} (${pair.significance}) - ${pair.interpretation}.`,
+            )
+            .join('\n')
+        : '        No strong negative correlations found.';
 
-    const scatterInsights = analysis.scatterPlotInsights.slice(0, 3).map(insight =>
-      `        * \`${insight.variable1}\` vs \`${insight.variable2}\`: "${insight.insights}" (Recommended: ${insight.recommendedVisualization})`
-    ).join('\n');
+    const scatterInsights = analysis.scatterPlotInsights
+      .slice(0, 3)
+      .map(
+        (insight) =>
+          `        * \`${insight.variable1}\` vs \`${insight.variable2}\`: "${insight.insights}" (Recommended: ${insight.recommendedVisualization})`,
+      )
+      .join('\n');
 
     return `**Numerical vs. Numerical:**
     * **Correlation Matrix Summary (Pearson's r):**
@@ -341,42 +368,57 @@ ${negativeText}
 ${scatterInsights || '        * No specific scatter plot insights available.'}`;
   }
 
-  private static formatNumericalCategoricalAnalysis(analyses: NumericalCategoricalAnalysis[]): string {
+  private static formatNumericalCategoricalAnalysis(
+    analyses: NumericalCategoricalAnalysis[],
+  ): string {
     if (analyses.length === 0) return '';
 
-    const analysisText = analyses.slice(0, 3).map(analysis => {
-      const groupTable = analysis.groupComparisons.slice(0, 5).map(group =>
-        `        | ${group.category} | ${group.mean} | ${group.median} | ${group.standardDeviation} | ${group.count} |`
-      ).join('\n');
+    const analysisText = analyses
+      .slice(0, 3)
+      .map((analysis) => {
+        const groupTable = analysis.groupComparisons
+          .slice(0, 5)
+          .map(
+            (group) =>
+              `        | ${group.category} | ${group.mean} | ${group.median} | ${group.standardDeviation} | ${group.count} |`,
+          )
+          .join('\n');
 
-      return `    * **\`${analysis.numericalVariable}\` by \`${analysis.categoricalVariable}\`:**
+        return `    * **\`${analysis.numericalVariable}\` by \`${analysis.categoricalVariable}\`:**
         | Category | Mean | Median | StdDev | Count |
         |----------|------|--------|--------|-------|
 ${groupTable}
         * **Statistical Tests:** ANOVA F-statistic = ${analysis.statisticalTests.anova.fStatistic}, p-value = ${analysis.statisticalTests.anova.pValue} (${analysis.statisticalTests.anova.interpretation})
         * **Summary:** ${analysis.summary}`;
-    }).join('\n\n');
+      })
+      .join('\n\n');
 
     return `**Numerical vs. Categorical:**
     * **Comparative Statistics (Mean/Median by Category):**
 ${analysisText}`;
   }
 
-  private static formatCategoricalBivariateAnalysis(analyses: CategoricalBivariateAnalysis[]): string {
+  private static formatCategoricalBivariateAnalysis(
+    analyses: CategoricalBivariateAnalysis[],
+  ): string {
     if (analyses.length === 0) return '';
 
-    const analysisText = analyses.slice(0, 2).map(analysis => {
-      const { table } = analysis.contingencyTable;
-      const rows = Object.keys(table).slice(0, 3);
-      const cols = rows.length > 0 ? Object.keys(table[rows[0]]).slice(0, 3) : [];
-      
-      const tableHeader = `        |             | ${cols.join(' | ')} |`;
-      const tableSeparator = `        |${'-------------|'.repeat(cols.length + 1)}`;
-      const tableRows = rows.map(row => 
-        `        | ${row} | ${cols.map(col => table[row][col] || 0).join(' | ')} |`
-      ).join('\n');
+    const analysisText = analyses
+      .slice(0, 2)
+      .map((analysis) => {
+        const { table } = analysis.contingencyTable;
+        const rows = Object.keys(table).slice(0, 3);
+        const cols = rows.length > 0 ? Object.keys(table[rows[0]]).slice(0, 3) : [];
 
-      return `    * **\`${analysis.variable1}\` vs \`${analysis.variable2}\`:**
+        const tableHeader = `        |             | ${cols.join(' | ')} |`;
+        const tableSeparator = `        |${'-------------|'.repeat(cols.length + 1)}`;
+        const tableRows = rows
+          .map(
+            (row) => `        | ${row} | ${cols.map((col) => table[row][col] || 0).join(' | ')} |`,
+          )
+          .join('\n');
+
+        return `    * **\`${analysis.variable1}\` vs \`${analysis.variable2}\`:**
         * **Contingency Table (Top 3x3):**
 ${tableHeader}
 ${tableSeparator}
@@ -385,7 +427,8 @@ ${tableRows}
             * Chi-Squared: χ² = ${analysis.associationTests.chiSquare.statistic}, df = ${analysis.associationTests.chiSquare.degreesOfFreedom}, p-value = ${analysis.associationTests.chiSquare.pValue} (${analysis.associationTests.chiSquare.interpretation})
             * Cramer's V: ${analysis.associationTests.cramersV.statistic} (${analysis.associationTests.cramersV.interpretation})
         * **Insights:** ${analysis.insights}`;
-    }).join('\n\n');
+      })
+      .join('\n\n');
 
     return `**Categorical vs. Categorical:**
     * **Contingency Table Analysis:**
@@ -398,21 +441,24 @@ ${analysisText}`;
 * Multivariate analysis not performed - insufficient numerical variables or computational limitations.`;
     }
 
-    const pcaText = multivariate.principalComponents?.length > 0 ? 
-      `    * **Principal Component Analysis (PCA) Overview:**
+    const pcaText =
+      multivariate.principalComponents?.length > 0
+        ? `    * **Principal Component Analysis (PCA) Overview:**
         * Number of Components: ${multivariate.principalComponents.length}
-        * ${multivariate.dimensionalityRecommendations}` : 
-      '    * **Principal Component Analysis:** Not applicable - insufficient numerical variables.';
+        * ${multivariate.dimensionalityRecommendations}`
+        : '    * **Principal Component Analysis:** Not applicable - insufficient numerical variables.';
 
-    const clusterText = multivariate.clusteringInsights?.length > 0 ? 
-      `    * **Cluster Analysis Snippet:**
-        ${multivariate.clusteringInsights.join('\n        ')}` : 
-      '    * **Cluster Analysis:** Not performed - data characteristics not suitable for clustering.';
+    const clusterText =
+      multivariate.clusteringInsights?.length > 0
+        ? `    * **Cluster Analysis Snippet:**
+        ${multivariate.clusteringInsights.join('\n        ')}`
+        : '    * **Cluster Analysis:** Not performed - data characteristics not suitable for clustering.';
 
-    const featuresText = multivariate.featureImportanceHints?.length > 0 ?
-      `    * **Feature Interaction Hints:**
-        ${multivariate.featureImportanceHints.join('\n        ')}` :
-      '    * **Feature Interactions:** No significant interactions detected.';
+    const featuresText =
+      multivariate.featureImportanceHints?.length > 0
+        ? `    * **Feature Interaction Hints:**
+        ${multivariate.featureImportanceHints.join('\n        ')}`
+        : '    * **Feature Interactions:** No significant interactions detected.';
 
     return `**3.4. Multivariate Analysis (Preliminary Insights into Complex Interactions):**
 ${pcaText}
@@ -423,13 +469,16 @@ ${featuresText}`;
   }
 
   private static formatSpecificAnalysisModules(analyses: ColumnAnalysis[]): string {
-    const dateTimeColumns = analyses.filter(a => a.detectedDataType === EdaDataType.DATE_TIME);
-    const textColumns = analyses.filter(a => 
-      a.detectedDataType === EdaDataType.TEXT_GENERAL || 
-      a.detectedDataType === EdaDataType.TEXT_ADDRESS
+    const dateTimeColumns = analyses.filter((a) => a.detectedDataType === EdaDataType.DATE_TIME);
+    const textColumns = analyses.filter(
+      (a) =>
+        a.detectedDataType === EdaDataType.TEXT_GENERAL ||
+        a.detectedDataType === EdaDataType.TEXT_ADDRESS,
     );
 
-    const sections = [`**3.5. Specific Analysis Modules (Activated Based on Data Characteristics):**`];
+    const sections = [
+      `**3.5. Specific Analysis Modules (Activated Based on Data Characteristics):**`,
+    ];
 
     // Time Series Analysis
     if (dateTimeColumns.length > 0) {
@@ -440,11 +489,11 @@ ${featuresText}`;
         * **Recommendation:** Consider sorting data by primary temporal column for time series analysis if records represent sequential events.`);
     }
 
-    // Text Analytics  
+    // Text Analytics
     if (textColumns.length > 0) {
       const textAnalysis = textColumns[0] as TextColumnAnalysis;
       const topWords = textAnalysis.topFrequentWords?.slice(0, 5).join(', ') || 'Not available';
-      
+
       sections.push(`    * **3.5.B. Text Analytics Deep Dive:**
         * **Detected Text Columns:** ${textColumns.length} columns identified
         * **Primary Text Column:** \`${textColumns[0].columnName}\`
@@ -454,7 +503,9 @@ ${featuresText}`;
     }
 
     if (dateTimeColumns.length === 0 && textColumns.length === 0) {
-      sections.push(`    * **No Specific Modules Activated:** Dataset does not contain sufficient datetime or rich text columns for specialized analysis modules.`);
+      sections.push(
+        `    * **No Specific Modules Activated:** Dataset does not contain sufficient datetime or rich text columns for specialized analysis modules.`,
+      );
     }
 
     return sections.join('\n\n');
@@ -466,25 +517,34 @@ ${featuresText}`;
     const hypotheses = insights?.hypothesesGenerated || [];
     const recommendations = insights?.preprocessingRecommendations || [];
 
-    const findingsText = topFindings.length > 0 ? 
-      topFindings.map((finding: string, i: number) => `    ${i + 1}. ${finding}`).join('\n') :
-      '    * No significant patterns detected in current analysis.';
+    const findingsText =
+      topFindings.length > 0
+        ? topFindings.map((finding: string, i: number) => `    ${i + 1}. ${finding}`).join('\n')
+        : '    * No significant patterns detected in current analysis.';
 
-    const qualityText = qualityIssues.length > 0 ?
-      qualityIssues.map((issue: string) => `    * ${issue}`).join('\n') :
-      '    * No major data quality issues identified during EDA.';
+    const qualityText =
+      qualityIssues.length > 0
+        ? qualityIssues.map((issue: string) => `    * ${issue}`).join('\n')
+        : '    * No major data quality issues identified during EDA.';
 
-    const hypothesesText = hypotheses.length > 0 ?
-      hypotheses.map((hyp: string, i: number) => `    * H${i + 1}: ${hyp}`).join('\n') :
-      '    * No specific hypotheses generated - consider domain knowledge for hypothesis formation.';
+    const hypothesesText =
+      hypotheses.length > 0
+        ? hypotheses.map((hyp: string, i: number) => `    * H${i + 1}: ${hyp}`).join('\n')
+        : '    * No specific hypotheses generated - consider domain knowledge for hypothesis formation.';
 
-    const recommendationsText = recommendations.length > 0 ?
-      recommendations.map((rec: string) => `    * ${rec}`).join('\n') :
-      '    * Standard preprocessing steps recommended based on detected data types.';
+    const recommendationsText =
+      recommendations.length > 0
+        ? recommendations.map((rec: string) => `    * ${rec}`).join('\n')
+        : '    * Standard preprocessing steps recommended based on detected data types.';
 
-    const warningsText = warnings.length > 0 ?
-      warnings.filter(w => w.severity === 'high').slice(0, 3).map(w => `    * ${w.message} (${w.suggestion})`).join('\n') :
-      '    * No critical warnings identified.';
+    const warningsText =
+      warnings.length > 0
+        ? warnings
+            .filter((w) => w.severity === 'high')
+            .slice(0, 3)
+            .map((w) => `    * ${w.message} (${w.suggestion})`)
+            .join('\n')
+        : '    * No critical warnings identified.';
 
     return `**3.6. EDA Summary & Key Hypotheses/Insights:**
     * **Top Statistical Findings:**

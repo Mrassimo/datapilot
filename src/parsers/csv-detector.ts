@@ -2,7 +2,8 @@
  * High-performance CSV format detection
  */
 
-import { COMMON_DELIMITERS, COMMON_QUOTES, DetectedCSVFormat } from './types';
+import type { DetectedCSVFormat } from './types';
+import { COMMON_DELIMITERS, COMMON_QUOTES } from './types';
 import { EncodingDetector } from './encoding-detector';
 
 export interface DelimiterAnalysis {
@@ -19,27 +20,25 @@ export class CSVDetector {
   static detect(buffer: Buffer): DetectedCSVFormat {
     // First detect encoding
     const encodingResult = EncodingDetector.detect(buffer);
-    
+
     // Skip BOM if present
-    const dataBuffer = encodingResult.hasBOM
-      ? buffer.slice(encodingResult.bomLength)
-      : buffer;
+    const dataBuffer = encodingResult.hasBOM ? buffer.slice(encodingResult.bomLength) : buffer;
 
     // Convert to string using detected encoding
     const sample = dataBuffer.toString(encodingResult.encoding);
-    
+
     // Detect line endings
     const lineEnding = this.detectLineEnding(sample);
-    
+
     // Split into lines for analysis
     const lines = sample.split(lineEnding).slice(0, 100); // Analyze up to 100 lines
-    
+
     // Detect delimiter
     const delimiterResult = this.detectDelimiter(lines);
-    
+
     // Detect quote character
     const quoteResult = this.detectQuoteCharacter(lines, delimiterResult.delimiter);
-    
+
     // Detect if first row is header
     const headerResult = this.detectHeader(lines, delimiterResult.delimiter, quoteResult.quote);
 
@@ -59,7 +58,7 @@ export class CSVDetector {
   private static detectLineEnding(sample: string): '\n' | '\r\n' {
     const crlfCount = (sample.match(/\r\n/g) || []).length;
     const lfCount = (sample.match(/(?<!\r)\n/g) || []).length;
-    
+
     return crlfCount > lfCount ? '\r\n' : '\n';
   }
 
@@ -95,10 +94,11 @@ export class CSVDetector {
     }
 
     const fieldCounts: number[] = [];
-    
-    for (const line of lines.slice(0, 20)) { // Analyze first 20 lines
+
+    for (const line of lines.slice(0, 20)) {
+      // Analyze first 20 lines
       if (line.trim().length === 0) continue;
-      
+
       const fieldCount = this.countFields(line, delimiter);
       fieldCounts.push(fieldCount);
     }
@@ -108,8 +108,10 @@ export class CSVDetector {
     }
 
     const meanFields = fieldCounts.reduce((sum, count) => sum + count, 0) / fieldCounts.length;
-    const variance = fieldCounts.reduce((sum, count) => sum + Math.pow(count - meanFields, 2), 0) / fieldCounts.length;
-    
+    const variance =
+      fieldCounts.reduce((sum, count) => sum + Math.pow(count - meanFields, 2), 0) /
+      fieldCounts.length;
+
     // Calculate confidence based on consistency
     let confidence = 0;
     if (variance === 0 && meanFields > 1) {
@@ -140,7 +142,10 @@ export class CSVDetector {
     return line.split(delimiter).length;
   }
 
-  private static detectQuoteCharacter(lines: string[], delimiter: string): { quote: string; confidence: number } {
+  private static detectQuoteCharacter(
+    lines: string[],
+    delimiter: string,
+  ): { quote: string; confidence: number } {
     let bestQuote = '"';
     let bestConfidence = 0;
 
@@ -214,7 +219,7 @@ export class CSVDetector {
     }
 
     let headerIndicators = 0;
-    let totalFields = firstRow.length;
+    const totalFields = firstRow.length;
 
     for (let i = 0; i < firstRow.length; i++) {
       const firstField = this.cleanField(firstRow[i], quote);
@@ -259,9 +264,22 @@ export class CSVDetector {
     // If both fields are text and similar, likely not header-data relationship
     if (!this.isNumeric(headerField) && !this.isNumeric(dataField)) {
       // Exception: if header field is a common header word, allow it even if data looks similar
-      const commonHeaderWords = ['name', 'description', 'value', 'id', 'type', 'status', 'date', 'time', 'count', 'amount', 'price', 'total'];
+      const commonHeaderWords = [
+        'name',
+        'description',
+        'value',
+        'id',
+        'type',
+        'status',
+        'date',
+        'time',
+        'count',
+        'amount',
+        'price',
+        'total',
+      ];
       const lowerHeaderField = headerField.toLowerCase();
-      
+
       if (!commonHeaderWords.includes(lowerHeaderField)) {
         // Check if they look like similar types of data (e.g., both names)
         const bothLookLikeName = this.looksLikeName(headerField) && this.looksLikeName(dataField);
@@ -276,23 +294,36 @@ export class CSVDetector {
     if (headerField.length > 50) return false;
 
     // Check for common header words and patterns
-    const commonHeaderWords = ['name', 'description', 'value', 'id', 'type', 'status', 'date', 'time', 'count', 'amount', 'price', 'total'];
+    const commonHeaderWords = [
+      'name',
+      'description',
+      'value',
+      'id',
+      'type',
+      'status',
+      'date',
+      'time',
+      'count',
+      'amount',
+      'price',
+      'total',
+    ];
     const lowerHeaderField = headerField.toLowerCase();
-    
+
     // Check if it's a common header word
     if (commonHeaderWords.includes(lowerHeaderField)) {
       return true;
     }
-    
+
     // Check for common header patterns
     const commonHeaderPatterns = [
-      /^[a-z_]+$/,                   // snake_case like user_id, first_name
-      /^[a-zA-Z]+[A-Z][a-zA-Z]*$/,   // camelCase like firstName, userId
-      /^[A-Z][A-Z_]*$/,              // UPPER_CASE like USER_ID
-      /^[a-zA-Z]+$/,                 // simple words like name, value
+      /^[a-z_]+$/, // snake_case like user_id, first_name
+      /^[a-zA-Z]+[A-Z][a-zA-Z]*$/, // camelCase like firstName, userId
+      /^[A-Z][A-Z_]*$/, // UPPER_CASE like USER_ID
+      /^[a-zA-Z]+$/, // simple words like name, value
     ];
 
-    return commonHeaderPatterns.some(pattern => pattern.test(headerField));
+    return commonHeaderPatterns.some((pattern) => pattern.test(headerField));
   }
 
   private static looksLikeName(value: string): boolean {

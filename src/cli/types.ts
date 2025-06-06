@@ -10,20 +10,20 @@ export interface CLIOptions {
   outputFile?: string;
   verbose?: boolean;
   quiet?: boolean;
-  
+
   // Analysis options
   maxRows?: number;
   enableHashing?: boolean;
   includeEnvironment?: boolean;
   privacyMode?: 'full' | 'redacted' | 'minimal';
-  
+
   // Performance options
   maxMemory?: number;
   parallel?: boolean;
-  
+
   // Specific section control
   sections?: string[];
-  
+
   // Behaviour options
   force?: boolean;
   dryRun?: boolean;
@@ -79,7 +79,10 @@ export class ValidationError extends CLIError {
 }
 
 export class FileError extends CLIError {
-  constructor(message: string, public filePath: string) {
+  constructor(
+    message: string,
+    public filePath: string,
+  ) {
     super(message, 1, false);
     this.name = 'FileError';
   }

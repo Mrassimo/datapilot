@@ -3,7 +3,7 @@
  * Analyzes missing data patterns, suggests imputation strategies
  */
 
-import {
+import type {
   CompletenessAnalysis,
   ColumnCompleteness,
   MissingnessPattern,

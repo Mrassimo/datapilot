@@ -11,10 +11,10 @@ export class ShapiroWilkTest {
   private static readonly COEFFICIENTS = [
     // Coefficients for Shapiro-Wilk test (approximation for small samples)
     // Full implementation would require extensive coefficient tables
-    [0.7071, 0.0000, 0.0000, 0.0000, 0.0000],
-    [0.7071, 0.7071, 0.0000, 0.0000, 0.0000],
-    [0.6872, 0.1677, 0.6872, 0.0000, 0.0000],
-    [0.6646, 0.2413, 0.2413, 0.6646, 0.0000],
+    [0.7071, 0.0, 0.0, 0.0, 0.0],
+    [0.7071, 0.7071, 0.0, 0.0, 0.0],
+    [0.6872, 0.1677, 0.6872, 0.0, 0.0],
+    [0.6646, 0.2413, 0.2413, 0.6646, 0.0],
     [0.6431, 0.2806, 0.0875, 0.2806, 0.6431],
   ];
 
@@ -55,19 +55,19 @@ export class ShapiroWilkTest {
     // Full implementation requires extensive coefficient tables and complex calculations
     let b = 0;
     const m = Math.floor(n / 2);
-    
+
     for (let i = 0; i < m; i++) {
       const coeff = i < 5 && n <= 10 ? this.COEFFICIENTS[Math.min(n - 3, 4)][i] : 0.5;
       b += coeff * (sortedData[n - 1 - i] - sortedData[i]);
     }
 
     const w = (b * b) / ((n - 1) * variance);
-    
+
     // Approximate p-value calculation
     let pValue: number;
     if (w > 0.95) {
       pValue = 0.5;
-    } else if (w > 0.90) {
+    } else if (w > 0.9) {
       pValue = 0.1;
     } else if (w > 0.85) {
       pValue = 0.05;
@@ -75,9 +75,10 @@ export class ShapiroWilkTest {
       pValue = 0.01;
     }
 
-    const interpretation = pValue > 0.05 
-      ? 'Data consistent with normal distribution (p > 0.05)'
-      : 'Data significantly deviates from normal distribution (p ≤ 0.05)';
+    const interpretation =
+      pValue > 0.05
+        ? 'Data consistent with normal distribution (p > 0.05)'
+        : 'Data significantly deviates from normal distribution (p ≤ 0.05)';
 
     return {
       statistic: Number(w.toFixed(6)),
@@ -103,24 +104,26 @@ export class JarqueBeraTest {
 
     const n = data.length;
     const mean = data.reduce((sum, val) => sum + val, 0) / n;
-    
+
     // Calculate moments
-    let m2 = 0, m3 = 0, m4 = 0;
+    let m2 = 0,
+      m3 = 0,
+      m4 = 0;
     for (const value of data) {
       const deviation = value - mean;
       const deviation2 = deviation * deviation;
       const deviation3 = deviation2 * deviation;
       const deviation4 = deviation2 * deviation2;
-      
+
       m2 += deviation2;
       m3 += deviation3;
       m4 += deviation4;
     }
-    
+
     m2 /= n;
     m3 /= n;
     m4 /= n;
-    
+
     if (m2 === 0) {
       return {
         statistic: 0,
@@ -128,14 +131,14 @@ export class JarqueBeraTest {
         interpretation: 'All values identical - cannot test normality',
       };
     }
-    
+
     // Calculate skewness and kurtosis
     const skewness = m3 / Math.pow(m2, 1.5);
-    const kurtosis = (m4 / (m2 * m2)) - 3; // Excess kurtosis
-    
+    const kurtosis = m4 / (m2 * m2) - 3; // Excess kurtosis
+
     // Jarque-Bera statistic
     const jb = (n / 6) * (skewness * skewness + (kurtosis * kurtosis) / 4);
-    
+
     // Approximate p-value using chi-squared distribution with 2 df
     // Critical values: 5.99 (p=0.05), 9.21 (p=0.01), 13.82 (p=0.001)
     let pValue: number;
@@ -148,11 +151,12 @@ export class JarqueBeraTest {
     } else {
       pValue = 0.001;
     }
-    
-    const interpretation = pValue > 0.05
-      ? 'Data consistent with normal distribution (p > 0.05)'
-      : 'Data significantly deviates from normal distribution (p ≤ 0.05)';
-    
+
+    const interpretation =
+      pValue > 0.05
+        ? 'Data consistent with normal distribution (p > 0.05)'
+        : 'Data significantly deviates from normal distribution (p ≤ 0.05)';
+
     return {
       statistic: Number(jb.toFixed(6)),
       pValue: Number(pValue.toFixed(4)),
@@ -177,12 +181,12 @@ export class KolmogorovSmirnovTest {
 
     const n = data.length;
     const sortedData = [...data].sort((a, b) => a - b);
-    
+
     // Calculate sample mean and standard deviation
     const mean = sortedData.reduce((sum, val) => sum + val, 0) / n;
     const variance = sortedData.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / (n - 1);
     const stdDev = Math.sqrt(variance);
-    
+
     if (stdDev === 0) {
       return {
         statistic: 0,
@@ -190,23 +194,23 @@ export class KolmogorovSmirnovTest {
         interpretation: 'All values identical - cannot test normality',
       };
     }
-    
+
     // Calculate D statistic (maximum difference between empirical and theoretical CDF)
     let maxDifference = 0;
-    
+
     for (let i = 0; i < n; i++) {
       const empiricalCDF = (i + 1) / n;
       const standardized = (sortedData[i] - mean) / stdDev;
       const theoreticalCDF = this.normalCDF(standardized);
-      
+
       const difference = Math.abs(empiricalCDF - theoreticalCDF);
       maxDifference = Math.max(maxDifference, difference);
     }
-    
+
     // Approximate critical values for K-S test
     const criticalValue005 = 1.36 / Math.sqrt(n);
     const criticalValue001 = 1.63 / Math.sqrt(n);
-    
+
     let pValue: number;
     if (maxDifference < criticalValue005) {
       pValue = 0.2;
@@ -215,11 +219,12 @@ export class KolmogorovSmirnovTest {
     } else {
       pValue = 0.01;
     }
-    
-    const interpretation = pValue > 0.05
-      ? 'Data consistent with normal distribution (p > 0.05)'
-      : 'Data significantly deviates from normal distribution (p ≤ 0.05)';
-    
+
+    const interpretation =
+      pValue > 0.05
+        ? 'Data consistent with normal distribution (p > 0.05)'
+        : 'Data significantly deviates from normal distribution (p ≤ 0.05)';
+
     return {
       statistic: Number(maxDifference.toFixed(6)),
       pValue: Number(pValue.toFixed(4)),
@@ -239,18 +244,18 @@ export class KolmogorovSmirnovTest {
    */
   private static erf(x: number): number {
     // Abramowitz and Stegun approximation
-    const a1 =  0.254829592;
+    const a1 = 0.254829592;
     const a2 = -0.284496736;
-    const a3 =  1.421413741;
+    const a3 = 1.421413741;
     const a4 = -1.453152027;
-    const a5 =  1.061405429;
-    const p  =  0.3275911;
+    const a5 = 1.061405429;
+    const p = 0.3275911;
 
     const sign = x >= 0 ? 1 : -1;
     x = Math.abs(x);
 
     const t = 1.0 / (1.0 + p * x);
-    const y = 1.0 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-x * x);
+    const y = 1.0 - ((((a5 * t + a4) * t + a3) * t + a2) * t + a1) * t * Math.exp(-x * x);
 
     return sign * y;
   }
@@ -271,7 +276,7 @@ export class ANOVATest {
     }
 
     // Filter out empty groups
-    const validGroups = groups.filter(group => group.length > 0);
+    const validGroups = groups.filter((group) => group.length > 0);
     if (validGroups.length < 2) {
       return {
         fStatistic: 0,
@@ -292,8 +297,8 @@ export class ANOVATest {
     }
 
     // Calculate group means and overall mean
-    const groupMeans = validGroups.map(group => 
-      group.reduce((sum, val) => sum + val, 0) / group.length
+    const groupMeans = validGroups.map(
+      (group) => group.reduce((sum, val) => sum + val, 0) / group.length,
     );
     const overallMean = validGroups.flat().reduce((sum, val) => sum + val, 0) / n;
 
@@ -340,9 +345,10 @@ export class ANOVATest {
       pValue = 0.001;
     }
 
-    const interpretation = pValue > 0.05
-      ? 'No significant difference between group means (p > 0.05)'
-      : 'Significant difference between group means (p ≤ 0.05)';
+    const interpretation =
+      pValue > 0.05
+        ? 'No significant difference between group means (p > 0.05)'
+        : 'Significant difference between group means (p ≤ 0.05)';
 
     return {
       fStatistic: Number(fStatistic.toFixed(6)),
@@ -357,9 +363,9 @@ export class ANOVATest {
  * Tests association between two categorical variables
  */
 export class ChiSquaredTest {
-  static test(contingencyTable: number[][]): { 
-    statistic: number; 
-    pValue: number; 
+  static test(contingencyTable: number[][]): {
+    statistic: number;
+    pValue: number;
     degreesOfFreedom: number;
     interpretation: string;
     cramersV: number;
@@ -378,7 +384,7 @@ export class ChiSquaredTest {
     const cols = contingencyTable[0].length;
 
     // Calculate row and column totals
-    const rowTotals = contingencyTable.map(row => row.reduce((sum, val) => sum + val, 0));
+    const rowTotals = contingencyTable.map((row) => row.reduce((sum, val) => sum + val, 0));
     const colTotals = Array(cols).fill(0);
     let grandTotal = 0;
 
@@ -406,11 +412,11 @@ export class ChiSquaredTest {
     for (let i = 0; i < rows; i++) {
       for (let j = 0; j < cols; j++) {
         const expected = (rowTotals[i] * colTotals[j]) / grandTotal;
-        
+
         if (expected < 5) {
           lowExpectedCount++;
         }
-        
+
         if (expected > 0) {
           const observed = contingencyTable[i][j];
           chiSquared += Math.pow(observed - expected, 2) / expected;
@@ -427,7 +433,8 @@ export class ChiSquaredTest {
         statistic: Number(chiSquared.toFixed(6)),
         pValue: 1,
         degreesOfFreedom,
-        interpretation: 'Chi-squared test assumptions violated: >20% of cells have expected frequency <5',
+        interpretation:
+          'Chi-squared test assumptions violated: >20% of cells have expected frequency <5',
         cramersV: 0,
       };
     }
@@ -457,9 +464,10 @@ export class ChiSquaredTest {
     // Calculate Cramer's V (effect size)
     const cramersV = Math.sqrt(chiSquared / (grandTotal * Math.min(rows - 1, cols - 1)));
 
-    const interpretation = pValue > 0.05
-      ? 'No significant association between variables (p > 0.05)'
-      : 'Significant association between variables (p ≤ 0.05)';
+    const interpretation =
+      pValue > 0.05
+        ? 'No significant association between variables (p > 0.05)'
+        : 'Significant association between variables (p ≤ 0.05)';
 
     return {
       statistic: Number(chiSquared.toFixed(6)),
@@ -513,9 +521,10 @@ export class CorrelationSignificanceTest {
       else pValue = 0.001;
     }
 
-    const interpretation = pValue > 0.05
-      ? 'Correlation not significantly different from zero (p > 0.05)'
-      : 'Correlation significantly different from zero (p ≤ 0.05)';
+    const interpretation =
+      pValue > 0.05
+        ? 'Correlation not significantly different from zero (p > 0.05)'
+        : 'Correlation significantly different from zero (p ≤ 0.05)';
 
     return {
       pValue: Number(pValue.toFixed(4)),

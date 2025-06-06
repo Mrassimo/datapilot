@@ -7,13 +7,9 @@ import {
   OnlineStatistics,
   P2Quantile,
   ReservoirSampler,
-  BoundedFrequencyCounter
+  BoundedFrequencyCounter,
 } from './online-statistics';
-import {
-  ShapiroWilkTest,
-  JarqueBeraTest,
-  KolmogorovSmirnovTest
-} from './statistical-tests';
+import { ShapiroWilkTest, JarqueBeraTest, KolmogorovSmirnovTest } from './statistical-tests';
 import type {
   BaseColumnProfile,
   NumericalColumnAnalysis,
@@ -35,8 +31,9 @@ import type {
   TextPatterns,
   ColumnAnalysis,
   Section3Warning,
+  EdaDataType,
 } from '../eda/types';
-import { EdaDataType, SemanticType } from '../eda/types';
+import { SemanticType } from '../eda/types';
 
 export interface StreamingColumnAnalyzer {
   processValue(value: string | number | null | undefined): void;
@@ -61,19 +58,19 @@ export class StreamingNumericalAnalyzer implements StreamingColumnAnalyzer {
   constructor(
     private columnName: string,
     private detectedType: EdaDataType,
-    private semanticType: SemanticType = SemanticType.UNKNOWN
+    private semanticType: SemanticType = SemanticType.UNKNOWN,
   ) {
     // Initialize quantile estimators for common percentiles
     this.quantiles = new Map([
       [1, new P2Quantile(0.01)],
       [5, new P2Quantile(0.05)],
-      [10, new P2Quantile(0.10)],
+      [10, new P2Quantile(0.1)],
       [25, new P2Quantile(0.25)],
-      [50, new P2Quantile(0.50)],
+      [50, new P2Quantile(0.5)],
       [75, new P2Quantile(0.75)],
-      [90, new P2Quantile(0.90)],
+      [90, new P2Quantile(0.9)],
       [95, new P2Quantile(0.95)],
-      [99, new P2Quantile(0.99)]
+      [99, new P2Quantile(0.99)],
     ]);
   }
 
@@ -93,10 +90,10 @@ export class StreamingNumericalAnalyzer implements StreamingColumnAnalyzer {
     }
 
     this.validValues++;
-    
+
     // Update all streaming statistics
     this.stats.update(numValue);
-    this.quantiles.forEach(quantile => quantile.update(numValue));
+    this.quantiles.forEach((quantile) => quantile.update(numValue));
     this.reservoir.sample(numValue);
     this.frequencies.update(numValue);
   }
@@ -133,13 +130,17 @@ export class StreamingNumericalAnalyzer implements StreamingColumnAnalyzer {
 
   private createBaseProfile(): BaseColumnProfile {
     const uniqueValues = this.frequencies.getFrequencies().size;
-    
+
     return {
       columnName: this.columnName,
       detectedDataType: this.detectedType,
       inferredSemanticType: this.semanticType,
-      dataQualityFlag: this.validValues / this.totalValues > 0.95 ? 'Good' : 
-                       this.validValues / this.totalValues > 0.8 ? 'Moderate' : 'Poor',
+      dataQualityFlag:
+        this.validValues / this.totalValues > 0.95
+          ? 'Good'
+          : this.validValues / this.totalValues > 0.8
+            ? 'Moderate'
+            : 'Poor',
       totalValues: this.totalValues,
       missingValues: this.nullValues,
       missingPercentage: Number(((this.nullValues / this.totalValues) * 100).toFixed(2)),
@@ -151,8 +152,16 @@ export class StreamingNumericalAnalyzer implements StreamingColumnAnalyzer {
   private getDescriptiveStatistics(): DescriptiveStatistics {
     if (this.validValues === 0) {
       return {
-        minimum: 0, maximum: 0, range: 0, sum: 0, mean: 0, median: 0,
-        modes: [], standardDeviation: 0, variance: 0, coefficientOfVariation: 0,
+        minimum: 0,
+        maximum: 0,
+        range: 0,
+        sum: 0,
+        mean: 0,
+        median: 0,
+        modes: [],
+        standardDeviation: 0,
+        variance: 0,
+        coefficientOfVariation: 0,
       };
     }
 
@@ -184,10 +193,16 @@ export class StreamingNumericalAnalyzer implements StreamingColumnAnalyzer {
   private getQuantileStatistics(): QuantileStatistics {
     if (this.validValues === 0) {
       return {
-        percentile1st: 0, percentile5th: 0, percentile10th: 0,
-        quartile1st: 0, quartile3rd: 0,
-        percentile90th: 0, percentile95th: 0, percentile99th: 0,
-        interquartileRange: 0, medianAbsoluteDeviation: 0,
+        percentile1st: 0,
+        percentile5th: 0,
+        percentile10th: 0,
+        quartile1st: 0,
+        quartile3rd: 0,
+        percentile90th: 0,
+        percentile95th: 0,
+        percentile99th: 0,
+        interquartileRange: 0,
+        medianAbsoluteDeviation: 0,
       };
     }
 
@@ -197,9 +212,11 @@ export class StreamingNumericalAnalyzer implements StreamingColumnAnalyzer {
 
     // Calculate MAD from reservoir sample
     const sample = this.reservoir.getSample();
-    const absoluteDeviations = sample.map(val => Math.abs(val - median)).sort((a, b) => a - b);
-    const mad = absoluteDeviations.length > 0 ? 
-      absoluteDeviations[Math.floor(absoluteDeviations.length / 2)] : 0;
+    const absoluteDeviations = sample.map((val) => Math.abs(val - median)).sort((a, b) => a - b);
+    const mad =
+      absoluteDeviations.length > 0
+        ? absoluteDeviations[Math.floor(absoluteDeviations.length / 2)]
+        : 0;
 
     return {
       percentile1st: Number(this.quantiles.get(1)!.getQuantile().toFixed(6)),
@@ -229,19 +246,23 @@ export class StreamingNumericalAnalyzer implements StreamingColumnAnalyzer {
     const skewness = this.stats.getSkewness();
     const kurtosis = this.stats.getKurtosis();
 
-    const skewnessInterpretation = 
-      Math.abs(skewness) < 0.5 ? 'Approximately symmetric' :
-      skewness > 0.5 ? 'Right-skewed (positive skew)' :
-      'Left-skewed (negative skew)';
+    const skewnessInterpretation =
+      Math.abs(skewness) < 0.5
+        ? 'Approximately symmetric'
+        : skewness > 0.5
+          ? 'Right-skewed (positive skew)'
+          : 'Left-skewed (negative skew)';
 
     const kurtosisInterpretation =
-      Math.abs(kurtosis) < 0.5 ? 'Mesokurtic (normal-like tails)' :
-      kurtosis > 0.5 ? 'Leptokurtic (heavy tails)' :
-      'Platykurtic (light tails)';
+      Math.abs(kurtosis) < 0.5
+        ? 'Mesokurtic (normal-like tails)'
+        : kurtosis > 0.5
+          ? 'Leptokurtic (heavy tails)'
+          : 'Platykurtic (light tails)';
 
     const range = this.stats.getRange();
     const bins = Math.min(10, Math.ceil(Math.sqrt(this.validValues)));
-    
+
     let histogramSummary = `Distribution spans ${bins} bins`;
     if (range === 0) {
       histogramSummary = 'All values are identical';
@@ -260,7 +281,7 @@ export class StreamingNumericalAnalyzer implements StreamingColumnAnalyzer {
 
   private getNormalityTests(): NormalityTests {
     const n = this.validValues;
-    
+
     if (n < 3) {
       const insufficientData = {
         statistic: 0,
@@ -276,7 +297,7 @@ export class StreamingNumericalAnalyzer implements StreamingColumnAnalyzer {
 
     // Get sample data for testing (from reservoir sampler)
     const sampleData = this.reservoir.getSample();
-    
+
     if (sampleData.length < 3) {
       const insufficientSample = {
         statistic: 0,
@@ -317,15 +338,24 @@ export class StreamingNumericalAnalyzer implements StreamingColumnAnalyzer {
   private getOutlierAnalysis(): OutlierAnalysis {
     if (this.validValues < 3) {
       const emptyResult = {
-        lowerFence: 0, upperFence: 0, lowerOutliers: 0, upperOutliers: 0,
-        lowerPercentage: 0, upperPercentage: 0, extremeOutliers: 0, extremePercentage: 0,
+        lowerFence: 0,
+        upperFence: 0,
+        lowerOutliers: 0,
+        upperOutliers: 0,
+        lowerPercentage: 0,
+        upperPercentage: 0,
+        extremeOutliers: 0,
+        extremePercentage: 0,
       };
       return {
         iqrMethod: emptyResult,
         zScoreMethod: { threshold: 3, lowerOutliers: 0, upperOutliers: 0 },
         modifiedZScoreMethod: { threshold: 3.5, outliers: 0 },
         summary: {
-          totalOutliers: 0, totalPercentage: 0, minOutlierValue: 0, maxOutlierValue: 0,
+          totalOutliers: 0,
+          totalPercentage: 0,
+          minOutlierValue: 0,
+          maxOutlierValue: 0,
           potentialImpact: 'No outliers detected',
         },
       };
@@ -334,7 +364,7 @@ export class StreamingNumericalAnalyzer implements StreamingColumnAnalyzer {
     const q1 = this.quantiles.get(25)!.getQuantile();
     const q3 = this.quantiles.get(75)!.getQuantile();
     const iqr = q3 - q1;
-    
+
     const lowerFence = q1 - 1.5 * iqr;
     const upperFence = q3 + 1.5 * iqr;
     const extremeLowerFence = q1 - 3 * iqr;
@@ -342,24 +372,32 @@ export class StreamingNumericalAnalyzer implements StreamingColumnAnalyzer {
 
     // Count outliers from reservoir sample
     const sample = this.reservoir.getSample();
-    const lowerOutliers = sample.filter(val => val < lowerFence && val >= extremeLowerFence).length;
-    const upperOutliers = sample.filter(val => val > upperFence && val <= extremeUpperFence).length;
-    const extremeOutliers = sample.filter(val => val < extremeLowerFence || val > extremeUpperFence).length;
+    const lowerOutliers = sample.filter(
+      (val) => val < lowerFence && val >= extremeLowerFence,
+    ).length;
+    const upperOutliers = sample.filter(
+      (val) => val > upperFence && val <= extremeUpperFence,
+    ).length;
+    const extremeOutliers = sample.filter(
+      (val) => val < extremeLowerFence || val > extremeUpperFence,
+    ).length;
 
     // Z-score outliers
     const mean = this.stats.getMean();
     const stdDev = this.stats.getStandardDeviation();
-    const zScoreOutliers = stdDev > 0 ? sample.filter(val => Math.abs((val - mean) / stdDev) > 3) : [];
+    const zScoreOutliers =
+      stdDev > 0 ? sample.filter((val) => Math.abs((val - mean) / stdDev) > 3) : [];
 
     // Modified Z-score (using MAD)
     const median = this.quantiles.get(50)!.getQuantile();
-    const absoluteDeviations = sample.map(val => Math.abs(val - median));
-    const mad = absoluteDeviations.sort((a, b) => a - b)[Math.floor(absoluteDeviations.length / 2)] || 0;
-    const modifiedZOutliers = mad > 0 ? 
-      sample.filter(val => Math.abs(0.6745 * (val - median) / mad) > 3.5) : [];
+    const absoluteDeviations = sample.map((val) => Math.abs(val - median));
+    const mad =
+      absoluteDeviations.sort((a, b) => a - b)[Math.floor(absoluteDeviations.length / 2)] || 0;
+    const modifiedZOutliers =
+      mad > 0 ? sample.filter((val) => Math.abs((0.6745 * (val - median)) / mad) > 3.5) : [];
 
     const allOutliers = new Set([
-      ...sample.filter(val => val < lowerFence || val > upperFence),
+      ...sample.filter((val) => val < lowerFence || val > upperFence),
       ...zScoreOutliers,
       ...modifiedZOutliers,
     ]);
@@ -377,8 +415,8 @@ export class StreamingNumericalAnalyzer implements StreamingColumnAnalyzer {
       },
       zScoreMethod: {
         threshold: 3,
-        lowerOutliers: zScoreOutliers.filter(val => val < mean).length,
-        upperOutliers: zScoreOutliers.filter(val => val > mean).length,
+        lowerOutliers: zScoreOutliers.filter((val) => val < mean).length,
+        upperOutliers: zScoreOutliers.filter((val) => val > mean).length,
       },
       modifiedZScoreMethod: {
         threshold: 3.5,
@@ -389,30 +427,36 @@ export class StreamingNumericalAnalyzer implements StreamingColumnAnalyzer {
         totalPercentage: Number(((allOutliers.size / sample.length) * 100).toFixed(2)),
         minOutlierValue: allOutliers.size > 0 ? Math.min(...allOutliers) : 0,
         maxOutlierValue: allOutliers.size > 0 ? Math.max(...allOutliers) : 0,
-        potentialImpact: allOutliers.size > sample.length * 0.05 ? 'High outlier presence may affect analysis' : 'Low outlier impact',
+        potentialImpact:
+          allOutliers.size > sample.length * 0.05
+            ? 'High outlier presence may affect analysis'
+            : 'Low outlier impact',
       },
     };
   }
 
   private getNumericalPatterns(): NumericalPatterns {
     const sample = this.reservoir.getSample();
-    const zeroCount = sample.filter(val => val === 0).length;
-    const negativeCount = sample.filter(val => val < 0).length;
-    
+    const zeroCount = sample.filter((val) => val === 0).length;
+    const negativeCount = sample.filter((val) => val < 0).length;
+
     // Check for round numbers
-    const roundNumbers = sample.filter(val => val % 5 === 0 || val % 10 === 0).length;
+    const roundNumbers = sample.filter((val) => val % 5 === 0 || val % 10 === 0).length;
     const roundPercentage = (roundNumbers / sample.length) * 100;
-    
-    const roundNumbersNote = roundPercentage > 30 ? 
-      'High proportion of round numbers suggests potential data rounding' :
-      roundPercentage > 10 ? 'Moderate rounding detected' : 'No significant rounding detected';
+
+    const roundNumbersNote =
+      roundPercentage > 30
+        ? 'High proportion of round numbers suggests potential data rounding'
+        : roundPercentage > 10
+          ? 'Moderate rounding detected'
+          : 'No significant rounding detected';
 
     // Log transformation potential
-    const positiveData = sample.filter(val => val > 0);
-    const logTransformationPotential = positiveData.length === sample.length && 
-      sample.some(val => val > 1000) ? 
-      'Good candidate for log transformation due to wide range' : 
-      'Log transformation may not be beneficial';
+    const positiveData = sample.filter((val) => val > 0);
+    const logTransformationPotential =
+      positiveData.length === sample.length && sample.some((val) => val > 1000)
+        ? 'Good candidate for log transformation due to wide range'
+        : 'Log transformation may not be beneficial';
 
     return {
       zeroValuePercentage: Number(((zeroCount / sample.length) * 100).toFixed(2)),
@@ -446,7 +490,7 @@ export class StreamingCategoricalAnalyzer implements StreamingColumnAnalyzer {
   constructor(
     private columnName: string,
     private detectedType: EdaDataType,
-    private semanticType: SemanticType = SemanticType.UNKNOWN
+    private semanticType: SemanticType = SemanticType.UNKNOWN,
   ) {}
 
   processValue(value: string | number | null | undefined): void {
@@ -473,9 +517,24 @@ export class StreamingCategoricalAnalyzer implements StreamingColumnAnalyzer {
     return {
       ...baseProfile,
       uniqueCategories: this.frequencies.getFrequencies().size,
-      mostFrequentCategory: frequencies[0] || { label: '', count: 0, percentage: 0, cumulativePercentage: 0 },
-      secondMostFrequentCategory: frequencies[1] || { label: '', count: 0, percentage: 0, cumulativePercentage: 0 },
-      leastFrequentCategory: frequencies[frequencies.length - 1] || { label: '', count: 0, percentage: 0, cumulativePercentage: 0 },
+      mostFrequentCategory: frequencies[0] || {
+        label: '',
+        count: 0,
+        percentage: 0,
+        cumulativePercentage: 0,
+      },
+      secondMostFrequentCategory: frequencies[1] || {
+        label: '',
+        count: 0,
+        percentage: 0,
+        cumulativePercentage: 0,
+      },
+      leastFrequentCategory: frequencies[frequencies.length - 1] || {
+        label: '',
+        count: 0,
+        percentage: 0,
+        cumulativePercentage: 0,
+      },
       frequencyDistribution: frequencies.slice(0, 20),
       diversityMetrics,
       labelAnalysis,
@@ -485,13 +544,17 @@ export class StreamingCategoricalAnalyzer implements StreamingColumnAnalyzer {
 
   private createBaseProfile(): BaseColumnProfile {
     const uniqueValues = this.frequencies.getFrequencies().size;
-    
+
     return {
       columnName: this.columnName,
       detectedDataType: this.detectedType,
       inferredSemanticType: this.semanticType,
-      dataQualityFlag: this.validValues / this.totalValues > 0.95 ? 'Good' : 
-                       this.validValues / this.totalValues > 0.8 ? 'Moderate' : 'Poor',
+      dataQualityFlag:
+        this.validValues / this.totalValues > 0.95
+          ? 'Good'
+          : this.validValues / this.totalValues > 0.8
+            ? 'Moderate'
+            : 'Poor',
       totalValues: this.totalValues,
       missingValues: this.nullValues,
       missingPercentage: Number(((this.nullValues / this.totalValues) * 100).toFixed(2)),
@@ -513,7 +576,7 @@ export class StreamingCategoricalAnalyzer implements StreamingColumnAnalyzer {
 
     // Calculate cumulative percentages
     let cumulative = 0;
-    frequencies.forEach(freq => {
+    frequencies.forEach((freq) => {
       cumulative += freq.percentage;
       freq.cumulativePercentage = Number(cumulative.toFixed(2));
     });
@@ -535,30 +598,38 @@ export class StreamingCategoricalAnalyzer implements StreamingColumnAnalyzer {
     // Shannon entropy
     const shannonEntropy = frequencies.reduce((entropy, freq) => {
       const probability = freq.count / this.validValues;
-      return entropy - (probability * Math.log2(probability));
+      return entropy - probability * Math.log2(probability);
     }, 0);
 
     const maxEntropy = Math.log2(frequencies.length);
-    
+
     // Gini impurity
-    const giniImpurity = 1 - frequencies.reduce((sum, freq) => {
-      const probability = freq.count / this.validValues;
-      return sum + Math.pow(probability, 2);
-    }, 0);
+    const giniImpurity =
+      1 -
+      frequencies.reduce((sum, freq) => {
+        const probability = freq.count / this.validValues;
+        return sum + Math.pow(probability, 2);
+      }, 0);
 
     const normalizedEntropy = maxEntropy > 0 ? shannonEntropy / maxEntropy : 0;
-    const balanceInterpretation = 
-      normalizedEntropy > 0.9 ? 'Highly balanced distribution' :
-      normalizedEntropy > 0.7 ? 'Moderately balanced distribution' :
-      normalizedEntropy > 0.4 ? 'Unbalanced distribution' :
-      'Highly unbalanced distribution';
+    const balanceInterpretation =
+      normalizedEntropy > 0.9
+        ? 'Highly balanced distribution'
+        : normalizedEntropy > 0.7
+          ? 'Moderately balanced distribution'
+          : normalizedEntropy > 0.4
+            ? 'Unbalanced distribution'
+            : 'Highly unbalanced distribution';
 
     const topCategoryPercentage = frequencies[0]?.percentage || 0;
-    const majorCategoryDominance = 
-      topCategoryPercentage > 80 ? 'Single category dominates' :
-      topCategoryPercentage > 60 ? 'Major category present' :
-      topCategoryPercentage > 40 ? 'Moderate concentration' :
-      'Well distributed';
+    const majorCategoryDominance =
+      topCategoryPercentage > 80
+        ? 'Single category dominates'
+        : topCategoryPercentage > 60
+          ? 'Major category present'
+          : topCategoryPercentage > 40
+            ? 'Moderate concentration'
+            : 'Well distributed';
 
     return {
       shannonEntropy: Number(shannonEntropy.toFixed(4)),
@@ -582,18 +653,19 @@ export class StreamingCategoricalAnalyzer implements StreamingColumnAnalyzer {
     };
   }
 
-  private getRecommendations(frequencies: CategoryFrequency[], uniqueCount: number): CategoricalRecommendations {
+  private getRecommendations(
+    frequencies: CategoryFrequency[],
+    uniqueCount: number,
+  ): CategoricalRecommendations {
     const recommendations: CategoricalRecommendations = {};
 
     if (uniqueCount > 100) {
-      recommendations.highCardinalityWarning = 
-        `High cardinality (${uniqueCount} categories) may require grouping or encoding strategies`;
+      recommendations.highCardinalityWarning = `High cardinality (${uniqueCount} categories) may require grouping or encoding strategies`;
     }
 
-    const rareCategories = frequencies.filter(freq => freq.percentage < 1).length;
+    const rareCategories = frequencies.filter((freq) => freq.percentage < 1).length;
     if (rareCategories > uniqueCount * 0.5) {
-      recommendations.rareCategoriesNote = 
-        `${rareCategories} rare categories (<1% each) present - consider grouping into 'Other'`;
+      recommendations.rareCategoriesNote = `${rareCategories} rare categories (<1% each) present - consider grouping into 'Other'`;
     }
 
     return recommendations;
@@ -622,7 +694,7 @@ export class StreamingDateTimeAnalyzer implements StreamingColumnAnalyzer {
   constructor(
     private columnName: string,
     private detectedType: EdaDataType,
-    private semanticType: SemanticType = SemanticType.UNKNOWN
+    private semanticType: SemanticType = SemanticType.UNKNOWN,
   ) {}
 
   processValue(value: string | number | null | undefined): void {
@@ -641,12 +713,12 @@ export class StreamingDateTimeAnalyzer implements StreamingColumnAnalyzer {
     }
 
     this.validValues++;
-    
+
     // Store a sample of dates (strict limit to prevent memory growth)
     if (this.dateValues.length < this.maxDateSamples) {
       this.dateValues.push(dateValue);
     }
-    
+
     // Update frequency counters
     this.yearCounts.update(dateValue.getFullYear());
     this.monthCounts.update(dateValue.getMonth() + 1); // 1-based months
@@ -666,16 +738,16 @@ export class StreamingDateTimeAnalyzer implements StreamingColumnAnalyzer {
     }
 
     const baseProfile = this.createBaseProfile();
-    
+
     // Calculate datetime-specific metrics
     const sortedDates = this.dateValues.sort((a, b) => a.getTime() - b.getTime());
     const minDateTime = sortedDates[0] || new Date();
     const maxDateTime = sortedDates[sortedDates.length - 1] || new Date();
-    
+
     const timeSpan = this.calculateTimeSpan(minDateTime, maxDateTime);
     const detectedGranularity = this.detectGranularity();
     const mostCommonComponents = this.getMostCommonComponents();
-    
+
     return {
       ...baseProfile,
       minDateTime,
@@ -698,8 +770,12 @@ export class StreamingDateTimeAnalyzer implements StreamingColumnAnalyzer {
       columnName: this.columnName,
       detectedDataType: this.detectedType,
       inferredSemanticType: this.semanticType,
-      dataQualityFlag: this.validValues / this.totalValues > 0.95 ? 'Good' : 
-                       this.validValues / this.totalValues > 0.8 ? 'Moderate' : 'Poor',
+      dataQualityFlag:
+        this.validValues / this.totalValues > 0.95
+          ? 'Good'
+          : this.validValues / this.totalValues > 0.8
+            ? 'Moderate'
+            : 'Poor',
       totalValues: this.totalValues,
       missingValues: this.nullValues,
       missingPercentage: Number(((this.nullValues / this.totalValues) * 100).toFixed(2)),
@@ -726,9 +802,9 @@ export class StreamingDateTimeAnalyzer implements StreamingColumnAnalyzer {
 
   private detectGranularity(): string {
     // Analyze the precision of timestamps
-    const hasSeconds = this.dateValues.some(d => d.getSeconds() !== 0);
-    const hasMinutes = this.dateValues.some(d => d.getMinutes() !== 0);
-    const hasHours = this.dateValues.some(d => d.getHours() !== 0);
+    const hasSeconds = this.dateValues.some((d) => d.getSeconds() !== 0);
+    const hasMinutes = this.dateValues.some((d) => d.getMinutes() !== 0);
+    const hasHours = this.dateValues.some((d) => d.getHours() !== 0);
 
     if (hasSeconds) return 'Second';
     if (hasMinutes) return 'Minute';
@@ -741,8 +817,20 @@ export class StreamingDateTimeAnalyzer implements StreamingColumnAnalyzer {
   }
 
   private getMostCommonComponents() {
-    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-                       'July', 'August', 'September', 'October', 'November', 'December'];
+    const monthNames = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ];
     const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
     return {
@@ -762,7 +850,7 @@ export class StreamingDateTimeAnalyzer implements StreamingColumnAnalyzer {
     const sortedDates = this.dateValues.sort((a, b) => a.getTime() - b.getTime());
     const intervals = [];
     for (let i = 1; i < sortedDates.length; i++) {
-      intervals.push(sortedDates[i].getTime() - sortedDates[i-1].getTime());
+      intervals.push(sortedDates[i].getTime() - sortedDates[i - 1].getTime());
     }
 
     const avgInterval = intervals.reduce((sum, interval) => sum + interval, 0) / intervals.length;
@@ -787,7 +875,7 @@ export class StreamingDateTimeAnalyzer implements StreamingColumnAnalyzer {
     const sortedDates = this.dateValues.sort((a, b) => a.getTime() - b.getTime());
     const gaps = [];
     for (let i = 1; i < sortedDates.length; i++) {
-      gaps.push(sortedDates[i].getTime() - sortedDates[i-1].getTime());
+      gaps.push(sortedDates[i].getTime() - sortedDates[i - 1].getTime());
     }
 
     const maxGap = Math.max(...gaps);
@@ -798,22 +886,24 @@ export class StreamingDateTimeAnalyzer implements StreamingColumnAnalyzer {
 
   private generateValidityNotes(): string {
     const validityIssues = [];
-    
+
     // Check for future dates
     const now = new Date();
-    const futureDates = this.dateValues.filter(d => d > now).length;
+    const futureDates = this.dateValues.filter((d) => d > now).length;
     if (futureDates > 0) {
       validityIssues.push(`${futureDates} future dates detected`);
     }
 
     // Check for very old dates (before 1900)
     const cutoffDate = new Date('1900-01-01');
-    const oldDates = this.dateValues.filter(d => d < cutoffDate).length;
+    const oldDates = this.dateValues.filter((d) => d < cutoffDate).length;
     if (oldDates > 0) {
       validityIssues.push(`${oldDates} dates before 1900 detected`);
     }
 
-    return validityIssues.length > 0 ? validityIssues.join('; ') : 'No obvious validity issues detected';
+    return validityIssues.length > 0
+      ? validityIssues.join('; ')
+      : 'No obvious validity issues detected';
   }
 
   getWarnings(): Section3Warning[] {
@@ -834,7 +924,7 @@ export class StreamingBooleanAnalyzer implements StreamingColumnAnalyzer {
   constructor(
     private columnName: string,
     private detectedType: EdaDataType,
-    private semanticType: SemanticType = SemanticType.STATUS
+    private semanticType: SemanticType = SemanticType.STATUS,
   ) {}
 
   processValue(value: string | number | null | undefined): void {
@@ -846,7 +936,7 @@ export class StreamingBooleanAnalyzer implements StreamingColumnAnalyzer {
     }
 
     const strValue = String(value).toLowerCase().trim();
-    
+
     // Parse boolean-like values
     if (['true', 'yes', 'y', '1', 'on', 'enabled', 'active'].includes(strValue)) {
       this.trueCount++;
@@ -874,17 +964,29 @@ export class StreamingBooleanAnalyzer implements StreamingColumnAnalyzer {
       columnName: this.columnName,
       detectedDataType: this.detectedType,
       inferredSemanticType: this.semanticType,
-      dataQualityFlag: validValues / this.totalValues > 0.95 ? 'Good' : 
-                       validValues / this.totalValues > 0.8 ? 'Moderate' : 'Poor',
+      dataQualityFlag:
+        validValues / this.totalValues > 0.95
+          ? 'Good'
+          : validValues / this.totalValues > 0.8
+            ? 'Moderate'
+            : 'Poor',
       totalValues: this.totalValues,
       missingValues: this.nullValues,
       missingPercentage: Number(((this.nullValues / this.totalValues) * 100).toFixed(2)),
       uniqueValues: validValues > 0 ? (this.trueCount > 0 && this.falseCount > 0 ? 2 : 1) : 0,
-      uniquePercentage: Number(((validValues > 0 ? (this.trueCount > 0 && this.falseCount > 0 ? 2 : 1) : 0) / this.totalValues * 100).toFixed(2)),
+      uniquePercentage: Number(
+        (
+          ((validValues > 0 ? (this.trueCount > 0 && this.falseCount > 0 ? 2 : 1) : 0) /
+            this.totalValues) *
+          100
+        ).toFixed(2),
+      ),
     };
 
-    const truePercentage = validValues > 0 ? Number(((this.trueCount / validValues) * 100).toFixed(2)) : 0;
-    const falsePercentage = validValues > 0 ? Number(((this.falseCount / validValues) * 100).toFixed(2)) : 0;
+    const truePercentage =
+      validValues > 0 ? Number(((this.trueCount / validValues) * 100).toFixed(2)) : 0;
+    const falsePercentage =
+      validValues > 0 ? Number(((this.falseCount / validValues) * 100).toFixed(2)) : 0;
 
     let interpretation = 'No valid boolean values';
     if (validValues > 0) {
@@ -932,7 +1034,7 @@ export class StreamingTextAnalyzer implements StreamingColumnAnalyzer {
   constructor(
     private columnName: string,
     private detectedType: EdaDataType,
-    private semanticType: SemanticType = SemanticType.UNKNOWN
+    private semanticType: SemanticType = SemanticType.UNKNOWN,
   ) {}
 
   processValue(value: string | number | null | undefined): void {
@@ -944,7 +1046,7 @@ export class StreamingTextAnalyzer implements StreamingColumnAnalyzer {
     }
 
     const strValue = String(value);
-    
+
     if (strValue === '') {
       this.emptyStrings++;
       this.nullValues++;
@@ -952,11 +1054,11 @@ export class StreamingTextAnalyzer implements StreamingColumnAnalyzer {
     }
 
     this.validValues++;
-    
+
     // Analyze text characteristics
     const charLength = strValue.length;
     const wordCount = strValue.trim().split(/\s+/).length;
-    
+
     // Store samples for statistics (strict limit to prevent memory growth)
     if (this.charLengths.length < this.maxTextSamples) {
       this.charLengths.push(charLength);
@@ -967,23 +1069,24 @@ export class StreamingTextAnalyzer implements StreamingColumnAnalyzer {
     if (/^\d+$/.test(strValue.trim())) {
       this.numericTexts++;
     }
-    
+
     if (/^https?:\/\//.test(strValue)) {
       this.urlCount++;
     }
-    
+
     if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(strValue)) {
       this.emailCount++;
     }
 
     // Word frequency analysis (for shorter texts)
     if (charLength < 500) {
-      const words = strValue.toLowerCase()
+      const words = strValue
+        .toLowerCase()
         .replace(/[^\w\s]/g, ' ')
         .split(/\s+/)
-        .filter(word => word.length > 2); // Skip very short words
-      
-      words.forEach(word => this.wordFrequencies.update(word));
+        .filter((word) => word.length > 2); // Skip very short words
+
+      words.forEach((word) => this.wordFrequencies.update(word));
     }
   }
 
@@ -1016,8 +1119,12 @@ export class StreamingTextAnalyzer implements StreamingColumnAnalyzer {
       columnName: this.columnName,
       detectedDataType: this.detectedType,
       inferredSemanticType: this.semanticType,
-      dataQualityFlag: this.validValues / this.totalValues > 0.95 ? 'Good' : 
-                       this.validValues / this.totalValues > 0.8 ? 'Moderate' : 'Poor',
+      dataQualityFlag:
+        this.validValues / this.totalValues > 0.95
+          ? 'Good'
+          : this.validValues / this.totalValues > 0.8
+            ? 'Moderate'
+            : 'Poor',
       totalValues: this.totalValues,
       missingValues: this.nullValues,
       missingPercentage: Number(((this.nullValues / this.totalValues) * 100).toFixed(2)),
@@ -1029,17 +1136,27 @@ export class StreamingTextAnalyzer implements StreamingColumnAnalyzer {
   private getTextStatistics(): TextStatistics {
     if (this.charLengths.length === 0) {
       return {
-        minCharLength: 0, maxCharLength: 0, avgCharLength: 0, medianCharLength: 0, stdCharLength: 0,
-        minWordCount: 0, maxWordCount: 0, avgWordCount: 0,
+        minCharLength: 0,
+        maxCharLength: 0,
+        avgCharLength: 0,
+        medianCharLength: 0,
+        stdCharLength: 0,
+        minWordCount: 0,
+        maxWordCount: 0,
+        avgWordCount: 0,
       };
     }
 
     const sortedLengths = [...this.charLengths].sort((a, b) => a - b);
-    const avgCharLength = this.charLengths.reduce((sum, len) => sum + len, 0) / this.charLengths.length;
-    const avgWordCount = this.wordCounts.reduce((sum, count) => sum + count, 0) / this.wordCounts.length;
-    
+    const avgCharLength =
+      this.charLengths.reduce((sum, len) => sum + len, 0) / this.charLengths.length;
+    const avgWordCount =
+      this.wordCounts.reduce((sum, count) => sum + count, 0) / this.wordCounts.length;
+
     // Calculate standard deviation
-    const variance = this.charLengths.reduce((sum, len) => sum + Math.pow(len - avgCharLength, 2), 0) / this.charLengths.length;
+    const variance =
+      this.charLengths.reduce((sum, len) => sum + Math.pow(len - avgCharLength, 2), 0) /
+      this.charLengths.length;
     const stdCharLength = Math.sqrt(variance);
 
     return {

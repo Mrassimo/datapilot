@@ -42,10 +42,10 @@ export class ProgressReporter {
 
     if (this.verbose) {
       const timeStr = this.formatTime(state.timeElapsed);
-      const etaStr = state.estimatedTimeRemaining 
+      const etaStr = state.estimatedTimeRemaining
         ? ` (ETA: ${this.formatTime(state.estimatedTimeRemaining)})`
         : '';
-      
+
       console.log(`  📊 ${state.progress}% - ${state.message} [${timeStr}]${etaStr}`);
     } else {
       // Update spinner message
@@ -62,7 +62,7 @@ export class ProgressReporter {
 
     this.stopSpinner();
     this.clearLine();
-    
+
     const timeStr = this.formatTime(timeElapsed);
     console.log(`✅ ${message} [${timeStr}]`);
   }
@@ -83,7 +83,7 @@ export class ProgressReporter {
    */
   warning(message: string): void {
     if (this.quiet) return;
-    
+
     if (this.currentPhase) {
       this.pauseSpinner();
       console.log(`⚠️  ${message}`);
@@ -98,7 +98,7 @@ export class ProgressReporter {
    */
   info(message: string): void {
     if (this.quiet || !this.verbose) return;
-    
+
     if (this.currentPhase) {
       this.pauseSpinner();
       console.log(`ℹ️  ${message}`);
@@ -124,7 +124,7 @@ export class ProgressReporter {
     console.log(`   • Rows processed: ${stats.rowsProcessed.toLocaleString()}`);
     console.log(`   • Warnings: ${stats.warnings}`);
     console.log(`   • Errors: ${stats.errors}`);
-    
+
     if (stats.processingTime > 0) {
       const throughput = Math.round(stats.rowsProcessed / (stats.processingTime / 1000));
       console.log(`   • Throughput: ${throughput.toLocaleString()} rows/second`);
@@ -136,7 +136,7 @@ export class ProgressReporter {
    */
   private startSpinner(): void {
     if (this.spinnerInterval) return;
-    
+
     this.spinnerInterval = setInterval(() => {
       this.spinnerIndex = (this.spinnerIndex + 1) % this.spinnerFrames.length;
       this.updateSpinnerFrame();

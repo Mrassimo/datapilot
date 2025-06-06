@@ -3,7 +3,8 @@
  * Optimized for streaming large files with minimal memory allocation
  */
 
-import { ParserState, ParseError } from './types';
+import type { ParseError } from './types';
+import { ParserState } from './types';
 
 export interface StateMachineOptions {
   delimiter: string;
@@ -27,7 +28,7 @@ export class CSVStateMachine {
   private columnIndex: number = 0;
   private charIndex: number = 0;
   private errors: ParseError[] = [];
-  
+
   private readonly delimiter: string;
   private readonly quote: string;
   private readonly escape: string;
@@ -61,21 +62,21 @@ export class CSVStateMachine {
   processChunk(data: string): string[][] {
     const completedRows: string[][] = [];
     const length = data.length;
-    
+
     for (let i = 0; i < length; i++) {
       const char = data[i];
       const charCode = data.charCodeAt(i);
       this.charIndex++;
 
       const result = this.processCharacter(char, charCode);
-      
+
       if (result.rowCompleted) {
         completedRows.push([...this.currentRow]);
         this.currentRow = [];
         this.rowIndex++;
         this.columnIndex = 0;
       }
-      
+
       if (result.error) {
         this.errors.push(result.error);
       }
@@ -87,7 +88,10 @@ export class CSVStateMachine {
   /**
    * Process a single character using optimized state machine
    */
-  private processCharacter(char: string, charCode: number): { rowCompleted: boolean; error?: ParseError } {
+  private processCharacter(
+    char: string,
+    charCode: number,
+  ): { rowCompleted: boolean; error?: ParseError } {
     let rowCompleted = false;
     let error: ParseError | undefined;
 
@@ -124,7 +128,7 @@ export class CSVStateMachine {
         message: e instanceof Error ? e.message : 'Unknown parsing error',
         code: 'PARSE_ERROR',
       };
-      
+
       // Reset to field start for error recovery
       this.state = ParserState.FIELD_START;
       this.finishField();
@@ -237,11 +241,11 @@ export class CSVStateMachine {
 
   private finishField(): void {
     let field = this.currentField;
-    
+
     if (this.trimFields) {
       field = field.trim();
     }
-    
+
     this.currentRow.push(field);
     this.currentField = '';
     this.columnIndex++;

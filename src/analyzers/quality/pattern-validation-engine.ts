@@ -48,7 +48,7 @@ export class PatternValidationEngine {
   constructor(
     private data: (string | null | undefined)[][],
     private headers: string[],
-    config: Partial<PatternValidationConfig> = {}
+    config: Partial<PatternValidationConfig> = {},
   ) {
     this.config = {
       enableBuiltInPatterns: true,
@@ -70,8 +70,8 @@ export class PatternValidationEngine {
     // Validate patterns
     for (let colIndex = 0; colIndex < this.headers.length; colIndex++) {
       const columnName = this.headers[colIndex];
-      const applicablePatterns = this.patterns.filter(p => 
-        p.enabled && p.columnPattern.test(columnName)
+      const applicablePatterns = this.patterns.filter(
+        (p) => p.enabled && p.columnPattern.test(columnName),
       );
 
       for (const pattern of applicablePatterns) {
@@ -80,8 +80,8 @@ export class PatternValidationEngine {
     }
 
     // Analyze format consistency
-    const formatConsistency = this.config.enableFormatStandardization 
-      ? this.analyzeFormatConsistency() 
+    const formatConsistency = this.config.enableFormatStandardization
+      ? this.analyzeFormatConsistency()
       : [];
 
     return {
@@ -150,7 +150,8 @@ export class PatternValidationEngine {
       name: 'URL Format Validation',
       description: 'URLs should follow standard HTTP/HTTPS format',
       columnPattern: /(url|website|link|homepage)/i,
-      valuePattern: /^https?:\/\/(?:[-\w.])+(?:\:[0-9]+)?(?:\/(?:[\w\/_.])*(?:\?(?:[\w&=%.])*)?(?:\#(?:[\w.])*)?)?$/,
+      valuePattern:
+        /^https?:\/\/(?:[-\w.])+(?:\:[0-9]+)?(?:\/(?:[\w\/_.])*(?:\?(?:[\w&=%.])*)?(?:\#(?:[\w.])*)?)?$/,
       severity: 'medium',
       examples: ['https://example.com', 'http://subdomain.example.com/path'],
       enabled: true,
@@ -186,7 +187,8 @@ export class PatternValidationEngine {
       name: 'US State Code',
       description: 'US state codes should be 2-letter abbreviations',
       columnPattern: /^state$/i,
-      valuePattern: /^(AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY)$/i,
+      valuePattern:
+        /^(AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY)$/i,
       severity: 'medium',
       examples: ['CA', 'NY', 'TX'],
       enabled: true,
@@ -206,17 +208,13 @@ export class PatternValidationEngine {
 
     // Add custom patterns if provided
     if (this.config.customPatterns) {
-      this.patterns.push(...this.config.customPatterns.filter(p => p.enabled));
+      this.patterns.push(...this.config.customPatterns.filter((p) => p.enabled));
     }
   }
 
-  private validateColumnPattern(
-    colIndex: number, 
-    columnName: string, 
-    pattern: PatternRule
-  ): void {
+  private validateColumnPattern(colIndex: number, columnName: string, pattern: PatternRule): void {
     let violationCount = 0;
-    
+
     for (let rowIndex = 0; rowIndex < this.data.length; rowIndex++) {
       if (violationCount >= this.config.maxViolationsPerPattern) {
         break;
@@ -250,52 +248,40 @@ export class PatternValidationEngine {
 
     for (let colIndex = 0; colIndex < this.headers.length; colIndex++) {
       const columnName = this.headers[colIndex];
-      
+
       // Analyze date format consistency
       if (/(date|created|updated|birth|expir)/i.test(columnName)) {
-        const dateFormats = this.analyzeColumnFormatConsistency(
-          colIndex, 
-          columnName,
-          [
-            { pattern: /^\d{4}-\d{2}-\d{2}/, name: 'ISO 8601 (YYYY-MM-DD)' },
-            { pattern: /^\d{2}\/\d{2}\/\d{4}/, name: 'US Format (MM/DD/YYYY)' },
-            { pattern: /^\d{2}\/\d{2}\/\d{2}/, name: 'Short US (MM/DD/YY)' },
-            { pattern: /^\d{1,2}-\d{1,2}-\d{4}/, name: 'Dash Format (M-D-YYYY)' },
-            { pattern: /^\w{3}\s+\d{1,2},?\s+\d{4}/, name: 'Text Format (Mon DD, YYYY)' },
-          ]
-        );
+        const dateFormats = this.analyzeColumnFormatConsistency(colIndex, columnName, [
+          { pattern: /^\d{4}-\d{2}-\d{2}/, name: 'ISO 8601 (YYYY-MM-DD)' },
+          { pattern: /^\d{2}\/\d{2}\/\d{4}/, name: 'US Format (MM/DD/YYYY)' },
+          { pattern: /^\d{2}\/\d{2}\/\d{2}/, name: 'Short US (MM/DD/YY)' },
+          { pattern: /^\d{1,2}-\d{1,2}-\d{4}/, name: 'Dash Format (M-D-YYYY)' },
+          { pattern: /^\w{3}\s+\d{1,2},?\s+\d{4}/, name: 'Text Format (Mon DD, YYYY)' },
+        ]);
         if (dateFormats) formatAnalysis.push(dateFormats);
       }
 
       // Analyze phone format consistency
       if (/(phone|tel|mobile|cell)/i.test(columnName)) {
-        const phoneFormats = this.analyzeColumnFormatConsistency(
-          colIndex,
-          columnName,
-          [
-            { pattern: /^\(\d{3}\)\s\d{3}-\d{4}/, name: '(XXX) XXX-XXXX' },
-            { pattern: /^\d{3}-\d{3}-\d{4}/, name: 'XXX-XXX-XXXX' },
-            { pattern: /^\d{3}\.\d{3}\.\d{4}/, name: 'XXX.XXX.XXXX' },
-            { pattern: /^\+1\s\d{3}\s\d{3}\s\d{4}/, name: '+1 XXX XXX XXXX' },
-            { pattern: /^\d{10}/, name: 'XXXXXXXXXX' },
-          ]
-        );
+        const phoneFormats = this.analyzeColumnFormatConsistency(colIndex, columnName, [
+          { pattern: /^\(\d{3}\)\s\d{3}-\d{4}/, name: '(XXX) XXX-XXXX' },
+          { pattern: /^\d{3}-\d{3}-\d{4}/, name: 'XXX-XXX-XXXX' },
+          { pattern: /^\d{3}\.\d{3}\.\d{4}/, name: 'XXX.XXX.XXXX' },
+          { pattern: /^\+1\s\d{3}\s\d{3}\s\d{4}/, name: '+1 XXX XXX XXXX' },
+          { pattern: /^\d{10}/, name: 'XXXXXXXXXX' },
+        ]);
         if (phoneFormats) formatAnalysis.push(phoneFormats);
       }
 
       // Analyze boolean representation consistency
       if (/(is|has|can|should|enabled|active|valid)/i.test(columnName)) {
-        const booleanFormats = this.analyzeColumnFormatConsistency(
-          colIndex,
-          columnName,
-          [
-            { pattern: /^(true|false)$/i, name: 'true/false' },
-            { pattern: /^(yes|no)$/i, name: 'yes/no' },
-            { pattern: /^(y|n)$/i, name: 'y/n' },
-            { pattern: /^(1|0)$/, name: '1/0' },
-            { pattern: /^(on|off)$/i, name: 'on/off' },
-          ]
-        );
+        const booleanFormats = this.analyzeColumnFormatConsistency(colIndex, columnName, [
+          { pattern: /^(true|false)$/i, name: 'true/false' },
+          { pattern: /^(yes|no)$/i, name: 'yes/no' },
+          { pattern: /^(y|n)$/i, name: 'y/n' },
+          { pattern: /^(1|0)$/, name: '1/0' },
+          { pattern: /^(on|off)$/i, name: 'on/off' },
+        ]);
         if (booleanFormats) formatAnalysis.push(booleanFormats);
       }
 
@@ -312,7 +298,7 @@ export class PatternValidationEngine {
   private analyzeColumnFormatConsistency(
     colIndex: number,
     columnName: string,
-    formats: Array<{ pattern: RegExp; name: string }>
+    formats: Array<{ pattern: RegExp; name: string }>,
   ): FormatConsistency | null {
     const formatCounts = new Map<string, number>();
     const examples = new Map<string, Set<string>>();
@@ -332,14 +318,14 @@ export class PatternValidationEngine {
       for (const format of formats) {
         if (format.pattern.test(trimmedValue)) {
           formatCounts.set(format.name, (formatCounts.get(format.name) || 0) + 1);
-          
+
           if (!examples.has(format.name)) {
             examples.set(format.name, new Set());
           }
           if (examples.get(format.name)!.size < 3) {
             examples.get(format.name)!.add(trimmedValue);
           }
-          
+
           formatFound = true;
           break;
         }
@@ -348,7 +334,7 @@ export class PatternValidationEngine {
       if (!formatFound) {
         const otherKey = 'Other/Unrecognized';
         formatCounts.set(otherKey, (formatCounts.get(otherKey) || 0) + 1);
-        
+
         if (!examples.has(otherKey)) {
           examples.set(otherKey, new Set());
         }
@@ -388,10 +374,13 @@ export class PatternValidationEngine {
         isConsistent: false,
         dominantFormat: dominantFormat.format,
         inconsistencyCount: totalValues - dominantFormat.count,
-        inconsistencyPercentage: (((totalValues - dominantFormat.count) / totalValues) * 100).toFixed(1),
+        inconsistencyPercentage: (
+          ((totalValues - dominantFormat.count) / totalValues) *
+          100
+        ).toFixed(1),
       },
       score: {
-        score: Math.max(0, 100 - ((formatArray.length - 1) * 20)),
+        score: Math.max(0, 100 - (formatArray.length - 1) * 20),
         interpretation: hasInconsistency ? 'Fair' : 'Good',
       },
     };
@@ -410,7 +399,7 @@ export class PatternValidationEngine {
 
       totalValues++;
       const trimmedValue = value.trim();
-      
+
       let casingType = 'Mixed/Other';
       if (trimmedValue === trimmedValue.toLowerCase()) {
         casingType = 'lowercase';
@@ -425,7 +414,7 @@ export class PatternValidationEngine {
       }
 
       casingPatterns.set(casingType, (casingPatterns.get(casingType) || 0) + 1);
-      
+
       if (!examples.has(casingType)) {
         examples.set(casingType, new Set());
       }
@@ -463,10 +452,13 @@ export class PatternValidationEngine {
         isConsistent: false,
         dominantFormat: dominantCasing.format,
         inconsistencyCount: totalValues - dominantCasing.count,
-        inconsistencyPercentage: (((totalValues - dominantCasing.count) / totalValues) * 100).toFixed(1),
+        inconsistencyPercentage: (
+          ((totalValues - dominantCasing.count) / totalValues) *
+          100
+        ).toFixed(1),
       },
       score: {
-        score: Math.max(0, 100 - ((casingArray.length - 1) * 15)),
+        score: Math.max(0, 100 - (casingArray.length - 1) * 15),
         interpretation: hasInconsistency ? 'Fair' : 'Good',
       },
     };
@@ -486,11 +478,11 @@ export class PatternValidationEngine {
 
     // Generate report for each pattern that had violations
     for (const [patternId, violations] of violationsByPattern) {
-      const pattern = this.patterns.find(p => p.id === patternId);
+      const pattern = this.patterns.find((p) => p.id === patternId);
       if (!pattern) continue;
 
-      const affectedColumns = [...new Set(violations.map(v => v.columnName))];
-      const examples = violations.slice(0, 5).map(v => v.value);
+      const affectedColumns = [...new Set(violations.map((v) => v.columnName))];
+      const examples = violations.slice(0, 5).map((v) => v.value);
 
       patternReport.push({
         patternName: pattern.name,
@@ -508,28 +500,29 @@ export class PatternValidationEngine {
 
   // Helper methods for casing detection
   private toTitleCase(str: string): string {
-    return str.replace(/\w\S*/g, (txt) => 
-      txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase()
+    return str.replace(
+      /\w\S*/g,
+      (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase(),
     );
   }
 
   private toPascalCase(str: string): string {
-    return str.replace(/(?:^\w|[A-Z]|\b\w)/g, (word) => 
-      word.toUpperCase()
-    ).replace(/\s+/g, '');
+    return str.replace(/(?:^\w|[A-Z]|\b\w)/g, (word) => word.toUpperCase()).replace(/\s+/g, '');
   }
 
   private toCamelCase(str: string): string {
-    return str.replace(/(?:^\w|[A-Z]|\b\w)/g, (word, index) => 
-      index === 0 ? word.toLowerCase() : word.toUpperCase()
-    ).replace(/\s+/g, '');
+    return str
+      .replace(/(?:^\w|[A-Z]|\b\w)/g, (word, index) =>
+        index === 0 ? word.toLowerCase() : word.toUpperCase(),
+      )
+      .replace(/\s+/g, '');
   }
 
   public getPatternSummary(): {
     totalPatternsEvaluated: number;
     totalViolations: number;
     violationsBySeverity: Record<string, number>;
-    mostProblematicColumns: Array<{columnName: string, violationCount: number}>;
+    mostProblematicColumns: Array<{ columnName: string; violationCount: number }>;
   } {
     const violationsBySeverity: Record<string, number> = {
       critical: 0,
@@ -541,14 +534,14 @@ export class PatternValidationEngine {
     const columnViolations = new Map<string, number>();
 
     for (const violation of this.violations) {
-      const pattern = this.patterns.find(p => p.id === violation.patternId);
+      const pattern = this.patterns.find((p) => p.id === violation.patternId);
       if (pattern) {
         violationsBySeverity[pattern.severity]++;
       }
 
       columnViolations.set(
         violation.columnName,
-        (columnViolations.get(violation.columnName) || 0) + 1
+        (columnViolations.get(violation.columnName) || 0) + 1,
       );
     }
 

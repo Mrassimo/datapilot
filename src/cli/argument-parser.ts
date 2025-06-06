@@ -22,11 +22,11 @@ export class ArgumentParser {
   parse(argv: string[]): CLIContext {
     try {
       this.program.parse(argv);
-      
+
       // Get the parsed command and options
       const command = this.program.args[0] || 'help';
       const globalOptions = this.program.opts();
-      
+
       return {
         command,
         args: this.program.args,
@@ -48,7 +48,9 @@ export class ArgumentParser {
   private setupCommands(): void {
     this.program
       .name('datapilot')
-      .description('A lightweight CLI statistical computation engine for comprehensive CSV data analysis')
+      .description(
+        'A lightweight CLI statistical computation engine for comprehensive CSV data analysis',
+      )
       .version('1.0.0')
       .helpOption('-h, --help', 'Display help information');
 
@@ -114,8 +116,16 @@ export class ArgumentParser {
       .option('-o, --output <format>', 'Output format (markdown, json, yaml)', 'markdown')
       .option('--output-file <file>', 'Write output to file instead of stdout')
       .option('--accessibility <level>', 'Accessibility level (excellent, good, adequate)', 'good')
-      .option('--complexity <level>', 'Complexity threshold (simple, moderate, complex)', 'moderate')
-      .option('--max-recommendations <number>', 'Maximum recommendations per chart', this.parseInteger)
+      .option(
+        '--complexity <level>',
+        'Complexity threshold (simple, moderate, complex)',
+        'moderate',
+      )
+      .option(
+        '--max-recommendations <number>',
+        'Maximum recommendations per chart',
+        this.parseInteger,
+      )
       .option('--include-code', 'Include implementation code examples')
       .action(this.createCommandHandler('viz'));
 
@@ -154,7 +164,6 @@ export class ArgumentParser {
    */
   private createCommandHandler(commandName: string) {
     return (file: string, options: any) => {
-      
       // Store the context for the main CLI to pick up
       (this.program as any)._lastContext = {
         command: commandName,
@@ -181,12 +190,12 @@ export class ArgumentParser {
    */
   private getSectionNumber(section: string): string {
     const numbers: Record<string, string> = {
-      'overview': '1',
-      'quality': '2', 
-      'eda': '3',
-      'viz': '4',
-      'engineering': '5',
-      'modeling': '6',
+      overview: '1',
+      quality: '2',
+      eda: '3',
+      viz: '4',
+      engineering: '5',
+      modeling: '6',
     };
     return numbers[section] || '?';
   }
@@ -212,7 +221,7 @@ export class ArgumentParser {
     // Verbosity options
     options.verbose = Boolean(rawOptions.verbose);
     options.quiet = Boolean(rawOptions.quiet);
-    
+
     if (options.verbose && options.quiet) {
       throw new ValidationError('Cannot use both --verbose and --quiet options');
     }
@@ -256,14 +265,14 @@ export class ArgumentParser {
    */
   validateFile(filePath: string): string {
     const resolvedPath = resolve(filePath);
-    
+
     if (!existsSync(resolvedPath)) {
       throw new FileError(`File not found: ${filePath}`, resolvedPath);
     }
 
     try {
       const stats = statSync(resolvedPath);
-      
+
       if (!stats.isFile()) {
         throw new FileError(`Path is not a file: ${filePath}`, resolvedPath);
       }
@@ -272,10 +281,10 @@ export class ArgumentParser {
         throw new FileError(`File is empty: ${filePath}`, resolvedPath);
       }
 
-      if (stats.size > 10 * 1024 * 1024 * 1024) { // 10GB
+      if (stats.size > 10 * 1024 * 1024 * 1024) {
+        // 10GB
         throw new FileError(`File is too large (>10GB): ${filePath}`, resolvedPath);
       }
-
     } catch (error) {
       if (error instanceof FileError) {
         throw error;
@@ -306,8 +315,7 @@ export class ArgumentParser {
       // Merge global options with command-specific options
       const globalOptions = this.program.opts();
       const mergedOptions = { ...globalOptions, ...context.options };
-      
-      
+
       return {
         ...context,
         options: this.validateOptions(mergedOptions),
@@ -321,7 +329,7 @@ export class ArgumentParser {
    */
   showHelp(command?: string): void {
     if (command) {
-      const cmd = this.program.commands.find(c => c.name() === command);
+      const cmd = this.program.commands.find((c) => c.name() === command);
       if (cmd) {
         cmd.help();
       } else {

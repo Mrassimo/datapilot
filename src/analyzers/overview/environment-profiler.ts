@@ -5,11 +5,7 @@
 
 import { platform, arch, cpus, totalmem, freemem } from 'os';
 import { performance } from 'perf_hooks';
-import type { 
-  ExecutionContext, 
-  SystemEnvironment, 
-  Section1Config 
-} from './types';
+import type { ExecutionContext, SystemEnvironment, Section1Config } from './types';
 
 export class EnvironmentProfiler {
   private config: Section1Config;
@@ -36,7 +32,7 @@ export class EnvironmentProfiler {
     if (!startTime) {
       throw new Error(`Phase '${phaseName}' was not started`);
     }
-    
+
     const duration = performance.now() - startTime;
     this.phaseTimers.delete(phaseName);
     return duration;
@@ -48,7 +44,7 @@ export class EnvironmentProfiler {
   createExecutionContext(
     command: string,
     modules: string[],
-    analysisMode: string = 'Comprehensive Deep Scan'
+    analysisMode: string = 'Comprehensive Deep Scan',
   ): ExecutionContext {
     const now = new Date();
     const totalProcessingTime = Number(((performance.now() - this.startTime) / 1000).toFixed(3));
@@ -56,8 +52,9 @@ export class EnvironmentProfiler {
     const context: ExecutionContext = {
       fullCommandExecuted: command,
       analysisMode,
-      analysisStartTimestamp: new Date(now.getTime() - (totalProcessingTime * 1000)),
-      globalSamplingStrategy: 'Full dataset analysis (No record sampling applied for initial overview)',
+      analysisStartTimestamp: new Date(now.getTime() - totalProcessingTime * 1000),
+      globalSamplingStrategy:
+        'Full dataset analysis (No record sampling applied for initial overview)',
       activatedModules: modules,
       processingTimeSeconds: totalProcessingTime,
     };
@@ -76,7 +73,7 @@ export class EnvironmentProfiler {
   private captureSystemEnvironment(): SystemEnvironment {
     const totalMemGB = Number((totalmem() / (1024 * 1024 * 1024)).toFixed(2));
     const cpuCount = cpus().length;
-    
+
     return {
       operatingSystem: this.getOperatingSystemDetails(),
       systemArchitecture: this.getArchitectureDetails(),
@@ -93,7 +90,7 @@ export class EnvironmentProfiler {
   private getOperatingSystemDetails(): string {
     const platformName = platform();
     const release = process.platform;
-    
+
     switch (platformName) {
       case 'darwin':
         return `macOS (${this.getMacOSVersion()})`;
@@ -128,7 +125,7 @@ export class EnvironmentProfiler {
    */
   private getArchitectureDetails(): string {
     const architecture = arch();
-    
+
     switch (architecture) {
       case 'x64':
         return 'x86_64 (Intel/AMD 64-bit)';
@@ -150,7 +147,7 @@ export class EnvironmentProfiler {
     const nodeVersion = process.version;
     const v8Version = process.versions.v8;
     const platform = process.platform;
-    
+
     return `Node.js ${nodeVersion} (V8 ${v8Version}) on ${platform}`;
   }
 
@@ -166,7 +163,7 @@ export class EnvironmentProfiler {
     const totalMem = totalmem();
     const freeMem = freemem();
     const usedMem = totalMem - freeMem;
-    
+
     return {
       used: Number((usedMem / (1024 * 1024 * 1024)).toFixed(2)),
       total: Number((totalMem / (1024 * 1024 * 1024)).toFixed(2)),
@@ -185,7 +182,7 @@ export class EnvironmentProfiler {
     rss: number;
   } {
     const memUsage = process.memoryUsage();
-    
+
     return {
       heapUsed: Number((memUsage.heapUsed / (1024 * 1024)).toFixed(2)),
       heapTotal: Number((memUsage.heapTotal / (1024 * 1024)).toFixed(2)),
@@ -203,7 +200,7 @@ export class EnvironmentProfiler {
     phases: Record<string, number>;
   } {
     const processMemory = this.getProcessMemoryUsage();
-    
+
     return {
       totalAnalysisTime: Number(((performance.now() - this.startTime) / 1000).toFixed(3)),
       peakMemoryUsage: this.config.detailedProfiling ? processMemory.rss : undefined,
@@ -216,11 +213,11 @@ export class EnvironmentProfiler {
    */
   private getPhaseTimings(): Record<string, number> {
     const timings: Record<string, number> = {};
-    
+
     // Add any completed phases
     // In a real implementation, you'd track completed phases
     // For now, return empty object as phases are managed externally
-    
+
     return timings;
   }
 
@@ -236,15 +233,15 @@ export class EnvironmentProfiler {
     ];
 
     const sectionModules: Record<string, string> = {
-      'quality': 'Quality Assessor',
-      'eda': 'EDA Engine',
-      'visualization': 'Visualization Intelligence',
-      'engineering': 'Data Engineering Advisor',
-      'modeling': 'Predictive Modeling Guide',
+      quality: 'Quality Assessor',
+      eda: 'EDA Engine',
+      visualization: 'Visualization Intelligence',
+      engineering: 'Data Engineering Advisor',
+      modeling: 'Predictive Modeling Guide',
     };
 
     const activatedModules = [...baseModules];
-    
+
     for (const section of enabledSections) {
       if (sectionModules[section]) {
         activatedModules.push(sectionModules[section]);
@@ -252,7 +249,7 @@ export class EnvironmentProfiler {
     }
 
     activatedModules.push('Report Generator');
-    
+
     return activatedModules;
   }
 
@@ -265,7 +262,7 @@ export class EnvironmentProfiler {
     cpuLoadEstimate: 'low' | 'medium' | 'high';
   } {
     const memory = this.getCurrentMemoryUsage();
-    
+
     return {
       memoryAvailable: memory.free > 1, // At least 1GB free
       diskSpaceWarning: false, // Would need additional disk space checking
@@ -280,7 +277,7 @@ export class EnvironmentProfiler {
     // This is a simplified estimation
     // In production, you might want to sample CPU usage over time
     const cpuCount = cpus().length;
-    
+
     if (cpuCount >= 8) {
       return 'low';
     } else if (cpuCount >= 4) {

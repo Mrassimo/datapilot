@@ -4,11 +4,11 @@
  */
 
 import type { ParsedRow } from '../../parsers/types';
-import type { 
-  StructuralDimensions, 
-  ColumnInventory, 
+import type {
+  StructuralDimensions,
+  ColumnInventory,
   Section1Config,
-  Section1Warning 
+  Section1Warning,
 } from './types';
 
 export class StructuralAnalyzer {
@@ -74,7 +74,7 @@ export class StructuralAnalyzer {
 
     for (let i = 0; i < columnCount; i++) {
       let columnName: string;
-      
+
       if (hasHeader) {
         // Use header row for column names
         columnName = firstRow.data[i] || `Column_${i}`;
@@ -102,15 +102,15 @@ export class StructuralAnalyzer {
     // Sample-based estimation for large datasets
     const sampleSize = Math.min(rows.length, 1000);
     const sampleRows = rows.slice(0, sampleSize);
-    
+
     let totalSampleBytes = 0;
-    
+
     for (const row of sampleRows) {
       for (const field of row.data) {
         // Estimate memory per field:
         // - String storage overhead (~24 bytes for V8 string object)
         // - Character storage (2 bytes per character for UTF-16 in V8)
-        totalSampleBytes += 24 + (field.length * 2);
+        totalSampleBytes += 24 + field.length * 2;
       }
       // Row object overhead (~16 bytes)
       totalSampleBytes += 16;
@@ -118,13 +118,13 @@ export class StructuralAnalyzer {
 
     // Average bytes per row
     const avgBytesPerRow = totalSampleBytes / sampleSize;
-    
+
     // Extrapolate to full dataset
     const totalEstimatedBytes = avgBytesPerRow * dataRows;
-    
+
     // Add overhead for data structures (arrays, indices, etc.) - roughly 30%
     const totalWithOverhead = totalEstimatedBytes * 1.3;
-    
+
     // Convert to MB
     return Number((totalWithOverhead / (1024 * 1024)).toFixed(2));
   }
@@ -177,7 +177,10 @@ export class StructuralAnalyzer {
   /**
    * Analyze dataset sparsity (empty/null values)
    */
-  private analyzeSparsity(rows: ParsedRow[], hasHeader: boolean): {
+  private analyzeSparsity(
+    rows: ParsedRow[],
+    hasHeader: boolean,
+  ): {
     sparsityPercentage: number;
     method: string;
     sampleSize: number;
@@ -210,9 +213,8 @@ export class StructuralAnalyzer {
       }
     }
 
-    const sparsityPercentage = totalCells > 0 
-      ? Number(((emptyCells / totalCells) * 100).toFixed(2))
-      : 0;
+    const sparsityPercentage =
+      totalCells > 0 ? Number(((emptyCells / totalCells) * 100).toFixed(2)) : 0;
 
     let description: string;
     if (sparsityPercentage < 5) {
@@ -225,9 +227,10 @@ export class StructuralAnalyzer {
       description = 'Highly sparse dataset with extensive missing values';
     }
 
-    const method = sampleSize === dataRows.length 
-      ? 'Full dataset analysis'
-      : `Statistical sampling of ${sampleSize} rows`;
+    const method =
+      sampleSize === dataRows.length
+        ? 'Full dataset analysis'
+        : `Statistical sampling of ${sampleSize} rows`;
 
     return {
       sparsityPercentage,

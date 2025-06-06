@@ -372,7 +372,8 @@ export interface CategoricalAssociationTests {
     statistic: number;
     interpretation: string;
   };
-  chiSquared?: { // For backward compatibility
+  chiSquared?: {
+    // For backward compatibility
     statistic: number;
     degreesOfFreedom: number;
     pValue: number;

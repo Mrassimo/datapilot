@@ -40,7 +40,7 @@ export class StreamingBivariateAnalyzer {
   private scatterSamples = new Map<string, ReservoirSampler<[number, number]>>();
   private warnings: Section3Warning[] = [];
   private maxPairs: number;
-  
+
   constructor(maxPairs: number = 50) {
     this.maxPairs = maxPairs;
   }
@@ -51,7 +51,7 @@ export class StreamingBivariateAnalyzer {
   initializePairs(pairs: ColumnPair[]): void {
     // Limit number of pairs to prevent memory explosion
     const limitedPairs = pairs.slice(0, this.maxPairs);
-    
+
     if (pairs.length > this.maxPairs) {
       this.warnings.push({
         category: 'performance',
@@ -64,16 +64,14 @@ export class StreamingBivariateAnalyzer {
 
     for (const pair of limitedPairs) {
       const pairKey = `${pair.col1Name}__${pair.col2Name}`;
-      
+
       if (this.isNumericalType(pair.col1Type) && this.isNumericalType(pair.col2Type)) {
         // Numerical vs Numerical
         this.numericalPairs.set(pairKey, new OnlineCovariance());
         this.scatterSamples.set(pairKey, new ReservoirSampler<[number, number]>(50)); // Reduced from 1000
-        
       } else if (this.isCategoricalType(pair.col1Type) && this.isCategoricalType(pair.col2Type)) {
-        // Categorical vs Categorical  
+        // Categorical vs Categorical
         this.categoricalPairs.set(pairKey, new BoundedFrequencyCounter<string>(200)); // Reduced from 5000
-        
       } else if (
         (this.isNumericalType(pair.col1Type) && this.isCategoricalType(pair.col2Type)) ||
         (this.isCategoricalType(pair.col1Type) && this.isNumericalType(pair.col2Type))
@@ -93,14 +91,14 @@ export class StreamingBivariateAnalyzer {
       const [col1Name, col2Name] = pairKey.split('__');
       const col1Index = this.findColumnIndex(col1Name, row);
       const col2Index = this.findColumnIndex(col2Name, row);
-      
+
       if (col1Index >= 0 && col2Index >= 0) {
         const val1 = this.extractNumericValue(row[col1Index]);
         const val2 = this.extractNumericValue(row[col2Index]);
-        
+
         if (val1 !== null && val2 !== null) {
           covariance.update(val1, val2);
-          
+
           // Sample for scatter plot insights
           const scatterSample = this.scatterSamples.get(pairKey);
           if (scatterSample) {
@@ -115,11 +113,11 @@ export class StreamingBivariateAnalyzer {
       const [col1Name, col2Name] = pairKey.split('__');
       const col1Index = this.findColumnIndex(col1Name, row);
       const col2Index = this.findColumnIndex(col2Name, row);
-      
+
       if (col1Index >= 0 && col2Index >= 0) {
         const val1 = this.extractStringValue(row[col1Index]);
         const val2 = this.extractStringValue(row[col2Index]);
-        
+
         if (val1 !== null && val2 !== null) {
           frequencyCounter.update(`${val1}||${val2}`);
         }
@@ -131,11 +129,11 @@ export class StreamingBivariateAnalyzer {
       const [col1Name, col2Name] = pairKey.split('__');
       const col1Index = this.findColumnIndex(col1Name, row);
       const col2Index = this.findColumnIndex(col2Name, row);
-      
+
       if (col1Index >= 0 && col2Index >= 0) {
         let numValue: number | null = null;
         let catValue: string | null = null;
-        
+
         // Determine which is numerical and which is categorical
         if (this.isNumericalType(columnTypes[col1Index])) {
           numValue = this.extractNumericValue(row[col1Index]);
@@ -144,7 +142,7 @@ export class StreamingBivariateAnalyzer {
           numValue = this.extractNumericValue(row[col2Index]);
           catValue = this.extractStringValue(row[col1Index]);
         }
-        
+
         if (numValue !== null && catValue !== null) {
           if (!categoryGroups.has(catValue)) {
             categoryGroups.set(catValue, new OnlineCovariance());
@@ -179,10 +177,10 @@ export class StreamingBivariateAnalyzer {
       const [col1Name, col2Name] = pairKey.split('__');
       const correlation = covariance.getCorrelation();
       const count = covariance.getCount();
-      
+
       if (count > 0) {
         const significanceTest = CorrelationSignificanceTest.test(correlation, count);
-        
+
         correlationPairs.push({
           variable1: col1Name,
           variable2: col2Name,
@@ -202,13 +200,13 @@ export class StreamingBivariateAnalyzer {
     correlationPairs.sort((a, b) => Math.abs(b.correlation) - Math.abs(a.correlation));
 
     const scatterPlotInsights = this.generateScatterPlotInsights();
-    const strongCorrelations = correlationPairs.filter(pair => Math.abs(pair.correlation) > 0.5);
+    const strongCorrelations = correlationPairs.filter((pair) => Math.abs(pair.correlation) > 0.5);
 
     return {
       totalPairsAnalyzed: correlationPairs.length,
       correlationPairs: correlationPairs.slice(0, 50), // Top 50 correlations
-      strongestPositiveCorrelation: correlationPairs.find(p => p.correlation > 0) || null,
-      strongestNegativeCorrelation: correlationPairs.find(p => p.correlation < 0) || null,
+      strongestPositiveCorrelation: correlationPairs.find((p) => p.correlation > 0) || null,
+      strongestNegativeCorrelation: correlationPairs.find((p) => p.correlation < 0) || null,
       strongCorrelations,
       scatterPlotInsights,
       regressionInsights: [], // Would need additional computation
@@ -220,19 +218,21 @@ export class StreamingBivariateAnalyzer {
 
     for (const [pairKey, categoryGroups] of this.numericalCategoricalPairs) {
       const [col1Name, col2Name] = pairKey.split('__');
-      
+
       const groupComparisons: GroupComparison[] = [];
       let totalCount = 0;
-      
+
       for (const [category, stats] of categoryGroups) {
         const count = stats.getCount();
         totalCount += count;
-        
+
         if (count > 0) {
           // Extract statistics from the covariance object (we used same value for x,y)
-          const mean = stats.getCount() > 0 ? 
-            Array.from({length: count}, (_, i) => i).reduce((sum, _) => sum, 0) / count : 0;
-          
+          const mean =
+            stats.getCount() > 0
+              ? Array.from({ length: count }, (_, i) => i).reduce((sum, _) => sum, 0) / count
+              : 0;
+
           groupComparisons.push({
             category,
             count,
@@ -264,11 +264,11 @@ export class StreamingBivariateAnalyzer {
 
     for (const [pairKey, frequencyCounter] of this.categoricalPairs) {
       const [col1Name, col2Name] = pairKey.split('__');
-      
+
       const frequencies = frequencyCounter.getFrequencies();
       const contingencyTable = this.buildContingencyTable(frequencies);
       const associationTests = this.generateAssociationTests(contingencyTable);
-      
+
       results.push({
         variable1: col1Name,
         variable2: col2Name,
@@ -287,15 +287,15 @@ export class StreamingBivariateAnalyzer {
     for (const [pairKey, sampler] of this.scatterSamples) {
       const [col1Name, col2Name] = pairKey.split('__');
       const sample = sampler.getSample();
-      
+
       if (sample.length > 10) {
         // Analyze scatter pattern
-        const xValues = sample.map(point => point[0]);
-        const yValues = sample.map(point => point[1]);
-        
+        const xValues = sample.map((point) => point[0]);
+        const yValues = sample.map((point) => point[1]);
+
         const xRange = Math.max(...xValues) - Math.min(...xValues);
         const yRange = Math.max(...yValues) - Math.min(...yValues);
-        
+
         let pattern = 'Linear';
         if (xRange === 0 || yRange === 0) {
           pattern = 'Constant';
@@ -322,10 +322,10 @@ export class StreamingBivariateAnalyzer {
 
     for (const [combinedKey, count] of frequencies) {
       const [row, col] = combinedKey.split('||');
-      
+
       if (!table[row]) table[row] = {};
       table[row][col] = count;
-      
+
       rowTotals[row] = (rowTotals[row] || 0) + count;
       columnTotals[col] = (columnTotals[col] || 0) + count;
     }
@@ -348,13 +348,15 @@ export class StreamingBivariateAnalyzer {
     };
   }
 
-  private generateAssociationTests(contingencyTable: ContingencyTable): CategoricalAssociationTests {
+  private generateAssociationTests(
+    contingencyTable: ContingencyTable,
+  ): CategoricalAssociationTests {
     const { table } = contingencyTable;
-    
+
     // Convert contingency table to matrix format for chi-squared test
     const rows = Object.keys(table);
     const cols = rows.length > 0 ? Object.keys(table[rows[0]]) : [];
-    
+
     if (rows.length < 2 || cols.length < 2) {
       return {
         chiSquare: {
@@ -373,7 +375,7 @@ export class StreamingBivariateAnalyzer {
         },
       };
     }
-    
+
     const matrix: number[][] = [];
     for (const row of rows) {
       const rowData: number[] = [];
@@ -382,23 +384,33 @@ export class StreamingBivariateAnalyzer {
       }
       matrix.push(rowData);
     }
-    
+
     const chiSquaredResult = ChiSquaredTest.test(matrix);
-    
+
     // Calculate contingency coefficient
-    const contingencyCoeff = Math.sqrt(chiSquaredResult.statistic / 
-      (chiSquaredResult.statistic + matrix.flat().reduce((sum, val) => sum + val, 0)));
-    
-    const cramersVInterpretation = 
-      chiSquaredResult.cramersV > 0.5 ? 'Strong association' :
-      chiSquaredResult.cramersV > 0.3 ? 'Moderate association' :
-      chiSquaredResult.cramersV > 0.1 ? 'Weak association' : 'Very weak association';
-    
+    const contingencyCoeff = Math.sqrt(
+      chiSquaredResult.statistic /
+        (chiSquaredResult.statistic + matrix.flat().reduce((sum, val) => sum + val, 0)),
+    );
+
+    const cramersVInterpretation =
+      chiSquaredResult.cramersV > 0.5
+        ? 'Strong association'
+        : chiSquaredResult.cramersV > 0.3
+          ? 'Moderate association'
+          : chiSquaredResult.cramersV > 0.1
+            ? 'Weak association'
+            : 'Very weak association';
+
     const contingencyInterpretation =
-      contingencyCoeff > 0.5 ? 'Strong association' :
-      contingencyCoeff > 0.3 ? 'Moderate association' :
-      contingencyCoeff > 0.1 ? 'Weak association' : 'Very weak association';
-    
+      contingencyCoeff > 0.5
+        ? 'Strong association'
+        : contingencyCoeff > 0.3
+          ? 'Moderate association'
+          : contingencyCoeff > 0.1
+            ? 'Weak association'
+            : 'Very weak association';
+
     return {
       chiSquare: {
         statistic: chiSquaredResult.statistic,
@@ -419,24 +431,24 @@ export class StreamingBivariateAnalyzer {
 
   private generateGroupSummary(comparisons: GroupComparison[]): string {
     if (comparisons.length === 0) return 'No groups to compare';
-    
+
     const sorted = [...comparisons].sort((a, b) => b.mean - a.mean);
     const highest = sorted[0];
     const lowest = sorted[sorted.length - 1];
-    
+
     return `${highest.category} has highest mean (${highest.mean.toFixed(2)}), ${lowest.category} has lowest (${lowest.mean.toFixed(2)})`;
   }
 
   private generateCategoricalInsights(
     contingencyTable: ContingencyTable,
-    associationTests: CategoricalAssociationTests
+    associationTests: CategoricalAssociationTests,
   ): string {
     const { table } = contingencyTable;
-    
+
     // Find most common combination
     let maxCount = 0;
     let maxCombination = '';
-    
+
     for (const [row, cols] of Object.entries(table)) {
       for (const [col, count] of Object.entries(cols)) {
         if (count > maxCount) {
@@ -446,8 +458,12 @@ export class StreamingBivariateAnalyzer {
       }
     }
 
-    const strength = associationTests.cramersV.statistic > 0.5 ? 'strong' : 
-                    associationTests.cramersV.statistic > 0.3 ? 'moderate' : 'weak';
+    const strength =
+      associationTests.cramersV.statistic > 0.5
+        ? 'strong'
+        : associationTests.cramersV.statistic > 0.3
+          ? 'moderate'
+          : 'weak';
 
     return `Most common combination: ${maxCombination} (${maxCount} occurrences). Association strength: ${strength}.`;
   }
@@ -460,7 +476,6 @@ export class StreamingBivariateAnalyzer {
     return 'Very Weak';
   }
 
-
   private isNumericalType(type: EdaDataType): boolean {
     return type === EdaDataType.NUMERICAL_FLOAT || type === EdaDataType.NUMERICAL_INTEGER;
   }
@@ -469,7 +484,10 @@ export class StreamingBivariateAnalyzer {
     return type === EdaDataType.CATEGORICAL;
   }
 
-  private findColumnIndex(_columnName: string, _row: (string | number | null | undefined)[]): number {
+  private findColumnIndex(
+    _columnName: string,
+    _row: (string | number | null | undefined)[],
+  ): number {
     // This is a simplified approach - in practice, we'd maintain a column name to index mapping
     return 0; // Placeholder
   }

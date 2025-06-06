@@ -26,7 +26,7 @@ export class OnlineStatistics {
     const n = this.count;
     this.count++;
     this.sum += value;
-    
+
     // Update min/max
     if (value < this.min) this.min = value;
     if (value > this.max) this.max = value;
@@ -38,18 +38,32 @@ export class OnlineStatistics {
     const term1 = delta * delta_n * n;
 
     this.mean += delta_n;
-    this.M4 += term1 * delta_n2 * (this.count * this.count - 3 * this.count + 3) + 
-              6 * delta_n2 * this.M2 - 4 * delta_n * this.M3;
+    this.M4 +=
+      term1 * delta_n2 * (this.count * this.count - 3 * this.count + 3) +
+      6 * delta_n2 * this.M2 -
+      4 * delta_n * this.M3;
     this.M3 += term1 * delta_n * (this.count - 2) - 3 * delta_n * this.M2;
     this.M2 += term1;
   }
 
-  getCount(): number { return this.count; }
-  getSum(): number { return this.sum; }
-  getMean(): number { return this.count > 0 ? this.mean : 0; }
-  getMin(): number { return this.count > 0 ? this.min : 0; }
-  getMax(): number { return this.count > 0 ? this.max : 0; }
-  getRange(): number { return this.count > 0 ? this.max - this.min : 0; }
+  getCount(): number {
+    return this.count;
+  }
+  getSum(): number {
+    return this.sum;
+  }
+  getMean(): number {
+    return this.count > 0 ? this.mean : 0;
+  }
+  getMin(): number {
+    return this.count > 0 ? this.min : 0;
+  }
+  getMax(): number {
+    return this.count > 0 ? this.max : 0;
+  }
+  getRange(): number {
+    return this.count > 0 ? this.max - this.min : 0;
+  }
 
   getVariance(): number {
     return this.count < 2 ? 0 : this.M2 / this.count;
@@ -61,7 +75,7 @@ export class OnlineStatistics {
 
   getSkewness(): number {
     if (this.count < 3 || this.M2 === 0) return 0;
-    return Math.sqrt(this.count) * this.M3 / Math.pow(this.M2, 1.5);
+    return (Math.sqrt(this.count) * this.M3) / Math.pow(this.M2, 1.5);
   }
 
   getKurtosis(): number {
@@ -94,19 +108,26 @@ export class OnlineStatistics {
 
     combined.mean = (this.count * this.mean + other.count * other.mean) / combined.count;
 
-    combined.M2 = this.M2 + other.M2 + 
-                  delta2 * this.count * other.count / combined.count;
+    combined.M2 = this.M2 + other.M2 + (delta2 * this.count * other.count) / combined.count;
 
-    combined.M3 = this.M3 + other.M3 + 
-                  delta3 * this.count * other.count * (this.count - other.count) / (combined.count * combined.count) +
-                  3 * delta * (this.count * other.M2 - other.count * this.M2) / combined.count;
+    combined.M3 =
+      this.M3 +
+      other.M3 +
+      (delta3 * this.count * other.count * (this.count - other.count)) /
+        (combined.count * combined.count) +
+      (3 * delta * (this.count * other.M2 - other.count * this.M2)) / combined.count;
 
-    combined.M4 = this.M4 + other.M4 + 
-                  delta4 * this.count * other.count * (this.count * this.count - this.count * other.count + other.count * other.count) / 
-                  (combined.count * combined.count * combined.count) +
-                  6 * delta2 * (this.count * this.count * other.M2 + other.count * other.count * this.M2) / 
-                  (combined.count * combined.count) +
-                  4 * delta * (this.count * other.M3 - other.count * this.M3) / combined.count;
+    combined.M4 =
+      this.M4 +
+      other.M4 +
+      (delta4 *
+        this.count *
+        other.count *
+        (this.count * this.count - this.count * other.count + other.count * other.count)) /
+        (combined.count * combined.count * combined.count) +
+      (6 * delta2 * (this.count * this.count * other.M2 + other.count * other.count * this.M2)) /
+        (combined.count * combined.count) +
+      (4 * delta * (this.count * other.M3 - other.count * this.M3)) / combined.count;
 
     return combined;
   }
@@ -173,18 +194,19 @@ export class P2Quantile {
 
     // Update desired positions
     for (let i = 0; i < 5; i++) {
-      this.desired[i] += (i === 0 || i === 4) ? 0 : this.quantile;
+      this.desired[i] += i === 0 || i === 4 ? 0 : this.quantile;
     }
 
     // Adjust markers
     for (let i = 1; i < 4; i++) {
       const d = this.desired[i] - this.positions[i];
-      if ((d >= 1 && this.positions[i + 1] - this.positions[i] > 1) ||
-          (d <= -1 && this.positions[i - 1] - this.positions[i] < -1)) {
-        
+      if (
+        (d >= 1 && this.positions[i + 1] - this.positions[i] > 1) ||
+        (d <= -1 && this.positions[i - 1] - this.positions[i] < -1)
+      ) {
         const sign = d >= 0 ? 1 : -1;
         const qs = this.parabolic(i, sign);
-        
+
         if (this.markers[i - 1] < qs && qs < this.markers[i + 1]) {
           this.markers[i] = qs;
         } else {
@@ -203,9 +225,12 @@ export class P2Quantile {
     const nim1 = this.positions[i - 1];
     const nip1 = this.positions[i + 1];
 
-    return qi + d / (nip1 - nim1) * 
-           ((ni - nim1 + d) * (qip1 - qi) / (nip1 - ni) + 
-            (nip1 - ni - d) * (qi - qim1) / (ni - nim1));
+    return (
+      qi +
+      (d / (nip1 - nim1)) *
+        (((ni - nim1 + d) * (qip1 - qi)) / (nip1 - ni) +
+          ((nip1 - ni - d) * (qi - qim1)) / (ni - nim1))
+    );
   }
 
   private linear(i: number, d: number): number {
@@ -214,7 +239,7 @@ export class P2Quantile {
     const ni = this.positions[i];
     const n = d > 0 ? this.positions[i + 1] : this.positions[i - 1];
 
-    return qi + d * (q - qi) / (n - ni);
+    return qi + (d * (q - qi)) / (n - ni);
   }
 
   getQuantile(): number {
@@ -243,7 +268,7 @@ export class ReservoirSampler<T> {
 
   sample(item: T): void {
     this.count++;
-    
+
     if (this.reservoir.length < this.size) {
       this.reservoir.push(item);
     } else {
@@ -304,13 +329,25 @@ export class OnlineCovariance {
 
   getCorrelation(): number {
     if (this.count < 2) return 0;
-    
-    const varX = (this.sumXX - this.sumX * this.sumX / this.count) / this.count;
-    const varY = (this.sumYY - this.sumY * this.sumY / this.count) / this.count;
-    
-    if (varX === 0 || varY === 0) return 0;
-    
-    return this.getCovariance() / Math.sqrt(varX * varY);
+
+    // Use sample variance formula (n-1 denominator) for consistency
+    const n = this.count;
+    const varX = (this.sumXX - (this.sumX * this.sumX) / n) / (n - 1);
+    const varY = (this.sumYY - (this.sumY * this.sumY) / n) / (n - 1);
+
+    // Handle edge cases for zero variance
+    const epsilon = 1e-12;
+    if (varX < epsilon || varY < epsilon) {
+      // If either variable has effectively zero variance, correlation is undefined
+      return 0;
+    }
+
+    // Use sample covariance for consistency
+    const sampleCovariance = this.count < 2 ? 0 : this.C / (n - 1);
+    const correlation = sampleCovariance / Math.sqrt(varX * varY);
+
+    // Clamp to [-1, 1] to handle numerical precision issues
+    return Math.max(-1, Math.min(1, correlation));
   }
 
   getCount(): number {
@@ -346,7 +383,7 @@ export class BoundedFrequencyCounter<T> {
     const sorted = Array.from(this.frequencies.entries())
       .sort((a, b) => b[1] - a[1])
       .slice(0, keepCount);
-    
+
     this.frequencies.clear();
     sorted.forEach(([key, value]) => {
       this.frequencies.set(key, value);

@@ -52,3 +52,7 @@ npm run typecheck # Type checking
 - push to git after a feature is complete
 - make commits after any major task
 - leave notes after tasks are complete in CLAUDE.md
+
+## Testing and Verification
+- Test and verify outputs using Kaggle datasets in the test-datasets folder (/Users/massimoraso/plum/test-datasets)
+- Cross-check outputs against section documents and PRD in /Users/massimoraso/plum/docs/outputs/Prd-docs

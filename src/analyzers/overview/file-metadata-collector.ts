@@ -24,25 +24,25 @@ export class FileMetadataCollector {
       // Resolve absolute path
       const fullPath = resolve(filePath);
       const filename = basename(fullPath);
-      
+
       // Get file statistics
       const stats = statSync(fullPath);
-      
+
       // Calculate file size
       const fileSizeBytes = stats.size;
       const fileSizeMB = fileSizeBytes / (1024 * 1024);
-      
+
       // Detect MIME type
       const mimeType = this.detectMimeType(fullPath);
-      
+
       // Calculate hash if enabled
-      const sha256Hash = this.config.enableFileHashing 
+      const sha256Hash = this.config.enableFileHashing
         ? await this.calculateFileHash(fullPath)
         : 'disabled';
-      
+
       // Apply privacy controls to path
       const sanitizedPath = this.sanitizePath(fullPath);
-      
+
       const metadata: FileMetadata = {
         originalFilename: filename,
         fullResolvedPath: sanitizedPath,
@@ -52,9 +52,10 @@ export class FileMetadataCollector {
         lastModified: stats.mtime,
         sha256Hash,
       };
-      
+
       // Performance info for very large files
-      if (fileSizeMB > 1000) { // Only warn for files > 1GB
+      if (fileSizeMB > 1000) {
+        // Only warn for files > 1GB
         this.warnings.push({
           category: 'file',
           severity: 'low',
@@ -63,9 +64,8 @@ export class FileMetadataCollector {
           suggestion: 'Processing may take longer but memory usage will remain bounded',
         });
       }
-      
+
       return metadata;
-      
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       throw new Error(`Failed to collect file metadata: ${message}`);
@@ -77,7 +77,7 @@ export class FileMetadataCollector {
    */
   private detectMimeType(filePath: string): string {
     const ext = extname(filePath).toLowerCase();
-    
+
     // Common MIME types for data files
     const mimeTypes: Record<string, string> = {
       '.csv': 'text/csv',
@@ -88,7 +88,7 @@ export class FileMetadataCollector {
       '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       '.xls': 'application/vnd.ms-excel',
     };
-    
+
     return mimeTypes[ext] || 'application/octet-stream';
   }
 
@@ -99,15 +99,15 @@ export class FileMetadataCollector {
     return new Promise((resolve, reject) => {
       const hash = createHash('sha256');
       const stream = createReadStream(filePath, { highWaterMark: 64 * 1024 });
-      
+
       stream.on('data', (chunk) => {
         hash.update(chunk);
       });
-      
+
       stream.on('end', () => {
         resolve(hash.digest('hex'));
       });
-      
+
       stream.on('error', (error) => {
         reject(new Error(`Hash calculation failed: ${error.message}`));
       });
@@ -121,12 +121,13 @@ export class FileMetadataCollector {
     switch (this.config.privacyMode) {
       case 'minimal':
         return basename(fullPath);
-      
+
       case 'redacted':
         // Replace user directory with placeholder
-        return fullPath.replace(/\/Users\/[^\/]+/, '/Users/[user]')
-                      .replace(/C:\\Users\\[^\\]+/, 'C:\\Users\\[user]');
-      
+        return fullPath
+          .replace(/\/Users\/[^\/]+/, '/Users/[user]')
+          .replace(/C:\\Users\\[^\\]+/, 'C:\\Users\\[user]');
+
       case 'full':
       default:
         return fullPath;
@@ -152,26 +153,26 @@ export class FileMetadataCollector {
    */
   validateFile(filePath: string): { valid: boolean; errors: string[] } {
     const errors: string[] = [];
-    
+
     try {
       const stats = statSync(filePath);
-      
+
       if (!stats.isFile()) {
         errors.push('Path does not point to a regular file');
       }
-      
+
       if (stats.size === 0) {
         errors.push('File is empty');
       }
-      
-      if (stats.size > 10 * 1024 * 1024 * 1024) { // 10GB
+
+      if (stats.size > 10 * 1024 * 1024 * 1024) {
+        // 10GB
         errors.push('File exceeds maximum size limit (10GB)');
       }
-      
     } catch (error) {
       errors.push(`File access error: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-    
+
     return {
       valid: errors.length === 0,
       errors,

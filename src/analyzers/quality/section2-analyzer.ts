@@ -3,7 +3,7 @@
  * Orchestrates all quality dimensions and generates comprehensive report
  */
 
-import {
+import type {
   Section2QualityAudit,
   DataQualityCockpit,
   DataQualityScore,
@@ -15,7 +15,7 @@ import {
   Section2Warning,
   Section2Result,
 } from './types';
-import { DataType } from '../../core/types';
+import type { DataType } from '../../core/types';
 import { CompletenessAnalyzer } from './completeness-analyzer';
 import { UniquenessAnalyzer } from './uniqueness-analyzer';
 import { ValidityAnalyzer } from './validity-analyzer';
@@ -210,7 +210,7 @@ export class Section2Analyzer {
       this.data,
       this.headers,
       this.columnTypes,
-      businessRuleConfig
+      businessRuleConfig,
     );
 
     const businessRuleResults = businessRuleEngine.validateData();
@@ -224,11 +224,7 @@ export class Section2Analyzer {
       customPatterns: this.config.customPatterns,
     };
 
-    const patternEngine = new PatternValidationEngine(
-      this.data,
-      this.headers,
-      patternConfig
-    );
+    const patternEngine = new PatternValidationEngine(this.data, this.headers, patternConfig);
 
     const patternResults = patternEngine.validatePatterns();
     const patternSummary = patternEngine.getPatternSummary();
@@ -290,16 +286,18 @@ export class Section2Analyzer {
   private calculateAccuracyScore(businessRuleResults: any, patternResults: any): any {
     const totalRows = this.rowCount;
     const totalViolations = businessRuleResults.totalViolations + patternResults.totalViolations;
-    const criticalViolations = businessRuleResults.criticalViolations + 
-      (patternResults.patternValidations?.filter((p: any) => p.severity === 'critical').length || 0);
+    const criticalViolations =
+      businessRuleResults.criticalViolations +
+      (patternResults.patternValidations?.filter((p: any) => p.severity === 'critical').length ||
+        0);
 
     // Calculate base score (0-100)
     let score = 100;
-    
+
     // Deduct for violations (more severe = higher deduction)
     const violationRate = totalViolations / totalRows;
     score -= violationRate * 50; // Up to 50 points for violation rate
-    
+
     // Extra deduction for critical violations
     const criticalRate = criticalViolations / totalRows;
     score -= criticalRate * 30; // Up to 30 additional points for critical violations
@@ -326,10 +324,10 @@ export class Section2Analyzer {
 
     // Base score calculation
     let score = 100;
-    
+
     // Deduct for format inconsistencies
     score -= totalFormatIssues * 10; // 10 points per format inconsistency type
-    
+
     // Deduct for intra-record consistency issues
     score -= intraRecordIssues * 15; // 15 points per intra-record rule violation type
 
@@ -352,12 +350,52 @@ export class Section2Analyzer {
   // Previous placeholder methods removed - now using enhanced implementations
 
   private createPlaceholderTimeliness() {
+    // Enhanced timeliness analysis
+    const dateColumns = this.findDateColumns();
+    const dataFreshness = this.analyzeDataFreshness(dateColumns);
+    const updateFrequency = this.analyzeUpdateFrequency(dateColumns);
+
+    let score = 75; // Default neutral score
+    let interpretation: 'Excellent' | 'Good' | 'Fair' | 'Needs Improvement' | 'Poor' = 'Fair';
+    let details = 'Timeliness analysis based on available date/timestamp columns';
+
+    if (dateColumns.length === 0) {
+      score = 50;
+      interpretation = 'Needs Improvement';
+      details = 'No date/timestamp columns found for timeliness assessment';
+    } else if (dataFreshness.latestTimestamp) {
+      const daysSinceUpdate = dataFreshness.daysSinceLatest || 0;
+
+      if (daysSinceUpdate <= 1) {
+        score = 95;
+        interpretation = 'Excellent';
+        details = 'Data is very recent (updated within 24 hours)';
+      } else if (daysSinceUpdate <= 7) {
+        score = 85;
+        interpretation = 'Good';
+        details = 'Data is relatively fresh (updated within a week)';
+      } else if (daysSinceUpdate <= 30) {
+        score = 70;
+        interpretation = 'Fair';
+        details = 'Data is moderately fresh (updated within a month)';
+      } else if (daysSinceUpdate <= 365) {
+        score = 60;
+        interpretation = 'Needs Improvement';
+        details = 'Data may be stale (updated within a year)';
+      } else {
+        score = 40;
+        interpretation = 'Poor';
+        details = 'Data appears to be very stale (over a year old)';
+      }
+    }
+
     return {
-      dataFreshness: {},
+      dataFreshness,
+      updateFrequency,
       score: {
-        score: 75,
-        interpretation: 'Fair' as const,
-        details: 'Timeliness analysis not yet implemented',
+        score,
+        interpretation,
+        details,
       },
     };
   }
@@ -388,14 +426,52 @@ export class Section2Analyzer {
   }
 
   private createPlaceholderPrecision() {
+    // Enhanced precision analysis
+    const numericPrecision = this.analyzeNumericPrecision();
+    const temporalGranularity = this.analyzeTemporalGranularity();
+    const categoricalSpecificity = this.analyzeCategoricalSpecificity();
+
+    // Calculate score based on precision consistency
+    let score = 85; // Default good score
+    let interpretation: 'Excellent' | 'Good' | 'Fair' | 'Needs Improvement' | 'Poor' = 'Good';
+    let details =
+      'Precision analysis based on numeric scale, temporal granularity, and categorical specificity';
+
+    // Deduct points for precision inconsistencies
+    const precisionIssues =
+      numericPrecision.filter((p: any) => p.inconsistentPrecision).length +
+      temporalGranularity.filter((t: any) => t.mixedGranularity).length +
+      categoricalSpecificity.filter((c: any) => c.lowSpecificity).length;
+
+    if (precisionIssues > 0) {
+      score -= precisionIssues * 10; // 10 points per issue
+
+      if (score >= 90) {
+        interpretation = 'Excellent';
+        details = 'High precision and consistency across data types';
+      } else if (score >= 75) {
+        interpretation = 'Good';
+        details = 'Generally good precision with minor consistency issues';
+      } else if (score >= 60) {
+        interpretation = 'Fair';
+        details = 'Some precision inconsistencies detected that may affect analysis quality';
+      } else if (score >= 40) {
+        interpretation = 'Needs Improvement';
+        details = 'Significant precision issues that should be addressed';
+      } else {
+        interpretation = 'Poor';
+        details = 'Major precision problems affecting data reliability';
+      }
+    }
+
     return {
-      numericPrecision: [],
-      temporalGranularity: [],
-      categoricalSpecificity: [],
+      numericPrecision,
+      temporalGranularity,
+      categoricalSpecificity,
       score: {
-        score: 85,
-        interpretation: 'Good' as const,
-        details: 'Precision analysis not yet implemented',
+        score: Math.max(0, score),
+        interpretation,
+        details,
       },
     };
   }
@@ -632,5 +708,269 @@ export class Section2Analyzer {
     };
 
     return { ...defaultConfig, ...userConfig };
+  }
+
+  /**
+   * Helper methods for enhanced quality dimensions
+   */
+  private findDateColumns(): Array<{ name: string; index: number }> {
+    return this.headers
+      .map((header, index) => ({ name: header, index }))
+      .filter((col) => /(date|time|created|updated|timestamp|modified)/i.test(col.name));
+  }
+
+  private analyzeDataFreshness(dateColumns: Array<{ name: string; index: number }>): any {
+    if (dateColumns.length === 0) {
+      return {
+        latestTimestamp: null,
+        oldestTimestamp: null,
+        daysSinceLatest: null,
+        ageDistribution: 'No date columns available',
+      };
+    }
+
+    let latestDate: Date | null = null;
+    let oldestDate: Date | null = null;
+    let validDates = 0;
+
+    // Sample up to 1000 rows to determine data freshness
+    const sampleSize = Math.min(1000, this.data.length);
+
+    for (let rowIndex = 0; rowIndex < sampleSize; rowIndex++) {
+      const row = this.data[rowIndex];
+
+      for (const dateCol of dateColumns) {
+        const dateValue = row[dateCol.index];
+        if (!dateValue) continue;
+
+        const parsedDate = this.parseDate(dateValue.toString());
+        if (parsedDate && parsedDate.getTime() > 0) {
+          validDates++;
+
+          if (!latestDate || parsedDate > latestDate) {
+            latestDate = parsedDate;
+          }
+          if (!oldestDate || parsedDate < oldestDate) {
+            oldestDate = parsedDate;
+          }
+        }
+      }
+    }
+
+    const now = new Date();
+    const daysSinceLatest = latestDate
+      ? Math.floor((now.getTime() - latestDate.getTime()) / (24 * 60 * 60 * 1000))
+      : null;
+
+    return {
+      latestTimestamp: latestDate?.toISOString(),
+      oldestTimestamp: oldestDate?.toISOString(),
+      daysSinceLatest,
+      validDatesFound: validDates,
+      ageDistribution:
+        latestDate && oldestDate
+          ? `Data spans ${Math.floor((latestDate.getTime() - oldestDate.getTime()) / (24 * 60 * 60 * 1000))} days`
+          : 'Unable to determine age distribution',
+    };
+  }
+
+  private analyzeUpdateFrequency(dateColumns: Array<{ name: string; index: number }>): any {
+    if (dateColumns.length === 0) {
+      return {
+        averageUpdateInterval: null,
+        updatePattern: 'No date columns available for frequency analysis',
+      };
+    }
+
+    // Simple implementation - could be enhanced with more sophisticated time series analysis
+    return {
+      averageUpdateInterval: 'Analysis requires time series data',
+      updatePattern: 'Pattern detection not yet implemented',
+      notes: 'Update frequency analysis is preliminary - requires event log or versioned data',
+    };
+  }
+
+  private parseDate(value: string): Date | null {
+    if (!value || typeof value !== 'string') return null;
+
+    // Try multiple date formats
+    const date = new Date(value);
+    if (!isNaN(date.getTime())) return date;
+
+    // Try ISO format
+    const isoMatch = value.match(/(\d{4})-(\d{2})-(\d{2})/);
+    if (isoMatch) {
+      const [, year, month, day] = isoMatch;
+      const parsed = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+      if (!isNaN(parsed.getTime())) return parsed;
+    }
+
+    return null;
+  }
+
+  private analyzeNumericPrecision(): any[] {
+    const results: any[] = [];
+
+    for (let colIndex = 0; colIndex < this.headers.length; colIndex++) {
+      const columnName = this.headers[colIndex];
+      const columnType = this.columnTypes[colIndex];
+
+      // Only analyze numeric columns
+      if (columnType !== 'number' && columnType !== 'float' && columnType !== 'integer') continue;
+
+      const decimalPlaces: number[] = [];
+      let hasIntegers = false;
+      let sampleCount = 0;
+      const maxSamples = 500; // Limit sampling for performance
+
+      for (let rowIndex = 0; rowIndex < Math.min(this.data.length, maxSamples); rowIndex++) {
+        const value = this.data[rowIndex][colIndex];
+        if (!value) continue;
+
+        const numValue = parseFloat(value.toString());
+        if (isNaN(numValue)) continue;
+
+        sampleCount++;
+
+        // Count decimal places
+        const valueStr = value.toString();
+        const decimalIndex = valueStr.indexOf('.');
+
+        if (decimalIndex === -1) {
+          hasIntegers = true;
+          decimalPlaces.push(0);
+        } else {
+          const decimals = valueStr.length - decimalIndex - 1;
+          decimalPlaces.push(decimals);
+        }
+      }
+
+      if (sampleCount > 0) {
+        const uniqueDecimalPlaces = [...new Set(decimalPlaces)];
+        const maxDecimalPlaces = Math.max(...decimalPlaces);
+        const inconsistentPrecision = uniqueDecimalPlaces.length > 3; // More than 3 different precisions
+
+        results.push({
+          columnName,
+          maxDecimalPlaces,
+          uniquePrecisions: uniqueDecimalPlaces.length,
+          hasIntegers,
+          inconsistentPrecision,
+          sampleCount,
+          details: inconsistentPrecision
+            ? `Mixed precision detected: ${uniqueDecimalPlaces.join(', ')} decimal places`
+            : `Consistent precision: ${maxDecimalPlaces} decimal places`,
+        });
+      }
+    }
+
+    return results;
+  }
+
+  private analyzeTemporalGranularity(): any[] {
+    const results: any[] = [];
+    const dateColumns = this.findDateColumns();
+
+    for (const dateCol of dateColumns) {
+      const granularityLevels = new Set<string>();
+      let sampleCount = 0;
+      const maxSamples = 300;
+
+      for (let rowIndex = 0; rowIndex < Math.min(this.data.length, maxSamples); rowIndex++) {
+        const value = this.data[rowIndex][dateCol.index];
+        if (!value) continue;
+
+        const dateStr = value.toString();
+        sampleCount++;
+
+        // Detect granularity based on format patterns
+        if (/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}/.test(dateStr)) {
+          granularityLevels.add('millisecond');
+        } else if (/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(dateStr)) {
+          granularityLevels.add('second');
+        } else if (/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(dateStr)) {
+          granularityLevels.add('minute');
+        } else if (/\d{4}-\d{2}-\d{2}T\d{2}/.test(dateStr)) {
+          granularityLevels.add('hour');
+        } else if (/\d{4}-\d{2}-\d{2}/.test(dateStr)) {
+          granularityLevels.add('day');
+        } else if (/\d{4}-\d{2}/.test(dateStr)) {
+          granularityLevels.add('month');
+        } else if (/\d{4}/.test(dateStr)) {
+          granularityLevels.add('year');
+        }
+      }
+
+      if (sampleCount > 0) {
+        const mixedGranularity = granularityLevels.size > 1;
+
+        results.push({
+          columnName: dateCol.name,
+          detectedGranularities: Array.from(granularityLevels),
+          mixedGranularity,
+          sampleCount,
+          details: mixedGranularity
+            ? `Mixed temporal granularities: ${Array.from(granularityLevels).join(', ')}`
+            : `Consistent granularity: ${Array.from(granularityLevels)[0] || 'unknown'}`,
+        });
+      }
+    }
+
+    return results;
+  }
+
+  private analyzeCategoricalSpecificity(): any[] {
+    const results: any[] = [];
+
+    for (let colIndex = 0; colIndex < this.headers.length; colIndex++) {
+      const columnName = this.headers[colIndex];
+      const columnType = this.columnTypes[colIndex];
+
+      // Only analyze text/categorical columns
+      if (columnType !== 'string') continue;
+
+      const values = new Set<string>();
+      const valueLengths: number[] = [];
+      let sampleCount = 0;
+      const maxSamples = 500;
+
+      for (let rowIndex = 0; rowIndex < Math.min(this.data.length, maxSamples); rowIndex++) {
+        const value = this.data[rowIndex][colIndex];
+        if (!value) continue;
+
+        const strValue = value.toString().trim();
+        if (strValue.length === 0) continue;
+
+        values.add(strValue);
+        valueLengths.push(strValue.length);
+        sampleCount++;
+      }
+
+      if (sampleCount > 0) {
+        const uniqueValues = values.size;
+        const avgLength = valueLengths.reduce((sum, len) => sum + len, 0) / valueLengths.length;
+        const cardinality = uniqueValues / sampleCount;
+
+        // Low specificity indicators
+        const lowSpecificity =
+          avgLength < 3 || // Very short values
+          (cardinality < 0.1 && uniqueValues < 10) || // Low cardinality
+          Array.from(values).some((v) => /^(n\/a|na|null|unknown|other|misc)$/i.test(v));
+
+        results.push({
+          columnName,
+          uniqueValues,
+          averageLength: Math.round(avgLength * 10) / 10,
+          cardinality: Math.round(cardinality * 1000) / 1000,
+          lowSpecificity,
+          sampleCount,
+          details: lowSpecificity
+            ? 'Low specificity detected - consider more detailed categorization'
+            : 'Appropriate categorical specificity',
+        });
+      }
+    }
+
+    return results;
   }
 }

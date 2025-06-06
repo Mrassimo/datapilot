@@ -6,7 +6,8 @@
 import { createReadStream, statSync } from 'fs';
 import { Transform } from 'stream';
 import { pipeline } from 'stream/promises';
-import { CSVParserOptions, ParsedRow, ParserStats, OPTIMAL_CHUNK_SIZE, MAX_SAMPLE_SIZE } from './types';
+import type { CSVParserOptions, ParsedRow, ParserStats } from './types';
+import { OPTIMAL_CHUNK_SIZE, MAX_SAMPLE_SIZE } from './types';
 import { CSVDetector } from './csv-detector';
 import { CSVStateMachine } from './csv-state-machine';
 import { DataPilotError } from '../core/types';
@@ -50,7 +51,7 @@ export class CSVParser {
     try {
       // Get file stats
       const fileStats = statSync(filePath);
-      
+
       if (fileStats.size === 0) {
         throw new DataPilotError('File is empty', 'EMPTY_FILE');
       }
@@ -63,7 +64,7 @@ export class CSVParser {
       // For large files, use streaming with batching to prevent memory overflow
       const fileSizeMB = fileStats.size / (1024 * 1024);
       const isLargeFile = fileSizeMB > 100; // Files over 100MB
-      
+
       if (isLargeFile) {
         return this.parseFileStreaming(filePath);
       }
@@ -77,14 +78,18 @@ export class CSVParser {
 
       const parseTransform = this.createParseTransform((row) => {
         rows.push(row);
-        
+
         // Check for memory pressure and switch to streaming if needed
         if (rows.length % 10000 === 0) {
           const memUsage = process.memoryUsage();
           this.stats.peakMemoryUsage = Math.max(this.stats.peakMemoryUsage || 0, memUsage.heapUsed);
-          
-          if (memUsage.heapUsed > 1024 * 1024 * 1024) { // 1GB threshold
-            throw new DataPilotError('Memory limit reached, file too large for in-memory parsing', 'MEMORY_LIMIT');
+
+          if (memUsage.heapUsed > 1024 * 1024 * 1024) {
+            // 1GB threshold
+            throw new DataPilotError(
+              'Memory limit reached, file too large for in-memory parsing',
+              'MEMORY_LIMIT',
+            );
           }
         }
       });
@@ -94,13 +99,12 @@ export class CSVParser {
 
       this.stats.endTime = Date.now();
       return rows;
-
     } catch (error) {
       if (error instanceof DataPilotError && error.code === 'MEMORY_LIMIT') {
         // Fallback to streaming for large datasets
         return this.parseFileStreaming(filePath);
       }
-      
+
       throw new DataPilotError(
         `Failed to parse CSV file: ${error instanceof Error ? error.message : 'Unknown error'}`,
         'PARSE_FAILED',
@@ -116,7 +120,7 @@ export class CSVParser {
     const rows: ParsedRow[] = [];
     const batchSize = 1000; // Process in batches
     let currentBatch: ParsedRow[] = [];
-    
+
     const readStream = createReadStream(filePath, {
       encoding: this.options.encoding,
       highWaterMark: this.options.chunkSize,
@@ -124,16 +128,16 @@ export class CSVParser {
 
     const parseTransform = this.createParseTransform((row) => {
       currentBatch.push(row);
-      
+
       // Process batch and clear memory periodically
       if (currentBatch.length >= batchSize) {
         rows.push(...currentBatch);
         currentBatch = []; // Clear batch to free memory
-        
+
         // Track memory usage
         const memUsage = process.memoryUsage();
         this.stats.peakMemoryUsage = Math.max(this.stats.peakMemoryUsage || 0, memUsage.heapUsed);
-        
+
         // Respect maxRows limit to prevent unbounded growth
         if (rows.length >= this.options.maxRows) {
           this.abort();
@@ -142,7 +146,7 @@ export class CSVParser {
     });
 
     await pipeline(readStream, parseTransform);
-    
+
     // Add any remaining rows in the final batch
     if (currentBatch.length > 0) {
       rows.push(...currentBatch);
@@ -173,7 +177,7 @@ export class CSVParser {
 
     const rawRows = stateMachine.processChunk(data);
     const finalRow = stateMachine.finalize();
-    
+
     if (finalRow) {
       rawRows.push(finalRow);
     }
@@ -185,7 +189,7 @@ export class CSVParser {
     // Apply maxRows limit
     const limitedRawRows = rawRows.slice(0, this.options.maxRows);
     const processedRows = this.processRawRows(limitedRawRows);
-    
+
     this.stats.rowsProcessed = processedRows.length;
     this.stats.endTime = Date.now();
 
@@ -198,14 +202,14 @@ export class CSVParser {
   private async detectFormat(filePath: string): Promise<void> {
     const sampleSize = Math.min(this.options.sampleSize, statSync(filePath).size);
     // Sample from beginning of file
-    
+
     const stream = createReadStream(filePath, { start: 0, end: sampleSize - 1 });
     const chunks: Buffer[] = [];
-    
+
     for await (const chunk of stream) {
       chunks.push(chunk as Buffer);
     }
-    
+
     const sampleBuffer = Buffer.concat(chunks);
     const detected = CSVDetector.detect(sampleBuffer);
 
@@ -235,7 +239,7 @@ export class CSVParser {
 
     return new Transform({
       objectMode: true,
-      
+
       transform(chunk: Buffer | string, _encoding, callback) {
         if (parser.aborted) {
           callback();
@@ -244,7 +248,8 @@ export class CSVParser {
 
         try {
           // Convert chunk to string and add to buffer
-          const chunkStr = chunk instanceof Buffer ? chunk.toString(parser.options.encoding) : chunk;
+          const chunkStr =
+            chunk instanceof Buffer ? chunk.toString(parser.options.encoding) : chunk;
           buffer += chunkStr;
           parser.stats.bytesProcessed += chunk.length;
 
@@ -263,7 +268,7 @@ export class CSVParser {
             if (processedRowData.length > 0) {
               const row = processedRowData[0];
               processedRows++;
-              
+
               if (onRow) {
                 onRow(row);
               } else {
@@ -284,19 +289,19 @@ export class CSVParser {
           if (buffer.length > 0) {
             const rows = stateMachine.processChunk(buffer);
             const finalRow = stateMachine.finalize();
-            
+
             if (finalRow) {
               rows.push(finalRow);
             }
 
             for (const rawRow of rows) {
               if (processedRows >= parser.options.maxRows) break;
-              
+
               const processedRowData = parser.processRawRows([rawRow]);
               if (processedRowData.length > 0) {
                 const row = processedRowData[0];
                 processedRows++;
-                
+
                 if (onRow) {
                   onRow(row);
                 } else {
@@ -330,7 +335,7 @@ export class CSVParser {
     // Find last complete line
     const lineEndingLength = this.options.lineEnding.length;
     const lastLineEndingIndex = buffer.lastIndexOf(this.options.lineEnding);
-    
+
     if (lastLineEndingIndex === -1) {
       // No complete lines yet
       return { processedBuffer: buffer, rows: [] };
@@ -339,9 +344,9 @@ export class CSVParser {
     // Process complete lines
     const completeData = buffer.substring(0, lastLineEndingIndex + lineEndingLength);
     const remainingBuffer = buffer.substring(lastLineEndingIndex + lineEndingLength);
-    
+
     const rows = stateMachine.processChunk(completeData);
-    
+
     return { processedBuffer: remainingBuffer, rows };
   }
 
@@ -353,7 +358,7 @@ export class CSVParser {
 
     for (let i = 0; i < rawRows.length; i++) {
       const rawRow = rawRows[i];
-      
+
       // Skip empty rows if configured
       if (this.options.skipEmptyLines && this.isEmptyRow(rawRow)) {
         continue;
@@ -374,7 +379,7 @@ export class CSVParser {
    * Check if a row is empty
    */
   private isEmptyRow(row: string[]): boolean {
-    return row.every(field => field.trim().length === 0);
+    return row.every((field) => field.trim().length === 0);
   }
 
   /**

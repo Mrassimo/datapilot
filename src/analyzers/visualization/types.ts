@@ -14,7 +14,7 @@ export enum ChartType {
   DENSITY_PLOT = 'density_plot',
   DOT_PLOT = 'dot_plot',
   Q_Q_PLOT = 'q_q_plot',
-  
+
   // Univariate Categorical
   BAR_CHART = 'bar_chart',
   HORIZONTAL_BAR = 'horizontal_bar',
@@ -24,7 +24,7 @@ export enum ChartType {
   TREEMAP = 'treemap',
   SUNBURST = 'sunburst',
   LOLLIPOP_CHART = 'lollipop_chart',
-  
+
   // Bivariate Numerical vs Numerical
   SCATTER_PLOT = 'scatter_plot',
   LINE_CHART = 'line_chart',
@@ -33,7 +33,7 @@ export enum ChartType {
   RESIDUAL_PLOT = 'residual_plot',
   HEX_BIN = 'hex_bin',
   CONTOUR_PLOT = 'contour_plot',
-  
+
   // Bivariate Numerical vs Categorical
   GROUPED_BAR = 'grouped_bar',
   STACKED_BAR = 'stacked_bar',
@@ -41,7 +41,7 @@ export enum ChartType {
   VIOLIN_BY_GROUP = 'violin_by_group',
   STRIP_CHART = 'strip_chart',
   SWARM_PLOT = 'swarm_plot',
-  
+
   // Bivariate Categorical vs Categorical
   STACKED_BAR_CATEGORICAL = 'stacked_bar_categorical',
   GROUPED_BAR_CATEGORICAL = 'grouped_bar_categorical',
@@ -49,7 +49,7 @@ export enum ChartType {
   MOSAIC_PLOT = 'mosaic_plot',
   ALLUVIAL_DIAGRAM = 'alluvial_diagram',
   CHORD_DIAGRAM = 'chord_diagram',
-  
+
   // Time Series
   TIME_SERIES_LINE = 'time_series_line',
   TIME_SERIES_AREA = 'time_series_area',
@@ -57,7 +57,7 @@ export enum ChartType {
   SEASONAL_PLOT = 'seasonal_plot',
   LAG_PLOT = 'lag_plot',
   GANTT_CHART = 'gantt_chart',
-  
+
   // Multivariate
   PARALLEL_COORDINATES = 'parallel_coordinates',
   RADAR_CHART = 'radar_chart',
@@ -65,13 +65,13 @@ export enum ChartType {
   SCATTERPLOT_MATRIX = 'scatterplot_matrix',
   PCA_BIPLOT = 'pca_biplot',
   ANDREWS_PLOT = 'andrews_plot',
-  
+
   // Advanced Statistical
   VIOLIN_MATRIX = 'violin_matrix',
   MARGINAL_PLOT = 'marginal_plot',
   PAIR_PLOT = 'pair_plot',
   FACET_GRID = 'facet_grid',
-  
+
   // Specialized
   GEOGRAPHIC_MAP = 'geographic_map',
   CHOROPLETH_MAP = 'choropleth_map',
@@ -79,7 +79,7 @@ export enum ChartType {
   SANKEY_DIAGRAM = 'sankey_diagram',
   FUNNEL_CHART = 'funnel_chart',
   GAUGE_CHART = 'gauge_chart',
-  WORD_CLOUD = 'word_cloud'
+  WORD_CLOUD = 'word_cloud',
 }
 
 export enum ChartPurpose {
@@ -90,14 +90,14 @@ export enum ChartPurpose {
   TREND = 'trend',
   RANKING = 'ranking',
   OUTLIER_DETECTION = 'outlier_detection',
-  PATTERN_RECOGNITION = 'pattern_recognition'
+  PATTERN_RECOGNITION = 'pattern_recognition',
 }
 
 export enum RecommendationPriority {
   PRIMARY = 'primary',
   SECONDARY = 'secondary',
   ALTERNATIVE = 'alternative',
-  NOT_RECOMMENDED = 'not_recommended'
+  NOT_RECOMMENDED = 'not_recommended',
 }
 
 export enum AccessibilityLevel {
@@ -105,21 +105,21 @@ export enum AccessibilityLevel {
   GOOD = 'good',
   ADEQUATE = 'adequate',
   POOR = 'poor',
-  INACCESSIBLE = 'inaccessible'
+  INACCESSIBLE = 'inaccessible',
 }
 
 export enum ComplexityLevel {
   SIMPLE = 'simple',
   MODERATE = 'moderate',
   COMPLEX = 'complex',
-  ADVANCED = 'advanced'
+  ADVANCED = 'advanced',
 }
 
 export enum DataSize {
-  SMALL = 'small',      // < 1K points
-  MEDIUM = 'medium',    // 1K - 100K points
-  LARGE = 'large',      // 100K - 1M points
-  VERY_LARGE = 'very_large' // > 1M points
+  SMALL = 'small', // < 1K points
+  MEDIUM = 'medium', // 1K - 100K points
+  LARGE = 'large', // 100K - 1M points
+  VERY_LARGE = 'very_large', // > 1M points
 }
 
 // ===== CORE INTERFACES =====
@@ -130,13 +130,13 @@ export interface ChartRecommendation {
   priority: RecommendationPriority;
   confidence: number; // 0-1 scale
   reasoning: string;
-  
+
   // Technical specifications
   encoding: VisualEncoding;
   interactivity: InteractivityOptions;
   accessibility: AccessibilityGuidance;
   performance: PerformanceConsiderations;
-  
+
   // Implementation guidance
   libraryRecommendations: LibraryRecommendation[];
   codeExample?: string;
@@ -151,7 +151,7 @@ export interface VisualEncoding {
   size?: SizeEncoding;
   shape?: ShapeEncoding;
   opacity?: OpacityEncoding;
-  
+
   // Layout
   layout: LayoutConfiguration;
   legend?: LegendConfiguration;
@@ -273,13 +273,13 @@ export enum InteractionType {
   SORT = 'sort',
   HIGHLIGHT = 'highlight',
   DRILL_DOWN = 'drill_down',
-  TOOLTIP = 'tooltip'
+  TOOLTIP = 'tooltip',
 }
 
 export enum ResponsivenessLevel {
   STATIC = 'static',
   RESPONSIVE = 'responsive',
-  ADAPTIVE = 'adaptive'
+  ADAPTIVE = 'adaptive',
 }
 
 export interface KeyboardSupport {
@@ -447,19 +447,26 @@ export interface ColumnVisualizationProfile {
   cardinality: number;
   uniqueness: number;
   completeness: number;
-  
+
   // Statistical characteristics
   distribution?: DistributionCharacteristics;
   patterns?: PatternCharacteristics;
   relationships?: RelationshipCharacteristics;
-  
+
   // Visualization recommendations
   recommendations: ChartRecommendation[];
   warnings: VisualizationWarning[];
 }
 
 export interface DistributionCharacteristics {
-  shape: 'normal' | 'skewed_left' | 'skewed_right' | 'bimodal' | 'uniform' | 'exponential' | 'unknown';
+  shape:
+    | 'normal'
+    | 'skewed_left'
+    | 'skewed_right'
+    | 'bimodal'
+    | 'uniform'
+    | 'exponential'
+    | 'unknown';
   skewness: number;
   kurtosis: number;
   outliers: OutlierInfo;
@@ -517,7 +524,12 @@ export interface VisualizationWarning {
 export interface BivariateVisualizationProfile {
   variable1: string;
   variable2: string;
-  relationshipType: 'numerical_numerical' | 'numerical_categorical' | 'categorical_categorical' | 'temporal_numerical' | 'temporal_categorical';
+  relationshipType:
+    | 'numerical_numerical'
+    | 'numerical_categorical'
+    | 'categorical_categorical'
+    | 'temporal_numerical'
+    | 'temporal_categorical';
   strength: number;
   significance: number;
   recommendations: ChartRecommendation[];
@@ -583,7 +595,7 @@ export enum FilterType {
   CATEGORICAL = 'categorical',
   DATE_RANGE = 'date_range',
   TEXT_SEARCH = 'text_search',
-  MULTI_SELECT = 'multi_select'
+  MULTI_SELECT = 'multi_select',
 }
 
 export interface FilterInterface {
@@ -688,13 +700,13 @@ export enum InteractivityLevel {
   STATIC = 'static',
   BASIC = 'basic',
   INTERACTIVE = 'interactive',
-  HIGHLY_INTERACTIVE = 'highly_interactive'
+  HIGHLY_INTERACTIVE = 'highly_interactive',
 }
 
 export enum PerformanceLevel {
   FAST = 'fast',
   MODERATE = 'moderate',
-  INTENSIVE = 'intensive'
+  INTENSIVE = 'intensive',
 }
 
 export interface MultivariateRecommendation {
@@ -813,7 +825,7 @@ export enum RecommendationType {
   MULTIVARIATE = 'multivariate',
   DASHBOARD = 'dashboard',
   ACCESSIBILITY = 'accessibility',
-  PERFORMANCE = 'performance'
+  PERFORMANCE = 'performance',
 }
 
 // ===== ANTI-PATTERN DETECTION =====
@@ -826,7 +838,7 @@ export enum AntiPatternType {
   MISLEADING_SCALE = 'misleading_scale',
   POOR_COLOR_CHOICE = 'poor_color_choice',
   OVERCOMPLICATED_VISUALIZATION = 'overcomplicated_visualization',
-  MISSING_CONTEXT = 'missing_context'
+  MISSING_CONTEXT = 'missing_context',
 }
 
 export enum AntiPatternSeverity {
@@ -834,7 +846,7 @@ export enum AntiPatternSeverity {
   HIGH = 'high',
   MEDIUM = 'medium',
   LOW = 'low',
-  INFO = 'info'
+  INFO = 'info',
 }
 
 export interface AntiPatternDetection {
@@ -861,7 +873,7 @@ export enum ColorPaletteType {
   SEQUENTIAL = 'sequential',
   DIVERGING = 'diverging',
   SINGLE_HUE = 'single_hue',
-  CYCLIC = 'cyclic'
+  CYCLIC = 'cyclic',
 }
 
 export interface DetailedColorScheme {
@@ -890,7 +902,6 @@ export interface SemanticColorMapping {
   success?: string;
   error?: string;
 }
-
 
 export interface ContrastRatio {
   foreground: string;
@@ -953,7 +964,7 @@ export enum RelationshipType {
   NON_LINEAR = 'non_linear',
   CATEGORICAL_ASSOCIATION = 'categorical_association',
   TEMPORAL_CORRELATION = 'temporal_correlation',
-  NO_RELATIONSHIP = 'no_relationship'
+  NO_RELATIONSHIP = 'no_relationship',
 }
 
 export interface BivariateRecommendationCriteria {
@@ -970,7 +981,7 @@ export enum BivariatePurpose {
   SHOW_CORRELATION = 'show_correlation',
   IDENTIFY_CLUSTERS = 'identify_clusters',
   DETECT_OUTLIERS = 'detect_outliers',
-  SHOW_COMPOSITION = 'show_composition'
+  SHOW_COMPOSITION = 'show_composition',
 }
 
 // ===== PREDEFINED COLOR PALETTES =====
@@ -979,12 +990,23 @@ export const PREDEFINED_PALETTES: Record<string, DetailedColorScheme> = {
   TABLEAU_10: {
     name: 'Tableau 10',
     type: ColorPaletteType.QUALITATIVE,
-    colors: ['#4E79A7', '#F28E2B', '#E15759', '#76B7B2', '#59A14F', '#EDC948', '#AF7AA1', '#FF9D9A', '#9C755F', '#BAB0AC'],
+    colors: [
+      '#4E79A7',
+      '#F28E2B',
+      '#E15759',
+      '#76B7B2',
+      '#59A14F',
+      '#EDC948',
+      '#AF7AA1',
+      '#FF9D9A',
+      '#9C755F',
+      '#BAB0AC',
+    ],
     usage: {
       maxCategories: 10,
       minCategories: 2,
       bestFor: ['categorical data', 'qualitative comparisons', 'distinct groups'],
-      avoidFor: ['sequential data', 'continuous variables']
+      avoidFor: ['sequential data', 'continuous variables'],
     },
     accessibility: {
       contrastRatio: 4.5,
@@ -995,22 +1017,22 @@ export const PREDEFINED_PALETTES: Record<string, DetailedColorScheme> = {
         protanopia: true,
         deuteranopia: true,
         tritanopia: true,
-        severity: 'safe'
+        severity: 'safe',
       },
       contrastRatios: [],
-      alternativeEncodings: ['pattern', 'shape', 'texture']
+      alternativeEncodings: ['pattern', 'shape', 'texture'],
     },
     printSafety: {
       grayscaleCompatible: true,
       printFriendly: true,
       monochromeDistinguishable: true,
-      recommendedPrintColors: ['#4E79A7', '#E15759', '#76B7B2', '#59A14F']
+      recommendedPrintColors: ['#4E79A7', '#E15759', '#76B7B2', '#59A14F'],
     },
     context: {
       cultural: [],
       domain: [],
-      emotional: []
-    }
+      emotional: [],
+    },
   },
   VIRIDIS: {
     name: 'Viridis',
@@ -1020,7 +1042,7 @@ export const PREDEFINED_PALETTES: Record<string, DetailedColorScheme> = {
       maxCategories: 256,
       minCategories: 2,
       bestFor: ['continuous data', 'heatmaps', 'sequential values'],
-      avoidFor: ['categorical data', 'qualitative comparisons']
+      avoidFor: ['categorical data', 'qualitative comparisons'],
     },
     accessibility: {
       contrastRatio: 4.5,
@@ -1031,22 +1053,22 @@ export const PREDEFINED_PALETTES: Record<string, DetailedColorScheme> = {
         protanopia: true,
         deuteranopia: true,
         tritanopia: true,
-        severity: 'safe'
+        severity: 'safe',
       },
       contrastRatios: [],
-      alternativeEncodings: ['opacity', 'size']
+      alternativeEncodings: ['opacity', 'size'],
     },
     printSafety: {
       grayscaleCompatible: true,
       printFriendly: true,
       monochromeDistinguishable: true,
-      recommendedPrintColors: ['#440154', '#31688E', '#FDE725']
+      recommendedPrintColors: ['#440154', '#31688E', '#FDE725'],
     },
     context: {
       cultural: [],
       domain: [],
-      emotional: []
-    }
+      emotional: [],
+    },
   },
   RD_BU: {
     name: 'Red-Blue Diverging',
@@ -1056,7 +1078,7 @@ export const PREDEFINED_PALETTES: Record<string, DetailedColorScheme> = {
       maxCategories: 11,
       minCategories: 3,
       bestFor: ['diverging data', 'data with central reference', 'correlation matrices'],
-      avoidFor: ['categorical data', 'sequential data']
+      avoidFor: ['categorical data', 'sequential data'],
     },
     accessibility: {
       contrastRatio: 3.0,
@@ -1067,21 +1089,21 @@ export const PREDEFINED_PALETTES: Record<string, DetailedColorScheme> = {
         protanopia: false,
         deuteranopia: false,
         tritanopia: true,
-        severity: 'caution'
+        severity: 'caution',
       },
       contrastRatios: [],
-      alternativeEncodings: ['pattern', 'shape', 'value']
+      alternativeEncodings: ['pattern', 'shape', 'value'],
     },
     printSafety: {
       grayscaleCompatible: false,
       printFriendly: false,
       monochromeDistinguishable: false,
-      recommendedPrintColors: ['#B2182B', '#F7F7F7', '#2166AC']
+      recommendedPrintColors: ['#B2182B', '#F7F7F7', '#2166AC'],
     },
     context: {
       cultural: [],
       domain: [],
-      emotional: []
-    }
-  }
+      emotional: [],
+    },
+  },
 };

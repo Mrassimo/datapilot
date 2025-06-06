@@ -8,12 +8,12 @@ import { CSVParser } from '../../parsers/csv-parser';
 import { CSVDetector } from '../../parsers/csv-detector';
 import { EncodingDetector } from '../../parsers/encoding-detector';
 import { readFileSync } from 'fs';
-import type { 
-  ParsingMetadata, 
-  EncodingDetection, 
-  DelimiterDetection, 
+import type {
+  ParsingMetadata,
+  EncodingDetection,
+  DelimiterDetection,
   Section1Config,
-  Section1Warning 
+  Section1Warning,
 } from './types';
 
 export class ParsingMetadataTracker {
@@ -32,28 +32,28 @@ export class ParsingMetadataTracker {
     metadata: ParsingMetadata;
   }> {
     const startTime = Date.now();
-    
+
     try {
       // Sample file for detection analysis
       const { sample, sampleStats } = await this.createFileSample(filePath);
-      
+
       // Enhanced detection with confidence scoring
       const encodingDetection = this.analyzeEncoding(sample);
       const delimiterDetection = this.analyzeDelimiter(sample);
-      
+
       // Parse the file
       const rows = await this.parser.parseFile(filePath);
       const parseEndTime = Date.now();
-      
+
       // Get parser options
       const parserOptions = this.parser.getOptions();
-      
+
       // Analyze header detection
       const headerAnalysis = this.analyzeHeaderDetection(rows);
-      
+
       // Count empty lines
       const emptyLinesCount = this.countEmptyLines(sample);
-      
+
       const metadata: ParsingMetadata = {
         dataSourceType: 'Local File System',
         parsingEngine: `DataPilot Advanced CSV Parser v${this.getParserVersion()}`,
@@ -66,12 +66,11 @@ export class ParsingMetadataTracker {
         headerProcessing: headerAnalysis,
         initialScanLimit: sampleStats,
       };
-      
+
       // Add performance warnings
       this.addPerformanceWarnings(parseEndTime - startTime, rows.length);
-      
+
       return { rows, metadata };
-      
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown parsing error';
       throw new Error(`Enhanced parsing failed: ${message}`);
@@ -91,17 +90,17 @@ export class ParsingMetadataTracker {
   }> {
     const maxSampleSize = 1024 * 1024; // 1MB
     const maxLines = 1000;
-    
+
     try {
       // Read sample from beginning of file
       const buffer = readFileSync(filePath);
       const sampleSize = Math.min(buffer.length, maxSampleSize);
       const sample = buffer.slice(0, sampleSize);
-      
+
       // Count lines in sample
       const lineCount = (sample.toString('utf8').match(/\n/g) || []).length;
       const actualLines = Math.min(lineCount, maxLines);
-      
+
       return {
         sample,
         sampleStats: {
@@ -111,7 +110,9 @@ export class ParsingMetadataTracker {
         },
       };
     } catch (error) {
-      throw new Error(`Failed to create file sample: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Failed to create file sample: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
     }
   }
 
@@ -120,10 +121,10 @@ export class ParsingMetadataTracker {
    */
   private analyzeEncoding(sample: Buffer): EncodingDetection {
     const result = EncodingDetector.detect(sample);
-    
+
     return {
       encoding: result.encoding,
-      detectionMethod: result.hasBOM 
+      detectionMethod: result.hasBOM
         ? 'Byte Order Mark (BOM) Detection'
         : 'Statistical Character Pattern Analysis',
       confidence: Math.round(result.confidence * 100),
@@ -138,7 +139,7 @@ export class ParsingMetadataTracker {
   private analyzeDelimiter(sample: Buffer): DelimiterDetection {
     const detected = CSVDetector.detect(sample);
     const alternatives = this.getDelimiterAlternatives(sample.toString('utf8'));
-    
+
     return {
       delimiter: detected.delimiter,
       detectionMethod: 'Character Frequency Analysis with Field Consistency Scoring',
@@ -153,17 +154,21 @@ export class ParsingMetadataTracker {
   private getDelimiterAlternatives(text: string): Array<{ delimiter: string; score: number }> {
     const delimiters = [',', '\t', ';', '|', ':'];
     const lines = text.split('\n').slice(0, 20);
-    
-    return delimiters.map(delimiter => {
-      const fieldCounts = lines.map(line => line.split(delimiter).length);
-      const consistency = this.calculateConsistencyScore(fieldCounts);
-      const frequency = (text.match(new RegExp(delimiter.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) || []).length;
-      
-      return {
-        delimiter: delimiter === '\t' ? 'TAB' : delimiter,
-        score: Math.round((consistency * 0.7 + Math.min(frequency / 100, 1) * 0.3) * 100),
-      };
-    }).sort((a, b) => b.score - a.score);
+
+    return delimiters
+      .map((delimiter) => {
+        const fieldCounts = lines.map((line) => line.split(delimiter).length);
+        const consistency = this.calculateConsistencyScore(fieldCounts);
+        const frequency = (
+          text.match(new RegExp(delimiter.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) || []
+        ).length;
+
+        return {
+          delimiter: delimiter === '\t' ? 'TAB' : delimiter,
+          score: Math.round((consistency * 0.7 + Math.min(frequency / 100, 1) * 0.3) * 100),
+        };
+      })
+      .sort((a, b) => b.score - a.score);
   }
 
   /**
@@ -171,12 +176,12 @@ export class ParsingMetadataTracker {
    */
   private calculateConsistencyScore(counts: number[]): number {
     if (counts.length === 0) return 0;
-    
+
     const mean = counts.reduce((sum, c) => sum + c, 0) / counts.length;
     const variance = counts.reduce((sum, c) => sum + Math.pow(c - mean, 2), 0) / counts.length;
-    
+
     // Lower variance = higher consistency
-    return Math.max(0, 1 - (variance / mean));
+    return Math.max(0, 1 - variance / mean);
   }
 
   /**
@@ -186,7 +191,7 @@ export class ParsingMetadataTracker {
     const text = sample.toString('utf8', 0, Math.min(sample.length, 10000));
     const crlfCount = (text.match(/\r\n/g) || []).length;
     const lfCount = (text.match(/(?<!\r)\n/g) || []).length;
-    
+
     return crlfCount > lfCount ? 'CRLF' : 'LF';
   }
 
@@ -207,7 +212,7 @@ export class ParsingMetadataTracker {
     }
 
     const parserOptions = this.parser.getOptions();
-    
+
     if (parserOptions.hasHeader) {
       return {
         headerPresence: 'Detected',
@@ -229,15 +234,14 @@ export class ParsingMetadataTracker {
   private countEmptyLines(sample: Buffer): number {
     const text = sample.toString('utf8');
     const lines = text.split(/\r?\n/);
-    return lines.filter(line => line.trim().length === 0).length;
+    return lines.filter((line) => line.trim().length === 0).length;
   }
 
   /**
    * Identify BOM type
    */
   private identifyBomType(sample: Buffer): string {
-    if (sample.length >= 3 && 
-        sample[0] === 0xef && sample[1] === 0xbb && sample[2] === 0xbf) {
+    if (sample.length >= 3 && sample[0] === 0xef && sample[1] === 0xbb && sample[2] === 0xbf) {
       return 'UTF-8 BOM';
     }
     if (sample.length >= 2 && sample[0] === 0xff && sample[1] === 0xfe) {
@@ -255,7 +259,7 @@ export class ParsingMetadataTracker {
   private addPerformanceWarnings(parseTimeMs: number, rowCount: number): void {
     const parseTimeSeconds = parseTimeMs / 1000;
     const rowsPerSecond = rowCount / parseTimeSeconds;
-    
+
     if (parseTimeSeconds > 30) {
       this.warnings.push({
         category: 'parsing',
@@ -265,7 +269,7 @@ export class ParsingMetadataTracker {
         suggestion: 'Consider using sampling for very large datasets',
       });
     }
-    
+
     if (rowsPerSecond < 1000) {
       this.warnings.push({
         category: 'parsing',

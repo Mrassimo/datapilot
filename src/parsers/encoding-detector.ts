@@ -25,7 +25,7 @@ export class EncodingDetector {
 
     // Statistical analysis for encoding detection
     const stats = this.analyzeBuffer(buffer);
-    
+
     // UTF-8 detection
     if (this.isValidUTF8(buffer)) {
       const utf8Confidence = this.calculateUTF8Confidence(stats);
@@ -167,7 +167,7 @@ export class EncodingDetector {
   private static detectUTF16(_buffer: Buffer, stats: BufferStats): EncodingDetectionResult {
     // UTF-16 typically has many null bytes
     const nullRatio = stats.nullBytes / stats.total;
-    
+
     if (nullRatio < 0.2) {
       return { encoding: 'utf8', confidence: 0, hasBOM: false, bomLength: 0 };
     }

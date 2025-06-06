@@ -28,7 +28,6 @@ export class OutputManager {
     const formatter = new Section1Formatter();
     const outputFiles: string[] = [];
 
-
     // Generate content based on format
     let content: string;
     let extension: string;
@@ -38,12 +37,12 @@ export class OutputManager {
         content = this.formatAsJSON(result);
         extension = '.json';
         break;
-      
+
       case 'yaml':
         content = this.formatAsYAML(result);
         extension = '.yaml';
         break;
-      
+
       case 'markdown':
       default:
         content = formatter.formatReport(result);
@@ -97,12 +96,12 @@ export class OutputManager {
         content = this.formatSection2AsJSON(result);
         extension = '.json';
         break;
-      
+
       case 'yaml':
         content = this.formatSection2AsYAML(result);
         extension = '.yaml';
         break;
-      
+
       case 'markdown':
       default:
         content = Section2Formatter.formatReport(result.qualityAudit);
@@ -145,11 +144,7 @@ export class OutputManager {
   /**
    * Output Section 3 (EDA) results in the specified format
    */
-  outputSection3(
-    section3Report: string, 
-    result: Section3Result, 
-    filename?: string
-  ): string[] {
+  outputSection3(section3Report: string, result: Section3Result, filename?: string): string[] {
     const outputFiles: string[] = [];
 
     // Generate content based on format
@@ -161,12 +156,12 @@ export class OutputManager {
         content = this.formatSection3AsJSON(result);
         extension = '.json';
         break;
-      
+
       case 'yaml':
         content = this.formatSection3AsYAML(result);
         extension = '.yaml';
         break;
-      
+
       case 'markdown':
       default:
         content = section3Report;
@@ -212,11 +207,7 @@ export class OutputManager {
   /**
    * Output Section 4 (Visualization Intelligence) results in the specified format
    */
-  outputSection4(
-    section4Report: string, 
-    result: Section4Result, 
-    filename?: string
-  ): string[] {
+  outputSection4(section4Report: string, result: Section4Result, filename?: string): string[] {
     const outputFiles: string[] = [];
 
     // Generate content based on format
@@ -228,12 +219,12 @@ export class OutputManager {
         content = this.formatSection4AsJSON(result);
         extension = '.json';
         break;
-      
+
       case 'yaml':
         content = this.formatSection4AsYAML(result);
         extension = '.yaml';
         break;
-      
+
       case 'markdown':
       default:
         content = section4Report;
@@ -267,14 +258,18 @@ export class OutputManager {
       const recommendations = result.performanceMetrics?.recommendationsGenerated || 0;
       const chartTypes = result.performanceMetrics?.chartTypesConsidered || 0;
       const confidence = result.metadata?.recommendationConfidence || 0;
-      
+
       console.log('\n📊 Visualization Intelligence Quick Summary:');
-      console.log(`   • Generated ${recommendations} chart recommendations across ${chartTypes} types`);
+      console.log(
+        `   • Generated ${recommendations} chart recommendations across ${chartTypes} types`,
+      );
       console.log(`   • Overall confidence: ${(confidence * 100).toFixed(0)}%`);
       console.log(`   • Accessibility: WCAG 2.1 AA Ready`);
-      
+
       if (result.warnings && result.warnings.length > 0) {
-        const criticalWarnings = result.warnings.filter(w => w.severity === 'critical' || w.severity === 'high');
+        const criticalWarnings = result.warnings.filter(
+          (w) => w.severity === 'critical' || w.severity === 'high',
+        );
         if (criticalWarnings.length > 0) {
           console.log(`   ⚠️  ${criticalWarnings.length} critical considerations identified`);
         }
@@ -289,12 +284,12 @@ export class OutputManager {
    */
   outputValidation(filePath: string, isValid: boolean, errors: string[]): void {
     const filename = filePath.split('/').pop() || filePath;
-    
+
     if (isValid) {
       console.log(`✅ ${filename} is a valid CSV file`);
     } else {
       console.log(`❌ ${filename} has validation issues:`);
-      errors.forEach(error => console.log(`   • ${error}`));
+      errors.forEach((error) => console.log(`   • ${error}`));
     }
   }
 
@@ -357,7 +352,7 @@ export class OutputManager {
 
     for (const [key, value] of Object.entries(obj)) {
       yaml += `${spaces}${key}:`;
-      
+
       if (value === null || value === undefined) {
         yaml += ' null\n';
       } else if (typeof value === 'string') {
@@ -368,7 +363,7 @@ export class OutputManager {
         yaml += ` "${value.toISOString()}"\n`;
       } else if (Array.isArray(value)) {
         yaml += '\n';
-        value.forEach(item => {
+        value.forEach((item) => {
           if (typeof item === 'object') {
             yaml += `${spaces}  -\n${this.objectToYAML(item, indent + 2)}`;
           } else {
@@ -534,15 +529,17 @@ export class OutputManager {
       // Ensure directory exists
       const dir = dirname(filePath);
       mkdirSync(dir, { recursive: true });
-      
+
       // Write file
       writeFileSync(filePath, content, 'utf8');
-      
+
       if (!this.options.quiet) {
         console.log(`📄 Report written to: ${filePath}`);
       }
     } catch (error) {
-      throw new Error(`Failed to write output file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Failed to write output file: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
     }
   }
 
@@ -551,11 +548,11 @@ export class OutputManager {
    */
   private ensureExtension(filePath: string, expectedExtension: string): string {
     const currentExtension = extname(filePath);
-    
+
     if (currentExtension === expectedExtension) {
       return filePath;
     }
-    
+
     return filePath + expectedExtension;
   }
 

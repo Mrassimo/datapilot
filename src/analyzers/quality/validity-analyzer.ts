@@ -3,7 +3,7 @@
  * Validates data types, ranges, patterns, and business rules
  */
 
-import {
+import type {
   ValidityAnalysis,
   TypeConformance,
   RangeConformance,
@@ -208,7 +208,7 @@ export class ValidityAnalyzer {
       const value = this.data[rowIdx]?.[colIdx];
       if (this.isValidValue(value)) {
         validValues++;
-        const inferredType = this.inferValueType(value!);
+        const inferredType = this.inferValueType(value);
         typeCounts[inferredType] = (typeCounts[inferredType] || 0) + 1;
       }
     }
@@ -238,7 +238,7 @@ export class ValidityAnalyzer {
 
       if (this.isValidValue(value)) {
         validValueCount++;
-        const actualType = this.inferValueType(value!);
+        const actualType = this.inferValueType(value);
 
         if (actualType !== expectedType && !this.isCompatibleType(actualType, expectedType)) {
           nonConformingCount++;
@@ -436,7 +436,7 @@ export class ValidityAnalyzer {
     for (let rowIdx = 0; rowIdx < this.rowCount && values.length < maxSamples; rowIdx += step) {
       const value = this.data[rowIdx]?.[colIdx];
       if (this.isValidValue(value)) {
-        values.push(value!.trim());
+        values.push(value.trim());
       }
     }
 
@@ -481,9 +481,9 @@ export class ValidityAnalyzer {
     for (let rowIdx = 0; rowIdx < this.rowCount; rowIdx++) {
       const value = this.data[rowIdx]?.[colIdx];
 
-      if (this.isValidValue(value) && !regex.test(value!.trim())) {
+      if (this.isValidValue(value) && !regex.test(value.trim())) {
         if (violations.length < 10) {
-          violations.push(value!.trim());
+          violations.push(value.trim());
         }
       }
     }
@@ -500,7 +500,7 @@ export class ValidityAnalyzer {
     // In practice, business rules would need a more sophisticated parser
 
     const violations: any[] = [];
-    let totalDiscrepancy = 0;
+    const totalDiscrepancy = 0;
 
     // Example: Check if a calculation rule like "Total = Quantity * Price"
     if (rule.description.includes('EQUAL') && rule.description.includes('*')) {

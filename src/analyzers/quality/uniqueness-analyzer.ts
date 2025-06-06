@@ -3,7 +3,7 @@
  * Detects exact and semantic duplicates, analyzes cardinality
  */
 
-import {
+import type {
   UniquenessAnalysis,
   DuplicateRecord,
   KeyUniqueness,
@@ -108,7 +108,7 @@ export class UniquenessAnalyzer {
         const colIdx = this.headers.indexOf(keyName);
         return colIdx !== -1 ? colIdx : null;
       })
-      .filter((idx) => idx !== null) as number[];
+      .filter((idx) => idx !== null);
 
     // Also analyze columns that look like IDs
     const idLikeColumns = this.headers

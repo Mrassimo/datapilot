@@ -11,7 +11,7 @@ export class Section1Formatter {
    */
   formatReport(result: Section1Result): string {
     const { overview, warnings, performanceMetrics } = result;
-    
+
     const sections = [
       this.formatHeader(overview),
       this.formatFileDetails(overview),
@@ -30,7 +30,7 @@ export class Section1Formatter {
    */
   private formatHeader(overview: Section1Overview): string {
     const timestamp = overview.generatedAt.toISOString().replace('T', ' ').slice(0, 19) + ' (UTC)';
-    
+
     return `🤖 DATAPILOT COMPLETE ANALYSIS ENGINE
 ======================================
 Analysis Target: ${overview.fileDetails.originalFilename}
@@ -47,8 +47,9 @@ This section provides a detailed snapshot of the dataset properties, how it was 
    */
   private formatFileDetails(overview: Section1Overview): string {
     const { fileDetails } = overview;
-    const lastModified = fileDetails.lastModified.toISOString().replace('T', ' ').slice(0, 19) + ' (UTC)';
-    
+    const lastModified =
+      fileDetails.lastModified.toISOString().replace('T', ' ').slice(0, 19) + ' (UTC)';
+
     return `**1.1. Input Data File Details:**
     * Original Filename: \`${fileDetails.originalFilename}\`
     * Full Resolved Path: \`${fileDetails.fullResolvedPath}\`
@@ -64,12 +65,15 @@ This section provides a detailed snapshot of the dataset properties, how it was 
   private formatParsingParameters(overview: Section1Overview): string {
     const { parsingMetadata } = overview;
     const { encoding, delimiter, headerProcessing } = parsingMetadata;
-    
+
     const encodingConfidence = this.formatConfidence(encoding.confidence);
     const delimiterConfidence = this.formatConfidence(delimiter.confidence);
-    const lineEndingFormat = parsingMetadata.lineEnding === 'LF' ? 'LF (Unix-style)' : 'CRLF (Windows-style)';
-    const bomStatus = encoding.bomDetected ? `${encoding.bomType} Detected and Handled` : 'Not Detected';
-    
+    const lineEndingFormat =
+      parsingMetadata.lineEnding === 'LF' ? 'LF (Unix-style)' : 'CRLF (Windows-style)';
+    const bomStatus = encoding.bomDetected
+      ? `${encoding.bomType} Detected and Handled`
+      : 'Not Detected';
+
     return `**1.2. Data Ingestion & Parsing Parameters:**
     * Data Source Type: ${parsingMetadata.dataSourceType}
     * Parsing Engine Utilized: ${parsingMetadata.parsingEngine}
@@ -97,12 +101,13 @@ This section provides a detailed snapshot of the dataset properties, how it was 
   private formatStructuralDimensions(overview: Section1Overview): string {
     const { structuralDimensions } = overview;
     const { totalRowsRead, totalDataRows, totalColumns, totalDataCells } = structuralDimensions;
-    const { columnInventory, estimatedInMemorySizeMB, averageRowLengthBytes, sparsityAnalysis } = structuralDimensions;
-    
+    const { columnInventory, estimatedInMemorySizeMB, averageRowLengthBytes, sparsityAnalysis } =
+      structuralDimensions;
+
     const columnList = columnInventory
-      .map(col => `        ${col.index}.  (Index ${col.originalIndex}) \`${col.name}\``)
+      .map((col) => `        ${col.index}.  (Index ${col.originalIndex}) \`${col.name}\``)
       .join('\n');
-    
+
     return `**1.3. Dataset Structural Dimensions & Initial Profile:**
     * Total Rows Read (including header, if any): ${totalRowsRead.toLocaleString()}
     * Total Rows of Data (excluding header): ${totalDataRows.toLocaleString()}
@@ -120,9 +125,11 @@ ${columnList}
    */
   private formatExecutionContext(overview: Section1Overview): string {
     const { executionContext } = overview;
-    const startTime = executionContext.analysisStartTimestamp.toISOString().replace('T', ' ').slice(0, 19) + ' (UTC)';
+    const startTime =
+      executionContext.analysisStartTimestamp.toISOString().replace('T', ' ').slice(0, 19) +
+      ' (UTC)';
     const modulesList = executionContext.activatedModules.join(', ');
-    
+
     let contextSection = `**1.4. Analysis Configuration & Execution Context:**
     * Full Command Executed: \`${executionContext.fullCommandExecuted}\`
     * Analysis Mode Invoked: ${executionContext.analysisMode}
@@ -158,9 +165,12 @@ ${columnList}
 
     for (const [category, categoryWarnings] of Object.entries(warningsByCategory)) {
       const warningList = categoryWarnings
-        .map(w => `    * ${this.getSeverityIcon(w.severity)} ${w.message}${w.suggestion ? ` (Suggestion: ${w.suggestion})` : ''}`)
+        .map(
+          (w) =>
+            `    * ${this.getSeverityIcon(w.severity)} ${w.message}${w.suggestion ? ` (Suggestion: ${w.suggestion})` : ''}`,
+        )
         .join('\n');
-      
+
       sections.push(`**${this.capitalizeFirst(category)} Warnings:**\n${warningList}`);
     }
 
@@ -220,15 +230,20 @@ ${phaseList}`;
     return names[delimiter] || 'Custom';
   }
 
-  private groupWarningsByCategory(warnings: import('./types').Section1Warning[]): Record<string, import('./types').Section1Warning[]> {
-    return warnings.reduce((groups, warning) => {
-      const category = warning.category;
-      if (!groups[category]) {
-        groups[category] = [];
-      }
-      groups[category].push(warning);
-      return groups;
-    }, {} as Record<string, import('./types').Section1Warning[]>);
+  private groupWarningsByCategory(
+    warnings: import('./types').Section1Warning[],
+  ): Record<string, import('./types').Section1Warning[]> {
+    return warnings.reduce(
+      (groups, warning) => {
+        const category = warning.category;
+        if (!groups[category]) {
+          groups[category] = [];
+        }
+        groups[category].push(warning);
+        return groups;
+      },
+      {} as Record<string, import('./types').Section1Warning[]>,
+    );
   }
 
   private getSeverityIcon(severity: string): string {
@@ -250,7 +265,7 @@ ${phaseList}`;
   formatSummary(result: Section1Result): string {
     const { overview, performanceMetrics } = result;
     const { fileDetails, structuralDimensions } = overview;
-    
+
     return `📊 **Dataset Summary**
 • File: ${fileDetails.originalFilename} (${this.formatFileSize(fileDetails.fileSizeMB)})
 • Structure: ${structuralDimensions.totalDataRows.toLocaleString()} rows × ${structuralDimensions.totalColumns} columns
