@@ -27,6 +27,8 @@ import type {
   DataPreparationSteps,
   DesignGuidelines,
   ColorScheme,
+  CorrelationAnalysis,
+  AntiPatternDetection,
 } from './types';
 import {
   ChartType,
@@ -38,6 +40,9 @@ import {
   InteractivityLevel,
   PerformanceLevel,
   ResponsivenessLevel,
+  AntiPatternType,
+  AntiPatternSeverity,
+  RelationshipType,
 } from './types';
 import { EdaDataType } from '../eda/types';
 import { logger } from '../../utils/logger';
@@ -45,6 +50,7 @@ import { logger } from '../../utils/logger';
 export class Section4Analyzer {
   private config: Section4Config;
   private warnings: VisualizationWarning[] = [];
+  private antiPatterns: AntiPatternDetection[] = [];
 
   constructor(config: Partial<Section4Config> = {}) {
     this.config = {
@@ -324,9 +330,16 @@ export class Section4Analyzer {
         recommendations.push(...this.generateCategoricalRecommendations(columnAnalysis, cardinality));
     }
 
-    // Apply quality and accessibility filters
-    return recommendations
-      .filter(rec => this.meetsQualityThreshold(rec, completeness))
+    // Apply quality, accessibility filters, and anti-pattern detection
+    const filteredRecommendations = recommendations
+      .filter(rec => this.meetsQualityThreshold(rec, completeness));
+    
+    const enhancedRecommendations = this.applyAntiPatternDetection(
+      filteredRecommendations, 
+      { cardinality, completeness, dataType }
+    );
+
+    return enhancedRecommendations
       .slice(0, this.config.maxRecommendationsPerChart)
       .sort((a, b) => b.confidence - a.confidence);
   }
@@ -390,6 +403,27 @@ export class Section4Analyzer {
         libraryRecommendations: this.getLibraryRecommendations(ChartType.DENSITY_PLOT),
         dataPreparation: this.createNumericalDataPreparation(columnAnalysis),
         designGuidelines: this.createDesignGuidelines(ChartType.DENSITY_PLOT),
+      });
+    }
+
+    // Enhanced Violin Plot with Embedded Box Plot (per specification)
+    if (columnAnalysis.totalValues > 200) {
+      const priority = distribution && distribution.outliers.impact === 'high' ? 
+        RecommendationPriority.PRIMARY : RecommendationPriority.SECONDARY;
+      
+      recommendations.push({
+        chartType: ChartType.VIOLIN_WITH_BOX,
+        purpose: ChartPurpose.DISTRIBUTION,
+        priority,
+        confidence: 0.88,
+        reasoning: 'Violin plot with embedded box plot provides rich distributional comparison showing probability density, median, quartiles, and outliers simultaneously',
+        encoding: this.createViolinWithBoxEncoding(columnAnalysis),
+        interactivity: this.createAdvancedInteractivity(),
+        accessibility: this.createAccessibilityGuidance(ChartType.VIOLIN_WITH_BOX),
+        performance: this.createPerformanceConsiderations(ChartType.VIOLIN_WITH_BOX),
+        libraryRecommendations: this.getLibraryRecommendations(ChartType.VIOLIN_WITH_BOX),
+        dataPreparation: this.createNumericalDataPreparation(columnAnalysis),
+        designGuidelines: this.createDesignGuidelines(ChartType.VIOLIN_WITH_BOX),
       });
     }
 
@@ -540,21 +574,305 @@ export class Section4Analyzer {
   }
 
   /**
-   * Generate bivariate recommendations (placeholder)
+   * Generate bivariate recommendations with correlation analysis
    */
-  private generateBivariateRecommendations(_section3Result: Section3Result): BivariateVisualizationProfile[] {
-    // Implementation would analyze correlations and relationships from Section 3
-    // and generate appropriate bivariate chart recommendations
-    return [];
+  private generateBivariateRecommendations(section3Result: Section3Result): BivariateVisualizationProfile[] {
+    const profiles: BivariateVisualizationProfile[] = [];
+
+    if (!section3Result.edaAnalysis?.bivariateAnalysis?.numericalVsNumerical?.correlationPairs) {
+      logger.info('No correlation data available for bivariate analysis');
+      return profiles;
+    }
+
+    // Extract correlation data from Section 3 results
+    const correlations = this.extractCorrelations(section3Result);
+    
+    // Filter for significant correlations (|r| > 0.3 and p < 0.05)
+    const significantCorrelations = correlations.filter(corr => 
+      Math.abs(corr.strength) > 0.3 && corr.significance < 0.05
+    );
+
+    // Generate recommendations for each significant correlation
+    for (const correlation of significantCorrelations) {
+      const profile = this.createBivariateProfile(correlation, section3Result);
+      if (profile) {
+        profiles.push(profile);
+      }
+    }
+
+    // Sort by correlation strength (descending)
+    profiles.sort((a, b) => Math.abs(b.strength) - Math.abs(a.strength));
+
+    return profiles.slice(0, 10); // Limit to top 10 relationships
   }
 
   /**
-   * Generate multivariate recommendations (placeholder)
+   * Extract correlation data from Section 3 results
    */
-  private generateMultivariateRecommendations(_section3Result: Section3Result): MultivariateRecommendation[] {
-    // Implementation would analyze multivariate relationships
-    // and recommend complex visualizations like parallel coordinates, PCA biplots, etc.
-    return [];
+  private extractCorrelations(section3Result: Section3Result): CorrelationAnalysis[] {
+    const correlations: CorrelationAnalysis[] = [];
+    const correlationPairs = section3Result.edaAnalysis?.bivariateAnalysis?.numericalVsNumerical?.correlationPairs;
+    
+    if (!correlationPairs) {
+      return correlations;
+    }
+
+    // Parse correlation pairs to extract pairwise correlations
+    for (const correlation of correlationPairs) {
+      const analysis: CorrelationAnalysis = {
+        variable1: correlation.variable1,
+        variable2: correlation.variable2,
+        correlationType: 'pearson', // Default from Section 3
+        strength: correlation.correlation,
+        significance: correlation.pValue || 0.05,
+        confidenceInterval: [correlation.correlation - 0.1, correlation.correlation + 0.1],
+        relationshipType: this.determineRelationshipType(correlation.correlation),
+        visualizationSuitability: this.calculateVisualizationSuitability(correlation),
+      };
+      
+      correlations.push(analysis);
+    }
+
+    return correlations;
+  }
+
+  /**
+   * Create bivariate visualization profile for a correlation
+   */
+  private createBivariateProfile(
+    correlation: CorrelationAnalysis, 
+    section3Result: Section3Result
+  ): BivariateVisualizationProfile | null {
+    
+    // Get data types for both variables
+    const var1Data = this.getVariableData(correlation.variable1, section3Result);
+    const var2Data = this.getVariableData(correlation.variable2, section3Result);
+    
+    if (!var1Data || !var2Data) {
+      return null;
+    }
+
+    // Generate chart recommendations based on data types and correlation
+    const recommendations = this.generateBivariateChartRecommendations(
+      correlation, var1Data, var2Data
+    );
+
+    return {
+      variable1: correlation.variable1,
+      variable2: correlation.variable2,
+      relationshipType: this.mapRelationshipType(var1Data.dataType, var2Data.dataType, correlation.relationshipType),
+      strength: correlation.strength,
+      significance: correlation.significance,
+      recommendations,
+      dataPreparation: this.createBivariateDataPreparation(),
+    };
+  }
+
+  /**
+   * Generate chart recommendations for bivariate relationships
+   */
+  private generateBivariateChartRecommendations(
+    correlation: CorrelationAnalysis,
+    var1Data: any,
+    var2Data: any
+  ): ChartRecommendation[] {
+    const recommendations: ChartRecommendation[] = [];
+    
+    const isVar1Numerical = this.isNumericalType(var1Data.dataType);
+    const isVar2Numerical = this.isNumericalType(var2Data.dataType);
+    const isVar1Categorical = var1Data.dataType === EdaDataType.CATEGORICAL;
+    const isVar2Categorical = var2Data.dataType === EdaDataType.CATEGORICAL;
+
+    // Numerical vs Numerical - Scatter plot with correlation
+    if (isVar1Numerical && isVar2Numerical) {
+      recommendations.push({
+        chartType: ChartType.SCATTER_PLOT,
+        purpose: ChartPurpose.RELATIONSHIP,
+        priority: RecommendationPriority.PRIMARY,
+        confidence: 0.9,
+        reasoning: `Scatter plot ideal for showing ${correlation.relationshipType.replace('_', ' ')} relationship (r=${correlation.strength.toFixed(3)})`,
+        encoding: this.createScatterPlotEncoding(correlation.variable1, correlation.variable2),
+        interactivity: this.createAdvancedInteractivity(),
+        accessibility: this.createAccessibilityGuidance(ChartType.SCATTER_PLOT),
+        performance: this.createPerformanceConsiderations(ChartType.SCATTER_PLOT),
+        libraryRecommendations: this.getLibraryRecommendations(ChartType.SCATTER_PLOT),
+        dataPreparation: this.createBivariateDataPreparation(),
+        designGuidelines: this.createDesignGuidelines(ChartType.SCATTER_PLOT),
+      });
+
+      // Add regression line if strong linear relationship
+      if (Math.abs(correlation.strength) > 0.7 && 
+          (correlation.relationshipType === RelationshipType.LINEAR_POSITIVE || 
+           correlation.relationshipType === RelationshipType.LINEAR_NEGATIVE)) {
+        recommendations.push({
+          chartType: ChartType.REGRESSION_PLOT,
+          purpose: ChartPurpose.RELATIONSHIP,
+          priority: RecommendationPriority.SECONDARY,
+          confidence: 0.85,
+          reasoning: 'Regression plot with confidence intervals shows linear trend and prediction uncertainty',
+          encoding: this.createRegressionPlotEncoding(correlation.variable1, correlation.variable2),
+          interactivity: this.createAdvancedInteractivity(),
+          accessibility: this.createAccessibilityGuidance(ChartType.REGRESSION_PLOT),
+          performance: this.createPerformanceConsiderations(ChartType.REGRESSION_PLOT),
+          libraryRecommendations: this.getLibraryRecommendations(ChartType.REGRESSION_PLOT),
+          dataPreparation: this.createBivariateDataPreparation(),
+          designGuidelines: this.createDesignGuidelines(ChartType.REGRESSION_PLOT),
+        });
+      }
+    }
+
+    // Categorical vs Numerical - Grouped visualizations
+    if ((isVar1Categorical && isVar2Numerical) || (isVar1Numerical && isVar2Categorical)) {
+      const categoricalVar = isVar1Categorical ? correlation.variable1 : correlation.variable2;
+      const numericalVar = isVar1Numerical ? correlation.variable1 : correlation.variable2;
+      const cardinality = isVar1Categorical ? var1Data.cardinality : var2Data.cardinality;
+
+      // Box plot by group - excellent for comparing distributions
+      recommendations.push({
+        chartType: ChartType.BOX_PLOT_BY_GROUP,
+        purpose: ChartPurpose.COMPARISON,
+        priority: RecommendationPriority.PRIMARY,
+        confidence: 0.88,
+        reasoning: `Box plots by ${categoricalVar} effectively compare ${numericalVar} distributions across groups`,
+        encoding: this.createGroupedBoxPlotEncoding(categoricalVar, numericalVar),
+        interactivity: this.createAdvancedInteractivity(),
+        accessibility: this.createAccessibilityGuidance(ChartType.BOX_PLOT_BY_GROUP),
+        performance: this.createPerformanceConsiderations(ChartType.BOX_PLOT_BY_GROUP),
+        libraryRecommendations: this.getLibraryRecommendations(ChartType.BOX_PLOT_BY_GROUP),
+        dataPreparation: this.createBivariateDataPreparation(),
+        designGuidelines: this.createDesignGuidelines(ChartType.BOX_PLOT_BY_GROUP),
+      });
+
+      // Violin plot for detailed distribution comparison
+      if (cardinality <= 8) {
+        recommendations.push({
+          chartType: ChartType.VIOLIN_BY_GROUP,
+          purpose: ChartPurpose.COMPARISON,
+          priority: RecommendationPriority.SECONDARY,
+          confidence: 0.82,
+          reasoning: `Violin plots show detailed distribution shapes for ${numericalVar} across ${categoricalVar} groups`,
+          encoding: this.createGroupedViolinEncoding(categoricalVar, numericalVar),
+          interactivity: this.createAdvancedInteractivity(),
+          accessibility: this.createAccessibilityGuidance(ChartType.VIOLIN_BY_GROUP),
+          performance: this.createPerformanceConsiderations(ChartType.VIOLIN_BY_GROUP),
+          libraryRecommendations: this.getLibraryRecommendations(ChartType.VIOLIN_BY_GROUP),
+          dataPreparation: this.createBivariateDataPreparation(),
+          designGuidelines: this.createDesignGuidelines(ChartType.VIOLIN_BY_GROUP),
+        });
+      }
+    }
+
+    // Categorical vs Categorical - Association visualizations
+    if (isVar1Categorical && isVar2Categorical) {
+      recommendations.push({
+        chartType: ChartType.HEATMAP,
+        purpose: ChartPurpose.RELATIONSHIP,
+        priority: RecommendationPriority.PRIMARY,
+        confidence: 0.85,
+        reasoning: `Heatmap effectively shows association patterns between ${correlation.variable1} and ${correlation.variable2}`,
+        encoding: this.createCategoricalHeatmapEncoding(correlation.variable1, correlation.variable2),
+        interactivity: this.createAdvancedInteractivity(),
+        accessibility: this.createAccessibilityGuidance(ChartType.HEATMAP),
+        performance: this.createPerformanceConsiderations(ChartType.HEATMAP),
+        libraryRecommendations: this.getLibraryRecommendations(ChartType.HEATMAP),
+        dataPreparation: this.createBivariateDataPreparation(),
+        designGuidelines: this.createDesignGuidelines(ChartType.HEATMAP),
+      });
+
+      // Mosaic plot for proportional relationships
+      if (var1Data.cardinality <= 6 && var2Data.cardinality <= 6) {
+        recommendations.push({
+          chartType: ChartType.MOSAIC_PLOT,
+          purpose: ChartPurpose.COMPOSITION,
+          priority: RecommendationPriority.ALTERNATIVE,
+          confidence: 0.75,
+          reasoning: 'Mosaic plot shows proportional relationships and cell contributions to overall association',
+          encoding: this.createMosaicPlotEncoding(correlation.variable1, correlation.variable2),
+          interactivity: this.createAdvancedInteractivity(),
+          accessibility: this.createAccessibilityGuidance(ChartType.MOSAIC_PLOT),
+          performance: this.createPerformanceConsiderations(ChartType.MOSAIC_PLOT),
+          libraryRecommendations: this.getLibraryRecommendations(ChartType.MOSAIC_PLOT),
+          dataPreparation: this.createBivariateDataPreparation(),
+          designGuidelines: this.createDesignGuidelines(ChartType.MOSAIC_PLOT),
+        });
+      }
+    }
+
+    return recommendations;
+  }
+
+  /**
+   * Generate multivariate recommendations with advanced chart types
+   */
+  private generateMultivariateRecommendations(section3Result: Section3Result): MultivariateRecommendation[] {
+    const recommendations: MultivariateRecommendation[] = [];
+    
+    if (!section3Result.edaAnalysis?.univariateAnalysis) {
+      return recommendations;
+    }
+
+    const numericalColumns = section3Result.edaAnalysis.univariateAnalysis
+      .filter(col => this.isNumericalType(col.detectedDataType));
+    
+    const categoricalColumns = section3Result.edaAnalysis.univariateAnalysis
+      .filter(col => col.detectedDataType === EdaDataType.CATEGORICAL);
+
+    // Parallel coordinates for multiple numerical variables
+    if (numericalColumns.length >= 3) {
+      recommendations.push({
+        variables: numericalColumns.slice(0, 6).map(col => col.columnName),
+        purpose: 'Compare multiple numerical variables simultaneously and identify multivariate patterns',
+        chartType: ChartType.PARALLEL_COORDINATES,
+        complexity: ComplexityLevel.MODERATE,
+        prerequisites: ['Data normalization', 'Handle missing values'],
+        implementation: 'Use D3.js or Observable Plot for interactive parallel coordinates with brushing',
+        alternatives: [ChartType.RADAR_CHART, ChartType.SCATTERPLOT_MATRIX],
+      });
+    }
+
+    // Correlation matrix for numerical variables
+    if (numericalColumns.length >= 4) {
+      recommendations.push({
+        variables: numericalColumns.map(col => col.columnName),
+        purpose: 'Visualize pairwise correlations across all numerical variables',
+        chartType: ChartType.CORRELATION_MATRIX,
+        complexity: ComplexityLevel.SIMPLE,
+        prerequisites: ['Compute correlation coefficients', 'Handle missing data'],
+        implementation: 'Create heatmap with correlation values and significance indicators',
+        alternatives: [ChartType.SCATTERPLOT_MATRIX],
+      });
+    }
+
+    // Scatterplot matrix (SPLOM) for detailed pairwise relationships
+    if (numericalColumns.length >= 3 && numericalColumns.length <= 8) {
+      recommendations.push({
+        variables: numericalColumns.map(col => col.columnName),
+        purpose: 'Show detailed pairwise relationships and distributions in matrix layout',
+        chartType: ChartType.SCATTERPLOT_MATRIX,
+        complexity: ComplexityLevel.COMPLEX,
+        prerequisites: ['Manageable number of variables (≤8)', 'Sufficient data points'],
+        implementation: 'Interactive matrix with brushing and linking across panels',
+        alternatives: [ChartType.PARALLEL_COORDINATES, ChartType.CORRELATION_MATRIX],
+      });
+    }
+
+    // Radar chart for categorical comparisons across multiple metrics
+    if (numericalColumns.length >= 3 && categoricalColumns.length >= 1) {
+      const categoryCol = categoricalColumns[0];
+      if (categoryCol.uniqueValues <= 6) {
+        recommendations.push({
+          variables: [categoryCol.columnName, ...numericalColumns.slice(0, 6).map(col => col.columnName)],
+          purpose: `Compare ${categoryCol.columnName} categories across multiple numerical dimensions`,
+          chartType: ChartType.RADAR_CHART,
+          complexity: ComplexityLevel.MODERATE,
+          prerequisites: ['Normalize numerical variables to similar scales', 'Limited categories (≤6)'],
+          implementation: 'Multi-series radar chart with clear category distinction',
+          alternatives: [ChartType.PARALLEL_COORDINATES, ChartType.GROUPED_BAR],
+        });
+      }
+    }
+
+    return recommendations;
   }
 
   /**
@@ -1066,5 +1384,513 @@ export class Section4Analyzer {
       printSafe: true,
       colorBlindSafe: true,
     };
+  }
+
+  // ===== ADVANCED ANALYSIS HELPER METHODS =====
+
+  private determineRelationshipType(coefficient: number): RelationshipType {
+    if (Math.abs(coefficient) < 0.1) return RelationshipType.NO_RELATIONSHIP;
+    if (coefficient > 0.1) return RelationshipType.LINEAR_POSITIVE;
+    if (coefficient < -0.1) return RelationshipType.LINEAR_NEGATIVE;
+    return RelationshipType.NON_LINEAR;
+  }
+
+  private calculateVisualizationSuitability(correlation: any): number {
+    // Higher suitability for stronger correlations and lower p-values
+    const strengthScore = Math.abs(correlation.correlation || correlation.coefficient || 0);
+    const significanceScore = Math.max(0, 1 - (correlation.pValue || 0.05));
+    return (strengthScore * 0.7 + significanceScore * 0.3);
+  }
+
+  private mapRelationshipType(dataType1: string, dataType2: string, _originalType: string): 'numerical_numerical' | 'numerical_categorical' | 'categorical_categorical' | 'temporal_numerical' | 'temporal_categorical' {
+    const isNumerical1 = this.isNumericalType(dataType1);
+    const isNumerical2 = this.isNumericalType(dataType2);
+    const isCategorical1 = dataType1 === EdaDataType.CATEGORICAL;
+    const isCategorical2 = dataType2 === EdaDataType.CATEGORICAL;
+    const isTemporal1 = dataType1 === EdaDataType.DATE_TIME;
+    const isTemporal2 = dataType2 === EdaDataType.DATE_TIME;
+
+    if (isNumerical1 && isNumerical2) return 'numerical_numerical';
+    if (isCategorical1 && isCategorical2) return 'categorical_categorical';
+    if ((isNumerical1 && isCategorical2) || (isCategorical1 && isNumerical2)) return 'numerical_categorical';
+    if ((isTemporal1 && isNumerical2) || (isNumerical1 && isTemporal2)) return 'temporal_numerical';
+    if ((isTemporal1 && isCategorical2) || (isCategorical1 && isTemporal2)) return 'temporal_categorical';
+    
+    // Default fallback
+    return 'numerical_numerical';
+  }
+
+  private getVariableData(variableName: string, section3Result: Section3Result): any {
+    const univariateAnalysis = section3Result.edaAnalysis?.univariateAnalysis;
+    if (!univariateAnalysis) return null;
+    
+    return univariateAnalysis.find(col => col.columnName === variableName);
+  }
+
+
+  private createAdvancedInteractivity(): InteractivityOptions {
+    return {
+      level: 'advanced',
+      interactions: ['hover', 'tooltip', 'zoom', 'brush', 'click'],
+      responsiveness: ResponsivenessLevel.RESPONSIVE,
+      keyboard: {
+        navigation: true,
+        shortcuts: {
+          'space': 'Toggle selection',
+          'r': 'Reset zoom',
+          'h': 'Toggle help'
+        },
+        focusManagement: true,
+      },
+      screenReader: {
+        ariaLabels: {
+          'main': 'Interactive chart showing relationship between variables',
+          'tooltip': 'Data point details'
+        },
+        alternativeText: 'Detailed data table available below chart',
+        dataTable: true,
+      },
+    } as InteractivityOptions;
+  }
+
+  private createBivariateDataPreparation(): DataPreparationSteps {
+    return {
+      required: [
+        {
+          step: 'Handle missing values',
+          description: 'Remove or impute missing data points that would break relationships',
+          importance: 'critical'
+        },
+        {
+          step: 'Check data distribution',
+          description: 'Verify both variables have reasonable distributions for visualization',
+          importance: 'recommended'
+        }
+      ],
+      optional: [
+        {
+          step: 'Scale normalization',
+          description: 'Normalize scales if variables have very different ranges',
+          importance: 'optional'
+        }
+      ],
+      qualityChecks: [
+        {
+          check: 'Sufficient data points',
+          description: 'Ensure adequate sample size for meaningful relationships',
+          remediation: 'Collect more data or use caution in interpretation'
+        }
+      ],
+      aggregations: []
+    };
+  }
+
+  // ===== ADVANCED ENCODING METHODS =====
+
+  private createScatterPlotEncoding(var1: string, var2: string): VisualEncoding {
+    return {
+      xAxis: {
+        variable: var1,
+        scale: 'linear',
+        label: var1,
+        gridLines: true,
+        zeroLine: false,
+      },
+      yAxis: {
+        variable: var2,
+        scale: 'linear',
+        label: var2,
+        gridLines: true,
+        zeroLine: false,
+      },
+      color: {
+        variable: 'density',
+        scheme: this.getDefaultColorScheme('sequential'),
+        accessibility: {
+          contrastRatio: 4.5,
+          alternativeEncoding: 'size',
+          wcagLevel: 'AA',
+          colorBlindSupport: true,
+        },
+      },
+      layout: {
+        width: 'responsive',
+        height: 400,
+        margins: { top: 20, right: 30, bottom: 50, left: 60 },
+      },
+    };
+  }
+
+  private createRegressionPlotEncoding(var1: string, var2: string): VisualEncoding {
+    return {
+      xAxis: {
+        variable: var1,
+        scale: 'linear',
+        label: var1,
+        gridLines: true,
+        zeroLine: false,
+      },
+      yAxis: {
+        variable: var2,
+        scale: 'linear',
+        label: var2,
+        gridLines: true,
+        zeroLine: false,
+      },
+      color: {
+        variable: 'confidence',
+        scheme: this.getDefaultColorScheme('sequential'),
+        accessibility: {
+          contrastRatio: 4.5,
+          alternativeEncoding: 'size',
+          wcagLevel: 'AA',
+          colorBlindSupport: true,
+        },
+      },
+      layout: {
+        width: 'responsive',
+        height: 400,
+        margins: { top: 20, right: 30, bottom: 50, left: 60 },
+      },
+      annotations: [
+        {
+          type: 'line',
+          content: 'regression line',
+          position: { x: 0, y: 0 },
+          styling: { stroke: '#333', strokeWidth: 2 },
+          purpose: 'show trend'
+        },
+        {
+          type: 'text',
+          content: 'confidence interval',
+          position: { x: 0, y: 0 },
+          styling: { fill: '#666', fontSize: 12 },
+          purpose: 'show uncertainty'
+        },
+        {
+          type: 'text',
+          content: 'R² value',
+          position: { x: 0, y: 0 },
+          styling: { fill: '#333', fontSize: 14 },
+          purpose: 'show fit quality'
+        }
+      ]
+    };
+  }
+
+  private createGroupedBoxPlotEncoding(categoricalVar: string, numericalVar: string): VisualEncoding {
+    return {
+      xAxis: {
+        variable: categoricalVar,
+        scale: 'band',
+        label: categoricalVar,
+        gridLines: false,
+        zeroLine: false,
+      },
+      yAxis: {
+        variable: numericalVar,
+        scale: 'linear',
+        label: numericalVar,
+        gridLines: true,
+        zeroLine: false,
+      },
+      color: {
+        variable: categoricalVar,
+        scheme: this.getDefaultColorScheme('categorical'),
+        accessibility: {
+          contrastRatio: 4.5,
+          alternativeEncoding: 'pattern',
+          wcagLevel: 'AA',
+          colorBlindSupport: true,
+        },
+      },
+      layout: {
+        width: 'responsive',
+        height: 400,
+        margins: { top: 20, right: 30, bottom: 60, left: 60 },
+      },
+    };
+  }
+
+  private createGroupedViolinEncoding(categoricalVar: string, numericalVar: string): VisualEncoding {
+    return {
+      xAxis: {
+        variable: categoricalVar,
+        scale: 'band',
+        label: categoricalVar,
+        gridLines: false,
+        zeroLine: false,
+      },
+      yAxis: {
+        variable: numericalVar,
+        scale: 'linear',
+        label: numericalVar,
+        gridLines: true,
+        zeroLine: false,
+      },
+      color: {
+        variable: categoricalVar,
+        scheme: this.getDefaultColorScheme('categorical'),
+        accessibility: {
+          contrastRatio: 4.5,
+          alternativeEncoding: 'pattern',
+          wcagLevel: 'AA',
+          colorBlindSupport: true,
+        },
+      },
+      layout: {
+        width: 'responsive',
+        height: 400,
+        margins: { top: 20, right: 30, bottom: 60, left: 60 },
+      }
+    };
+  }
+
+  private createCategoricalHeatmapEncoding(var1: string, var2: string): VisualEncoding {
+    return {
+      xAxis: {
+        variable: var1,
+        scale: 'band',
+        label: var1,
+        gridLines: false,
+        zeroLine: false,
+      },
+      yAxis: {
+        variable: var2,
+        scale: 'band',
+        label: var2,
+        gridLines: false,
+        zeroLine: false,
+      },
+      color: {
+        variable: 'frequency',
+        scheme: this.getDefaultColorScheme('sequential'),
+        accessibility: {
+          contrastRatio: 4.5,
+          alternativeEncoding: 'size',
+          wcagLevel: 'AA',
+          colorBlindSupport: true,
+        },
+      },
+      layout: {
+        width: 'responsive',
+        height: 400,
+        margins: { top: 20, right: 80, bottom: 60, left: 80 },
+      },
+      legend: {
+        position: 'right',
+        orientation: 'vertical',
+        title: 'Frequency',
+        interactive: true,
+      }
+    };
+  }
+
+  private createMosaicPlotEncoding(var1: string, var2: string): VisualEncoding {
+    return {
+      layout: {
+        width: 'responsive',
+        height: 400,
+        margins: { top: 20, right: 30, bottom: 60, left: 60 },
+      },
+      color: {
+        variable: 'residual',
+        scheme: this.getDefaultColorScheme('diverging'),
+        accessibility: {
+          contrastRatio: 4.5,
+          alternativeEncoding: 'pattern',
+          wcagLevel: 'AA',
+          colorBlindSupport: true,
+        },
+      },
+      annotations: [
+        {
+          type: 'text',
+          content: `${var1} categories`,
+          position: { x: 0, y: 0 },
+          styling: { fill: '#333', fontSize: 12 },
+          purpose: 'label axis'
+        },
+        {
+          type: 'text',
+          content: `${var2} categories`,
+          position: { x: 0, y: 0 },
+          styling: { fill: '#333', fontSize: 12 },
+          purpose: 'label axis'
+        },
+        {
+          type: 'text',
+          content: 'cell proportions',
+          position: { x: 0, y: 0 },
+          styling: { fill: '#666', fontSize: 10 },
+          purpose: 'explain encoding'
+        }
+      ]
+    };
+  }
+
+  private createViolinWithBoxEncoding(columnAnalysis: any): VisualEncoding {
+    return {
+      yAxis: {
+        variable: columnAnalysis.columnName,
+        scale: 'linear',
+        label: columnAnalysis.columnName,
+        gridLines: true,
+        zeroLine: false,
+      },
+      color: {
+        variable: 'density',
+        scheme: this.getDefaultColorScheme('sequential'),
+        accessibility: {
+          contrastRatio: 4.5,
+          alternativeEncoding: 'size',
+          wcagLevel: 'AA',
+          colorBlindSupport: true,
+        },
+      },
+      layout: {
+        width: 350,
+        height: 450,
+        margins: { top: 20, right: 30, bottom: 40, left: 60 },
+      }
+    };
+  }
+
+  // ===== ANTI-PATTERN DETECTION =====
+
+  private detectAntiPatterns(recommendation: ChartRecommendation, columnData: any): AntiPatternDetection[] {
+    const antiPatterns: AntiPatternDetection[] = [];
+
+    // Pie chart with too many categories
+    if (recommendation.chartType === ChartType.PIE_CHART && columnData.cardinality > 7) {
+      antiPatterns.push({
+        type: AntiPatternType.PIE_CHART_TOO_MANY_CATEGORIES,
+        severity: AntiPatternSeverity.HIGH,
+        description: `Pie chart with ${columnData.cardinality} categories exceeds optimal limit of 5-7 categories`,
+        recommendation: 'Use horizontal bar chart instead for better comparability',
+        affectedChart: ChartType.PIE_CHART,
+        evidence: [`${columnData.cardinality} unique categories detected`, 'Pie charts become difficult to read with >7 slices'],
+        remediation: [
+          {
+            action: 'Replace with horizontal bar chart',
+            description: 'Bar charts allow easier comparison of categorical data',
+            priority: 'immediate'
+          },
+          {
+            action: 'Group smaller categories into "Other"',
+            description: 'Reduce category count to ≤6 meaningful groups',
+            priority: 'soon'
+          }
+        ]
+      });
+    }
+
+    // Y-axis not starting at zero for magnitude comparisons
+    if ((recommendation.chartType === ChartType.BAR_CHART || recommendation.chartType === ChartType.HORIZONTAL_BAR) && 
+        recommendation.purpose === ChartPurpose.COMPARISON) {
+      antiPatterns.push({
+        type: AntiPatternType.Y_AXIS_NOT_ZERO,
+        severity: AntiPatternSeverity.MEDIUM,
+        description: 'Bar charts for magnitude comparison should start Y-axis at zero to avoid misleading proportions',
+        recommendation: 'Ensure Y-axis baseline starts at zero for accurate visual comparison',
+        affectedChart: recommendation.chartType,
+        evidence: ['Bar chart used for magnitude comparison', 'Cleveland & McGill: position on common scale principle'],
+        remediation: [
+          {
+            action: 'Set Y-axis minimum to zero',
+            description: 'Prevents visual distortion of proportional relationships',
+            priority: 'immediate'
+          }
+        ]
+      });
+    }
+
+    // High cardinality causing performance and readability issues
+    if (columnData.cardinality > 50) {
+      const severity = columnData.cardinality > 200 ? AntiPatternSeverity.HIGH : AntiPatternSeverity.MEDIUM;
+      
+      antiPatterns.push({
+        type: AntiPatternType.OVERCOMPLICATED_VISUALIZATION,
+        severity,
+        description: `High cardinality (${columnData.cardinality} categories) may cause performance issues and reduced readability`,
+        recommendation: 'Consider aggregation, filtering, or alternative visualization approaches',
+        affectedChart: recommendation.chartType,
+        evidence: [`${columnData.cardinality} unique values detected`, 'Performance degradation likely'],
+        remediation: [
+          {
+            action: 'Implement data aggregation',
+            description: 'Group rare categories or apply top-N filtering',
+            priority: 'soon'
+          },
+          {
+            action: 'Consider alternative chart types',
+            description: 'Use treemap, word cloud, or hierarchical visualizations',
+            priority: 'eventually'
+          }
+        ]
+      });
+    }
+
+    // Missing context for standalone charts
+    if (!recommendation.encoding.layout || !recommendation.encoding.layout.margins) {
+      antiPatterns.push({
+        type: AntiPatternType.MISSING_CONTEXT,
+        severity: AntiPatternSeverity.LOW,
+        description: 'Chart lacks sufficient contextual information (title, axes labels, legends)',
+        recommendation: 'Add comprehensive labeling and contextual information',
+        affectedChart: recommendation.chartType,
+        evidence: ['Missing layout specifications', 'Insufficient labeling detected'],
+        remediation: [
+          {
+            action: 'Add descriptive title and axis labels',
+            description: 'Provide clear context for data interpretation',
+            priority: 'soon'
+          },
+          {
+            action: 'Include data source and methodology',
+            description: 'Enable reproducibility and trust',
+            priority: 'eventually'
+          }
+        ]
+      });
+    }
+
+    return antiPatterns;
+  }
+
+  private applyAntiPatternDetection(
+    recommendations: ChartRecommendation[], 
+    columnData: any
+  ): ChartRecommendation[] {
+    const enhancedRecommendations: ChartRecommendation[] = [];
+
+    for (const recommendation of recommendations) {
+      const antiPatterns = this.detectAntiPatterns(recommendation, columnData);
+      
+      // Demote recommendations with critical anti-patterns
+      const criticalAntiPatterns = antiPatterns.filter(ap => 
+        ap.severity === AntiPatternSeverity.CRITICAL || ap.severity === AntiPatternSeverity.HIGH
+      );
+
+      if (criticalAntiPatterns.length > 0) {
+        // Lower confidence and priority for problematic recommendations
+        recommendation.confidence = Math.max(0.3, recommendation.confidence - 0.3);
+        if (recommendation.priority === RecommendationPriority.PRIMARY) {
+          recommendation.priority = RecommendationPriority.SECONDARY;
+        } else if (recommendation.priority === RecommendationPriority.SECONDARY) {
+          recommendation.priority = RecommendationPriority.ALTERNATIVE;
+        }
+
+        // Add warning to reasoning
+        recommendation.reasoning += ` ⚠️ Note: ${criticalAntiPatterns.length} design concern(s) detected.`;
+      }
+
+      // Store anti-patterns for reporting
+      this.antiPatterns.push(...antiPatterns);
+      
+      enhancedRecommendations.push(recommendation);
+    }
+
+    return enhancedRecommendations;
   }
 }
