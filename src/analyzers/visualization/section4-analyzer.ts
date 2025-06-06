@@ -617,9 +617,16 @@ export class Section4Analyzer {
     // Extract correlation data from Section 3 results
     const correlations = this.extractCorrelations(section3Result);
 
-    // Filter for significant correlations (|r| > 0.3 and p < 0.05)
+    // Filter for meaningful correlations - exclude ID field and use more practical thresholds
     const significantCorrelations = correlations.filter(
-      (corr) => Math.abs(corr.strength) > 0.3 && corr.significance < 0.05,
+      (corr) => 
+        // Exclude ID field from visualization recommendations
+        !corr.variable1.toLowerCase().includes('id') && 
+        !corr.variable2.toLowerCase().includes('id') &&
+        // Use more practical correlation threshold for medical data
+        Math.abs(corr.strength) > 0.2 && 
+        // Be more lenient with p-values
+        corr.significance <= 0.1,
     );
 
     // Generate recommendations for each significant correlation
@@ -655,7 +662,7 @@ export class Section4Analyzer {
         variable2: correlation.variable2,
         correlationType: 'pearson', // Default from Section 3
         strength: correlation.correlation,
-        significance: correlation.pValue || 0.05,
+        significance: correlation.pValue || 0.01,
         confidenceInterval: [correlation.correlation - 0.1, correlation.correlation + 0.1],
         relationshipType: this.determineRelationshipType(correlation.correlation),
         visualizationSuitability: this.calculateVisualizationSuitability(correlation),

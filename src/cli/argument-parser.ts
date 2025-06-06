@@ -79,6 +79,7 @@ export class ArgumentParser {
     // Section-specific commands
     this.program
       .command('overview')
+      .alias('ove')
       .argument('<file>', 'CSV file to analyze')
       .description('Generate dataset overview (Section 1 only)')
       .option('-o, --output <format>', 'Output format (markdown, json, yaml)', 'markdown')
@@ -90,6 +91,7 @@ export class ArgumentParser {
     // Section 2: Quality analysis
     this.program
       .command('quality')
+      .alias('qua')
       .argument('<file>', 'CSV file to analyze')
       .description('Run data quality audit (Section 2)')
       .option('-o, --output <format>', 'Output format (markdown, json, yaml)', 'markdown')
@@ -110,7 +112,8 @@ export class ArgumentParser {
       .action(this.createCommandHandler('eda'));
 
     this.program
-      .command('viz')
+      .command('visualization')
+      .alias('vis')
       .argument('<file>', 'CSV file to analyze')
       .description('Generate visualization recommendations (Section 4)')
       .option('-o, --output <format>', 'Output format (markdown, json, yaml)', 'markdown')
@@ -131,17 +134,19 @@ export class ArgumentParser {
 
     this.program
       .command('engineering')
+      .alias('eng')
       .argument('<file>', 'CSV file to analyze')
       .description('Provide data engineering insights (Section 5)')
       .option('-o, --output <format>', 'Output format', 'markdown')
-      .action(this.createStubHandler('engineering', 'Data Engineering Insights'));
+      .action(this.createCommandHandler('engineering'));
 
     this.program
       .command('modeling')
+      .alias('mod')
       .argument('<file>', 'CSV file to analyze')
       .description('Generate predictive modeling guidance (Section 6)')
       .option('-o, --output <format>', 'Output format', 'markdown')
-      .action(this.createStubHandler('modeling', 'Predictive Modeling Guidance'));
+      .action(this.createCommandHandler('modeling'));
 
     // Utility commands
     this.program

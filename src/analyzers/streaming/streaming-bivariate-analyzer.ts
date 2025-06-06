@@ -40,6 +40,7 @@ export class StreamingBivariateAnalyzer {
   private scatterSamples = new Map<string, ReservoirSampler<[number, number]>>();
   private warnings: Section3Warning[] = [];
   private maxPairs: number;
+  private columnNameToIndex = new Map<string, number>();
 
   constructor(maxPairs: number = 50) {
     this.maxPairs = maxPairs;
@@ -49,6 +50,13 @@ export class StreamingBivariateAnalyzer {
    * Initialize tracking for column pairs
    */
   initializePairs(pairs: ColumnPair[]): void {
+    // Build column name to index mapping
+    this.columnNameToIndex.clear();
+    for (const pair of pairs) {
+      this.columnNameToIndex.set(pair.col1Name, pair.col1Index);
+      this.columnNameToIndex.set(pair.col2Name, pair.col2Index);
+    }
+
     // Limit number of pairs to prevent memory explosion
     const limitedPairs = pairs.slice(0, this.maxPairs);
 
@@ -485,11 +493,11 @@ export class StreamingBivariateAnalyzer {
   }
 
   private findColumnIndex(
-    _columnName: string,
+    columnName: string,
     _row: (string | number | null | undefined)[],
   ): number {
-    // This is a simplified approach - in practice, we'd maintain a column name to index mapping
-    return 0; // Placeholder
+    // Use the column name to index mapping built during initialization
+    return this.columnNameToIndex.get(columnName) ?? -1;
   }
 
   private extractNumericValue(value: string | number | null | undefined): number | null {

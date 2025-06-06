@@ -35,12 +35,20 @@ DataPilot is a lightweight CLI statistical computation engine for comprehensive 
 5. Data Engineering Insights - Schema optimization, transformation recommendations
 6. Predictive Modeling Guidance - Algorithm suggestions, methodology explanations
 
-## Commands (To be implemented)
+## Commands
 ```bash
 # Primary command - generates full report
 datapilot all <your-data.csv>
 
-# Development commands (when implemented)
+# Individual sections (full names or 3-letter aliases)
+datapilot overview <file.csv>    # or: datapilot ove <file.csv>
+datapilot quality <file.csv>     # or: datapilot qua <file.csv>
+datapilot eda <file.csv>         # Exploratory Data Analysis
+datapilot visualization <file.csv> # or: datapilot vis <file.csv>
+datapilot engineering <file.csv> # or: datapilot eng <file.csv>
+datapilot modeling <file.csv>    # or: datapilot mod <file.csv>
+
+# Development commands
 npm install       # Install dependencies
 npm run build     # Build TypeScript
 npm test          # Run tests
@@ -84,3 +92,6 @@ npm run typecheck # Type checking
 - CLI integration and end-to-end testing
 - Performance optimization for large datasets
 - Additional domain-specific analyzers as needed
+
+## Development Experiments and Ideas
+- A real test in this context would be to use fetch to find a random Kaggle dataset then use a curl command to download it unzipped and run through the full datapilot process, then split into parallel tasks a review of each component of an 'all' command's output

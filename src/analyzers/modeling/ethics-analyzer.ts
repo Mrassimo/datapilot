@@ -172,7 +172,7 @@ export class EthicsAnalyzer {
     }
 
     // Selection bias
-    const qualityScore = section2Result.qualityAudit?.completeness?.overallCompletenessScore || 100;
+    const qualityScore = section2Result.qualityAudit?.completeness?.score?.score || 100;
     if (qualityScore < 85) {
       biasSources.push({
         sourceType: 'selection',
@@ -191,7 +191,7 @@ export class EthicsAnalyzer {
     }
 
     // Measurement bias
-    const validityScore = section2Result.qualityAudit?.validity?.overallValidityScore || 100;
+    const validityScore = section2Result.qualityAudit?.validity?.score?.score || 100;
     if (validityScore < 90) {
       biasSources.push({
         sourceType: 'measurement',
