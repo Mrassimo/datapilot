@@ -47,7 +47,7 @@ export class FileMetadataCollector {
         originalFilename: filename,
         fullResolvedPath: sanitizedPath,
         fileSizeBytes,
-        fileSizeMB: Number(fileSizeMB.toFixed(2)),
+        fileSizeMB: Number(fileSizeMB.toFixed(6)),
         mimeType,
         lastModified: stats.mtime,
         sha256Hash,

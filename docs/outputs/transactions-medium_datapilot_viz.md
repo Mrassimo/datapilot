@@ -15,9 +15,9 @@ This section provides intelligent chart recommendations and visualization strate
 
 **Strategy Characteristics:**
 * **Complexity Level:** 🟡 moderate
-* **Interactivity:** 🖱️ basic
+* **Interactivity:** 🎮 interactive
 * **Accessibility:** ♿ good
-* **Performance:** ⚡ fast
+* **Performance:** 🔄 moderate
 
 **Design Philosophy:** Our recommendations prioritize clarity, accessibility, and statistical accuracy while maintaining visual appeal and user engagement.
 
@@ -26,18 +26,18 @@ This section provides intelligent chart recommendations and visualization strate
 *Intelligent chart recommendations for individual variables, optimized for data characteristics and accessibility.*
 
 ---
-**Column: `Column_1`** ✅ Excellent
+**Column: `transaction_id`** ✅ Excellent
 
 **Data Profile:**
 * **Type:** text_general → category
-* **Completeness:** 100.0% (1,001 unique values)
+* **Completeness:** 100.0% (100,001 unique values)
 * **Uniqueness:** 100.0% 
 
 **📊 Chart Recommendations:**
 
-**1. Horizontal Bar Chart** 🥇 🟡 Medium 🏆
+**1. Horizontal Bar Chart** 🥈 🟠 Low 🏆
 
-**Reasoning:** Horizontal bar charts effectively display word frequency rankings from text analysis
+**Reasoning:** Horizontal bar charts effectively display word frequency rankings from text analysis ⚠️ Note: 1 design concern(s) detected.
 
 **Technical Specifications:**
 * **X-Axis:** frequency (linear scale)
@@ -51,18 +51,126 @@ This section provides intelligent chart recommendations and visualization strate
 
 **Recommended Libraries:** **D3.js** (complex): Highly customizable, Excellent performance
 **⚠️ Visualization Warnings:**
-* **MEDIUM:** High cardinality (1001 unique values) may impact performance - Consider grouping rare categories or using aggregation
+* **MEDIUM:** High cardinality (100001 unique values) may impact performance - Consider grouping rare categories or using aggregation
 
 ---
-**Column: `Column_2`** ✅ Excellent
+**Column: `timestamp`** ✅ Excellent
 
 **Data Profile:**
-* **Type:** numerical_integer → unknown
-* **Completeness:** 99.9% (8 unique values)
-* **Uniqueness:** 0.8% 
+* **Type:** date_time → unknown
+* **Completeness:** 100.0% (50 unique values)
+* **Uniqueness:** 0.1% 
+
+**📊 Chart Recommendations:**
+
+**1. Time Series Line Chart** 🥇 ✅ High 📊
+
+**Reasoning:** Line charts are optimal for showing temporal trends and patterns over time
+
+**Technical Specifications:**
+* **X-Axis:** timestamp (time scale)
+* **Y-Axis:** count (linear scale)
+* **Layout:** responsive (400px height)
+
+**Accessibility & Performance:**
+* **Features:** 🎨 Color-blind friendly | ♿ WCAG AA compliant | ⌨️ Keyboard accessible
+* **Interactivity:** basic (hover, tooltip)
+* **Performance:** svg rendering, medium dataset optimization
+
+**Recommended Libraries:** **D3.js** (complex): Highly customizable, Excellent performance
+
+---
+**Column: `customer_id`** ✅ Excellent
+
+**Data Profile:**
+* **Type:** text_general → category
+* **Completeness:** 100.0% (100,001 unique values)
+* **Uniqueness:** 100.0% 
+
+**📊 Chart Recommendations:**
+
+**1. Horizontal Bar Chart** 🥈 🟠 Low 🏆
+
+**Reasoning:** Horizontal bar charts effectively display word frequency rankings from text analysis ⚠️ Note: 1 design concern(s) detected.
+
+**Technical Specifications:**
+* **X-Axis:** frequency (linear scale)
+* **Y-Axis:** word (band scale)
+* **Layout:** responsive (300px height)
+
+**Accessibility & Performance:**
+* **Features:** 🎨 Color-blind friendly | ♿ WCAG AA compliant | ⌨️ Keyboard accessible
+* **Interactivity:** basic (hover, tooltip)
+* **Performance:** svg rendering, medium dataset optimization
+
+**Recommended Libraries:** **D3.js** (complex): Highly customizable, Excellent performance
+**⚠️ Visualization Warnings:**
+* **MEDIUM:** High cardinality (100001 unique values) may impact performance - Consider grouping rare categories or using aggregation
+
+---
+**Column: `product_id`** ✅ Excellent
+
+**Data Profile:**
+* **Type:** text_general → category
+* **Completeness:** 100.0% (100,001 unique values)
+* **Uniqueness:** 100.0% 
+
+**📊 Chart Recommendations:**
+
+**1. Horizontal Bar Chart** 🥈 🟠 Low 🏆
+
+**Reasoning:** Horizontal bar charts effectively display word frequency rankings from text analysis ⚠️ Note: 1 design concern(s) detected.
+
+**Technical Specifications:**
+* **X-Axis:** frequency (linear scale)
+* **Y-Axis:** word (band scale)
+* **Layout:** responsive (300px height)
+
+**Accessibility & Performance:**
+* **Features:** 🎨 Color-blind friendly | ♿ WCAG AA compliant | ⌨️ Keyboard accessible
+* **Interactivity:** basic (hover, tooltip)
+* **Performance:** svg rendering, medium dataset optimization
+
+**Recommended Libraries:** **D3.js** (complex): Highly customizable, Excellent performance
+**⚠️ Visualization Warnings:**
+* **MEDIUM:** High cardinality (100001 unique values) may impact performance - Consider grouping rare categories or using aggregation
+
+---
+**Column: `category`** ✅ Excellent
+
+**Data Profile:**
+* **Type:** categorical → category
+* **Completeness:** 100.0% (9 unique values)
+* **Uniqueness:** 0.0% 
+
+**📊 Chart Recommendations:**
+
+**1. Horizontal Bar Chart** 🥇 ✅ High ⚖️
+
+**Reasoning:** Horizontal bar charts handle long category labels better and improve readability
+
+**Technical Specifications:**
+* **X-Axis:** category (band scale)
+* **Y-Axis:** count (linear scale)
+* **Layout:** responsive (400px height)
+
+**Accessibility & Performance:**
+* **Features:** 🎨 Color-blind friendly | ♿ WCAG AA compliant | ⌨️ Keyboard accessible
+* **Interactivity:** basic (hover, tooltip)
+* **Performance:** svg rendering, medium dataset optimization
+
+**Recommended Libraries:** **D3.js** (complex): Highly customizable, Excellent performance
+
+---
+**Column: `quantity`** ✅ Excellent
+
+**Data Profile:**
+* **Type:** numerical_integer → count
+* **Completeness:** 100.0% (10 unique values)
+* **Uniqueness:** 0.0% 
 **Distribution Characteristics:**
 * **Shape:** normal
-* **Skewness:** 0.008 (approximately symmetric)
+* **Skewness:** 0.001 (approximately symmetric)
 * **Outliers:** 🟢 0 outliers (0%) - low impact
 
 **📊 Chart Recommendations:**
@@ -72,7 +180,7 @@ This section provides intelligent chart recommendations and visualization strate
 **Reasoning:** Histograms effectively show the distribution of numerical data, revealing shape, central tendency, and spread
 
 **Technical Specifications:**
-* **X-Axis:** Column_2 (linear scale)
+* **X-Axis:** quantity (linear scale)
 * **Y-Axis:** frequency (linear scale)
 * **Layout:** responsive (400px height)
 
@@ -88,7 +196,7 @@ This section provides intelligent chart recommendations and visualization strate
 **Reasoning:** Density plots provide smooth estimates of distribution shape, useful for larger datasets
 
 **Technical Specifications:**
-* **X-Axis:** Column_2 (linear scale)
+* **X-Axis:** quantity (linear scale)
 * **Y-Axis:** frequency (linear scale)
 * **Layout:** responsive (400px height)
 
@@ -104,7 +212,7 @@ This section provides intelligent chart recommendations and visualization strate
 **Reasoning:** Box plots provide a compact view of distribution and quartiles
 
 **Technical Specifications:**
-* **Y-Axis:** Column_2 (linear scale)
+* **Y-Axis:** quantity (linear scale)
 * **Layout:** 300×400
 
 **Accessibility & Performance:**
@@ -115,108 +223,15 @@ This section provides intelligent chart recommendations and visualization strate
 **Recommended Libraries:** **D3.js** (complex): Highly customizable, Excellent performance
 
 ---
-**Column: `Column_3`** ✅ Excellent
-
-**Data Profile:**
-* **Type:** categorical → category
-* **Completeness:** 100.0% (4 unique values)
-* **Uniqueness:** 0.4% ✅ Optimal for pie charts
-
-**📊 Chart Recommendations:**
-
-**1. Bar Chart** 🥇 ✅ High ⚖️
-
-**Reasoning:** Bar charts excel at comparing categorical data frequencies
-
-**Technical Specifications:**
-* **X-Axis:** Column_3 (band scale)
-* **Y-Axis:** count (linear scale)
-* **Layout:** responsive (400px height)
-
-**Accessibility & Performance:**
-* **Features:** 🎨 Color-blind friendly | ♿ WCAG AA compliant | ⌨️ Keyboard accessible
-* **Interactivity:** basic (hover, tooltip)
-* **Performance:** svg rendering, medium dataset optimization
-
-**Recommended Libraries:** **D3.js** (complex): Highly customizable, Excellent performance
-
-**2. Pie Chart** 🥈 🟠 Low 🥧
-
-**Reasoning:** Pie charts work well for showing parts of a whole when there are few categories
-
-**Technical Specifications:**
-* **Color:** categorical palette (AA compliant)
-* **Layout:** 400×400
-
-**Accessibility & Performance:**
-* **Features:** 🎨 Color-blind friendly | ♿ WCAG AA compliant | ⌨️ Keyboard accessible
-* **Interactivity:** basic (hover, tooltip)
-* **Performance:** svg rendering, medium dataset optimization
-
-**Recommended Libraries:** **D3.js** (complex): Highly customizable, Excellent performance
-
----
-**Column: `Column_4`** 🟡 Good
-
-**Data Profile:**
-* **Type:** date_time → unknown
-* **Completeness:** 89.3% (50 unique values)
-* **Uniqueness:** 5.6% 
-
-**📊 Chart Recommendations:**
-
-**1. Time Series Line Chart** 🥇 ✅ High 📊
-
-**Reasoning:** Line charts are optimal for showing temporal trends and patterns over time
-
-**Technical Specifications:**
-* **X-Axis:** Column_4 (time scale)
-* **Y-Axis:** count (linear scale)
-* **Layout:** responsive (400px height)
-
-**Accessibility & Performance:**
-* **Features:** 🎨 Color-blind friendly | ♿ WCAG AA compliant | ⌨️ Keyboard accessible
-* **Interactivity:** basic (hover, tooltip)
-* **Performance:** svg rendering, medium dataset optimization
-
-**Recommended Libraries:** **D3.js** (complex): Highly customizable, Excellent performance
-
----
-**Column: `Column_5`** 🟡 Good
-
-**Data Profile:**
-* **Type:** date_time → unknown
-* **Completeness:** 87.8% (50 unique values)
-* **Uniqueness:** 5.7% 
-
-**📊 Chart Recommendations:**
-
-**1. Time Series Line Chart** 🥇 ✅ High 📊
-
-**Reasoning:** Line charts are optimal for showing temporal trends and patterns over time
-
-**Technical Specifications:**
-* **X-Axis:** Column_5 (time scale)
-* **Y-Axis:** count (linear scale)
-* **Layout:** responsive (400px height)
-
-**Accessibility & Performance:**
-* **Features:** 🎨 Color-blind friendly | ♿ WCAG AA compliant | ⌨️ Keyboard accessible
-* **Interactivity:** basic (hover, tooltip)
-* **Performance:** svg rendering, medium dataset optimization
-
-**Recommended Libraries:** **D3.js** (complex): Highly customizable, Excellent performance
-
----
-**Column: `Column_6`** ✅ Excellent
+**Column: `unit_price`** ✅ Excellent
 
 **Data Profile:**
 * **Type:** numerical_float → unknown
-* **Completeness:** 99.9% (51 unique values)
-* **Uniqueness:** 5.1% 
+* **Completeness:** 100.0% (80 unique values)
+* **Uniqueness:** 0.1% 
 **Distribution Characteristics:**
 * **Shape:** normal
-* **Skewness:** 0.237 (approximately symmetric)
+* **Skewness:** 0.007 (approximately symmetric)
 * **Outliers:** 🟢 0 outliers (0%) - low impact
 
 **📊 Chart Recommendations:**
@@ -226,7 +241,7 @@ This section provides intelligent chart recommendations and visualization strate
 **Reasoning:** Histograms effectively show the distribution of numerical data, revealing shape, central tendency, and spread
 
 **Technical Specifications:**
-* **X-Axis:** Column_6 (linear scale)
+* **X-Axis:** unit_price (linear scale)
 * **Y-Axis:** frequency (linear scale)
 * **Layout:** responsive (400px height)
 
@@ -242,7 +257,7 @@ This section provides intelligent chart recommendations and visualization strate
 **Reasoning:** Density plots provide smooth estimates of distribution shape, useful for larger datasets
 
 **Technical Specifications:**
-* **X-Axis:** Column_6 (linear scale)
+* **X-Axis:** unit_price (linear scale)
 * **Y-Axis:** frequency (linear scale)
 * **Layout:** responsive (400px height)
 
@@ -258,7 +273,7 @@ This section provides intelligent chart recommendations and visualization strate
 **Reasoning:** Box plots provide a compact view of distribution and quartiles
 
 **Technical Specifications:**
-* **Y-Axis:** Column_6 (linear scale)
+* **Y-Axis:** unit_price (linear scale)
 * **Layout:** 300×400
 
 **Accessibility & Performance:**
@@ -268,25 +283,60 @@ This section provides intelligent chart recommendations and visualization strate
 
 **Recommended Libraries:** **D3.js** (complex): Highly customizable, Excellent performance
 **⚠️ Visualization Warnings:**
-* **MEDIUM:** High cardinality (51 unique values) may impact performance - Consider grouping rare categories or using aggregation
+* **MEDIUM:** High cardinality (80 unique values) may impact performance - Consider grouping rare categories or using aggregation
 
 ---
-**Column: `Column_7`** ✅ Excellent
+**Column: `total_amount`** ✅ Excellent
 
 **Data Profile:**
-* **Type:** boolean → status
-* **Completeness:** 99.9% (2 unique values)
-* **Uniqueness:** 0.2% 
+* **Type:** numerical_float → unknown
+* **Completeness:** 100.0% (84 unique values)
+* **Uniqueness:** 0.1% 
+**Distribution Characteristics:**
+* **Shape:** skewed_right
+* **Skewness:** 1.025 (right-skewed)
+* **Outliers:** 🟢 2 outliers (2%) - low impact
 
 **📊 Chart Recommendations:**
 
-**1. Bar Chart** 🥇 🟡 Medium ⚖️
+**1. Histogram** 🥇 ✅ High 📈
 
-**Reasoning:** Bar charts clearly show the distribution between true/false values
+**Reasoning:** Histograms effectively show the distribution of numerical data, revealing shape, central tendency, and spread
 
 **Technical Specifications:**
-* **X-Axis:** value (band scale)
-* **Y-Axis:** count (linear scale)
+* **X-Axis:** total_amount (linear scale)
+* **Y-Axis:** frequency (linear scale)
+* **Layout:** responsive (400px height)
+
+**Accessibility & Performance:**
+* **Features:** 🎨 Color-blind friendly | ♿ WCAG AA compliant | ⌨️ Keyboard accessible
+* **Interactivity:** basic (hover, tooltip)
+* **Performance:** svg rendering, medium dataset optimization
+
+**Recommended Libraries:** **D3.js** (complex): Highly customizable, Excellent performance
+
+**2. Density Plot** 🥉 🟡 Medium 📈
+
+**Reasoning:** Density plots provide smooth estimates of distribution shape, useful for larger datasets
+
+**Technical Specifications:**
+* **X-Axis:** total_amount (linear scale)
+* **Y-Axis:** frequency (linear scale)
+* **Layout:** responsive (400px height)
+
+**Accessibility & Performance:**
+* **Features:** 🎨 Color-blind friendly | ♿ WCAG AA compliant | ⌨️ Keyboard accessible
+* **Interactivity:** basic (hover, tooltip)
+* **Performance:** svg rendering, medium dataset optimization
+
+**Recommended Libraries:** **D3.js** (complex): Highly customizable, Excellent performance
+
+**3. Box Plot** 🥈 🟡 Medium 🎯
+
+**Reasoning:** Box plots provide a compact view of distribution and quartiles
+
+**Technical Specifications:**
+* **Y-Axis:** total_amount (linear scale)
 * **Layout:** 300×400
 
 **Accessibility & Performance:**
@@ -295,66 +345,16 @@ This section provides intelligent chart recommendations and visualization strate
 * **Performance:** svg rendering, medium dataset optimization
 
 **Recommended Libraries:** **D3.js** (complex): Highly customizable, Excellent performance
+**⚠️ Visualization Warnings:**
+* **MEDIUM:** High cardinality (84 unique values) may impact performance - Consider grouping rare categories or using aggregation
 
 ---
-**Column: `Column_8`** 🟡 Good
-
-**Data Profile:**
-* **Type:** date_time → unknown
-* **Completeness:** 82.7% (50 unique values)
-* **Uniqueness:** 6.0% 
-
-**📊 Chart Recommendations:**
-
-**1. Time Series Line Chart** 🥇 ✅ High 📊
-
-**Reasoning:** Line charts are optimal for showing temporal trends and patterns over time
-
-**Technical Specifications:**
-* **X-Axis:** Column_8 (time scale)
-* **Y-Axis:** count (linear scale)
-* **Layout:** responsive (400px height)
-
-**Accessibility & Performance:**
-* **Features:** 🎨 Color-blind friendly | ♿ WCAG AA compliant | ⌨️ Keyboard accessible
-* **Interactivity:** basic (hover, tooltip)
-* **Performance:** svg rendering, medium dataset optimization
-
-**Recommended Libraries:** **D3.js** (complex): Highly customizable, Excellent performance
-
----
-**Column: `Column_9`** 🟡 Good
-
-**Data Profile:**
-* **Type:** date_time → unknown
-* **Completeness:** 89.7% (50 unique values)
-* **Uniqueness:** 5.6% 
-
-**📊 Chart Recommendations:**
-
-**1. Time Series Line Chart** 🥇 ✅ High 📊
-
-**Reasoning:** Line charts are optimal for showing temporal trends and patterns over time
-
-**Technical Specifications:**
-* **X-Axis:** Column_9 (time scale)
-* **Y-Axis:** count (linear scale)
-* **Layout:** responsive (400px height)
-
-**Accessibility & Performance:**
-* **Features:** 🎨 Color-blind friendly | ♿ WCAG AA compliant | ⌨️ Keyboard accessible
-* **Interactivity:** basic (hover, tooltip)
-* **Performance:** svg rendering, medium dataset optimization
-
-**Recommended Libraries:** **D3.js** (complex): Highly customizable, Excellent performance
-
----
-**Column: `Column_10`** ✅ Excellent
+**Column: `payment_method`** ✅ Excellent
 
 **Data Profile:**
 * **Type:** categorical → category
-* **Completeness:** 100.0% (4 unique values)
-* **Uniqueness:** 0.4% ✅ Optimal for pie charts
+* **Completeness:** 100.0% (6 unique values)
+* **Uniqueness:** 0.0% ✅ Optimal for pie charts
 
 **📊 Chart Recommendations:**
 
@@ -363,7 +363,7 @@ This section provides intelligent chart recommendations and visualization strate
 **Reasoning:** Bar charts excel at comparing categorical data frequencies
 
 **Technical Specifications:**
-* **X-Axis:** Column_10 (band scale)
+* **X-Axis:** payment_method (band scale)
 * **Y-Axis:** count (linear scale)
 * **Layout:** responsive (400px height)
 
@@ -390,21 +390,21 @@ This section provides intelligent chart recommendations and visualization strate
 **Recommended Libraries:** **D3.js** (complex): Highly customizable, Excellent performance
 
 ---
-**Column: `Column_11`** ✅ Excellent
+**Column: `store_location`** ✅ Excellent
 
 **Data Profile:**
-* **Type:** date_time → unknown
-* **Completeness:** 99.9% (50 unique values)
-* **Uniqueness:** 5.0% 
+* **Type:** categorical → category
+* **Completeness:** 100.0% (7 unique values)
+* **Uniqueness:** 0.0% 
 
 **📊 Chart Recommendations:**
 
-**1. Time Series Line Chart** 🥇 ✅ High 📊
+**1. Bar Chart** 🥇 ✅ High ⚖️
 
-**Reasoning:** Line charts are optimal for showing temporal trends and patterns over time
+**Reasoning:** Bar charts excel at comparing categorical data frequencies
 
 **Technical Specifications:**
-* **X-Axis:** Column_11 (time scale)
+* **X-Axis:** store_location (band scale)
 * **Y-Axis:** count (linear scale)
 * **Layout:** responsive (400px height)
 
@@ -416,12 +416,99 @@ This section provides intelligent chart recommendations and visualization strate
 **Recommended Libraries:** **D3.js** (complex): Highly customizable, Excellent performance
 
 ---
-**Column: `Column_12`** ✅ Excellent
+**Column: `discount_applied`** ✅ Excellent
+
+**Data Profile:**
+* **Type:** numerical_float → count
+* **Completeness:** 100.0% (5 unique values)
+* **Uniqueness:** 0.0% 
+**Distribution Characteristics:**
+* **Shape:** normal
+* **Skewness:** 0.230 (approximately symmetric)
+* **Outliers:** 🟢 0 outliers (0%) - low impact
+
+**📊 Chart Recommendations:**
+
+**1. Histogram** 🥇 ✅ High 📈
+
+**Reasoning:** Histograms effectively show the distribution of numerical data, revealing shape, central tendency, and spread
+
+**Technical Specifications:**
+* **X-Axis:** discount_applied (linear scale)
+* **Y-Axis:** frequency (linear scale)
+* **Layout:** responsive (400px height)
+
+**Accessibility & Performance:**
+* **Features:** 🎨 Color-blind friendly | ♿ WCAG AA compliant | ⌨️ Keyboard accessible
+* **Interactivity:** basic (hover, tooltip)
+* **Performance:** svg rendering, medium dataset optimization
+
+**Recommended Libraries:** **D3.js** (complex): Highly customizable, Excellent performance
+
+**2. Density Plot** 🥉 🟡 Medium 📈
+
+**Reasoning:** Density plots provide smooth estimates of distribution shape, useful for larger datasets
+
+**Technical Specifications:**
+* **X-Axis:** discount_applied (linear scale)
+* **Y-Axis:** frequency (linear scale)
+* **Layout:** responsive (400px height)
+
+**Accessibility & Performance:**
+* **Features:** 🎨 Color-blind friendly | ♿ WCAG AA compliant | ⌨️ Keyboard accessible
+* **Interactivity:** basic (hover, tooltip)
+* **Performance:** svg rendering, medium dataset optimization
+
+**Recommended Libraries:** **D3.js** (complex): Highly customizable, Excellent performance
+
+**3. Box Plot** 🥈 🟡 Medium 🎯
+
+**Reasoning:** Box plots provide a compact view of distribution and quartiles
+
+**Technical Specifications:**
+* **Y-Axis:** discount_applied (linear scale)
+* **Layout:** 300×400
+
+**Accessibility & Performance:**
+* **Features:** 🎨 Color-blind friendly | ♿ WCAG AA compliant | ⌨️ Keyboard accessible
+* **Interactivity:** basic (hover, tooltip)
+* **Performance:** svg rendering, medium dataset optimization
+
+**Recommended Libraries:** **D3.js** (complex): Highly customizable, Excellent performance
+
+---
+**Column: `customer_age`** 🟠 Fair
+
+**Data Profile:**
+* **Type:** date_time → unknown
+* **Completeness:** 77.7% (50 unique values)
+* **Uniqueness:** 0.1% 
+
+**📊 Chart Recommendations:**
+
+**1. Time Series Line Chart** 🥇 ✅ High 📊
+
+**Reasoning:** Line charts are optimal for showing temporal trends and patterns over time
+
+**Technical Specifications:**
+* **X-Axis:** customer_age (time scale)
+* **Y-Axis:** count (linear scale)
+* **Layout:** responsive (400px height)
+
+**Accessibility & Performance:**
+* **Features:** 🎨 Color-blind friendly | ♿ WCAG AA compliant | ⌨️ Keyboard accessible
+* **Interactivity:** basic (hover, tooltip)
+* **Performance:** svg rendering, medium dataset optimization
+
+**Recommended Libraries:** **D3.js** (complex): Highly customizable, Excellent performance
+
+---
+**Column: `customer_segment`** ✅ Excellent
 
 **Data Profile:**
 * **Type:** categorical → category
 * **Completeness:** 100.0% (5 unique values)
-* **Uniqueness:** 0.5% ✅ Optimal for pie charts
+* **Uniqueness:** 0.0% ✅ Optimal for pie charts
 
 **📊 Chart Recommendations:**
 
@@ -430,7 +517,7 @@ This section provides intelligent chart recommendations and visualization strate
 **Reasoning:** Bar charts excel at comparing categorical data frequencies
 
 **Technical Specifications:**
-* **X-Axis:** Column_12 (band scale)
+* **X-Axis:** customer_segment (band scale)
 * **Y-Axis:** count (linear scale)
 * **Layout:** responsive (400px height)
 
@@ -457,53 +544,12 @@ This section provides intelligent chart recommendations and visualization strate
 **Recommended Libraries:** **D3.js** (complex): Highly customizable, Excellent performance
 
 ---
-**Column: `Column_13`** ✅ Excellent
-
-**Data Profile:**
-* **Type:** categorical → category
-* **Completeness:** 100.0% (4 unique values)
-* **Uniqueness:** 0.4% ✅ Optimal for pie charts
-
-**📊 Chart Recommendations:**
-
-**1. Bar Chart** 🥇 ✅ High ⚖️
-
-**Reasoning:** Bar charts excel at comparing categorical data frequencies
-
-**Technical Specifications:**
-* **X-Axis:** Column_13 (band scale)
-* **Y-Axis:** count (linear scale)
-* **Layout:** responsive (400px height)
-
-**Accessibility & Performance:**
-* **Features:** 🎨 Color-blind friendly | ♿ WCAG AA compliant | ⌨️ Keyboard accessible
-* **Interactivity:** basic (hover, tooltip)
-* **Performance:** svg rendering, medium dataset optimization
-
-**Recommended Libraries:** **D3.js** (complex): Highly customizable, Excellent performance
-
-**2. Pie Chart** 🥈 🟠 Low 🥧
-
-**Reasoning:** Pie charts work well for showing parts of a whole when there are few categories
-
-**Technical Specifications:**
-* **Color:** categorical palette (AA compliant)
-* **Layout:** 400×400
-
-**Accessibility & Performance:**
-* **Features:** 🎨 Color-blind friendly | ♿ WCAG AA compliant | ⌨️ Keyboard accessible
-* **Interactivity:** basic (hover, tooltip)
-* **Performance:** svg rendering, medium dataset optimization
-
-**Recommended Libraries:** **D3.js** (complex): Highly customizable, Excellent performance
-
----
-**Column: `Column_14`** ✅ Excellent
+**Column: `rating`** 🟡 Good
 
 **Data Profile:**
 * **Type:** date_time → unknown
-* **Completeness:** 99.9% (50 unique values)
-* **Uniqueness:** 5.0% 
+* **Completeness:** 80.9% (50 unique values)
+* **Uniqueness:** 0.1% 
 
 **📊 Chart Recommendations:**
 
@@ -512,7 +558,7 @@ This section provides intelligent chart recommendations and visualization strate
 **Reasoning:** Line charts are optimal for showing temporal trends and patterns over time
 
 **Technical Specifications:**
-* **X-Axis:** Column_14 (time scale)
+* **X-Axis:** rating (time scale)
 * **Y-Axis:** count (linear scale)
 * **Layout:** responsive (400px height)
 
@@ -524,12 +570,12 @@ This section provides intelligent chart recommendations and visualization strate
 **Recommended Libraries:** **D3.js** (complex): Highly customizable, Excellent performance
 
 ---
-**Column: `Column_15`** ✅ Excellent
+**Column: `returned`** ✅ Excellent
 
 **Data Profile:**
 * **Type:** boolean → status
-* **Completeness:** 99.9% (2 unique values)
-* **Uniqueness:** 0.2% 
+* **Completeness:** 100.0% (2 unique values)
+* **Uniqueness:** 0.0% 
 
 **📊 Chart Recommendations:**
 
@@ -541,32 +587,6 @@ This section provides intelligent chart recommendations and visualization strate
 * **X-Axis:** value (band scale)
 * **Y-Axis:** count (linear scale)
 * **Layout:** 300×400
-
-**Accessibility & Performance:**
-* **Features:** 🎨 Color-blind friendly | ♿ WCAG AA compliant | ⌨️ Keyboard accessible
-* **Interactivity:** basic (hover, tooltip)
-* **Performance:** svg rendering, medium dataset optimization
-
-**Recommended Libraries:** **D3.js** (complex): Highly customizable, Excellent performance
-
----
-**Column: `Column_16`** 🟡 Good
-
-**Data Profile:**
-* **Type:** date_time → unknown
-* **Completeness:** 84.2% (50 unique values)
-* **Uniqueness:** 5.9% 
-
-**📊 Chart Recommendations:**
-
-**1. Time Series Line Chart** 🥇 ✅ High 📊
-
-**Reasoning:** Line charts are optimal for showing temporal trends and patterns over time
-
-**Technical Specifications:**
-* **X-Axis:** Column_16 (time scale)
-* **Y-Axis:** count (linear scale)
-* **Layout:** responsive (400px height)
 
 **Accessibility & Performance:**
 * **Features:** 🎨 Color-blind friendly | ♿ WCAG AA compliant | ⌨️ Keyboard accessible
@@ -581,7 +601,31 @@ This section provides intelligent chart recommendations and visualization strate
 
 **4.4. Multivariate Visualization Recommendations:**
 
-*Multivariate visualizations not recommended for current dataset characteristics. Consider advanced analysis if exploring complex variable interactions.*
+*Advanced visualizations for exploring complex multi-variable relationships.*
+
+---
+**🌐 Parallel Coordinates** 🟡
+
+**Purpose:** Compare multiple numerical variables simultaneously and identify multivariate patterns
+**Variables:** `quantity`, `unit_price`, `total_amount`, `discount_applied`
+**Implementation:** Use D3.js or Observable Plot for interactive parallel coordinates with brushing
+**Alternatives:** 📡 Radar Chart, 🔬 Scatterplot Matrix (SPLOM)
+
+---
+**🔗 Correlation Matrix** 🟢
+
+**Purpose:** Visualize pairwise correlations across all numerical variables
+**Variables:** `quantity`, `unit_price`, `total_amount`, `discount_applied`
+**Implementation:** Create heatmap with correlation values and significance indicators
+**Alternatives:** 🔬 Scatterplot Matrix (SPLOM)
+
+---
+**🔬 Scatterplot Matrix (SPLOM)** 🟠
+
+**Purpose:** Show detailed pairwise relationships and distributions in matrix layout
+**Variables:** `quantity`, `unit_price`, `total_amount`, `discount_applied`
+**Implementation:** Interactive matrix with brushing and linking across panels
+**Alternatives:** 🌐 Parallel Coordinates, 🔗 Correlation Matrix
 
 **4.5. Dashboard Design Recommendations:**
 
@@ -667,18 +711,18 @@ This section provides intelligent chart recommendations and visualization strate
 **4.8. Visualization Strategy Summary:**
 
 **📊 Recommendation Overview:**
-* **Total Recommendations:** 24 charts across 7 types
-* **Overall Confidence:** 81% (High)
+* **Total Recommendations:** 25 charts across 7 types
+* **Overall Confidence:** 77% (High)
 * **Accessibility Compliance:** WCAG 2.1 AA Ready
 * **Performance Optimization:** Implemented for all chart types
 
 **🎯 Key Strategic Findings:**
-* 2 numerical variables suitable for distribution analysis
+* 4 numerical variables suitable for distribution analysis
 * 4 categorical variables optimal for comparison charts
 * good accessibility level achieved with universal design principles
 
 **🚀 Implementation Priorities:**
-1. **Primary Charts:** Implement 16 primary chart recommendations first
+1. **Primary Charts:** Implement 12 primary chart recommendations first
 2. **Accessibility Foundation:** Establish color schemes, ARIA labels, and keyboard navigation
 3. **Interactive Features:** Add tooltips, hover effects, and progressive enhancement
 4. **Performance Testing:** Validate chart performance with representative data volumes
@@ -695,9 +739,9 @@ This section provides intelligent chart recommendations and visualization strate
 ---
 
 **Analysis Performance Summary:**
-* **Processing Time:** 1ms (Excellent efficiency)
-* **Recommendations Generated:** 24 total
+* **Processing Time:** 2ms (Excellent efficiency)
+* **Recommendations Generated:** 25 total
 * **Chart Types Evaluated:** 7 different types
 * **Accessibility Checks:** 10 validations performed
 * **Analysis Approach:** Multi-dimensional scoring with accessibility-first design
-* **Recommendation Confidence:** 81%
+* **Recommendation Confidence:** 77%

@@ -44,6 +44,7 @@ interface StreamingState {
   peakMemoryMB: number;
   startTime: number;
   currentChunkSize: number;
+  hasSkippedHeader: boolean;
 }
 
 /**
@@ -65,6 +66,7 @@ export class StreamingAnalyzer {
   private semanticTypes: SemanticType[] = [];
   private warnings: Section3Warning[] = [];
   private typeDetectionResults: any[] = []; // Store enhanced detection results (limited)
+  private hasHeaders: boolean = false; // Track if CSV has headers
 
   constructor(config: Partial<StreamingConfig> = {}) {
     this.config = {
@@ -94,6 +96,7 @@ export class StreamingAnalyzer {
       peakMemoryMB: 0,
       startTime: 0,
       currentChunkSize: this.config.chunkSize,
+      hasSkippedHeader: false,
     };
 
     this.bivariateAnalyzer = new StreamingBivariateAnalyzer(this.config.maxCorrelationPairs);
@@ -164,8 +167,12 @@ export class StreamingAnalyzer {
       throw new Error('No data found in file');
     }
 
-    // Extract headers (assuming first row or from parser config)
-    this.headers = this.extractHeaders(sampleData);
+    // Extract headers from parser config and sample data
+    this.headers = this.extractHeaders(sampleData, parser);
+    
+    // Store whether CSV has headers for later use in data processing
+    const parserOptions = parser.getOptions();
+    this.hasHeaders = parserOptions.hasHeader ?? true;
     
     // Detect column types from sample
     this.detectedTypes = this.detectColumnTypes(sampleData);
@@ -247,6 +254,12 @@ export class StreamingAnalyzer {
     this.state.chunksProcessed++;
     
     for (const row of chunk) {
+      // Skip header row if this is the first row and CSV has headers
+      if (this.hasHeaders && !this.state.hasSkippedHeader && row.index === 0) {
+        this.state.hasSkippedHeader = true;
+        continue; // Skip processing the header row as data
+      }
+      
       this.state.rowsProcessed++;
       
       // Process each column for univariate analysis
@@ -415,12 +428,24 @@ export class StreamingAnalyzer {
     };
   }
 
-  private extractHeaders(sampleData: ParsedRow[]): string[] {
-    // For simplicity, generate column names if not provided
+  private extractHeaders(sampleData: ParsedRow[], parser: CSVParser): string[] {
     if (sampleData.length === 0) return [];
     
     const firstRow = sampleData[0];
-    return firstRow.data.map((_, index) => `Column_${index + 1}`);
+    
+    // Get header setting from parser options
+    const parserOptions = parser.getOptions();
+    const hasHeader = parserOptions.hasHeader ?? true; // Default to true for CSV files
+    
+    if (hasHeader) {
+      // Use actual column names from header row
+      return firstRow.data.map((headerValue, index) => 
+        headerValue && headerValue.trim() ? headerValue.trim() : `Column_${index + 1}`
+      );
+    } else {
+      // Generate generic column names only if no headers
+      return firstRow.data.map((_, index) => `Column_${index + 1}`);
+    }
   }
 
   private detectColumnTypes(sampleData: ParsedRow[]): EdaDataType[] {
@@ -428,10 +453,14 @@ export class StreamingAnalyzer {
     
     const columnCount = sampleData[0].data.length;
     
+    // Skip header row if present when sampling for type detection
+    const dataStartIndex = this.hasHeaders ? 1 : 0;
+    const effectiveSampleData = sampleData.slice(dataStartIndex);
+    
     // Prepare column samples for enhanced detection
     const columnSamples = [];
     for (let colIndex = 0; colIndex < columnCount; colIndex++) {
-      const values = sampleData.slice(0, 500).map(row => row.data[colIndex]); // Use more samples
+      const values = effectiveSampleData.slice(0, 500).map(row => row.data[colIndex]); // Use more samples, excluding header
       const columnName = this.headers[colIndex] || `Column_${colIndex + 1}`;
       
       columnSamples.push({

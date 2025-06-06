@@ -161,13 +161,31 @@ export interface InterRecordConsistency {
 
 export interface FormatConsistency {
   columnName: string;
-  inconsistencyType: 'Date Format' | 'Text Representation' | 'Unit of Measure' | 'Casing' | 'Other';
-  inconsistentFormats: Array<{
+  analysisType: 'format_standardization' | 'casing_consistency' | 'unit_standardization' | 'boolean_representation';
+  currentFormats: Array<{
     format: string;
     count: number;
+    percentage: string;
     examples: string[];
   }>;
-  suggestedStandardization: string;
+  recommendedAction: string;
+  consistency: {
+    isConsistent: boolean;
+    dominantFormat: string;
+    inconsistencyCount: number;
+    inconsistencyPercentage: string;
+  };
+  score: DataQualityScore;
+}
+
+export interface PatternValidation {
+  patternName: string;
+  description: string;
+  affectedColumns: string[];
+  violationCount: number;
+  examples: string[];
+  severity: 'critical' | 'high' | 'medium' | 'low';
+  recommendedAction: string;
 }
 
 export interface ConsistencyAnalysis {
@@ -512,7 +530,8 @@ export interface Section2Config {
   strictMode: boolean;
   maxOutlierDetection: number;
   semanticDuplicateThreshold: number;
-  customBusinessRules?: BusinessRule[];
+  customBusinessRules?: any[]; // BusinessRule type from business-rule-engine
+  customPatterns?: any[]; // PatternRule type from pattern-validation-engine
   externalReferences?: {
     countryCodesList?: string[];
     currencyCodesList?: string[];
@@ -541,7 +560,7 @@ export interface Section2Progress {
 }
 
 export interface Section2Warning {
-  category: 'performance' | 'data' | 'computation' | 'threshold';
+  category: 'performance' | 'data' | 'computation' | 'threshold' | 'business_rules' | 'pattern_validation';
   severity: 'low' | 'medium' | 'high';
   message: string;
   impact?: string;

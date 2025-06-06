@@ -107,20 +107,62 @@ ${missingDataMatrix.blockPatterns.map((pattern: string) => `        * ${pattern}
   }
 
   private static formatAccuracy(accuracy: any): string {
+    const crossFieldDetails = accuracy.crossFieldValidation
+      ?.slice(0, 5)
+      .map((rule: any) => 
+        `        * *Rule ${rule.ruleId}:* ${rule.description}. (Number of Violations: ${rule.violations}).`
+      ).join('\n') || '        * No cross-field rules configured.';
+
+    const patternDetails = accuracy.patternValidation
+      ?.slice(0, 5)
+      .map((pattern: any) => 
+        `        * *${pattern.patternName}:* ${pattern.description}. Violations: ${pattern.violationCount} across columns: ${pattern.affectedColumns.join(', ')}.`
+      ).join('\n') || '        * No pattern validation issues detected.';
+
+    const businessRulesSummary = accuracy.businessRuleSummary ? 
+      `        * *Business Rules Summary:* ${accuracy.businessRuleSummary.totalRules} rules evaluated, ${accuracy.businessRuleSummary.totalViolations} violations (${accuracy.businessRuleSummary.criticalViolations} critical).` 
+      : '        * Business rules analysis not performed.';
+
     return `**2.3. Accuracy Dimension (Conformity to "True" Values):**
     * *(Note: True accuracy often requires external validation or domain expertise. Analysis shows rule-based conformity checks.)*
     * **Value Conformity Assessment:** ${accuracy.score.details}
-    * **Cross-Field Validation Results:** No cross-field rules configured.
-    * **Impact of Outliers on Accuracy:** To be determined through statistical analysis.
+    * **Cross-Field Validation Results:**
+${crossFieldDetails}
+    * **Pattern Validation Results:**
+${patternDetails}
+    * **Business Rules Analysis:**
+${businessRulesSummary}
+    * **Impact of Outliers on Accuracy:** ${accuracy.outlierImpact.description}
     * **Accuracy Score:** ${accuracy.score.score.toFixed(1)}/100 (${accuracy.score.interpretation}).`;
   }
 
   private static formatConsistency(consistency: any): string {
+    const intraRecordDetails = consistency.intraRecord
+      ?.slice(0, 5)
+      .map((rule: any) => 
+        `        * *${rule.ruleDescription}:* ${rule.violatingRecords} violating records.`
+      ).join('\n') || '        * No intra-record consistency issues detected.';
+
+    const formatConsistencyDetails = consistency.formatConsistency
+      ?.slice(0, 5)
+      .map((format: any) => 
+        `        * *${format.columnName}* (${format.analysisType}): ${format.recommendedAction}. Inconsistency: ${format.consistency.inconsistencyPercentage}% of values.`
+      ).join('\n') || '        * No format consistency issues detected.';
+
+    const patternSummary = consistency.patternSummary ? 
+      `        * *Pattern Analysis:* ${consistency.patternSummary.totalPatterns} patterns evaluated, ${consistency.patternSummary.totalViolations} violations across ${consistency.patternSummary.problematicColumns?.length || 0} columns.` 
+      : '        * Pattern analysis not performed.';
+
     return `**2.4. Consistency Dimension (Absence of Contradictions):**
-    * **Intra-Record Consistency:** ${consistency.score.details}
-    * **Inter-Record Consistency:** No entity resolution performed.
-    * **Format & Representational Consistency:** To be implemented in future versions.
-    * **Consistency Score:** ${consistency.score.score.toFixed(1)}/100 (${consistency.score.interpretation}).`;
+    * **Intra-Record Consistency (Logical consistency across columns within the same row):**
+${intraRecordDetails}
+    * **Inter-Record Consistency (Consistency of facts across different records for the same entity):**
+        * No entity resolution performed.
+    * **Format & Representational Consistency (Standardization of Data Values):**
+${formatConsistencyDetails}
+    * **Pattern Consistency Summary:**
+${patternSummary}
+    * **Consistency Score (Rule-based and pattern detection):** ${consistency.score.score.toFixed(1)}/100 (${consistency.score.interpretation}).`;
   }
 
   private static formatTimeliness(timeliness: any): string {

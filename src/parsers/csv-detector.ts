@@ -256,21 +256,48 @@ export class CSVDetector {
       return false;
     }
 
+    // If both fields are text and similar, likely not header-data relationship
+    if (!this.isNumeric(headerField) && !this.isNumeric(dataField)) {
+      // Exception: if header field is a common header word, allow it even if data looks similar
+      const commonHeaderWords = ['name', 'description', 'value', 'id', 'type', 'status', 'date', 'time', 'count', 'amount', 'price', 'total'];
+      const lowerHeaderField = headerField.toLowerCase();
+      
+      if (!commonHeaderWords.includes(lowerHeaderField)) {
+        // Check if they look like similar types of data (e.g., both names)
+        const bothLookLikeName = this.looksLikeName(headerField) && this.looksLikeName(dataField);
+        if (bothLookLikeName) return false;
+      }
+    }
+
     // Headers often contain letters
     if (!/[a-zA-Z]/.test(headerField)) return false;
 
     // Headers are usually shorter and more descriptive
     if (headerField.length > 50) return false;
 
+    // Check for common header words and patterns
+    const commonHeaderWords = ['name', 'description', 'value', 'id', 'type', 'status', 'date', 'time', 'count', 'amount', 'price', 'total'];
+    const lowerHeaderField = headerField.toLowerCase();
+    
+    // Check if it's a common header word
+    if (commonHeaderWords.includes(lowerHeaderField)) {
+      return true;
+    }
+    
     // Check for common header patterns
     const commonHeaderPatterns = [
-      /^[a-zA-Z_][a-zA-Z0-9_\s]*$/,  // identifier-like
-      /^[A-Z][a-z\s]*$/,             // title case
-      /^[a-z_]+$/,                   // snake_case
-      /^[a-zA-Z]+[A-Z][a-zA-Z]*$/,   // camelCase
+      /^[a-z_]+$/,                   // snake_case like user_id, first_name
+      /^[a-zA-Z]+[A-Z][a-zA-Z]*$/,   // camelCase like firstName, userId
+      /^[A-Z][A-Z_]*$/,              // UPPER_CASE like USER_ID
+      /^[a-zA-Z]+$/,                 // simple words like name, value
     ];
 
     return commonHeaderPatterns.some(pattern => pattern.test(headerField));
+  }
+
+  private static looksLikeName(value: string): boolean {
+    // Check if value looks like a person's name (starts with capital, contains only letters and spaces)
+    return /^[A-Z][a-z]+(\s[A-Z][a-z]+)*$/.test(value.trim());
   }
 
   private static isNumeric(value: string): boolean {

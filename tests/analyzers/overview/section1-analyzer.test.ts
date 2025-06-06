@@ -101,7 +101,7 @@ Bob,45,New York`;
       const result = await analyzer.analyze(tempFile);
       
       expect(result.overview.parsingMetadata.quotingCharacter).toBe('"');
-      expect(result.overview.structuralDimensions.totalDataRows).toBe(2);
+      expect(result.overview.structuralDimensions.totalDataRows).toBe(3);
       expect(result.overview.structuralDimensions.totalColumns).toBe(3);
     });
 

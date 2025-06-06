@@ -85,13 +85,16 @@ export class ArgumentParser {
       .option('--privacy <mode>', 'Privacy mode (full, redacted, minimal)', 'redacted')
       .action(this.createCommandHandler('overview'));
 
-    // Future section commands (stubs for now)
+    // Section 2: Quality analysis
     this.program
       .command('quality')
       .argument('<file>', 'CSV file to analyze')
       .description('Run data quality audit (Section 2)')
-      .option('-o, --output <format>', 'Output format', 'markdown')
-      .action(this.createStubHandler('quality', 'Data Quality Audit'));
+      .option('-o, --output <format>', 'Output format (markdown, json, yaml)', 'markdown')
+      .option('--output-file <file>', 'Write output to file instead of stdout')
+      .option('--max-rows <number>', 'Maximum rows to process', this.parseInteger)
+      .option('--strict', 'Enable strict quality checking mode')
+      .action(this.createCommandHandler('quality'));
 
     this.program
       .command('eda')

@@ -19,6 +19,8 @@ import { DataType } from '../../core/types';
 import { CompletenessAnalyzer } from './completeness-analyzer';
 import { UniquenessAnalyzer } from './uniqueness-analyzer';
 import { ValidityAnalyzer } from './validity-analyzer';
+import { BusinessRuleEngine, type BusinessRuleConfig } from './business-rule-engine';
+import { PatternValidationEngine, type PatternValidationConfig } from './pattern-validation-engine';
 
 export interface Section2AnalyzerInput {
   data: (string | null | undefined)[][];
@@ -76,12 +78,11 @@ export class Section2Analyzer {
       const validity = await this.analyzeValidity();
       performanceMetrics.validity = performance.now() - validityStart;
 
-      // 4. Simplified implementations for other dimensions
-      this.reportProgress('consistency', 70, 'Checking data consistency');
-      const consistency = this.createPlaceholderConsistency();
-
-      this.reportProgress('accuracy', 80, 'Assessing data accuracy');
-      const accuracy = this.createPlaceholderAccuracy();
+      // 4. Enhanced Business Rule and Pattern Validation
+      const businessRuleStart = performance.now();
+      this.reportProgress('accuracy', 60, 'Validating business rules and cross-field consistency');
+      const { accuracy, consistency } = await this.analyzeBusinessRulesAndPatterns();
+      performanceMetrics.businessRules = performance.now() - businessRuleStart;
 
       // Additional dimensions (simplified for initial implementation)
       const timeliness = this.createPlaceholderTimeliness();
@@ -190,35 +191,165 @@ export class Section2Analyzer {
     return analyzer.analyze();
   }
 
-  // Placeholder implementations for other dimensions
-  private createPlaceholderConsistency() {
-    return {
-      intraRecord: [],
-      interRecord: [],
-      formatConsistency: [],
-      score: {
-        score: 85,
-        interpretation: 'Good' as const,
-        details: 'Consistency analysis not yet implemented',
+  /**
+   * Enhanced business rule and pattern validation analysis
+   */
+  private async analyzeBusinessRulesAndPatterns(): Promise<{
+    accuracy: any;
+    consistency: any;
+  }> {
+    // Business Rule Validation
+    const businessRuleConfig: BusinessRuleConfig = {
+      enabledRuleTypes: ['cross_field', 'intra_record', 'business_logic'],
+      enableBuiltInRules: true,
+      maxViolationsToTrack: 1000,
+      customRules: this.config.customBusinessRules,
+    };
+
+    const businessRuleEngine = new BusinessRuleEngine(
+      this.data,
+      this.headers,
+      this.columnTypes,
+      businessRuleConfig
+    );
+
+    const businessRuleResults = businessRuleEngine.validateData();
+    const businessRuleSummary = businessRuleEngine.getViolationSummary();
+
+    // Pattern Validation
+    const patternConfig: PatternValidationConfig = {
+      enableBuiltInPatterns: true,
+      enableFormatStandardization: true,
+      maxViolationsPerPattern: 100,
+      customPatterns: this.config.customPatterns,
+    };
+
+    const patternEngine = new PatternValidationEngine(
+      this.data,
+      this.headers,
+      patternConfig
+    );
+
+    const patternResults = patternEngine.validatePatterns();
+    const patternSummary = patternEngine.getPatternSummary();
+
+    // Enhanced Accuracy Analysis
+    const accuracy = {
+      valueConformity: [], // TODO: Add external reference validation
+      crossFieldValidation: businessRuleResults.crossFieldValidations,
+      outlierImpact: {
+        percentageErrornousOutliers: 0, // TODO: Link with Section 3 outlier analysis
+        description: 'Outlier impact analysis to be integrated with Section 3 results',
       },
+      patternValidation: patternResults.patternValidations,
+      businessRuleSummary: {
+        totalRules: businessRuleSummary.totalRulesEvaluated,
+        totalViolations: businessRuleSummary.totalViolations,
+        criticalViolations: businessRuleResults.criticalViolations,
+        violationsBySeverity: businessRuleSummary.violationsBySeverity,
+      },
+      score: this.calculateAccuracyScore(businessRuleResults, patternResults),
+    };
+
+    // Enhanced Consistency Analysis
+    const consistency = {
+      intraRecord: businessRuleResults.intraRecordConsistency,
+      interRecord: [], // TODO: Implement entity resolution
+      formatConsistency: patternResults.formatConsistency,
+      patternSummary: {
+        totalPatterns: patternSummary.totalPatternsEvaluated,
+        totalViolations: patternSummary.totalViolations,
+        violationsBySeverity: patternSummary.violationsBySeverity,
+        problematicColumns: patternSummary.mostProblematicColumns,
+      },
+      score: this.calculateConsistencyScore(businessRuleResults, patternResults),
+    };
+
+    // Add warnings for high violation counts
+    if (businessRuleResults.criticalViolations > 0) {
+      this.warnings.push({
+        category: 'business_rules',
+        severity: 'high',
+        message: `${businessRuleResults.criticalViolations} critical business rule violations detected`,
+        impact: 'Data may not meet business requirements',
+      });
+    }
+
+    if (patternSummary.violationsBySeverity.critical > 0) {
+      this.warnings.push({
+        category: 'pattern_validation',
+        severity: 'high',
+        message: `${patternSummary.violationsBySeverity.critical} critical pattern validation failures`,
+        impact: 'Data format issues may affect downstream processing',
+      });
+    }
+
+    return { accuracy, consistency };
+  }
+
+  private calculateAccuracyScore(businessRuleResults: any, patternResults: any): any {
+    const totalRows = this.rowCount;
+    const totalViolations = businessRuleResults.totalViolations + patternResults.totalViolations;
+    const criticalViolations = businessRuleResults.criticalViolations + 
+      (patternResults.patternValidations?.filter((p: any) => p.severity === 'critical').length || 0);
+
+    // Calculate base score (0-100)
+    let score = 100;
+    
+    // Deduct for violations (more severe = higher deduction)
+    const violationRate = totalViolations / totalRows;
+    score -= violationRate * 50; // Up to 50 points for violation rate
+    
+    // Extra deduction for critical violations
+    const criticalRate = criticalViolations / totalRows;
+    score -= criticalRate * 30; // Up to 30 additional points for critical violations
+
+    score = Math.max(0, Math.round(score));
+
+    let interpretation: 'Excellent' | 'Good' | 'Fair' | 'Needs Improvement' | 'Poor';
+    if (score >= 95) interpretation = 'Excellent';
+    else if (score >= 85) interpretation = 'Good';
+    else if (score >= 70) interpretation = 'Fair';
+    else if (score >= 50) interpretation = 'Needs Improvement';
+    else interpretation = 'Poor';
+
+    return {
+      score,
+      interpretation,
+      details: `${totalViolations} total rule violations, ${criticalViolations} critical`,
     };
   }
 
-  private createPlaceholderAccuracy() {
+  private calculateConsistencyScore(businessRuleResults: any, patternResults: any): any {
+    const totalFormatIssues = patternResults.formatConsistency?.length || 0;
+    const intraRecordIssues = businessRuleResults.intraRecordConsistency?.length || 0;
+
+    // Base score calculation
+    let score = 100;
+    
+    // Deduct for format inconsistencies
+    score -= totalFormatIssues * 10; // 10 points per format inconsistency type
+    
+    // Deduct for intra-record consistency issues
+    score -= intraRecordIssues * 15; // 15 points per intra-record rule violation type
+
+    score = Math.max(0, Math.round(score));
+
+    let interpretation: 'Excellent' | 'Good' | 'Fair' | 'Needs Improvement' | 'Poor';
+    if (score >= 95) interpretation = 'Excellent';
+    else if (score >= 85) interpretation = 'Good';
+    else if (score >= 70) interpretation = 'Fair';
+    else if (score >= 50) interpretation = 'Needs Improvement';
+    else interpretation = 'Poor';
+
     return {
-      valueConformity: [],
-      crossFieldValidation: [],
-      outlierImpact: {
-        percentageErrornousOutliers: 0,
-        description: 'No outlier analysis performed',
-      },
-      score: {
-        score: 80,
-        interpretation: 'Good' as const,
-        details: 'Accuracy analysis not yet implemented',
-      },
+      score,
+      interpretation,
+      details: `${totalFormatIssues} format inconsistencies, ${intraRecordIssues} intra-record issues`,
     };
   }
+
+  // Previous placeholder methods removed - now using enhanced implementations
 
   private createPlaceholderTimeliness() {
     return {

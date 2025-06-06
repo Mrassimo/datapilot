@@ -1,7 +1,7 @@
 🤖 DATAPILOT COMPLETE ANALYSIS ENGINE
 ======================================
-Analysis Target: transactions-xlarge.csv
-Report Generated: 2025-06-05 22:22:19 (UTC)
+Analysis Target: transactions-medium.csv
+Report Generated: 2025-06-06 00:29:26 (UTC)
 DataPilot Version: v1.0.0 (TypeScript Edition)
 
 ---
@@ -9,17 +9,17 @@ DataPilot Version: v1.0.0 (TypeScript Edition)
 This section provides a detailed snapshot of the dataset properties, how it was processed, and the context of this analysis run.
 
 **1.1. Input Data File Details:**
-    * Original Filename: `transactions-xlarge.csv`
-    * Full Resolved Path: `/Users/[user]/plum/test-datasets/large/transactions-xlarge.csv`
-    * File Size (on disk): 563.72 MB
+    * Original Filename: `transactions-medium.csv`
+    * Full Resolved Path: `/Users/[user]/plum/test-datasets/large/transactions-medium.csv`
+    * File Size (on disk): 11.28 MB
     * MIME Type (detected/inferred): `text/csv`
-    * File Last Modified (OS Timestamp): 2025-06-05 22:13:01 (UTC)
-    * File Hash (SHA256): `f7b26f64e865a061679fdfa3b1b088cc0e1fbdfe1e0478e8258a930dc42b323d`
+    * File Last Modified (OS Timestamp): 2025-06-05 22:14:53 (UTC)
+    * File Hash (SHA256): `356ef3df53bd1c9dde3b6de0f56b2fea36a5d2eb4e3559980109e693ef68ab85`
 
 **1.2. Data Ingestion & Parsing Parameters:**
     * Data Source Type: Local File System
     * Parsing Engine Utilized: DataPilot Advanced CSV Parser v1.0.0
-    * Time Taken for Parsing & Initial Load: 3.448 seconds
+    * Time Taken for Parsing & Initial Load: 0.343 seconds
     * Detected Character Encoding: `utf8`
         * Encoding Detection Method: Statistical Character Pattern Analysis
         * Encoding Confidence: High (95%)
@@ -37,10 +37,10 @@ This section provides a detailed snapshot of the dataset properties, how it was 
     * Initial Row/Line Scan Limit for Detection: First 1048576 bytes or 1000 lines
 
 **1.3. Dataset Structural Dimensions & Initial Profile:**
-    * Total Rows Read (including header, if any): 1,000,000
-    * Total Rows of Data (excluding header): 999,999
+    * Total Rows Read (including header, if any): 100,001
+    * Total Rows of Data (excluding header): 100,000
     * Total Columns Detected: 15
-    * Total Data Cells (Data Rows × Columns): 14,999,985
+    * Total Data Cells (Data Rows × Columns): 1,500,000
     * List of Column Names (15) and Original Index:
         1.  (Index 0) `transaction_id`
         2.  (Index 1) `timestamp`
@@ -57,17 +57,17 @@ This section provides a detailed snapshot of the dataset properties, how it was 
         13.  (Index 12) `customer_segment`
         14.  (Index 13) `rating`
         15.  (Index 14) `returned`
-    * Estimated In-Memory Size (Post-Parsing & Initial Type Guessing): 719.11 MB
+    * Estimated In-Memory Size (Post-Parsing & Initial Type Guessing): 71.97 MB
     * Average Row Length (bytes, approximate): 118 bytes
-    * Dataset Sparsity (Initial Estimate): Dense dataset with minimal missing values (0.69% sparse cells via Statistical sampling of 10000 rows)
+    * Dataset Sparsity (Initial Estimate): Dense dataset with minimal missing values (0.67% sparse cells via Statistical sampling of 10000 rows)
 
 **1.4. Analysis Configuration & Execution Context:**
-    * Full Command Executed: `datapilot overview /Users/massimoraso/plum/test-datasets/large/transactions-xlarge.csv`
+    * Full Command Executed: `datapilot overview /Users/massimoraso/plum/test-datasets/large/transactions-medium.csv`
     * Analysis Mode Invoked: Comprehensive Deep Scan
-    * Timestamp of Analysis Start: 2025-06-05 22:22:14 (UTC)
+    * Timestamp of Analysis Start: 2025-06-06 00:29:26 (UTC)
     * Global Dataset Sampling Strategy: Full dataset analysis (No record sampling applied for initial overview)
     * DataPilot Modules Activated for this Run: File I/O Manager, Advanced CSV Parser, Metadata Collector, Structural Analyzer, Report Generator
-    * Processing Time for Section 1 Generation: 4.808 seconds
+    * Processing Time for Section 1 Generation: 0.405 seconds
     * Host Environment Details:
         * Operating System: macOS (Unknown Version)
         * System Architecture: ARM64 (Apple Silicon/ARM 64-bit)
@@ -78,7 +78,7 @@ This section provides a detailed snapshot of the dataset properties, how it was 
 ### Performance Metrics
 
 **Processing Performance:**
-    * Total Analysis Time: 4.808 seconds
-    * File analysis: 1.344s
-    * Parsing: 3.45s
-    * Structural analysis: 0.013s
+    * Total Analysis Time: 0.405 seconds
+    * File analysis: 0.049s
+    * Parsing: 0.344s
+    * Structural analysis: 0.011s

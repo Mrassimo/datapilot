@@ -106,7 +106,7 @@ export class CSVStateMachine {
           break;
 
         case ParserState.QUOTE_IN_QUOTED_FIELD:
-          this.handleQuoteInQuotedField(char, charCode);
+          rowCompleted = this.handleQuoteInQuotedField(char, charCode);
           break;
 
         case ParserState.FIELD_END:
@@ -181,7 +181,7 @@ export class CSVStateMachine {
     }
   }
 
-  private handleQuoteInQuotedField(char: string, charCode: number): void {
+  private handleQuoteInQuotedField(char: string, charCode: number): boolean {
     if (charCode === this.quoteCode) {
       // Double quote - add single quote to field
       this.appendToField(char);
@@ -192,6 +192,7 @@ export class CSVStateMachine {
     } else if (charCode === this.lfCode) {
       this.finishField();
       this.state = ParserState.FIELD_START;
+      return true; // Row completed
     } else if (charCode === this.crCode) {
       this.finishField();
       this.state = ParserState.ROW_END;
@@ -199,6 +200,7 @@ export class CSVStateMachine {
       // Quote not properly closed - treat as end of quoted field
       this.state = ParserState.FIELD_END;
     }
+    return false;
   }
 
   private handleFieldEnd(_char: string, charCode: number): boolean {

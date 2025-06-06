@@ -6,12 +6,16 @@ import { writeFileSync, mkdirSync } from 'fs';
 import { dirname, extname } from 'path';
 import type { CLIOptions } from './types';
 import type { Section1Result } from '../analyzers/overview/types';
+import type { Section2Result } from '../analyzers/quality/types';
 import type { Section3Result } from '../analyzers/eda/types';
 import type { Section4Result } from '../analyzers/visualization/types';
 import { Section1Formatter } from '../analyzers/overview';
+import { Section2Formatter } from '../analyzers/quality';
 
 export class OutputManager {
   private options: CLIOptions;
+  private combinedSections: string[] = [];
+  private combineMode: boolean = false;
 
   constructor(options: CLIOptions) {
     this.options = options;
@@ -47,6 +51,12 @@ export class OutputManager {
         break;
     }
 
+    // In combine mode, just collect the content
+    if (this.combineMode && this.options.output === 'markdown') {
+      this.addToCombinedOutput(content);
+      return outputFiles;
+    }
+
     // Output to file or stdout
     if (this.options.outputFile) {
       const outputPath = this.ensureExtension(this.options.outputFile, extension);
@@ -67,6 +77,66 @@ export class OutputManager {
       const summary = formatter.formatSummary(result);
       console.log('\n📋 Quick Summary:');
       console.log(summary);
+    }
+
+    return outputFiles;
+  }
+
+  /**
+   * Output Section 2 (Data Quality) results in the specified format
+   */
+  outputSection2(result: Section2Result, filename?: string): string[] {
+    const outputFiles: string[] = [];
+
+    // Generate content based on format
+    let content: string;
+    let extension: string;
+
+    switch (this.options.output) {
+      case 'json':
+        content = this.formatSection2AsJSON(result);
+        extension = '.json';
+        break;
+      
+      case 'yaml':
+        content = this.formatSection2AsYAML(result);
+        extension = '.yaml';
+        break;
+      
+      case 'markdown':
+      default:
+        content = Section2Formatter.formatReport(result.qualityAudit);
+        extension = '.md';
+        break;
+    }
+
+    // In combine mode, just collect the content
+    if (this.combineMode && this.options.output === 'markdown') {
+      this.addToCombinedOutput(content);
+      return outputFiles;
+    }
+
+    // Output to file or stdout
+    if (this.options.outputFile) {
+      const outputPath = this.ensureExtension(this.options.outputFile, extension);
+      this.writeToFile(outputPath, content);
+      outputFiles.push(outputPath);
+    } else if (filename) {
+      // Auto-generate filename based on input
+      const outputPath = this.generateSection2OutputFilename(filename, extension);
+      this.writeToFile(outputPath, content);
+      outputFiles.push(outputPath);
+    } else {
+      // Output to stdout
+      console.log(content);
+    }
+
+    // Also generate summary if verbose and not quiet
+    if (this.options.verbose && !this.options.quiet) {
+      const cockpit = result.qualityAudit.cockpit;
+      console.log('\n🧐 Data Quality Summary:');
+      console.log(`   Overall Score: ${cockpit.compositeScore.score.toFixed(1)}/100`);
+      console.log(`   Interpretation: ${cockpit.compositeScore.interpretation}`);
     }
 
     return outputFiles;
@@ -102,6 +172,12 @@ export class OutputManager {
         content = section3Report;
         extension = '.md';
         break;
+    }
+
+    // In combine mode, just collect the content
+    if (this.combineMode && this.options.output === 'markdown') {
+      this.addToCombinedOutput(content);
+      return outputFiles;
     }
 
     // Output to file or stdout
@@ -163,6 +239,12 @@ export class OutputManager {
         content = section4Report;
         extension = '.md';
         break;
+    }
+
+    // In combine mode, just collect the content
+    if (this.combineMode && this.options.output === 'markdown') {
+      this.addToCombinedOutput(content);
+      return outputFiles;
     }
 
     // Output to file or stdout
@@ -303,6 +385,44 @@ export class OutputManager {
   }
 
   /**
+   * Format Section 2 result as JSON
+   */
+  private formatSection2AsJSON(result: Section2Result): string {
+    const jsonOutput = {
+      metadata: {
+        version: '1.0.0',
+        generatedAt: new Date().toISOString(),
+        command: 'datapilot quality',
+        analysisType: 'Data Quality & Integrity Audit',
+      },
+      qualityAudit: result.qualityAudit,
+      warnings: result.warnings,
+      performanceMetrics: result.performanceMetrics,
+    };
+
+    return JSON.stringify(jsonOutput, null, 2);
+  }
+
+  /**
+   * Format Section 2 result as YAML
+   */
+  private formatSection2AsYAML(result: Section2Result): string {
+    const yaml = this.objectToYAML({
+      metadata: {
+        version: '1.0.0',
+        generatedAt: new Date().toISOString(),
+        command: 'datapilot quality',
+        analysisType: 'Data Quality & Integrity Audit',
+      },
+      qualityAudit: result.qualityAudit,
+      warnings: result.warnings,
+      performanceMetrics: result.performanceMetrics,
+    });
+
+    return yaml;
+  }
+
+  /**
    * Format Section 3 result as JSON
    */
   private formatSection3AsJSON(result: Section3Result): string {
@@ -343,14 +463,6 @@ export class OutputManager {
   }
 
   /**
-   * Generate Section 3 output filename
-   */
-  private generateSection3OutputFilename(inputFilename: string, extension: string): string {
-    const baseName = inputFilename.replace(/\.[^/.]+$/, ''); // Remove extension
-    return `${baseName}_datapilot_eda${extension}`;
-  }
-
-  /**
    * Format Section 4 result as JSON
    */
   private formatSection4AsJSON(result: Section4Result): string {
@@ -388,6 +500,22 @@ export class OutputManager {
     });
 
     return yaml;
+  }
+
+  /**
+   * Generate Section 2 output filename
+   */
+  private generateSection2OutputFilename(inputFilename: string, extension: string): string {
+    const baseName = inputFilename.replace(/\.[^/.]+$/, ''); // Remove extension
+    return `${baseName}_datapilot_quality${extension}`;
+  }
+
+  /**
+   * Generate Section 3 output filename
+   */
+  private generateSection3OutputFilename(inputFilename: string, extension: string): string {
+    const baseName = inputFilename.replace(/\.[^/.]+$/, ''); // Remove extension
+    return `${baseName}_datapilot_eda${extension}`;
   }
 
   /**
@@ -452,6 +580,58 @@ export class OutputManager {
     }
   }
 
+  /**
+   * Start collecting sections for combined output
+   */
+  startCombinedOutput(): void {
+    this.combinedSections = [];
+    this.combineMode = true;
+  }
+
+  /**
+   * Add a section to the combined output
+   */
+  addToCombinedOutput(content: string): void {
+    this.combinedSections.push(content);
+  }
+
+  /**
+   * Output the combined sections as a single file
+   */
+  outputCombined(filename?: string): string[] {
+    if (this.combinedSections.length === 0) {
+      return [];
+    }
+
+    const outputFiles: string[] = [];
+    const combinedContent = this.combinedSections.join('\n\n---\n\n');
+
+    if (this.options.outputFile) {
+      const outputPath = this.ensureExtension(this.options.outputFile, '.md');
+      this.writeToFile(outputPath, combinedContent);
+      outputFiles.push(outputPath);
+    } else if (filename) {
+      const outputPath = this.generateCombinedOutputFilename(filename, '.md');
+      this.writeToFile(outputPath, combinedContent);
+      outputFiles.push(outputPath);
+    } else {
+      console.log(combinedContent);
+    }
+
+    // Clear combined sections after output
+    this.combinedSections = [];
+    this.combineMode = false;
+
+    return outputFiles;
+  }
+
+  /**
+   * Generate combined output filename
+   */
+  private generateCombinedOutputFilename(inputFilename: string, extension: string): string {
+    const baseName = inputFilename.replace(/\.[^/.]+$/, ''); // Remove extension
+    return `${baseName}_datapilot_full_report${extension}`;
+  }
 
   /**
    * Show available output formats

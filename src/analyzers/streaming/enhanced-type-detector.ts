@@ -85,14 +85,15 @@ export class EnhancedTypeDetector {
     }
 
     // Run detection tests in order of specificity
+    // Numerical comes early to prevent numbers being detected as dates
     const detectionTests = [
-      () => this.testDateTime(validValues, columnName),
+      () => this.testNumerical(validValues, columnName), // Move numerical first
       () => this.testBoolean(validValues, columnName),
       () => this.testCurrency(validValues, columnName),
       () => this.testPercentage(validValues, columnName),
       () => this.testEmail(validValues, columnName),
       () => this.testURL(validValues, columnName),
-      () => this.testNumerical(validValues, columnName),
+      () => this.testDateTime(validValues, columnName), // Move datetime after numerical
       () => this.testCategorical(validValues, columnName),
       () => this.testText(validValues, columnName),
     ];
@@ -122,17 +123,27 @@ export class EnhancedTypeDetector {
     let dateCount = 0;
     const reasons: string[] = [];
 
-    // Check column name hints
-    const nameHints = ['date', 'time', 'timestamp', 'created', 'updated', 'modified'];
+    // Check column name hints - be more specific about date columns
+    const nameHints = ['date', 'time', 'timestamp', 'created', 'updated', 'modified', 'birth', 'expir'];
     const nameHasHint = nameHints.some(hint => 
       columnName.toLowerCase().includes(hint)
     );
+
+    // If column name doesn't suggest dates and has numeric name, probably not a date
+    const numericNameHints = ['age', 'rate', 'pressure', 'sugar', 'weight', 'height', 'score', 'count', 'amount', 'price', 'salary'];
+    const nameHasNumericHint = numericNameHints.some(hint => 
+      columnName.toLowerCase().includes(hint)
+    );
+
+    if (nameHasNumericHint && !nameHasHint) {
+      return null; // Don't even try date detection for clearly numeric columns
+    }
 
     if (nameHasHint) {
       reasons.push('Column name suggests datetime');
     }
 
-    // Test values against date patterns
+    // Test values against date patterns - be more restrictive
     for (const value of values.slice(0, 100)) { // Sample first 100
       if (this.isDateLike(value)) {
         dateCount++;
@@ -141,13 +152,16 @@ export class EnhancedTypeDetector {
 
     const dateRatio = dateCount / Math.min(values.length, 100);
     
-    if (dateRatio >= 0.8) {
+    // Require higher confidence for date detection, especially without name hints
+    const requiredRatio = nameHasHint ? 0.7 : 0.9;
+    
+    if (dateRatio >= requiredRatio) {
       reasons.push(`${Math.round(dateRatio * 100)}% of values match date patterns`);
       
       return {
         dataType: EdaDataType.DATE_TIME,
         semanticType: this.inferDateSemanticType(columnName),
-        confidence: Math.min(0.95, 0.6 + dateRatio * 0.3 + (nameHasHint ? 0.1 : 0)),
+        confidence: Math.min(0.95, 0.5 + dateRatio * 0.3 + (nameHasHint ? 0.15 : 0)),
         reasons,
       };
     }
@@ -353,8 +367,10 @@ export class EnhancedTypeDetector {
     let integerCount = 0;
     const reasons: string[] = [];
 
-    // Check column name hints
-    const nameHints = ['id', 'count', 'number', 'quantity', 'amount', 'size', 'length'];
+    // Enhanced column name hints including medical/scientific terms
+    const nameHints = ['id', 'count', 'number', 'quantity', 'amount', 'size', 'length', 
+                      'age', 'rate', 'pressure', 'sugar', 'weight', 'height', 'score', 
+                      'price', 'salary', 'value', 'level', 'measurement'];
     const nameHasHint = nameHints.some(hint => 
       columnName.toLowerCase().includes(hint)
     );
@@ -363,21 +379,37 @@ export class EnhancedTypeDetector {
       reasons.push('Column name suggests numerical data');
     }
 
-    // Test values for numerical patterns
+    // More robust numerical validation
     for (const value of values.slice(0, 100)) {
-      const num = Number(value);
-      if (!isNaN(num) && isFinite(num)) {
-        numericCount++;
-        if (Number.isInteger(num)) {
-          integerCount++;
+      const trimmedValue = String(value).trim();
+      
+      // Skip empty values
+      if (!trimmedValue) continue;
+      
+      // Check if it's a pure number (no separators that could be dates)
+      const isPlainNumber = /^-?\d*\.?\d+$/.test(trimmedValue);
+      
+      if (isPlainNumber) {
+        const num = Number(trimmedValue);
+        if (!isNaN(num) && isFinite(num)) {
+          numericCount++;
+          
+          // More precise integer detection
+          if (Number.isInteger(num) && !trimmedValue.includes('.')) {
+            integerCount++;
+          }
         }
       }
     }
 
-    const numericRatio = numericCount / Math.min(values.length, 100);
-    const integerRatio = integerCount / numericCount;
+    const validSampleSize = Math.min(values.length, 100);
+    const numericRatio = numericCount / validSampleSize;
+    const integerRatio = numericCount > 0 ? integerCount / numericCount : 0;
     
-    if (numericRatio >= 0.8) {
+    // Higher confidence for numerical detection, especially with name hints
+    const threshold = nameHasHint ? 0.7 : 0.85;
+    
+    if (numericRatio >= threshold) {
       const isInteger = integerRatio >= 0.9;
       reasons.push(`${Math.round(numericRatio * 100)}% of values are numeric`);
       
@@ -385,10 +417,15 @@ export class EnhancedTypeDetector {
         reasons.push(`${Math.round(integerRatio * 100)}% are integers`);
       }
       
+      // Higher confidence scoring
+      let confidence = 0.5 + numericRatio * 0.3;
+      if (nameHasHint) confidence += 0.15;
+      if (numericRatio >= 0.95) confidence += 0.05; // Bonus for very clean data
+      
       return {
         dataType: isInteger ? EdaDataType.NUMERICAL_INTEGER : EdaDataType.NUMERICAL_FLOAT,
         semanticType: this.inferNumericalSemanticType(columnName),
-        confidence: Math.min(0.90, 0.4 + numericRatio * 0.4 + (nameHasHint ? 0.1 : 0)),
+        confidence: Math.min(0.95, confidence),
         reasons,
       };
     }
@@ -452,8 +489,30 @@ export class EnhancedTypeDetector {
 
   // Helper methods for pattern matching
   private static isDateLike(value: string): boolean {
-    return this.DATE_PATTERNS.some(pattern => pattern.test(value)) ||
-           !isNaN(Date.parse(value));
+    // First check explicit date patterns
+    if (this.DATE_PATTERNS.some(pattern => pattern.test(value))) {
+      return true;
+    }
+    
+    // Be much more restrictive with Date.parse
+    // Only accept if it looks like a real date format and isn't just a number
+    if (value.length < 4 || /^\d+$/.test(value)) {
+      return false; // Don't accept pure numbers or very short strings
+    }
+    
+    // Only accept Date.parse results if the string contains date-like separators
+    if (!/[-\/\s:T]/.test(value)) {
+      return false; // Must contain date/time separators
+    }
+    
+    const parsed = Date.parse(value);
+    if (isNaN(parsed)) {
+      return false;
+    }
+    
+    // Additional sanity check: parsed date should be between 1900 and 2100
+    const year = new Date(parsed).getFullYear();
+    return year >= 1900 && year <= 2100;
   }
 
   private static isBooleanLike(value: string): boolean {

@@ -14,7 +14,7 @@ This section provides a comprehensive statistical exploration of the dataset. Th
 *This sub-section provides detailed statistical profiles for each column in the dataset, adapted based on detected data type.*
 
 ---
-**Column: `Column_1`**
+**Column: `transaction_id`**
 * **Detected Data Type:** text_general
 * **Inferred Semantic Type:** category
 * **Data Quality Flag:** Good
@@ -46,7 +46,7 @@ This section provides a comprehensive statistical exploration of the dataset. Th
 **Top 5 Most Frequent Words:** [transaction_id, txn00000001, txn00000002, txn00000003, txn00000004]
 
 ---
-**Column: `Column_2`**
+**Column: `timestamp`**
 * **Detected Data Type:** date_time
 * **Inferred Semantic Type:** unknown
 * **Data Quality Flag:** Good
@@ -80,7 +80,7 @@ This section provides a comprehensive statistical exploration of the dataset. Th
 * No obvious validity issues detected
 
 ---
-**Column: `Column_3`**
+**Column: `customer_id`**
 * **Detected Data Type:** text_general
 * **Inferred Semantic Type:** category
 * **Data Quality Flag:** Good
@@ -112,7 +112,7 @@ This section provides a comprehensive statistical exploration of the dataset. Th
 **Top 5 Most Frequent Words:** [cust031304, cust000750, cust020478, cust037341, cust036452]
 
 ---
-**Column: `Column_4`**
+**Column: `product_id`**
 * **Detected Data Type:** text_general
 * **Inferred Semantic Type:** category
 * **Data Quality Flag:** Good
@@ -144,7 +144,7 @@ This section provides a comprehensive statistical exploration of the dataset. Th
 **Top 5 Most Frequent Words:** [prod04491, prod00641, prod03611, prod00703, prod04929]
 
 ---
-**Column: `Column_5`**
+**Column: `category`**
 * **Detected Data Type:** categorical
 * **Inferred Semantic Type:** category
 * **Data Quality Flag:** Good
@@ -192,41 +192,75 @@ This section provides a comprehensive statistical exploration of the dataset. Th
 * No significant issues detected.
 
 ---
-**Column: `Column_6`**
-* **Detected Data Type:** date_time
-* **Inferred Semantic Type:** unknown
+**Column: `quantity`**
+* **Detected Data Type:** numerical_integer
+* **Inferred Semantic Type:** count
 * **Data Quality Flag:** Good
 * **Quick Stats:**
     * Total Values (Count): 100,001
     * Missing Values: 1 (0%)
-    * Unique Values: 50 (0.05% of total)
+    * Unique Values: 10 (0.01% of total)
 
-**3.2.C. Date/Time Column Analysis:**
+**3.2.A. Numerical Column Analysis:**
 
-**Range & Span:**
-* Minimum Date/Time: 2000-12-31T13:00:00.000Z
-* Maximum Date/Time: 2001-09-30T14:00:00.000Z
-* Overall Time Span: 9 months, 3 days
+**Descriptive Statistics:**
+* Minimum: 1
+* Maximum: 10
+* Range: 9
+* Sum: 548999
+* Mean (Arithmetic): 5.48999
+* Median (50th Percentile): 5.997115
+* Mode(s): [1 (Frequency: 10.17%)]
+* Standard Deviation: 2.873078
+* Variance: 8.25458
+* Coefficient of Variation (CV): 0.5233%
 
-**Granularity & Precision:**
-* Detected Granularity: Day
-* Implicit Precision: Day level precision detected
+**Quantile & Percentile Statistics:**
+* 1st Percentile: 1
+* 5th Percentile: 1
+* 10th Percentile: 1.900291
+* 25th Percentile (Q1 - First Quartile): 3
+* 75th Percentile (Q3 - Third Quartile): 8
+* 90th Percentile: 9.77576
+* 95th Percentile: 10
+* 99th Percentile: 10
+* Interquartile Range (IQR = Q3 - Q1): 5
+* Median Absolute Deviation (MAD): 1.997115
 
-**Component Analysis & Common Values:**
-* Most Common Year(s): [2001]
-* Most Common Month(s): [January, June, March]
-* Most Common Day of Week: [Monday, Thursday, Sunday]
-* Most Common Hour of Day: [0:00]
+**Distribution Shape & Normality Assessment:**
+* Skewness: 0.0012 (Approximately symmetric)
+* Kurtosis (Excess): -1.2223 (Platykurtic (light tails))
+* Histogram Analysis: Distribution spans 10 bins
+* Normality Tests:
+    * Shapiro-Wilk Test: W-statistic = 17.118458, p-value = 0.5 (Data consistent with normal distribution (p > 0.05))
+    * Jarque-Bera Test: JB-statistic = 3.777074, p-value = 0.2 (Data consistent with normal distribution (p > 0.05))
+    * Kolmogorov-Smirnov Test: D-statistic = 0.108739, p-value = 0.2 (Data consistent with normal distribution (p > 0.05))
 
-**Temporal Patterns (Univariate):**
-* Pattern Analysis: Daily to weekly patterns detected
-* Gap Analysis: Largest gap between consecutive records: 31 days
+**Univariate Outlier Analysis:**
+* Method 1: IQR Proximity Rule
+    * Lower Fence (Q1 - 1.5 * IQR): -4.5
+    * Upper Fence (Q3 + 1.5 * IQR): 15.5
+    * Number of Outliers (Below Lower): 0 (0%)
+    * Number of Outliers (Above Upper): 0 (0%)
+    * Extreme Outliers (using 3.0 * IQR factor): 0 (0%)
+* Method 2: Z-Score Method
+    * Standard Deviations from Mean for Threshold: +/- 3
+    * Number of Outliers (Z-score < -3): 0
+    * Number of Outliers (Z-score > +3): 0
+* Method 3: Modified Z-Score (using MAD)
+    * Threshold: +/- 3.5
+    * Number of Outliers: 0
+* Summary of Outliers: Total 0 (0%). Min Outlier Value: 0, Max Outlier Value: 0.
+* Potential Impact: Low outlier impact
 
-**Validity Notes:**
-* No obvious validity issues detected
+**Specific Numerical Patterns & Characteristics:**
+* Percentage of Zero Values: 0%
+* Percentage of Negative Values: 0%
+* Round Numbers Analysis: Moderate rounding detected
+* Potential for Log Transformation: Log transformation may not be beneficial
 
 ---
-**Column: `Column_7`**
+**Column: `unit_price`**
 * **Detected Data Type:** numerical_float
 * **Inferred Semantic Type:** unknown
 * **Data Quality Flag:** Good
@@ -259,16 +293,16 @@ This section provides a comprehensive statistical exploration of the dataset. Th
 * 95th Percentile: 948.044777
 * 99th Percentile: 989.508262
 * Interquartile Range (IQR = Q3 - Q1): 493.393875
-* Median Absolute Deviation (MAD): 281.927322
+* Median Absolute Deviation (MAD): 294.397322
 
 **Distribution Shape & Normality Assessment:**
 * Skewness: 0.0074 (Approximately symmetric)
 * Kurtosis (Excess): -1.2007 (Platykurtic (light tails))
 * Histogram Analysis: Distribution spans 10 bins
 * Normality Tests:
-    * Shapiro-Wilk Test: W-statistic = 18.661996, p-value = 0.5 (Data consistent with normal distribution (p > 0.05))
-    * Jarque-Bera Test: JB-statistic = 7.418983, p-value = 0.05 (Data significantly deviates from normal distribution (p ≤ 0.05))
-    * Kolmogorov-Smirnov Test: D-statistic = 0.116379, p-value = 0.2 (Data consistent with normal distribution (p > 0.05))
+    * Shapiro-Wilk Test: W-statistic = 19.322982, p-value = 0.5 (Data consistent with normal distribution (p > 0.05))
+    * Jarque-Bera Test: JB-statistic = 8.968038, p-value = 0.05 (Data significantly deviates from normal distribution (p ≤ 0.05))
+    * Kolmogorov-Smirnov Test: D-statistic = 0.109082, p-value = 0.2 (Data consistent with normal distribution (p > 0.05))
 
 **Univariate Outlier Analysis:**
 * Method 1: IQR Proximity Rule
@@ -294,7 +328,7 @@ This section provides a comprehensive statistical exploration of the dataset. Th
 * Potential for Log Transformation: Log transformation may not be beneficial
 
 ---
-**Column: `Column_8`**
+**Column: `total_amount`**
 * **Detected Data Type:** numerical_float
 * **Inferred Semantic Type:** unknown
 * **Data Quality Flag:** Good
@@ -327,16 +361,16 @@ This section provides a comprehensive statistical exploration of the dataset. Th
 * 95th Percentile: 6811.848106
 * 99th Percentile: 8488.308354
 * Interquartile Range (IQR = Q3 - Q1): 2956.95699
-* Median Absolute Deviation (MAD): 1268.682681
+* Median Absolute Deviation (MAD): 1172.757319
 
 **Distribution Shape & Normality Assessment:**
 * Skewness: 1.0246 (Right-skewed (positive skew))
 * Kurtosis (Excess): 0.3942 (Mesokurtic (normal-like tails))
 * Histogram Analysis: Distribution spans 10 bins
 * Normality Tests:
-    * Shapiro-Wilk Test: W-statistic = 17.233815, p-value = 0.5 (Data consistent with normal distribution (p > 0.05))
-    * Jarque-Bera Test: JB-statistic = 6.527534, p-value = 0.05 (Data significantly deviates from normal distribution (p ≤ 0.05))
-    * Kolmogorov-Smirnov Test: D-statistic = 0.087531, p-value = 0.2 (Data consistent with normal distribution (p > 0.05))
+    * Shapiro-Wilk Test: W-statistic = 14.778586, p-value = 0.5 (Data consistent with normal distribution (p > 0.05))
+    * Jarque-Bera Test: JB-statistic = 18.554946, p-value = 0.001 (Data significantly deviates from normal distribution (p ≤ 0.05))
+    * Kolmogorov-Smirnov Test: D-statistic = 0.144612, p-value = 0.05 (Data significantly deviates from normal distribution (p ≤ 0.05))
 
 **Univariate Outlier Analysis:**
 * Method 1: IQR Proximity Rule
@@ -348,11 +382,11 @@ This section provides a comprehensive statistical exploration of the dataset. Th
 * Method 2: Z-Score Method
     * Standard Deviations from Mean for Threshold: +/- 3
     * Number of Outliers (Z-score < -3): 0
-    * Number of Outliers (Z-score > +3): 1
+    * Number of Outliers (Z-score > +3): 0
 * Method 3: Modified Z-Score (using MAD)
     * Threshold: +/- 3.5
     * Number of Outliers: 1
-* Summary of Outliers: Total 1 (1%). Min Outlier Value: 8951.76, Max Outlier Value: 8951.76.
+* Summary of Outliers: Total 1 (1%). Min Outlier Value: 8449.4, Max Outlier Value: 8449.4.
 * Potential Impact: Low outlier impact
 
 **Specific Numerical Patterns & Characteristics:**
@@ -362,7 +396,7 @@ This section provides a comprehensive statistical exploration of the dataset. Th
 * Potential for Log Transformation: Good candidate for log transformation due to wide range
 
 ---
-**Column: `Column_9`**
+**Column: `payment_method`**
 * **Detected Data Type:** categorical
 * **Inferred Semantic Type:** category
 * **Data Quality Flag:** Good
@@ -407,7 +441,7 @@ This section provides a comprehensive statistical exploration of the dataset. Th
 * No significant issues detected.
 
 ---
-**Column: `Column_10`**
+**Column: `store_location`**
 * **Detected Data Type:** categorical
 * **Inferred Semantic Type:** category
 * **Data Quality Flag:** Good
@@ -453,9 +487,9 @@ This section provides a comprehensive statistical exploration of the dataset. Th
 * No significant issues detected.
 
 ---
-**Column: `Column_11`**
+**Column: `discount_applied`**
 * **Detected Data Type:** numerical_float
-* **Inferred Semantic Type:** unknown
+* **Inferred Semantic Type:** count
 * **Data Quality Flag:** Good
 * **Quick Stats:**
     * Total Values (Count): 100,001
@@ -493,9 +527,9 @@ This section provides a comprehensive statistical exploration of the dataset. Th
 * Kurtosis (Excess): -1.4932 (Platykurtic (light tails))
 * Histogram Analysis: Distribution spans 10 bins
 * Normality Tests:
-    * Shapiro-Wilk Test: W-statistic = 18.906637, p-value = 0.5 (Data consistent with normal distribution (p > 0.05))
-    * Jarque-Bera Test: JB-statistic = 9.304895, p-value = 0.01 (Data significantly deviates from normal distribution (p ≤ 0.05))
-    * Kolmogorov-Smirnov Test: D-statistic = 0.254715, p-value = 0.01 (Data significantly deviates from normal distribution (p ≤ 0.05))
+    * Shapiro-Wilk Test: W-statistic = 20.767601, p-value = 0.5 (Data consistent with normal distribution (p > 0.05))
+    * Jarque-Bera Test: JB-statistic = 10.784891, p-value = 0.01 (Data significantly deviates from normal distribution (p ≤ 0.05))
+    * Kolmogorov-Smirnov Test: D-statistic = 0.31776, p-value = 0.01 (Data significantly deviates from normal distribution (p ≤ 0.05))
 
 **Univariate Outlier Analysis:**
 * Method 1: IQR Proximity Rule
@@ -515,13 +549,13 @@ This section provides a comprehensive statistical exploration of the dataset. Th
 * Potential Impact: Low outlier impact
 
 **Specific Numerical Patterns & Characteristics:**
-* Percentage of Zero Values: 39%
+* Percentage of Zero Values: 50%
 * Percentage of Negative Values: 0%
 * Round Numbers Analysis: High proportion of round numbers suggests potential data rounding
 * Potential for Log Transformation: Log transformation may not be beneficial
 
 ---
-**Column: `Column_12`**
+**Column: `customer_age`**
 * **Detected Data Type:** date_time
 * **Inferred Semantic Type:** unknown
 * **Data Quality Flag:** Poor
@@ -555,7 +589,7 @@ This section provides a comprehensive statistical exploration of the dataset. Th
 * 16 future dates detected
 
 ---
-**Column: `Column_13`**
+**Column: `customer_segment`**
 * **Detected Data Type:** categorical
 * **Inferred Semantic Type:** category
 * **Data Quality Flag:** Good
@@ -599,7 +633,7 @@ This section provides a comprehensive statistical exploration of the dataset. Th
 * No significant issues detected.
 
 ---
-**Column: `Column_14`**
+**Column: `rating`**
 * **Detected Data Type:** date_time
 * **Inferred Semantic Type:** unknown
 * **Data Quality Flag:** Moderate
@@ -633,7 +667,7 @@ This section provides a comprehensive statistical exploration of the dataset. Th
 * No obvious validity issues detected
 
 ---
-**Column: `Column_15`**
+**Column: `returned`**
 * **Detected Data Type:** boolean
 * **Inferred Semantic Type:** status
 * **Data Quality Flag:** Good
@@ -664,27 +698,27 @@ This section provides a comprehensive statistical exploration of the dataset. Th
 **3.5. Specific Analysis Modules (Activated Based on Data Characteristics):**
 
     * **3.5.A. Time Series Analysis Deep Dive:**
-        * **Detected DateTime Columns:** 4 columns identified
-        * **Primary Temporal Column:** `Column_2`
+        * **Detected DateTime Columns:** 3 columns identified
+        * **Primary Temporal Column:** `timestamp`
         * **Analysis Note:** Advanced time series decomposition, trend analysis, and seasonality detection would be performed here for time-ordered data with sufficient temporal granularity.
         * **Recommendation:** Consider sorting data by primary temporal column for time series analysis if records represent sequential events.
 
     * **3.5.B. Text Analytics Deep Dive:**
         * **Detected Text Columns:** 3 columns identified
-        * **Primary Text Column:** `Column_1`
+        * **Primary Text Column:** `transaction_id`
         * **Advanced Analysis Available:** N-gram analysis, topic modelling, named entity recognition, sentiment analysis
         * **Sample Keywords:** [transaction_id, txn00000001, txn00000002, txn00000003, txn00000004]
         * **Recommendation:** Apply NLP preprocessing pipeline for deeper text insights if required for analysis goals.
 
 **3.6. EDA Summary & Key Hypotheses/Insights:**
     * **Top Statistical Findings:**
-    1. Streaming analysis processed 100,001 rows using only 46MB peak memory
+    1. Streaming analysis processed 100,001 rows using only 54MB peak memory
     * **Data Quality Issues Uncovered:**
-    * 1 columns have >20% missing values: Column_12
+    * 1 columns have >20% missing values: customer_age
     * **Hypotheses Generated for Further Testing:**
     * No specific hypotheses generated - consider domain knowledge for hypothesis formation.
     * **Recommendations for Data Preprocessing & Feature Engineering:**
-    * Consider encoding or grouping high-cardinality columns: Column_1, Column_3, Column_4
+    * Consider encoding or grouping high-cardinality columns: transaction_id, customer_id, product_id
     * **Critical Warnings & Considerations:**
 
 
@@ -693,8 +727,8 @@ This section provides a comprehensive statistical exploration of the dataset. Th
 ---
 
 **Analysis Performance Summary:**
-* **Processing Time:** 1061ms (1.06 seconds)
+* **Processing Time:** 1381ms (1.38 seconds)
 * **Rows Analysed:** 100,001
-* **Memory Efficiency:** Constant ~46MB usage
+* **Memory Efficiency:** Constant ~54MB usage
 * **Analysis Method:** Streaming with online algorithms
 * **Dataset Size:** 100,001 records across 15 columns

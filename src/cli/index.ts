@@ -9,6 +9,7 @@ import { ArgumentParser } from './argument-parser';
 import { ProgressReporter } from './progress-reporter';
 import { OutputManager } from './output-manager';
 import { Section1Analyzer } from '../analyzers/overview';
+import { Section2Analyzer } from '../analyzers/quality';
 import { StreamingAnalyzer } from '../analyzers/streaming/streaming-analyzer';
 import { Section3Formatter } from '../analyzers/eda/section3-formatter';
 import { Section4Analyzer, Section4Formatter } from '../analyzers/visualization';
@@ -17,6 +18,7 @@ import { CSVParser } from '../parsers/csv-parser';
 import { logger, LogLevel } from '../utils/logger';
 import type { CLIResult } from './types';
 import { ValidationError, FileError } from './types';
+import { DataType } from '../core/types';
 
 export class DataPilotCLI {
   private argumentParser: ArgumentParser;
@@ -102,6 +104,9 @@ export class DataPilotCLI {
         
       case 'overview':
         return await this.executeSection1Analysis(filePath, options, startTime);
+        
+      case 'quality':
+        return await this.executeSection2Analysis(filePath, options, startTime);
         
       case 'eda':
         return await this.executeSection3Analysis(filePath, options, startTime);
@@ -198,6 +203,117 @@ export class DataPilotCLI {
 
     } catch (error) {
       this.progressReporter.errorPhase('Analysis failed');
+      throw error;
+    }
+  }
+
+  /**
+   * Execute Section 2 (Data Quality) analysis
+   */
+  private async executeSection2Analysis(
+    filePath: string,
+    options: any,
+    startTime: number
+  ): Promise<CLIResult> {
+    
+    if (!this.outputManager) {
+      throw new Error('Output manager not initialised');
+    }
+
+    try {
+      this.progressReporter.startPhase('quality', 'Starting data quality analysis...');
+
+      // Parse CSV to get data for Section 2
+      this.progressReporter.updateProgress({
+        phase: 'parsing',
+        progress: 25,
+        message: 'Loading and parsing CSV data...',
+        timeElapsed: Date.now() - startTime,
+      });
+
+      const parser = new CSVParser({
+        autoDetect: true,
+        maxRows: options.maxRows || 100000, // Limit for memory-based Section 2
+        trimFields: true,
+      });
+
+      const rows = await parser.parseFile(filePath);
+      
+      if (rows.length === 0) {
+        throw new ValidationError('No data found in file');
+      }
+
+      // Prepare data for Section 2
+      const hasHeader = parser.getOptions().hasHeader !== false;
+      const dataStartIndex = hasHeader ? 1 : 0;
+      const headers = hasHeader && rows.length > 0 
+        ? rows[0].data 
+        : rows[0].data.map((_, i) => `Column_${i + 1}`);
+
+      const data = rows.slice(dataStartIndex).map(row => row.data);
+      
+      // Simple type detection for Section 2
+      const columnTypes = headers.map(() => DataType.STRING);
+
+      // Set up progress callback
+      const progressCallback = (progress: any) => {
+        this.progressReporter.updateProgress({
+          phase: progress.stage,
+          progress: 50 + (progress.percentage * 0.4), // Scale to 50-90%
+          message: progress.message,
+          timeElapsed: Date.now() - startTime,
+        });
+      };
+
+      // Create and run Section 2 analyzer
+      const analyzer = new Section2Analyzer({
+        data,
+        headers,
+        columnTypes,
+        rowCount: data.length,
+        columnCount: headers.length,
+        config: {
+          enabledDimensions: ['completeness', 'uniqueness', 'validity'],
+          strictMode: false,
+          maxOutlierDetection: 100,
+          semanticDuplicateThreshold: 0.85,
+        },
+        onProgress: progressCallback,
+      });
+
+      const result = await analyzer.analyze();
+
+      const processingTime = Date.now() - startTime;
+      this.progressReporter.completePhase('Data quality analysis completed', processingTime);
+
+      // Generate output
+      const outputFiles = this.outputManager.outputSection2(
+        result,
+        filePath.split('/').pop()
+      );
+
+      // Show summary
+      this.progressReporter.showSummary({
+        processingTime,
+        rowsProcessed: data.length,
+        warnings: result.warnings.length,
+        errors: 0,
+      });
+
+      return {
+        success: true,
+        exitCode: 0,
+        outputFiles,
+        stats: {
+          processingTime,
+          rowsProcessed: data.length,
+          warnings: result.warnings.length,
+          errors: 0,
+        },
+      };
+
+    } catch (error) {
+      this.progressReporter.errorPhase('Data quality analysis failed');
       throw error;
     }
   }
@@ -424,7 +540,7 @@ export class DataPilotCLI {
   }
 
   /**
-   * Execute full analysis (Section 1 + Section 3)
+   * Execute full analysis (Section 1 + Section 2 + Section 3 + Section 4)
    */
   private async executeFullAnalysis(
     filePath: string,
@@ -437,6 +553,11 @@ export class DataPilotCLI {
     }
 
     try {
+      // Start combined output mode if using output file
+      if (options.outputFile && options.output === 'markdown') {
+        this.outputManager.startCombinedOutput();
+      }
+
       // First execute Section 1 analysis
       this.progressReporter.startPhase('overview', 'Starting overview analysis...');
       const section1Result = await this.executeSection1Analysis(filePath, options, startTime);
@@ -445,24 +566,51 @@ export class DataPilotCLI {
         return section1Result;
       }
 
+      // Then execute Section 2 analysis
+      this.progressReporter.startPhase('quality', 'Starting data quality analysis...');
+      const section2Result = await this.executeSection2Analysis(filePath, options, Date.now());
+      
+      if (!section2Result.success) {
+        return section2Result;
+      }
+
       // Then execute Section 3 analysis
       this.progressReporter.startPhase('eda', 'Starting EDA analysis...');
       const section3Result = await this.executeSection3Analysis(filePath, options, Date.now());
       
+      if (!section3Result.success) {
+        return section3Result;
+      }
+
+      // Finally execute Section 4 analysis
+      this.progressReporter.startPhase('viz', 'Starting visualization analysis...');
+      const section4Result = await this.executeSection4Analysis(filePath, options, Date.now());
+      
       const totalProcessingTime = Date.now() - startTime;
       this.progressReporter.completePhase('Full analysis completed', totalProcessingTime);
 
-      // Combine output files
-      const outputFiles = [
-        ...(section1Result.outputFiles || []),
-        ...(section3Result.outputFiles || [])
-      ];
+      // Handle combined output if in combine mode
+      let outputFiles: string[] = [];
+      if (options.outputFile && options.output === 'markdown') {
+        outputFiles = this.outputManager.outputCombined(filePath.split('/').pop());
+      } else {
+        // Combine individual output files
+        outputFiles = [
+          ...(section1Result.outputFiles || []),
+          ...(section2Result.outputFiles || []),
+          ...(section3Result.outputFiles || []),
+          ...(section4Result.outputFiles || [])
+        ];
+      }
 
       // Show combined summary
       this.progressReporter.showSummary({
         processingTime: totalProcessingTime,
-        rowsProcessed: (section1Result.stats?.rowsProcessed || 0) + (section3Result.stats?.rowsProcessed || 0),
-        warnings: (section1Result.stats?.warnings || 0) + (section3Result.stats?.warnings || 0),
+        rowsProcessed: (section1Result.stats?.rowsProcessed || 0),
+        warnings: (section1Result.stats?.warnings || 0) + 
+                  (section2Result.stats?.warnings || 0) + 
+                  (section3Result.stats?.warnings || 0) + 
+                  (section4Result.stats?.warnings || 0),
         errors: 0,
       });
 
@@ -473,7 +621,10 @@ export class DataPilotCLI {
         stats: {
           processingTime: totalProcessingTime,
           rowsProcessed: (section1Result.stats?.rowsProcessed || 0),
-          warnings: (section1Result.stats?.warnings || 0) + (section3Result.stats?.warnings || 0),
+          warnings: (section1Result.stats?.warnings || 0) + 
+                    (section2Result.stats?.warnings || 0) + 
+                    (section3Result.stats?.warnings || 0) + 
+                    (section4Result.stats?.warnings || 0),
           errors: 0,
         },
       };
