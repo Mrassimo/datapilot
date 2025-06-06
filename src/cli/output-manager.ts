@@ -9,8 +9,12 @@ import type { Section1Result } from '../analyzers/overview/types';
 import type { Section2Result } from '../analyzers/quality/types';
 import type { Section3Result } from '../analyzers/eda/types';
 import type { Section4Result } from '../analyzers/visualization/types';
+import type { Section5Result } from '../analyzers/engineering/types';
+import type { Section6Result } from '../analyzers/modeling/types';
 import { Section1Formatter } from '../analyzers/overview';
 import { Section2Formatter } from '../analyzers/quality';
+import { Section5Formatter } from '../analyzers/engineering';
+import { Section6Formatter } from '../analyzers/modeling';
 
 export class OutputManager {
   private options: CLIOptions;
@@ -280,6 +284,132 @@ export class OutputManager {
   }
 
   /**
+   * Output Section 5 (Data Engineering) results in the specified format
+   */
+  outputSection5(section5Report: string, result: Section5Result, filename?: string): string[] {
+    const outputFiles: string[] = [];
+
+    // Generate content based on format
+    let content: string;
+    let extension: string;
+
+    switch (this.options.output) {
+      case 'json':
+        content = this.formatSection5AsJSON(result);
+        extension = '.json';
+        break;
+
+      case 'yaml':
+        content = this.formatSection5AsYAML(result);
+        extension = '.yaml';
+        break;
+
+      case 'markdown':
+      default:
+        content = section5Report;
+        extension = '.md';
+        break;
+    }
+
+    // In combine mode, just collect the content
+    if (this.combineMode && this.options.output === 'markdown') {
+      this.addToCombinedOutput(content);
+      return outputFiles;
+    }
+
+    // Output to file or stdout
+    if (this.options.outputFile) {
+      const outputPath = this.ensureExtension(this.options.outputFile, extension);
+      this.writeToFile(outputPath, content);
+      outputFiles.push(outputPath);
+    } else if (filename) {
+      // Auto-generate filename based on input
+      const outputPath = this.generateSection5OutputFilename(filename, extension);
+      this.writeToFile(outputPath, content);
+      outputFiles.push(outputPath);
+    } else {
+      // Output to stdout
+      console.log(content);
+    }
+
+    // Also generate summary if verbose and not quiet
+    if (this.options.verbose && !this.options.quiet) {
+      const mlReadiness = result.metadata?.mlReadinessScore || 0;
+      const transformations = result.performanceMetrics?.transformationsEvaluated || 0;
+      
+      console.log('\n🏗️ Data Engineering Quick Summary:');
+      console.log(`   • ML Readiness Score: ${mlReadiness}%`);
+      console.log(`   • Transformations Evaluated: ${transformations}`);
+      console.log(`   • Schema Optimization: Ready for ${result.engineeringAnalysis?.schemaAnalysis?.optimizedSchema?.targetSystem || 'generic SQL'}`);
+    }
+
+    return outputFiles;
+  }
+
+  /**
+   * Output Section 6 (Predictive Modeling) results in the specified format
+   */
+  outputSection6(section6Report: string, result: Section6Result, filename?: string): string[] {
+    const outputFiles: string[] = [];
+
+    // Generate content based on format
+    let content: string;
+    let extension: string;
+
+    switch (this.options.output) {
+      case 'json':
+        content = this.formatSection6AsJSON(result);
+        extension = '.json';
+        break;
+
+      case 'yaml':
+        content = this.formatSection6AsYAML(result);
+        extension = '.yaml';
+        break;
+
+      case 'markdown':
+      default:
+        content = section6Report;
+        extension = '.md';
+        break;
+    }
+
+    // In combine mode, just collect the content
+    if (this.combineMode && this.options.output === 'markdown') {
+      this.addToCombinedOutput(content);
+      return outputFiles;
+    }
+
+    // Output to file or stdout
+    if (this.options.outputFile) {
+      const outputPath = this.ensureExtension(this.options.outputFile, extension);
+      this.writeToFile(outputPath, content);
+      outputFiles.push(outputPath);
+    } else if (filename) {
+      // Auto-generate filename based on input
+      const outputPath = this.generateSection6OutputFilename(filename, extension);
+      this.writeToFile(outputPath, content);
+      outputFiles.push(outputPath);
+    } else {
+      // Output to stdout
+      console.log(content);
+    }
+
+    // Also generate summary if verbose and not quiet
+    if (this.options.verbose && !this.options.quiet) {
+      const tasksIdentified = result.performanceMetrics?.tasksIdentified || 0;
+      const algorithmsEvaluated = result.performanceMetrics?.algorithmsEvaluated || 0;
+      
+      console.log('\n🧠 Modeling Analysis Quick Summary:');
+      console.log(`   • Tasks Identified: ${tasksIdentified}`);
+      console.log(`   • Algorithms Evaluated: ${algorithmsEvaluated}`);
+      console.log(`   • Ethics Assessment: Complete with bias analysis`);
+    }
+
+    return outputFiles;
+  }
+
+  /**
    * Output validation results
    */
   outputValidation(filePath: string, isValid: boolean, errors: string[]): void {
@@ -498,6 +628,86 @@ export class OutputManager {
   }
 
   /**
+   * Format Section 5 result as JSON
+   */
+  private formatSection5AsJSON(result: Section5Result): string {
+    const jsonOutput = {
+      metadata: {
+        version: '1.0.0',
+        generatedAt: new Date().toISOString(),
+        command: 'datapilot engineering',
+        analysisType: 'Data Engineering & Structural Insights',
+      },
+      engineeringAnalysis: result.engineeringAnalysis,
+      warnings: result.warnings,
+      performanceMetrics: result.performanceMetrics,
+      analysisMetadata: result.metadata,
+    };
+
+    return JSON.stringify(jsonOutput, null, 2);
+  }
+
+  /**
+   * Format Section 5 result as YAML
+   */
+  private formatSection5AsYAML(result: Section5Result): string {
+    const yaml = this.objectToYAML({
+      metadata: {
+        version: '1.0.0',
+        generatedAt: new Date().toISOString(),
+        command: 'datapilot engineering',
+        analysisType: 'Data Engineering & Structural Insights',
+      },
+      engineeringAnalysis: result.engineeringAnalysis,
+      warnings: result.warnings,
+      performanceMetrics: result.performanceMetrics,
+      analysisMetadata: result.metadata,
+    });
+
+    return yaml;
+  }
+
+  /**
+   * Format Section 6 result as JSON
+   */
+  private formatSection6AsJSON(result: Section6Result): string {
+    const jsonOutput = {
+      metadata: {
+        version: '1.0.0',
+        generatedAt: new Date().toISOString(),
+        command: 'datapilot modeling',
+        analysisType: 'Predictive Modeling & Advanced Analytics Guidance',
+      },
+      modelingAnalysis: result.modelingAnalysis,
+      warnings: result.warnings,
+      performanceMetrics: result.performanceMetrics,
+      analysisMetadata: result.metadata,
+    };
+
+    return JSON.stringify(jsonOutput, null, 2);
+  }
+
+  /**
+   * Format Section 6 result as YAML
+   */
+  private formatSection6AsYAML(result: Section6Result): string {
+    const yaml = this.objectToYAML({
+      metadata: {
+        version: '1.0.0',
+        generatedAt: new Date().toISOString(),
+        command: 'datapilot modeling',
+        analysisType: 'Predictive Modeling & Advanced Analytics Guidance',
+      },
+      modelingAnalysis: result.modelingAnalysis,
+      warnings: result.warnings,
+      performanceMetrics: result.performanceMetrics,
+      analysisMetadata: result.metadata,
+    });
+
+    return yaml;
+  }
+
+  /**
    * Generate Section 2 output filename
    */
   private generateSection2OutputFilename(inputFilename: string, extension: string): string {
@@ -519,6 +729,22 @@ export class OutputManager {
   private generateSection4OutputFilename(inputFilename: string, extension: string): string {
     const baseName = inputFilename.replace(/\.[^/.]+$/, ''); // Remove extension
     return `${baseName}_datapilot_viz${extension}`;
+  }
+
+  /**
+   * Generate Section 5 output filename
+   */
+  private generateSection5OutputFilename(inputFilename: string, extension: string): string {
+    const baseName = inputFilename.replace(/\.[^/.]+$/, ''); // Remove extension
+    return `${baseName}_datapilot_engineering${extension}`;
+  }
+
+  /**
+   * Generate Section 6 output filename
+   */
+  private generateSection6OutputFilename(inputFilename: string, extension: string): string {
+    const baseName = inputFilename.replace(/\.[^/.]+$/, ''); // Remove extension
+    return `${baseName}_datapilot_modeling${extension}`;
   }
 
   /**

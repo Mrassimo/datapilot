@@ -14,6 +14,8 @@ import { StreamingAnalyzer } from '../analyzers/streaming/streaming-analyzer';
 import { Section3Formatter } from '../analyzers/eda/section3-formatter';
 import { Section4Analyzer, Section4Formatter } from '../analyzers/visualization';
 import { RecommendationType } from '../analyzers/visualization/types';
+import { Section5Analyzer, Section5Formatter } from '../analyzers/engineering';
+import { Section6Analyzer, Section6Formatter } from '../analyzers/modeling';
 import { CSVParser } from '../parsers/csv-parser';
 import { logger, LogLevel } from '../utils/logger';
 import type { CLIResult } from './types';
@@ -110,6 +112,12 @@ export class DataPilotCLI {
 
       case 'viz':
         return await this.executeSection4Analysis(filePath, options, startTime);
+
+      case 'engineering':
+        return await this.executeSection5Analysis(filePath, options, startTime);
+
+      case 'modeling':
+        return await this.executeSection6Analysis(filePath, options, startTime);
 
       case 'validate':
         return await this.executeValidation(filePath, options);
@@ -702,6 +710,365 @@ export class DataPilotCLI {
       };
     } catch (error) {
       this.progressReporter.errorPhase('Failed to collect file information');
+      throw error;
+    }
+  }
+
+  /**
+   * Execute Section 5 (Engineering) analysis
+   */
+  private async executeSection5Analysis(
+    filePath: string,
+    options: any,
+    startTime: number,
+  ): Promise<CLIResult> {
+    if (!this.outputManager) {
+      throw new Error('Output manager not initialised');
+    }
+
+    try {
+      this.progressReporter.startPhase('engineering', 'Starting data engineering analysis...');
+
+      // Section 5 requires Section 1, 2, and 3 data
+      // First run Section 1 analysis
+      this.progressReporter.updateProgress({
+        phase: 'prerequisites',
+        progress: 20,
+        message: 'Running prerequisite Section 1 analysis...',
+        timeElapsed: Date.now() - startTime,
+      });
+
+      const section1Analyzer = new Section1Analyzer({
+        enableFileHashing: options.enableHashing !== false,
+        includeHostEnvironment: options.includeEnvironment !== false,
+        privacyMode: options.privacyMode || 'redacted',
+        detailedProfiling: options.verbose || false,
+        maxSampleSizeForSparsity: 10000,
+      });
+
+      const section1Data = await section1Analyzer.analyze(
+        filePath,
+        `datapilot ${options.command || 'engineering'} ${filePath}`,
+        ['engineering'],
+      );
+
+      // Run Section 2 analysis
+      this.progressReporter.updateProgress({
+        phase: 'prerequisites',
+        progress: 40,
+        message: 'Running prerequisite Section 2 analysis...',
+        timeElapsed: Date.now() - startTime,
+      });
+
+      const section2CLIResult = await this.executeSection2Analysis(filePath, options, Date.now());
+      if (!section2CLIResult.success) {
+        throw new Error('Section 2 analysis failed');
+      }
+
+      // Run Section 3 analysis
+      this.progressReporter.updateProgress({
+        phase: 'prerequisites',
+        progress: 60,
+        message: 'Running prerequisite Section 3 analysis...',
+        timeElapsed: Date.now() - startTime,
+      });
+
+      const section3CLIResult = await this.executeSection3Analysis(filePath, options, Date.now());
+      if (!section3CLIResult.success) {
+        throw new Error('Section 3 analysis failed');
+      }
+
+      // Re-run Section 3 to get actual result data (not CLI results)
+      const section3Analyzer = new StreamingAnalyzer({
+        chunkSize: options.chunkSize || 500,
+        memoryThresholdMB: options.memoryLimit || 100,
+        maxRowsAnalyzed: options.maxRows || 500000,
+        enabledAnalyses: ['univariate', 'bivariate', 'correlations'],
+        significanceLevel: 0.05,
+        maxCorrelationPairs: 50,
+      });
+
+      const section3Data = await section3Analyzer.analyzeFile(filePath);
+
+      // Re-run Section 2 to get actual result data (not CLI results)
+      // Parse CSV to get data for Section 2
+      const parser = new CSVParser({
+        autoDetect: true,
+        maxRows: options.maxRows || 100000,
+        trimFields: true,
+      });
+
+      const rows = await parser.parseFile(filePath);
+      if (rows.length === 0) {
+        throw new ValidationError('No data found in file');
+      }
+
+      const hasHeader = parser.getOptions().hasHeader !== false;
+      const dataStartIndex = hasHeader ? 1 : 0;
+      const headers =
+        hasHeader && rows.length > 0 ? rows[0].data : rows[0].data.map((_, i) => `Column_${i + 1}`);
+      const data = rows.slice(dataStartIndex).map((row) => row.data);
+      const columnTypes = headers.map(() => DataType.STRING);
+
+      const section2Analyzer = new Section2Analyzer({
+        data,
+        headers,
+        columnTypes,
+        rowCount: data.length,
+        columnCount: headers.length,
+        config: {
+          enabledDimensions: ['completeness', 'uniqueness', 'validity'],
+          strictMode: false,
+          maxOutlierDetection: 100,
+          semanticDuplicateThreshold: 0.85,
+        },
+      });
+
+      const section2Data = await section2Analyzer.analyze();
+
+      // Now run Section 5 analysis
+      this.progressReporter.updateProgress({
+        phase: 'engineering',
+        progress: 80,
+        message: 'Running engineering analysis...',
+        timeElapsed: Date.now() - startTime,
+      });
+
+      const section5Analyzer = new Section5Analyzer({
+        targetDatabaseSystem: options.database || 'postgresql',
+        mlFrameworkTarget: options.framework || 'scikit_learn',
+      });
+
+      const section5Result = await section5Analyzer.analyze(
+        section1Data,
+        section2Data,
+        section3Data,
+      );
+
+      const processingTime = Date.now() - startTime;
+      this.progressReporter.completePhase('Engineering analysis completed', processingTime);
+
+      // Generate Section 5 markdown report
+      const section5Report = Section5Formatter.formatMarkdown(section5Result);
+
+      // Generate output files
+      const outputFiles = this.outputManager.outputSection5(
+        section5Report,
+        section5Result,
+        filePath.split('/').pop(),
+      );
+
+      // Show summary
+      this.progressReporter.showSummary({
+        processingTime,
+        rowsProcessed: section1Data.overview.structuralDimensions.totalDataRows || 0,
+        warnings: section5Result.warnings.length,
+        errors: 0,
+      });
+
+      return {
+        success: true,
+        exitCode: 0,
+        outputFiles,
+        stats: {
+          processingTime,
+          rowsProcessed: section1Data.overview.structuralDimensions.totalDataRows || 0,
+          warnings: section5Result.warnings.length,
+          errors: 0,
+        },
+      };
+    } catch (error) {
+      this.progressReporter.errorPhase('Engineering analysis failed');
+      throw error;
+    }
+  }
+
+  /**
+   * Execute Section 6 (Modeling) analysis
+   */
+  private async executeSection6Analysis(
+    filePath: string,
+    options: any,
+    startTime: number,
+  ): Promise<CLIResult> {
+    if (!this.outputManager) {
+      throw new Error('Output manager not initialised');
+    }
+
+    try {
+      this.progressReporter.startPhase('modeling', 'Starting predictive modeling analysis...');
+
+      // Section 6 requires Section 1, 2, 3, and 5 data
+      // First run Section 1 analysis
+      this.progressReporter.updateProgress({
+        phase: 'prerequisites',
+        progress: 15,
+        message: 'Running prerequisite Section 1 analysis...',
+        timeElapsed: Date.now() - startTime,
+      });
+
+      const section1Analyzer = new Section1Analyzer({
+        enableFileHashing: options.enableHashing !== false,
+        includeHostEnvironment: options.includeEnvironment !== false,
+        privacyMode: options.privacyMode || 'redacted',
+        detailedProfiling: options.verbose || false,
+        maxSampleSizeForSparsity: 10000,
+      });
+
+      const section1Data = await section1Analyzer.analyze(
+        filePath,
+        `datapilot ${options.command || 'modeling'} ${filePath}`,
+        ['modeling'],
+      );
+
+      // Run Section 2 analysis
+      this.progressReporter.updateProgress({
+        phase: 'prerequisites',
+        progress: 30,
+        message: 'Running prerequisite Section 2 analysis...',
+        timeElapsed: Date.now() - startTime,
+      });
+
+      const section2CLIResult = await this.executeSection2Analysis(filePath, options, Date.now());
+      if (!section2CLIResult.success) {
+        throw new Error('Section 2 analysis failed');
+      }
+
+      // Run Section 3 analysis
+      this.progressReporter.updateProgress({
+        phase: 'prerequisites',
+        progress: 45,
+        message: 'Running prerequisite Section 3 analysis...',
+        timeElapsed: Date.now() - startTime,
+      });
+
+      const section3CLIResult = await this.executeSection3Analysis(filePath, options, Date.now());
+      if (!section3CLIResult.success) {
+        throw new Error('Section 3 analysis failed');
+      }
+
+      // Re-run Section 3 to get actual result data
+      const section3Analyzer = new StreamingAnalyzer({
+        chunkSize: options.chunkSize || 500,
+        memoryThresholdMB: options.memoryLimit || 100,
+        maxRowsAnalyzed: options.maxRows || 500000,
+        enabledAnalyses: ['univariate', 'bivariate', 'correlations'],
+        significanceLevel: 0.05,
+        maxCorrelationPairs: 50,
+      });
+
+      const section3Data = await section3Analyzer.analyzeFile(filePath);
+
+      // Re-run Section 2 to get actual result data (not CLI results)
+      // Parse CSV to get data for Section 2
+      const parser = new CSVParser({
+        autoDetect: true,
+        maxRows: options.maxRows || 100000,
+        trimFields: true,
+      });
+
+      const rows = await parser.parseFile(filePath);
+      if (rows.length === 0) {
+        throw new ValidationError('No data found in file');
+      }
+
+      const hasHeader = parser.getOptions().hasHeader !== false;
+      const dataStartIndex = hasHeader ? 1 : 0;
+      const headers =
+        hasHeader && rows.length > 0 ? rows[0].data : rows[0].data.map((_, i) => `Column_${i + 1}`);
+      const data = rows.slice(dataStartIndex).map((row) => row.data);
+      const columnTypes = headers.map(() => DataType.STRING);
+
+      const section2Analyzer = new Section2Analyzer({
+        data,
+        headers,
+        columnTypes,
+        rowCount: data.length,
+        columnCount: headers.length,
+        config: {
+          enabledDimensions: ['completeness', 'uniqueness', 'validity'],
+          strictMode: false,
+          maxOutlierDetection: 100,
+          semanticDuplicateThreshold: 0.85,
+        },
+      });
+
+      const section2Data = await section2Analyzer.analyze();
+
+      // Run Section 5 analysis
+      this.progressReporter.updateProgress({
+        phase: 'prerequisites',
+        progress: 60,
+        message: 'Running prerequisite Section 5 analysis...',
+        timeElapsed: Date.now() - startTime,
+      });
+
+      const section5Analyzer = new Section5Analyzer({
+        targetDatabaseSystem: options.database || 'postgresql',
+        mlFrameworkTarget: options.framework || 'scikit_learn',
+      });
+
+      const section5Result = await section5Analyzer.analyze(
+        section1Data,
+        section2Data,
+        section3Data,
+      );
+
+      // Now run Section 6 analysis
+      this.progressReporter.updateProgress({
+        phase: 'modeling',
+        progress: 80,
+        message: 'Running modeling analysis...',
+        timeElapsed: Date.now() - startTime,
+      });
+
+      const section6Analyzer = new Section6Analyzer({
+        focusAreas: options.focus || ['regression', 'binary_classification', 'clustering'],
+        complexityPreference: options.complexity || 'moderate',
+        interpretabilityRequirement: options.interpretability || 'medium',
+      });
+
+      const section6Result = await section6Analyzer.analyze(
+        section1Data,
+        section2Data,
+        section3Data,
+        section5Result,
+      );
+
+      const processingTime = Date.now() - startTime;
+      this.progressReporter.completePhase('Modeling analysis completed', processingTime);
+
+      // Generate Section 6 markdown report
+      const section6Report = Section6Formatter.formatMarkdown(section6Result);
+
+      // Generate output files
+      const outputFiles = this.outputManager.outputSection6(
+        section6Report,
+        section6Result,
+        filePath.split('/').pop(),
+      );
+
+      // Show summary
+      this.progressReporter.showSummary({
+        processingTime,
+        rowsProcessed: section1Data.overview.structuralDimensions.totalDataRows || 0,
+        warnings: section6Result.warnings.length,
+        errors: 0,
+      });
+
+      return {
+        success: true,
+        exitCode: 0,
+        outputFiles,
+        stats: {
+          processingTime,
+          rowsProcessed: section1Data.overview.structuralDimensions.totalDataRows || 0,
+          warnings: section6Result.warnings.length,
+          errors: 0,
+        },
+      };
+    } catch (error) {
+      this.progressReporter.errorPhase('Modeling analysis failed');
       throw error;
     }
   }
