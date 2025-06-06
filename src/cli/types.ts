@@ -6,7 +6,7 @@
 
 export interface CLIOptions {
   // Output options
-  output?: 'markdown' | 'json' | 'yaml';
+  output?: 'txt' | 'markdown' | 'json' | 'yaml';
   outputFile?: string;
   verbose?: boolean;
   quiet?: boolean;

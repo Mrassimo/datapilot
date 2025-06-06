@@ -47,6 +47,11 @@ export class OutputManager {
         extension = '.yaml';
         break;
 
+      case 'txt':
+        content = formatter.formatReport(result);
+        extension = '.txt';
+        break;
+
       case 'markdown':
       default:
         content = formatter.formatReport(result);
@@ -55,7 +60,7 @@ export class OutputManager {
     }
 
     // In combine mode, just collect the content
-    if (this.combineMode && this.options.output === 'markdown') {
+    if (this.combineMode && (this.options.output === 'markdown' || this.options.output === 'txt')) {
       this.addToCombinedOutput(content);
       return outputFiles;
     }
@@ -106,6 +111,11 @@ export class OutputManager {
         extension = '.yaml';
         break;
 
+      case 'txt':
+        content = Section2Formatter.formatReport(result.qualityAudit);
+        extension = '.txt';
+        break;
+
       case 'markdown':
       default:
         content = Section2Formatter.formatReport(result.qualityAudit);
@@ -114,7 +124,7 @@ export class OutputManager {
     }
 
     // In combine mode, just collect the content
-    if (this.combineMode && this.options.output === 'markdown') {
+    if (this.combineMode && (this.options.output === 'markdown' || this.options.output === 'txt')) {
       this.addToCombinedOutput(content);
       return outputFiles;
     }
@@ -166,6 +176,11 @@ export class OutputManager {
         extension = '.yaml';
         break;
 
+      case 'txt':
+        content = section3Report;
+        extension = '.txt';
+        break;
+
       case 'markdown':
       default:
         content = section3Report;
@@ -174,7 +189,7 @@ export class OutputManager {
     }
 
     // In combine mode, just collect the content
-    if (this.combineMode && this.options.output === 'markdown') {
+    if (this.combineMode && (this.options.output === 'markdown' || this.options.output === 'txt')) {
       this.addToCombinedOutput(content);
       return outputFiles;
     }
@@ -229,6 +244,11 @@ export class OutputManager {
         extension = '.yaml';
         break;
 
+      case 'txt':
+        content = section4Report;
+        extension = '.txt';
+        break;
+
       case 'markdown':
       default:
         content = section4Report;
@@ -237,7 +257,7 @@ export class OutputManager {
     }
 
     // In combine mode, just collect the content
-    if (this.combineMode && this.options.output === 'markdown') {
+    if (this.combineMode && (this.options.output === 'markdown' || this.options.output === 'txt')) {
       this.addToCombinedOutput(content);
       return outputFiles;
     }
@@ -304,6 +324,11 @@ export class OutputManager {
         extension = '.yaml';
         break;
 
+      case 'txt':
+        content = section5Report;
+        extension = '.txt';
+        break;
+
       case 'markdown':
       default:
         content = section5Report;
@@ -312,7 +337,7 @@ export class OutputManager {
     }
 
     // In combine mode, just collect the content
-    if (this.combineMode && this.options.output === 'markdown') {
+    if (this.combineMode && (this.options.output === 'markdown' || this.options.output === 'txt')) {
       this.addToCombinedOutput(content);
       return outputFiles;
     }
@@ -367,6 +392,11 @@ export class OutputManager {
         extension = '.yaml';
         break;
 
+      case 'txt':
+        content = section6Report;
+        extension = '.txt';
+        break;
+
       case 'markdown':
       default:
         content = section6Report;
@@ -375,7 +405,7 @@ export class OutputManager {
     }
 
     // In combine mode, just collect the content
-    if (this.combineMode && this.options.output === 'markdown') {
+    if (this.combineMode && (this.options.output === 'markdown' || this.options.output === 'txt')) {
       this.addToCombinedOutput(content);
       return outputFiles;
     }
@@ -828,13 +858,14 @@ export class OutputManager {
 
     const outputFiles: string[] = [];
     const combinedContent = this.combinedSections.join('\n\n---\n\n');
+    const extension = this.options.output === 'txt' ? '.txt' : '.md';
 
     if (this.options.outputFile) {
-      const outputPath = this.ensureExtension(this.options.outputFile, '.md');
+      const outputPath = this.ensureExtension(this.options.outputFile, extension);
       this.writeToFile(outputPath, combinedContent);
       outputFiles.push(outputPath);
     } else if (filename) {
-      const outputPath = this.generateCombinedOutputFilename(filename, '.md');
+      const outputPath = this.generateCombinedOutputFilename(filename, extension);
       this.writeToFile(outputPath, combinedContent);
       outputFiles.push(outputPath);
     } else {

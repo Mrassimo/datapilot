@@ -533,7 +533,7 @@ export class DataPilotCLI {
   }
 
   /**
-   * Execute full analysis (Section 1 + Section 2 + Section 3 + Section 4)
+   * Execute full analysis (ALL 6 sections: Section 1 + 2 + 3 + 4 + 5 + 6)
    */
   private async executeFullAnalysis(
     filePath: string,
@@ -545,8 +545,8 @@ export class DataPilotCLI {
     }
 
     try {
-      // Start combined output mode if using output file
-      if (options.outputFile && options.output === 'markdown') {
+      // Start combined output mode for txt and markdown formats
+      if (options.output === 'txt' || options.output === 'markdown') {
         this.outputManager.startCombinedOutput();
       }
 
@@ -574,16 +574,32 @@ export class DataPilotCLI {
         return section3Result;
       }
 
-      // Finally execute Section 4 analysis
+      // Then execute Section 4 analysis
       this.progressReporter.startPhase('viz', 'Starting visualization analysis...');
       const section4Result = await this.executeSection4Analysis(filePath, options, Date.now());
+
+      if (!section4Result.success) {
+        return section4Result;
+      }
+
+      // Then execute Section 5 analysis
+      this.progressReporter.startPhase('engineering', 'Starting data engineering analysis...');
+      const section5Result = await this.executeSection5Analysis(filePath, options, Date.now());
+
+      if (!section5Result.success) {
+        return section5Result;
+      }
+
+      // Finally execute Section 6 analysis
+      this.progressReporter.startPhase('modeling', 'Starting predictive modeling analysis...');
+      const section6Result = await this.executeSection6Analysis(filePath, options, Date.now());
 
       const totalProcessingTime = Date.now() - startTime;
       this.progressReporter.completePhase('Full analysis completed', totalProcessingTime);
 
       // Handle combined output if in combine mode
       let outputFiles: string[] = [];
-      if (options.outputFile && options.output === 'markdown') {
+      if (options.output === 'txt' || options.output === 'markdown') {
         outputFiles = this.outputManager.outputCombined(filePath.split('/').pop());
       } else {
         // Combine individual output files
@@ -592,6 +608,8 @@ export class DataPilotCLI {
           ...(section2Result.outputFiles || []),
           ...(section3Result.outputFiles || []),
           ...(section4Result.outputFiles || []),
+          ...(section5Result.outputFiles || []),
+          ...(section6Result.outputFiles || []),
         ];
       }
 
@@ -603,7 +621,9 @@ export class DataPilotCLI {
           (section1Result.stats?.warnings || 0) +
           (section2Result.stats?.warnings || 0) +
           (section3Result.stats?.warnings || 0) +
-          (section4Result.stats?.warnings || 0),
+          (section4Result.stats?.warnings || 0) +
+          (section5Result.stats?.warnings || 0) +
+          (section6Result.stats?.warnings || 0),
         errors: 0,
       });
 
@@ -618,7 +638,9 @@ export class DataPilotCLI {
             (section1Result.stats?.warnings || 0) +
             (section2Result.stats?.warnings || 0) +
             (section3Result.stats?.warnings || 0) +
-            (section4Result.stats?.warnings || 0),
+            (section4Result.stats?.warnings || 0) +
+            (section5Result.stats?.warnings || 0) +
+            (section6Result.stats?.warnings || 0),
           errors: 0,
         },
       };

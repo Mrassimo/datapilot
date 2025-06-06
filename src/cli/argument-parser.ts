@@ -66,7 +66,7 @@ export class ArgumentParser {
       .command('all')
       .argument('<file>', 'CSV file to analyze')
       .description('Run complete analysis on a CSV file (all sections)')
-      .option('-o, --output <format>', 'Output format (markdown, json, yaml)', 'markdown')
+      .option('-o, --output <format>', 'Output format (txt, markdown, json, yaml)', 'txt')
       .option('--output-file <file>', 'Write output to file instead of stdout')
       .option('--max-rows <number>', 'Maximum rows to process', this.parseInteger)
       .option('--no-hashing', 'Disable file hashing for faster processing')
@@ -82,7 +82,7 @@ export class ArgumentParser {
       .alias('ove')
       .argument('<file>', 'CSV file to analyze')
       .description('Generate dataset overview (Section 1 only)')
-      .option('-o, --output <format>', 'Output format (markdown, json, yaml)', 'markdown')
+      .option('-o, --output <format>', 'Output format (txt, markdown, json, yaml)', 'txt')
       .option('--output-file <file>', 'Write output to file instead of stdout')
       .option('--no-hashing', 'Disable file hashing for faster processing')
       .option('--privacy <mode>', 'Privacy mode (full, redacted, minimal)', 'redacted')
@@ -94,7 +94,7 @@ export class ArgumentParser {
       .alias('qua')
       .argument('<file>', 'CSV file to analyze')
       .description('Run data quality audit (Section 2)')
-      .option('-o, --output <format>', 'Output format (markdown, json, yaml)', 'markdown')
+      .option('-o, --output <format>', 'Output format (txt, markdown, json, yaml)', 'txt')
       .option('--output-file <file>', 'Write output to file instead of stdout')
       .option('--max-rows <number>', 'Maximum rows to process', this.parseInteger)
       .option('--strict', 'Enable strict quality checking mode')
@@ -104,7 +104,7 @@ export class ArgumentParser {
       .command('eda')
       .argument('<file>', 'CSV file to analyze')
       .description('Perform exploratory data analysis (Section 3)')
-      .option('-o, --output <format>', 'Output format (markdown, json, yaml)', 'markdown')
+      .option('-o, --output <format>', 'Output format (txt, markdown, json, yaml)', 'txt')
       .option('--output-file <file>', 'Write output to file instead of stdout')
       .option('--max-rows <number>', 'Maximum rows to analyze', this.parseInteger)
       .option('--chunk-size <number>', 'Chunk size for streaming processing', this.parseInteger)
@@ -116,7 +116,7 @@ export class ArgumentParser {
       .alias('vis')
       .argument('<file>', 'CSV file to analyze')
       .description('Generate visualization recommendations (Section 4)')
-      .option('-o, --output <format>', 'Output format (markdown, json, yaml)', 'markdown')
+      .option('-o, --output <format>', 'Output format (txt, markdown, json, yaml)', 'txt')
       .option('--output-file <file>', 'Write output to file instead of stdout')
       .option('--accessibility <level>', 'Accessibility level (excellent, good, adequate)', 'good')
       .option(
@@ -213,8 +213,8 @@ export class ArgumentParser {
 
     // Output options
     if (rawOptions.output) {
-      if (!['markdown', 'json', 'yaml'].includes(rawOptions.output)) {
-        throw new ValidationError('Output format must be one of: markdown, json, yaml');
+      if (!['txt', 'markdown', 'json', 'yaml'].includes(rawOptions.output)) {
+        throw new ValidationError('Output format must be one of: txt, markdown, json, yaml');
       }
       options.output = rawOptions.output;
     }
