@@ -48,7 +48,7 @@ export interface StreamingColumnAnalyzer {
 export class StreamingNumericalAnalyzer implements StreamingColumnAnalyzer {
   private stats = new OnlineStatistics();
   private quantiles: Map<number, P2Quantile>;
-  private reservoir = new ReservoirSampler<number>(100); // Reduced from 1000
+  private reservoir = new ReservoirSampler<number>(100, 42); // Reduced from 1000, seeded for deterministic results
   private frequencies = new BoundedFrequencyCounter<number>(100); // Reduced from 1000
   private warnings: Section3Warning[] = [];
   private totalValues = 0;
@@ -472,7 +472,7 @@ export class StreamingNumericalAnalyzer implements StreamingColumnAnalyzer {
 
   clearMemory(): void {
     // Clear reservoir sample to free memory
-    this.reservoir = new ReservoirSampler<number>(100);
+    this.reservoir = new ReservoirSampler<number>(100, 42);
   }
 }
 

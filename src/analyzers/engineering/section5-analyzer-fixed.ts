@@ -82,7 +82,7 @@ export class Section5Analyzer {
   private generateSimplifiedAnalysis(
     section1Result: Section1Result,
     section2Result: Section2Result,
-    _section3Result: Section3Result,
+    section3Result: Section3Result,
     progressCallback?: (progress: Section5Progress) => void,
   ): any {
     
@@ -254,9 +254,10 @@ export class Section5Analyzer {
 
     this.reportProgress(progressCallback, 'ml_readiness', 90, 'Assessing ML readiness');
 
-    // ML Readiness
+    // ML Readiness with PCA-enhanced insights
+    const pcaInsights = this.extractPCAInsights(section3Result);
     const mlReadiness = {
-      overallScore: 85,
+      overallScore: this.calculateEnhancedMLReadinessScore(section1Result, section2Result, pcaInsights),
       enhancingFactors: [
         {
           factor: 'Clean Data Structure',
@@ -268,6 +269,7 @@ export class Section5Analyzer {
           impact: 'medium' as const,
           description: `${section1Result.overview.structuralDimensions.totalDataRows} rows provide good sample size`,
         },
+        ...pcaInsights.enhancingFactors,
       ],
       remainingChallenges: [
         {
@@ -276,25 +278,23 @@ export class Section5Analyzer {
           impact: 'May require manual type specification',
           mitigationStrategy: 'Implement enhanced type detection',
           estimatedEffort: '2-4 hours',
-        }
+        },
+        ...pcaInsights.challenges,
       ],
-      featurePreparationMatrix: section1Result.overview.structuralDimensions.columnInventory.map(col => ({
-        featureName: `ml_${this.standardizeColumnName(col.name)}`,
-        originalColumn: col.name,
-        finalDataType: 'String',
-        keyIssues: ['Type detection needed'],
-        engineeringSteps: ['Type inference', 'Encoding if categorical'],
-        finalMLFeatureType: 'Categorical',
-        modelingNotes: ['Consider feature encoding'],
-      })),
+      featurePreparationMatrix: this.enhanceFeatureMatrix(
+        section1Result.overview.structuralDimensions.columnInventory,
+        pcaInsights
+      ),
       modelingConsiderations: [
         {
           aspect: 'Feature Engineering',
           consideration: 'Multiple categorical columns may need encoding',
           impact: 'Could create high-dimensional feature space',
           recommendations: ['Use appropriate encoding methods', 'Consider dimensionality reduction'],
-        }
+        },
+        ...pcaInsights.modelingConsiderations,
       ],
+      dimensionalityReduction: pcaInsights.dimensionalityRecommendations,
     };
 
     // Knowledge Base Output
@@ -353,6 +353,241 @@ ${columnDefs}
       .replace(/_{2,}/g, '_')
       .replace(/^_|_$/g, '')
       .toLowerCase();
+  }
+
+  /**
+   * Extract PCA insights from Section 3 results for feature engineering
+   */
+  private extractPCAInsights(section3Result: Section3Result): {
+    enhancingFactors: Array<{factor: string; impact: 'high' | 'medium' | 'low'; description: string}>;
+    challenges: Array<{challenge: string; severity: 'high' | 'medium' | 'low'; impact: string; mitigationStrategy: string; estimatedEffort: string}>;
+    modelingConsiderations: Array<{aspect: string; consideration: string; impact: string; recommendations: string[]}>;
+    dimensionalityRecommendations: {
+      applicable: boolean;
+      recommendedComponents?: number;
+      varianceRetained?: number;
+      dominantFeatures?: string[];
+      implementationSteps?: string[];
+    };
+  } {
+    const enhancingFactors: any[] = [];
+    const challenges: any[] = [];
+    const modelingConsiderations: any[] = [];
+    let dimensionalityRecommendations: any = { applicable: false };
+
+    try {
+      const multivariateAnalysis = section3Result.edaAnalysis.multivariateAnalysis;
+      const pcaAnalysis = multivariateAnalysis?.principalComponentAnalysis;
+
+      if (pcaAnalysis && pcaAnalysis.isApplicable) {
+        // PCA is applicable - extract insights
+        const componentsFor85 = pcaAnalysis.varianceThresholds.componentsFor85Percent;
+        const totalComponents = pcaAnalysis.componentsAnalyzed;
+        const varianceRatio = componentsFor85 / totalComponents;
+
+        if (varianceRatio < 0.7) {
+          enhancingFactors.push({
+            factor: 'Strong Dimensionality Reduction Potential',
+            impact: 'high' as const,
+            description: `${componentsFor85} components explain 85% of variance from ${totalComponents} variables`,
+          });
+
+          dimensionalityRecommendations = {
+            applicable: true,
+            recommendedComponents: componentsFor85,
+            varianceRetained: 0.85,
+            dominantFeatures: pcaAnalysis.dominantVariables.slice(0, 3).map(v => v.variable),
+            implementationSteps: [
+              'Apply StandardScaler to normalize features',
+              `Perform PCA transformation to ${componentsFor85} components`,
+              'Use transformed features for modeling',
+              'Document component interpretability for stakeholders',
+            ],
+          };
+
+          modelingConsiderations.push({
+            aspect: 'Dimensionality Reduction',
+            consideration: 'PCA shows strong potential for feature reduction',
+            impact: 'Significant reduction in feature space complexity',
+            recommendations: [
+              'Implement PCA in preprocessing pipeline',
+              'Consider interpretability trade-offs',
+              'Monitor performance with reduced dimensions',
+            ],
+          });
+        } else {
+          challenges.push({
+            challenge: 'Limited Dimensionality Reduction Benefits',
+            severity: 'low' as const,
+            impact: 'Most features contribute meaningfully to variance',
+            mitigationStrategy: 'Proceed with feature selection instead of PCA',
+            estimatedEffort: '1-2 hours',
+          });
+        }
+
+        // Check for feature importance insights
+        if (pcaAnalysis.dominantVariables.length > 0) {
+          const highLoadingVars = pcaAnalysis.dominantVariables.filter(v => Math.abs(v.maxLoading) > 0.7);
+          if (highLoadingVars.length > 0) {
+            enhancingFactors.push({
+              factor: 'Clear Feature Importance Patterns',
+              impact: 'medium' as const,
+              description: `${highLoadingVars.length} features show strong principal component loadings`,
+            });
+
+            modelingConsiderations.push({
+              aspect: 'Feature Selection',
+              consideration: 'Some features have dominant influence on variance structure',
+              impact: 'Can guide feature prioritisation in modeling',
+              recommendations: [
+                'Consider feature selection based on PCA loadings',
+                'Prioritise high-loading features in initial models',
+                'Use loadings for feature interpretation',
+              ],
+            });
+          }
+        }
+      } else {
+        // PCA not applicable or insufficient data
+        challenges.push({
+          challenge: 'Insufficient Numerical Features for PCA',
+          severity: 'medium' as const,
+          impact: 'Limited ability to use dimensionality reduction techniques',
+          mitigationStrategy: 'Focus on feature selection and engineering',
+          estimatedEffort: '2-3 hours',
+        });
+      }
+
+      // Check clustering insights for feature engineering
+      const clusteringAnalysis = multivariateAnalysis?.clusteringAnalysis;
+      if (clusteringAnalysis && clusteringAnalysis.isApplicable) {
+        const silhouetteScore = clusteringAnalysis.finalClustering.validation.silhouetteScore;
+        
+        if (silhouetteScore > 0.5) {
+          enhancingFactors.push({
+            factor: 'Natural Data Clustering Structure',
+            impact: 'medium' as const,
+            description: `Strong clustering patterns detected (silhouette score: ${silhouetteScore.toFixed(2)})`,
+          });
+
+          modelingConsiderations.push({
+            aspect: 'Feature Engineering',
+            consideration: 'Data shows natural clustering patterns',
+            impact: 'Can create cluster-based features for supervised learning',
+            recommendations: [
+              'Consider cluster membership as engineered feature',
+              'Use cluster centroids for distance features',
+              'Explore cluster-specific models',
+            ],
+          });
+        }
+      }
+
+    } catch (error) {
+      // Handle gracefully if multivariate analysis is not available
+      logger.warn('Could not extract PCA insights:', error);
+      challenges.push({
+        challenge: 'Multivariate Analysis Unavailable',
+        severity: 'low' as const,
+        impact: 'Cannot provide advanced feature engineering guidance',
+        mitigationStrategy: 'Proceed with standard feature engineering practices',
+        estimatedEffort: '1 hour',
+      });
+    }
+
+    return {
+      enhancingFactors,
+      challenges,
+      modelingConsiderations,
+      dimensionalityRecommendations,
+    };
+  }
+
+  /**
+   * Calculate enhanced ML readiness score incorporating PCA insights
+   */
+  private calculateEnhancedMLReadinessScore(
+    section1Result: Section1Result,
+    section2Result: Section2Result,
+    pcaInsights: any
+  ): number {
+    let baseScore = 85; // Default score
+
+    // Factor in data quality
+    const qualityScore = section2Result.qualityAudit?.cockpit?.compositeScore?.score || 85;
+    baseScore = baseScore * 0.7 + qualityScore * 0.3;
+
+    // Factor in dimensionality reduction potential
+    if (pcaInsights.dimensionalityRecommendations.applicable) {
+      const varianceRetained = pcaInsights.dimensionalityRecommendations.varianceRetained || 0;
+      if (varianceRetained > 0.8) {
+        baseScore += 5; // Bonus for good dimensionality reduction potential
+      }
+    }
+
+    // Factor in clustering structure
+    const hasClusteringStructure = pcaInsights.enhancingFactors.some(
+      (f: any) => f.factor.includes('Clustering')
+    );
+    if (hasClusteringStructure) {
+      baseScore += 3; // Bonus for natural clustering
+    }
+
+    // Cap at 100
+    return Math.min(100, Math.round(baseScore));
+  }
+
+  /**
+   * Enhance feature preparation matrix with PCA insights
+   */
+  private enhanceFeatureMatrix(
+    columnInventory: any[],
+    pcaInsights: any
+  ): Array<{
+    featureName: string;
+    originalColumn: string;
+    finalDataType: string;
+    keyIssues: string[];
+    engineeringSteps: string[];
+    finalMLFeatureType: string;
+    modelingNotes: string[];
+    pcaRelevance?: string;
+  }> {
+    const dominantFeatures = pcaInsights.dimensionalityRecommendations.dominantFeatures || [];
+    
+    return columnInventory.map(col => {
+      const standardName = this.standardizeColumnName(col.name);
+      const isDominant = dominantFeatures.includes(col.name);
+      
+      const baseFeature = {
+        featureName: `ml_${standardName}`,
+        originalColumn: col.name,
+        finalDataType: 'String',
+        keyIssues: ['Type detection needed'],
+        engineeringSteps: ['Type inference', 'Encoding if categorical'],
+        finalMLFeatureType: 'Categorical',
+        modelingNotes: ['Consider feature encoding'],
+      };
+
+      // Enhance with PCA insights
+      if (pcaInsights.dimensionalityRecommendations.applicable) {
+        if (isDominant) {
+          baseFeature.modelingNotes.push('High PCA loading - prioritise in feature selection');
+          return {
+            ...baseFeature,
+            pcaRelevance: 'High - dominant in principal components',
+          };
+        } else {
+          baseFeature.modelingNotes.push('Consider for dimensionality reduction');
+          return {
+            ...baseFeature,
+            pcaRelevance: 'Medium - candidate for PCA transformation',
+          };
+        }
+      }
+
+      return baseFeature;
+    });
   }
 
   private reportProgress(

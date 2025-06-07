@@ -1,0 +1,1037 @@
+### **Section 3: Exploratory Data Analysis (EDA) Deep Dive** 📊🔬
+
+This section provides a comprehensive statistical exploration of the dataset. The goal is to understand the data's underlying structure, identify patterns, detect anomalies, and extract key insights. Unless specified, all analyses are performed on the full dataset. Over 60 statistical tests and checks are considered in this module.
+
+**3.1. EDA Methodology Overview:**
+* **Approach:** Systematic univariate, bivariate, and multivariate analysis using streaming algorithms.
+* **Column Type Classification:** Each column is analysed based on its inferred data type (Numerical, Categorical, Date/Time, Boolean, Text).
+* **Statistical Significance:** Standard p-value thresholds (e.g., 0.05) are used where applicable, but effect sizes and practical significance are also considered.
+* **Memory-Efficient Processing:** Streaming with online algorithms ensures scalability to large datasets.
+* **Sampling Strategy:** Analysis performed on the complete dataset.
+
+**3.2. Univariate Analysis (Per-Column In-Depth Profile):**
+
+*This sub-section provides detailed statistical profiles for each column in the dataset, adapted based on detected data type.*
+
+---
+**Column: `student_id`**
+* **Detected Data Type:** text_general
+* **Inferred Semantic Type:** category
+* **Data Quality Flag:** Good
+* **Quick Stats:**
+    * Total Values (Count): 1,001
+    * Missing Values: 0 (0%)
+    * Unique Values: 1,001 (100% of total)
+
+**3.2.E. Text Column Analysis:**
+
+**Length-Based Statistics (Characters):**
+* Minimum Length: 5
+* Maximum Length: 10
+* Average Length: 5.05
+* Median Length: 5
+* Standard Deviation of Length: 0.5
+
+**Word Count Statistics:**
+* Minimum Word Count: 1
+* Maximum Word Count: 1
+* Average Word Count: 1
+
+**Common Patterns:**
+* Percentage of Empty Strings: 0%
+* Percentage of Purely Numeric Text: 0%
+* URLs Found: 0 (0%)
+* Email Addresses Found: 0 (0%)
+
+**Top 5 Most Frequent Words:** [student_id, s1000, s1001, s1002, s1003]
+
+---
+**Column: `age`**
+* **Detected Data Type:** numerical_integer
+* **Inferred Semantic Type:** age
+* **Data Quality Flag:** Good
+* **Quick Stats:**
+    * Total Values (Count): 1,001
+    * Missing Values: 1 (0.1%)
+    * Unique Values: 8 (0.8% of total)
+
+**3.2.A. Numerical Column Analysis:**
+
+**Descriptive Statistics:**
+* Minimum: 17
+* Maximum: 24
+* Range: 7
+* Sum: 20498
+* Mean (Arithmetic): 20.498
+* Median (50th Percentile): 20.755818
+* Mode(s): [20 (Frequency: 14.6%)]
+* Standard Deviation: 2.306945
+* Variance: 5.321996
+* Coefficient of Variation (CV): 0.1125%
+
+**Quantile & Percentile Statistics:**
+* 1st Percentile: 17
+* 5th Percentile: 17
+* 10th Percentile: 17.000054
+* 25th Percentile (Q1 - First Quartile): 18.943425
+* 75th Percentile (Q3 - Third Quartile): 22.983708
+* 90th Percentile: 23.993496
+* 95th Percentile: 24
+* 99th Percentile: 24
+* Interquartile Range (IQR = Q3 - Q1): 4.040283
+* Median Absolute Deviation (MAD): 1.755818
+
+**Distribution Shape & Normality Assessment:**
+* Skewness: 0.0084 (Approximately symmetric)
+* Kurtosis (Excess): -1.2189 (Platykurtic (light tails))
+* Histogram Analysis: Distribution spans 10 bins
+* Normality Tests:
+    * Shapiro-Wilk Test: W-statistic = 18.705765, p-value = 0.5 (Data consistent with normal distribution (p > 0.05))
+    * Jarque-Bera Test: JB-statistic = 6.006081, p-value = 0.05 (Data significantly deviates from normal distribution (p ≤ 0.05))
+    * Kolmogorov-Smirnov Test: D-statistic = 0.127123, p-value = 0.2 (Data consistent with normal distribution (p > 0.05))
+
+**Univariate Outlier Analysis:**
+* Method 1: IQR Proximity Rule
+    * Lower Fence (Q1 - 1.5 * IQR): 12.883
+    * Upper Fence (Q3 + 1.5 * IQR): 29.044133
+    * Number of Outliers (Below Lower): 0 (0%)
+    * Number of Outliers (Above Upper): 0 (0%)
+    * Extreme Outliers (using 3.0 * IQR factor): 0 (0%)
+* Method 2: Z-Score Method
+    * Standard Deviations from Mean for Threshold: +/- 3
+    * Number of Outliers (Z-score < -3): 0
+    * Number of Outliers (Z-score > +3): 0
+* Method 3: Modified Z-Score (using MAD)
+    * Threshold: +/- 3.5
+    * Number of Outliers: 0
+* Summary of Outliers: Total 0 (0%). Min Outlier Value: 0, Max Outlier Value: 0.
+* Potential Impact: Low outlier impact
+
+**Specific Numerical Patterns & Characteristics:**
+* Percentage of Zero Values: 0%
+* Percentage of Negative Values: 0%
+* Round Numbers Analysis: Moderate rounding detected
+* Potential for Log Transformation: Log transformation may not be beneficial
+
+---
+**Column: `gender`**
+* **Detected Data Type:** categorical
+* **Inferred Semantic Type:** category
+* **Data Quality Flag:** Good
+* **Quick Stats:**
+    * Total Values (Count): 1,001
+    * Missing Values: 0 (0%)
+    * Unique Values: 4 (0.4% of total)
+
+**3.2.B. Categorical Column Analysis:**
+
+**Frequency & Proportionality:**
+* Number of Unique Categories: 4
+* Mode (Most Frequent Category): `Female` (Frequency: 481, 48.05%)
+* Second Most Frequent Category: `Male` (Frequency: 477, 47.65%)
+* Least Frequent Category: `gender` (Frequency: 1, 0.1%)
+* Frequency Distribution Table (Top 10):
+
+| Category Label | Count | Percentage (%) | Cumulative % |
+|----------------|-------|----------------|--------------|
+| Female | 481 | 48.05% | 48.05% |
+| Male | 477 | 47.65% | 95.7% |
+| Other | 42 | 4.2% | 99.9% |
+| gender | 1 | 0.1% | 100% |
+
+**Diversity & Balance:**
+* Shannon Entropy: 1.2196 (Range: 0 to 2)
+* Gini Impurity: 0.5403
+* Interpretation of Balance: Unbalanced distribution
+* Major Category Dominance: Moderate concentration
+
+**Category Label Analysis:**
+* Minimum Label Length: 4 characters
+* Maximum Label Length: 6 characters
+* Average Label Length: 5 characters
+* Empty String or Null-like Labels: 0 occurrences
+
+**Potential Issues & Recommendations:**
+
+
+* No significant issues detected.
+
+---
+**Column: `study_hours_per_day`**
+* **Detected Data Type:** numerical_float
+* **Inferred Semantic Type:** unknown
+* **Data Quality Flag:** Good
+* **Quick Stats:**
+    * Total Values (Count): 1,001
+    * Missing Values: 1 (0.1%)
+    * Unique Values: 78 (7.8% of total)
+
+**3.2.A. Numerical Column Analysis:**
+
+**Descriptive Statistics:**
+* Minimum: 0
+* Maximum: 8.3
+* Range: 8.3
+* Sum: 3550.1
+* Mean (Arithmetic): 3.5501
+* Median (50th Percentile): 3.579323
+* Mode(s): [3.5 (Frequency: 3.8%)]
+* Standard Deviation: 1.468155
+* Variance: 2.15548
+* Coefficient of Variation (CV): 0.4136%
+
+**Quantile & Percentile Statistics:**
+* 1st Percentile: 0.080908
+* 5th Percentile: 1.020223
+* 10th Percentile: 1.69372
+* 25th Percentile (Q1 - First Quartile): 2.595437
+* 75th Percentile (Q3 - Third Quartile): 4.549288
+* 90th Percentile: 5.363416
+* 95th Percentile: 5.879951
+* 99th Percentile: 7.160515
+* Interquartile Range (IQR = Q3 - Q1): 1.953851
+* Median Absolute Deviation (MAD): 1.120677
+
+**Distribution Shape & Normality Assessment:**
+* Skewness: 0.0542 (Approximately symmetric)
+* Kurtosis (Excess): -0.0614 (Mesokurtic (normal-like tails))
+* Histogram Analysis: Distribution spans 10 bins
+* Normality Tests:
+    * Shapiro-Wilk Test: W-statistic = 15.779896, p-value = 0.5 (Data consistent with normal distribution (p > 0.05))
+    * Jarque-Bera Test: JB-statistic = 0.302989, p-value = 0.2 (Data consistent with normal distribution (p > 0.05))
+    * Kolmogorov-Smirnov Test: D-statistic = 0.047087, p-value = 0.2 (Data consistent with normal distribution (p > 0.05))
+
+**Univariate Outlier Analysis:**
+* Method 1: IQR Proximity Rule
+    * Lower Fence (Q1 - 1.5 * IQR): -0.335339
+    * Upper Fence (Q3 + 1.5 * IQR): 7.480064
+    * Number of Outliers (Below Lower): 0 (0%)
+    * Number of Outliers (Above Upper): 0 (0%)
+    * Extreme Outliers (using 3.0 * IQR factor): 0 (0%)
+* Method 2: Z-Score Method
+    * Standard Deviations from Mean for Threshold: +/- 3
+    * Number of Outliers (Z-score < -3): 0
+    * Number of Outliers (Z-score > +3): 0
+* Method 3: Modified Z-Score (using MAD)
+    * Threshold: +/- 3.5
+    * Number of Outliers: 0
+* Summary of Outliers: Total 0 (0%). Min Outlier Value: 0, Max Outlier Value: 0.
+* Potential Impact: Low outlier impact
+
+**Specific Numerical Patterns & Characteristics:**
+* Percentage of Zero Values: 2%
+* Percentage of Negative Values: 0%
+* Round Numbers Analysis: No significant rounding detected
+* Potential for Log Transformation: Log transformation may not be beneficial
+
+---
+**Column: `social_media_hours`**
+* **Detected Data Type:** numerical_float
+* **Inferred Semantic Type:** unknown
+* **Data Quality Flag:** Good
+* **Quick Stats:**
+    * Total Values (Count): 1,001
+    * Missing Values: 1 (0.1%)
+    * Unique Values: 60 (6% of total)
+
+**3.2.A. Numerical Column Analysis:**
+
+**Descriptive Statistics:**
+* Minimum: 0
+* Maximum: 7.2
+* Range: 7.2
+* Sum: 2505.5
+* Mean (Arithmetic): 2.5055
+* Median (50th Percentile): 2.49523
+* Mode(s): [3.1 (Frequency: 3.8%)]
+* Standard Deviation: 1.171836
+* Variance: 1.3732
+* Coefficient of Variation (CV): 0.4677%
+
+**Quantile & Percentile Statistics:**
+* 1st Percentile: 0.000201
+* 5th Percentile: 0.369067
+* 10th Percentile: 0.998587
+* 25th Percentile (Q1 - First Quartile): 1.698695
+* 75th Percentile (Q3 - Third Quartile): 3.299358
+* 90th Percentile: 3.992914
+* 95th Percentile: 4.500107
+* 99th Percentile: 5.110565
+* Interquartile Range (IQR = Q3 - Q1): 1.600663
+* Median Absolute Deviation (MAD): 0.99523
+
+**Distribution Shape & Normality Assessment:**
+* Skewness: 0.1196 (Approximately symmetric)
+* Kurtosis (Excess): -0.0996 (Mesokurtic (normal-like tails))
+* Histogram Analysis: Distribution spans 10 bins
+* Normality Tests:
+    * Shapiro-Wilk Test: W-statistic = 18.164936, p-value = 0.5 (Data consistent with normal distribution (p > 0.05))
+    * Jarque-Bera Test: JB-statistic = 3.898533, p-value = 0.2 (Data consistent with normal distribution (p > 0.05))
+    * Kolmogorov-Smirnov Test: D-statistic = 0.064391, p-value = 0.2 (Data consistent with normal distribution (p > 0.05))
+
+**Univariate Outlier Analysis:**
+* Method 1: IQR Proximity Rule
+    * Lower Fence (Q1 - 1.5 * IQR): -0.7023
+    * Upper Fence (Q3 + 1.5 * IQR): 5.700353
+    * Number of Outliers (Below Lower): 0 (0%)
+    * Number of Outliers (Above Upper): 0 (0%)
+    * Extreme Outliers (using 3.0 * IQR factor): 0 (0%)
+* Method 2: Z-Score Method
+    * Standard Deviations from Mean for Threshold: +/- 3
+    * Number of Outliers (Z-score < -3): 0
+    * Number of Outliers (Z-score > +3): 0
+* Method 3: Modified Z-Score (using MAD)
+    * Threshold: +/- 3.5
+    * Number of Outliers: 0
+* Summary of Outliers: Total 0 (0%). Min Outlier Value: 0, Max Outlier Value: 0.
+* Potential Impact: Low outlier impact
+
+**Specific Numerical Patterns & Characteristics:**
+* Percentage of Zero Values: 1%
+* Percentage of Negative Values: 0%
+* Round Numbers Analysis: No significant rounding detected
+* Potential for Log Transformation: Log transformation may not be beneficial
+
+---
+**Column: `netflix_hours`**
+* **Detected Data Type:** numerical_float
+* **Inferred Semantic Type:** unknown
+* **Data Quality Flag:** Good
+* **Quick Stats:**
+    * Total Values (Count): 1,001
+    * Missing Values: 1 (0.1%)
+    * Unique Values: 51 (5.1% of total)
+
+**3.2.A. Numerical Column Analysis:**
+
+**Descriptive Statistics:**
+* Minimum: 0
+* Maximum: 5.4
+* Range: 5.4
+* Sum: 1819.7
+* Mean (Arithmetic): 1.8197
+* Median (50th Percentile): 1.804101
+* Mode(s): [0 (Frequency: 5.9%)]
+* Standard Deviation: 1.07458
+* Variance: 1.154722
+* Coefficient of Variation (CV): 0.5905%
+
+**Quantile & Percentile Statistics:**
+* 1st Percentile: 0
+* 5th Percentile: 0.006349
+* 10th Percentile: 0.377365
+* 25th Percentile (Q1 - First Quartile): 1.000251
+* 75th Percentile (Q3 - Third Quartile): 2.581422
+* 90th Percentile: 3.214254
+* 95th Percentile: 3.859434
+* 99th Percentile: 4.285689
+* Interquartile Range (IQR = Q3 - Q1): 1.58117
+* Median Absolute Deviation (MAD): 0.804101
+
+**Distribution Shape & Normality Assessment:**
+* Skewness: 0.2368 (Approximately symmetric)
+* Kurtosis (Excess): -0.4367 (Mesokurtic (normal-like tails))
+* Histogram Analysis: Distribution spans 10 bins
+* Normality Tests:
+    * Shapiro-Wilk Test: W-statistic = 17.0474, p-value = 0.5 (Data consistent with normal distribution (p > 0.05))
+    * Jarque-Bera Test: JB-statistic = 3.208956, p-value = 0.2 (Data consistent with normal distribution (p > 0.05))
+    * Kolmogorov-Smirnov Test: D-statistic = 0.076667, p-value = 0.2 (Data consistent with normal distribution (p > 0.05))
+
+**Univariate Outlier Analysis:**
+* Method 1: IQR Proximity Rule
+    * Lower Fence (Q1 - 1.5 * IQR): -1.371504
+    * Upper Fence (Q3 + 1.5 * IQR): 4.953177
+    * Number of Outliers (Below Lower): 0 (0%)
+    * Number of Outliers (Above Upper): 0 (0%)
+    * Extreme Outliers (using 3.0 * IQR factor): 0 (0%)
+* Method 2: Z-Score Method
+    * Standard Deviations from Mean for Threshold: +/- 3
+    * Number of Outliers (Z-score < -3): 0
+    * Number of Outliers (Z-score > +3): 0
+* Method 3: Modified Z-Score (using MAD)
+    * Threshold: +/- 3.5
+    * Number of Outliers: 0
+* Summary of Outliers: Total 0 (0%). Min Outlier Value: 0, Max Outlier Value: 0.
+* Potential Impact: Low outlier impact
+
+**Specific Numerical Patterns & Characteristics:**
+* Percentage of Zero Values: 8%
+* Percentage of Negative Values: 0%
+* Round Numbers Analysis: No significant rounding detected
+* Potential for Log Transformation: Log transformation may not be beneficial
+
+---
+**Column: `part_time_job`**
+* **Detected Data Type:** boolean
+* **Inferred Semantic Type:** status
+* **Data Quality Flag:** Good
+* **Quick Stats:**
+    * Total Values (Count): 1,001
+    * Missing Values: 1 (0.1%)
+    * Unique Values: 2 (0.2% of total)
+
+**3.2.D. Boolean Column Analysis:**
+
+**Frequency Distribution:**
+* Count of True: 215 (21.5%)
+* Count of False: 785 (78.5%)
+* Interpretation: Predominantly False
+
+---
+**Column: `attendance_percentage`**
+* **Detected Data Type:** numerical_float
+* **Inferred Semantic Type:** percentage
+* **Data Quality Flag:** Good
+* **Quick Stats:**
+    * Total Values (Count): 1,001
+    * Missing Values: 1 (0.1%)
+    * Unique Values: 86 (8.6% of total)
+
+**3.2.A. Numerical Column Analysis:**
+
+**Descriptive Statistics:**
+* Minimum: 56
+* Maximum: 100
+* Range: 44
+* Sum: 84131.7
+* Mean (Arithmetic): 84.1317
+* Median (50th Percentile): 84.347552
+* Mode(s): [100 (Frequency: 6.6%)]
+* Standard Deviation: 9.394545
+* Variance: 88.257485
+* Coefficient of Variation (CV): 0.1117%
+
+**Quantile & Percentile Statistics:**
+* 1st Percentile: 61.781788
+* 5th Percentile: 67.854462
+* 10th Percentile: 72.062148
+* 25th Percentile (Q1 - First Quartile): 77.275605
+* 75th Percentile (Q3 - Third Quartile): 91.782947
+* 90th Percentile: 97.227737
+* 95th Percentile: 99.999914
+* 99th Percentile: 100
+* Interquartile Range (IQR = Q3 - Q1): 14.507342
+* Median Absolute Deviation (MAD): 6.247552
+
+**Distribution Shape & Normality Assessment:**
+* Skewness: -0.2375 (Approximately symmetric)
+* Kurtosis (Excess): -0.3948 (Mesokurtic (normal-like tails))
+* Histogram Analysis: Distribution spans 10 bins
+* Normality Tests:
+    * Shapiro-Wilk Test: W-statistic = 16.479669, p-value = 0.5 (Data consistent with normal distribution (p > 0.05))
+    * Jarque-Bera Test: JB-statistic = 1.404645, p-value = 0.2 (Data consistent with normal distribution (p > 0.05))
+    * Kolmogorov-Smirnov Test: D-statistic = 0.04699, p-value = 0.2 (Data consistent with normal distribution (p > 0.05))
+
+**Univariate Outlier Analysis:**
+* Method 1: IQR Proximity Rule
+    * Lower Fence (Q1 - 1.5 * IQR): 55.514591
+    * Upper Fence (Q3 + 1.5 * IQR): 113.543961
+    * Number of Outliers (Below Lower): 0 (0%)
+    * Number of Outliers (Above Upper): 0 (0%)
+    * Extreme Outliers (using 3.0 * IQR factor): 0 (0%)
+* Method 2: Z-Score Method
+    * Standard Deviations from Mean for Threshold: +/- 3
+    * Number of Outliers (Z-score < -3): 0
+    * Number of Outliers (Z-score > +3): 0
+* Method 3: Modified Z-Score (using MAD)
+    * Threshold: +/- 3.5
+    * Number of Outliers: 0
+* Summary of Outliers: Total 0 (0%). Min Outlier Value: 0, Max Outlier Value: 0.
+* Potential Impact: Low outlier impact
+
+**Specific Numerical Patterns & Characteristics:**
+* Percentage of Zero Values: 0%
+* Percentage of Negative Values: 0%
+* Round Numbers Analysis: No significant rounding detected
+* Potential for Log Transformation: Log transformation may not be beneficial
+
+---
+**Column: `sleep_hours`**
+* **Detected Data Type:** numerical_float
+* **Inferred Semantic Type:** unknown
+* **Data Quality Flag:** Good
+* **Quick Stats:**
+    * Total Values (Count): 1,001
+    * Missing Values: 1 (0.1%)
+    * Unique Values: 68 (6.8% of total)
+
+**3.2.A. Numerical Column Analysis:**
+
+**Descriptive Statistics:**
+* Minimum: 3.2
+* Maximum: 10
+* Range: 6.8
+* Sum: 6470.1
+* Mean (Arithmetic): 6.4701
+* Median (50th Percentile): 6.493551
+* Mode(s): [6.5 (Frequency: 4%)]
+* Standard Deviation: 1.225763
+* Variance: 1.502496
+* Coefficient of Variation (CV): 0.1895%
+
+**Quantile & Percentile Statistics:**
+* 1st Percentile: 3.536976
+* 5th Percentile: 4.459497
+* 10th Percentile: 4.943847
+* 25th Percentile (Q1 - First Quartile): 5.677964
+* 75th Percentile (Q3 - Third Quartile): 7.350101
+* 90th Percentile: 8.084215
+* 95th Percentile: 8.457058
+* 99th Percentile: 9.361413
+* Interquartile Range (IQR = Q3 - Q1): 1.672138
+* Median Absolute Deviation (MAD): 0.793551
+
+**Distribution Shape & Normality Assessment:**
+* Skewness: 0.0913 (Approximately symmetric)
+* Kurtosis (Excess): -0.2192 (Mesokurtic (normal-like tails))
+* Histogram Analysis: Distribution spans 10 bins
+* Normality Tests:
+    * Shapiro-Wilk Test: W-statistic = 16.041665, p-value = 0.5 (Data consistent with normal distribution (p > 0.05))
+    * Jarque-Bera Test: JB-statistic = 0.574074, p-value = 0.2 (Data consistent with normal distribution (p > 0.05))
+    * Kolmogorov-Smirnov Test: D-statistic = 0.052511, p-value = 0.2 (Data consistent with normal distribution (p > 0.05))
+
+**Univariate Outlier Analysis:**
+* Method 1: IQR Proximity Rule
+    * Lower Fence (Q1 - 1.5 * IQR): 3.169757
+    * Upper Fence (Q3 + 1.5 * IQR): 9.858308
+    * Number of Outliers (Below Lower): 0 (0%)
+    * Number of Outliers (Above Upper): 0 (0%)
+    * Extreme Outliers (using 3.0 * IQR factor): 0 (0%)
+* Method 2: Z-Score Method
+    * Standard Deviations from Mean for Threshold: +/- 3
+    * Number of Outliers (Z-score < -3): 0
+    * Number of Outliers (Z-score > +3): 0
+* Method 3: Modified Z-Score (using MAD)
+    * Threshold: +/- 3.5
+    * Number of Outliers: 0
+* Summary of Outliers: Total 0 (0%). Min Outlier Value: 0, Max Outlier Value: 0.
+* Potential Impact: Low outlier impact
+
+**Specific Numerical Patterns & Characteristics:**
+* Percentage of Zero Values: 0%
+* Percentage of Negative Values: 0%
+* Round Numbers Analysis: No significant rounding detected
+* Potential for Log Transformation: Log transformation may not be beneficial
+
+---
+**Column: `diet_quality`**
+* **Detected Data Type:** categorical
+* **Inferred Semantic Type:** category
+* **Data Quality Flag:** Good
+* **Quick Stats:**
+    * Total Values (Count): 1,001
+    * Missing Values: 0 (0%)
+    * Unique Values: 4 (0.4% of total)
+
+**3.2.B. Categorical Column Analysis:**
+
+**Frequency & Proportionality:**
+* Number of Unique Categories: 4
+* Mode (Most Frequent Category): `Fair` (Frequency: 437, 43.66%)
+* Second Most Frequent Category: `Good` (Frequency: 378, 37.76%)
+* Least Frequent Category: `diet_quality` (Frequency: 1, 0.1%)
+* Frequency Distribution Table (Top 10):
+
+| Category Label | Count | Percentage (%) | Cumulative % |
+|----------------|-------|----------------|--------------|
+| Fair | 437 | 43.66% | 43.66% |
+| Good | 378 | 37.76% | 81.42% |
+| Poor | 185 | 18.48% | 99.9% |
+| diet_quality | 1 | 0.1% | 100% |
+
+**Diversity & Balance:**
+* Shannon Entropy: 1.5127 (Range: 0 to 2)
+* Gini Impurity: 0.6327
+* Interpretation of Balance: Moderately balanced distribution
+* Major Category Dominance: Moderate concentration
+
+**Category Label Analysis:**
+* Minimum Label Length: 4 characters
+* Maximum Label Length: 12 characters
+* Average Label Length: 4 characters
+* Empty String or Null-like Labels: 0 occurrences
+
+**Potential Issues & Recommendations:**
+
+
+* No significant issues detected.
+
+---
+**Column: `exercise_frequency`**
+* **Detected Data Type:** numerical_integer
+* **Inferred Semantic Type:** unknown
+* **Data Quality Flag:** Good
+* **Quick Stats:**
+    * Total Values (Count): 1,001
+    * Missing Values: 1 (0.1%)
+    * Unique Values: 7 (0.7% of total)
+
+**3.2.A. Numerical Column Analysis:**
+
+**Descriptive Statistics:**
+* Minimum: 0
+* Maximum: 6
+* Range: 6
+* Sum: 3042
+* Mean (Arithmetic): 3.042
+* Median (50th Percentile): 2.999946
+* Mode(s): [3 (Frequency: 15.3%)]
+* Standard Deviation: 2.02441
+* Variance: 4.098236
+* Coefficient of Variation (CV): 0.6655%
+
+**Quantile & Percentile Statistics:**
+* 1st Percentile: 0
+* 5th Percentile: 0
+* 10th Percentile: 0.000038
+* 25th Percentile (Q1 - First Quartile): 1
+* 75th Percentile (Q3 - Third Quartile): 4.999999
+* 90th Percentile: 6
+* 95th Percentile: 6
+* 99th Percentile: 6
+* Interquartile Range (IQR = Q3 - Q1): 3.999999
+* Median Absolute Deviation (MAD): 1.999946
+
+**Distribution Shape & Normality Assessment:**
+* Skewness: -0.0319 (Approximately symmetric)
+* Kurtosis (Excess): -1.2761 (Platykurtic (light tails))
+* Histogram Analysis: Distribution spans 10 bins
+* Normality Tests:
+    * Shapiro-Wilk Test: W-statistic = 19.349939, p-value = 0.5 (Data consistent with normal distribution (p > 0.05))
+    * Jarque-Bera Test: JB-statistic = 8.288433, p-value = 0.05 (Data significantly deviates from normal distribution (p ≤ 0.05))
+    * Kolmogorov-Smirnov Test: D-statistic = 0.164364, p-value = 0.01 (Data significantly deviates from normal distribution (p ≤ 0.05))
+
+**Univariate Outlier Analysis:**
+* Method 1: IQR Proximity Rule
+    * Lower Fence (Q1 - 1.5 * IQR): -4.999999
+    * Upper Fence (Q3 + 1.5 * IQR): 10.999998
+    * Number of Outliers (Below Lower): 0 (0%)
+    * Number of Outliers (Above Upper): 0 (0%)
+    * Extreme Outliers (using 3.0 * IQR factor): 0 (0%)
+* Method 2: Z-Score Method
+    * Standard Deviations from Mean for Threshold: +/- 3
+    * Number of Outliers (Z-score < -3): 0
+    * Number of Outliers (Z-score > +3): 0
+* Method 3: Modified Z-Score (using MAD)
+    * Threshold: +/- 3.5
+    * Number of Outliers: 0
+* Summary of Outliers: Total 0 (0%). Min Outlier Value: 0, Max Outlier Value: 0.
+* Potential Impact: Low outlier impact
+
+**Specific Numerical Patterns & Characteristics:**
+* Percentage of Zero Values: 14%
+* Percentage of Negative Values: 0%
+* Round Numbers Analysis: High proportion of round numbers suggests potential data rounding
+* Potential for Log Transformation: Log transformation may not be beneficial
+
+---
+**Column: `parental_education_level`**
+* **Detected Data Type:** categorical
+* **Inferred Semantic Type:** category
+* **Data Quality Flag:** Good
+* **Quick Stats:**
+    * Total Values (Count): 1,001
+    * Missing Values: 0 (0%)
+    * Unique Values: 5 (0.5% of total)
+
+**3.2.B. Categorical Column Analysis:**
+
+**Frequency & Proportionality:**
+* Number of Unique Categories: 5
+* Mode (Most Frequent Category): `High School` (Frequency: 392, 39.16%)
+* Second Most Frequent Category: `Bachelor` (Frequency: 350, 34.97%)
+* Least Frequent Category: `parental_education_level` (Frequency: 1, 0.1%)
+* Frequency Distribution Table (Top 10):
+
+| Category Label | Count | Percentage (%) | Cumulative % |
+|----------------|-------|----------------|--------------|
+| High School | 392 | 39.16% | 39.16% |
+| Bachelor | 350 | 34.97% | 74.13% |
+| Master | 167 | 16.68% | 90.81% |
+| None | 91 | 9.09% | 99.9% |
+| parental_education_level | 1 | 0.1% | 100% |
+
+**Diversity & Balance:**
+* Shannon Entropy: 1.8152 (Range: 0 to 2.3219)
+* Gini Impurity: 0.6883
+* Interpretation of Balance: Moderately balanced distribution
+* Major Category Dominance: Well distributed
+
+**Category Label Analysis:**
+* Minimum Label Length: 4 characters
+* Maximum Label Length: 24 characters
+* Average Label Length: 8.5 characters
+* Empty String or Null-like Labels: 0 occurrences
+
+**Potential Issues & Recommendations:**
+
+
+* No significant issues detected.
+
+---
+**Column: `internet_quality`**
+* **Detected Data Type:** categorical
+* **Inferred Semantic Type:** category
+* **Data Quality Flag:** Good
+* **Quick Stats:**
+    * Total Values (Count): 1,001
+    * Missing Values: 0 (0%)
+    * Unique Values: 4 (0.4% of total)
+
+**3.2.B. Categorical Column Analysis:**
+
+**Frequency & Proportionality:**
+* Number of Unique Categories: 4
+* Mode (Most Frequent Category): `Good` (Frequency: 447, 44.66%)
+* Second Most Frequent Category: `Average` (Frequency: 391, 39.06%)
+* Least Frequent Category: `internet_quality` (Frequency: 1, 0.1%)
+* Frequency Distribution Table (Top 10):
+
+| Category Label | Count | Percentage (%) | Cumulative % |
+|----------------|-------|----------------|--------------|
+| Good | 447 | 44.66% | 44.66% |
+| Average | 391 | 39.06% | 83.72% |
+| Poor | 162 | 16.18% | 99.9% |
+| internet_quality | 1 | 0.1% | 100% |
+
+**Diversity & Balance:**
+* Shannon Entropy: 1.4843 (Range: 0 to 2)
+* Gini Impurity: 0.6218
+* Interpretation of Balance: Moderately balanced distribution
+* Major Category Dominance: Moderate concentration
+
+**Category Label Analysis:**
+* Minimum Label Length: 4 characters
+* Maximum Label Length: 16 characters
+* Average Label Length: 5.2 characters
+* Empty String or Null-like Labels: 0 occurrences
+
+**Potential Issues & Recommendations:**
+
+
+* No significant issues detected.
+
+---
+**Column: `mental_health_rating`**
+* **Detected Data Type:** numerical_integer
+* **Inferred Semantic Type:** rating
+* **Data Quality Flag:** Good
+* **Quick Stats:**
+    * Total Values (Count): 1,001
+    * Missing Values: 1 (0.1%)
+    * Unique Values: 10 (1% of total)
+
+**3.2.A. Numerical Column Analysis:**
+
+**Descriptive Statistics:**
+* Minimum: 1
+* Maximum: 10
+* Range: 9
+* Sum: 5438
+* Mean (Arithmetic): 5.438
+* Median (50th Percentile): 5.00911
+* Mode(s): [4 (Frequency: 11%)]
+* Standard Deviation: 2.846077
+* Variance: 8.100156
+* Coefficient of Variation (CV): 0.5234%
+
+**Quantile & Percentile Statistics:**
+* 1st Percentile: 1
+* 5th Percentile: 1.000135
+* 10th Percentile: 1.36728
+* 25th Percentile (Q1 - First Quartile): 3.000009
+* 75th Percentile (Q3 - Third Quartile): 8.00004
+* 90th Percentile: 9.027547
+* 95th Percentile: 9.994405
+* 99th Percentile: 10
+* Interquartile Range (IQR = Q3 - Q1): 5.000031
+* Median Absolute Deviation (MAD): 2.00911
+
+**Distribution Shape & Normality Assessment:**
+* Skewness: 0.0378 (Approximately symmetric)
+* Kurtosis (Excess): -1.1887 (Platykurtic (light tails))
+* Histogram Analysis: Distribution spans 10 bins
+* Normality Tests:
+    * Shapiro-Wilk Test: W-statistic = 18.22745, p-value = 0.5 (Data consistent with normal distribution (p > 0.05))
+    * Jarque-Bera Test: JB-statistic = 5.046133, p-value = 0.2 (Data consistent with normal distribution (p > 0.05))
+    * Kolmogorov-Smirnov Test: D-statistic = 0.113757, p-value = 0.2 (Data consistent with normal distribution (p > 0.05))
+
+**Univariate Outlier Analysis:**
+* Method 1: IQR Proximity Rule
+    * Lower Fence (Q1 - 1.5 * IQR): -4.500038
+    * Upper Fence (Q3 + 1.5 * IQR): 15.500086
+    * Number of Outliers (Below Lower): 0 (0%)
+    * Number of Outliers (Above Upper): 0 (0%)
+    * Extreme Outliers (using 3.0 * IQR factor): 0 (0%)
+* Method 2: Z-Score Method
+    * Standard Deviations from Mean for Threshold: +/- 3
+    * Number of Outliers (Z-score < -3): 0
+    * Number of Outliers (Z-score > +3): 0
+* Method 3: Modified Z-Score (using MAD)
+    * Threshold: +/- 3.5
+    * Number of Outliers: 0
+* Summary of Outliers: Total 0 (0%). Min Outlier Value: 0, Max Outlier Value: 0.
+* Potential Impact: Low outlier impact
+
+**Specific Numerical Patterns & Characteristics:**
+* Percentage of Zero Values: 0%
+* Percentage of Negative Values: 0%
+* Round Numbers Analysis: Moderate rounding detected
+* Potential for Log Transformation: Log transformation may not be beneficial
+
+---
+**Column: `extracurricular_participation`**
+* **Detected Data Type:** boolean
+* **Inferred Semantic Type:** status
+* **Data Quality Flag:** Good
+* **Quick Stats:**
+    * Total Values (Count): 1,001
+    * Missing Values: 1 (0.1%)
+    * Unique Values: 2 (0.2% of total)
+
+**3.2.D. Boolean Column Analysis:**
+
+**Frequency Distribution:**
+* Count of True: 318 (31.8%)
+* Count of False: 682 (68.2%)
+* Interpretation: Balanced distribution
+
+---
+**Column: `exam_score`**
+* **Detected Data Type:** numerical_float
+* **Inferred Semantic Type:** rating
+* **Data Quality Flag:** Good
+* **Quick Stats:**
+    * Total Values (Count): 1,001
+    * Missing Values: 1 (0.1%)
+    * Unique Values: 91 (9.1% of total)
+
+**3.2.A. Numerical Column Analysis:**
+
+**Descriptive Statistics:**
+* Minimum: 18.4
+* Maximum: 100
+* Range: 81.6
+* Sum: 69601.5
+* Mean (Arithmetic): 69.6015
+* Median (50th Percentile): 70.700333
+* Mode(s): [100 (Frequency: 4.8%)]
+* Standard Deviation: 16.880118
+* Variance: 284.938368
+* Coefficient of Variation (CV): 0.2425%
+
+**Quantile & Percentile Statistics:**
+* 1st Percentile: 30.456597
+* 5th Percentile: 40.784719
+* 10th Percentile: 46.206991
+* 25th Percentile (Q1 - First Quartile): 58.328183
+* 75th Percentile (Q3 - Third Quartile): 80.613341
+* 90th Percentile: 93.766109
+* 95th Percentile: 97.369849
+* 99th Percentile: 100
+* Interquartile Range (IQR = Q3 - Q1): 22.285159
+* Median Absolute Deviation (MAD): 12.099667
+
+**Distribution Shape & Normality Assessment:**
+* Skewness: -0.1561 (Approximately symmetric)
+* Kurtosis (Excess): -0.4238 (Mesokurtic (normal-like tails))
+* Histogram Analysis: Distribution spans 10 bins
+* Normality Tests:
+    * Shapiro-Wilk Test: W-statistic = 16.246179, p-value = 0.5 (Data consistent with normal distribution (p > 0.05))
+    * Jarque-Bera Test: JB-statistic = 1.6228, p-value = 0.2 (Data consistent with normal distribution (p > 0.05))
+    * Kolmogorov-Smirnov Test: D-statistic = 0.060649, p-value = 0.2 (Data consistent with normal distribution (p > 0.05))
+
+**Univariate Outlier Analysis:**
+* Method 1: IQR Proximity Rule
+    * Lower Fence (Q1 - 1.5 * IQR): 24.900445
+    * Upper Fence (Q3 + 1.5 * IQR): 114.041079
+    * Number of Outliers (Below Lower): 0 (0%)
+    * Number of Outliers (Above Upper): 0 (0%)
+    * Extreme Outliers (using 3.0 * IQR factor): 0 (0%)
+* Method 2: Z-Score Method
+    * Standard Deviations from Mean for Threshold: +/- 3
+    * Number of Outliers (Z-score < -3): 0
+    * Number of Outliers (Z-score > +3): 0
+* Method 3: Modified Z-Score (using MAD)
+    * Threshold: +/- 3.5
+    * Number of Outliers: 0
+* Summary of Outliers: Total 0 (0%). Min Outlier Value: 0, Max Outlier Value: 0.
+* Potential Impact: Low outlier impact
+
+**Specific Numerical Patterns & Characteristics:**
+* Percentage of Zero Values: 0%
+* Percentage of Negative Values: 0%
+* Round Numbers Analysis: No significant rounding detected
+* Potential for Log Transformation: Log transformation may not be beneficial
+
+**3.3. Bivariate Analysis (Exploring Relationships Between Pairs of Variables):**
+
+**Numerical vs. Numerical:**
+    * **Correlation Matrix Summary (Pearson's r):**
+        * Total Pairs Analysed: 13
+        * Top 5 Strongest Positive Correlations:
+        1. `age` vs `sleep_hours`: r = 0.0375 (Correlation not significantly different from zero (p > 0.05)) - Very Weak positive correlation (Correlation not significantly different from zero (p > 0.05)).
+        2. `study_hours_per_day` vs `attendance_percentage`: r = 0.0263 (Correlation not significantly different from zero (p > 0.05)) - Very Weak positive correlation (Correlation not significantly different from zero (p > 0.05)).
+        3. `study_hours_per_day` vs `social_media_hours`: r = 0.0203 (Correlation not significantly different from zero (p > 0.05)) - Very Weak positive correlation (Correlation not significantly different from zero (p > 0.05)).
+        4. `age` vs `study_hours_per_day`: r = 0.004 (Correlation not significantly different from zero (p > 0.05)) - Very Weak positive correlation (Correlation not significantly different from zero (p > 0.05)).
+        * Top 5 Strongest Negative Correlations:
+        1. `age` vs `mental_health_rating`: r = -0.0451 (Correlation not significantly different from zero (p > 0.05)) - Very Weak negative correlation (Correlation not significantly different from zero (p > 0.05)).
+        2. `study_hours_per_day` vs `netflix_hours`: r = -0.0312 (Correlation not significantly different from zero (p > 0.05)) - Very Weak negative correlation (Correlation not significantly different from zero (p > 0.05)).
+        3. `study_hours_per_day` vs `exercise_frequency`: r = -0.0287 (Correlation not significantly different from zero (p > 0.05)) - Very Weak negative correlation (Correlation not significantly different from zero (p > 0.05)).
+        4. `study_hours_per_day` vs `sleep_hours`: r = -0.0278 (Correlation not significantly different from zero (p > 0.05)) - Very Weak negative correlation (Correlation not significantly different from zero (p > 0.05)).
+        5. `age` vs `attendance_percentage`: r = -0.0261 (Correlation not significantly different from zero (p > 0.05)) - Very Weak negative correlation (Correlation not significantly different from zero (p > 0.05)).
+        * Strong Correlations (|r| > 0.5): 0 pairs identified
+    * **Scatter Plot Insights (Key Relationships):**
+        * `age` vs `study_hours_per_day`: "50 point sample shows linear relationship" (Recommended: Scatter plot with trend line)
+        * `age` vs `social_media_hours`: "50 point sample shows linear relationship" (Recommended: Scatter plot with trend line)
+        * `age` vs `netflix_hours`: "50 point sample shows linear relationship" (Recommended: Scatter plot with trend line)
+
+**Numerical vs. Categorical:**
+    * **Comparative Statistics (Mean/Median by Category):**
+    * **`gender` by `age`:**
+        | Category | Mean | Median | StdDev | Count |
+        |----------|------|--------|--------|-------|
+        | Female | 20.422 | 20.422 | 2.2245 | 481 |
+        | Male | 20.5597 | 20.5597 | 2.3841 | 477 |
+        | Other | 20.6667 | 20.6667 | 2.3958 | 42 |
+        * **Statistical Tests:** 
+            * **ANOVA F-test:** F(2,997) = 0.543, p = 0.4188 (not significant (p ≥ 0.05)). No significant difference between group means.
+            * **Kruskal-Wallis test:** H = 1.089, df = 2, p = 0.5801 (not significant (p ≥ 0.05)). No significant difference between group distributions.
+        * **Summary:** Other has highest mean (20.67), Female has lowest (20.42)
+
+    * **`diet_quality` by `age`:**
+        | Category | Mean | Median | StdDev | Count |
+        |----------|------|--------|--------|-------|
+        | Fair | 20.524 | 20.524 | 2.2923 | 437 |
+        | Good | 20.4921 | 20.4921 | 2.3081 | 378 |
+        | Poor | 20.4486 | 20.4486 | 2.3565 | 185 |
+        * **Statistical Tests:** 
+            * **ANOVA F-test:** F(2,997) = 0.071, p = 0.0687 (not significant (p ≥ 0.05)). No significant difference between group means.
+            * **Kruskal-Wallis test:** H = 0.140, df = 2, p = 0.9324 (not significant (p ≥ 0.05)). No significant difference between group distributions.
+        * **Summary:** Fair has highest mean (20.52), Poor has lowest (20.45)
+
+    * **`parental_education_level` by `age`:**
+        | Category | Mean | Median | StdDev | Count |
+        |----------|------|--------|--------|-------|
+        | Master | 20.4731 | 20.4731 | 2.3665 | 167 |
+        | High School | 20.3648 | 20.3648 | 2.2565 | 392 |
+        | Bachelor | 20.6 | 20.6 | 2.3234 | 350 |
+        | None | 20.7253 | 20.7253 | 2.362 | 91 |
+        * **Statistical Tests:** 
+            * **ANOVA F-test:** F(3,996) = 0.964, p = 0.5908 (not significant (p ≥ 0.05)). No significant difference between group means.
+            * **Kruskal-Wallis test:** H = 2.902, df = 3, p = 0.4070 (not significant (p ≥ 0.05)). No significant difference between group distributions.
+        * **Summary:** None has highest mean (20.73), High School has lowest (20.36)
+
+**Categorical vs. Categorical:**
+    * **Contingency Table Analysis:**
+    * **`gender` vs `diet_quality`:**
+        * **Contingency Table (Top 3x3):**
+        |             | diet_quality |
+        |-------------|-------------|
+        | gender | 1 |
+        | Female | 0 |
+        | Male | 0 |
+        * **Association Tests:**
+            * Chi-Squared: χ² = 0, df = 0, p-value = 1 (Insufficient data for chi-squared test)
+            * Cramer's V: 0 (Cannot calculate association strength)
+        * **Insights:** Most common combination: Female & Fair (210 occurrences). Association strength: weak.
+
+    * **`gender` vs `parental_education_level`:**
+        * **Contingency Table (Top 3x3):**
+        |             | parental_education_level |
+        |-------------|-------------|
+        | gender | 1 |
+        | Female | 0 |
+        | Male | 0 |
+        * **Association Tests:**
+            * Chi-Squared: χ² = 0, df = 0, p-value = 1 (Insufficient data for chi-squared test)
+            * Cramer's V: 0 (Cannot calculate association strength)
+        * **Insights:** Most common combination: Male & High School (194 occurrences). Association strength: weak.
+
+**3.4. Multivariate Analysis (Advanced Multi-Variable Interactions):**
+
+**Analysis Overview:** Dataset well-suited for comprehensive multivariate analysis
+
+**Variables Analysed:** age, study_hours_per_day, social_media_hours, netflix_hours, attendance_percentage, sleep_hours, exercise_frequency, mental_health_rating, exam_score (9 numerical variables)
+
+**3.4.A. Principal Component Analysis (PCA):**
+* Not applicable: Eigenvalue decomposition failed to converge
+
+**3.4.B. Cluster Analysis:**
+* **Optimal Clusters:** 2 clusters identified using elbow method
+* **Cluster Quality:** Silhouette score = 0.126 (undefined)
+* **Cluster Profiles:**
+    * **Cluster 1:** Cluster characterized by moderately higher exam_score (523 members) (523 observations)
+    * **Cluster 2:** Cluster characterized by moderately lower exam_score (477 members) (477 observations)
+* **Recommendation:** Clustering analysis completed
+
+**3.4.C. Multivariate Outlier Detection:**
+* **Method:** Mahalanobis distance with 5.0% significance level
+* **Outliers Detected:** 595 observations (59.5% of dataset)
+* **Severity Distribution:** 493 extreme, 56 moderate, 46 mild
+* **Most Affected Variables:** exam_score (595 outliers), mental_health_rating (595 outliers), social_media_hours (595 outliers)
+* **Recommendations:** High outlier rate (>10%) suggests systematic data quality issues or model misspecification; 493 extreme outliers detected - manual investigation recommended
+
+**3.4.D. Multivariate Normality Tests:**
+* **Overall Assessment:** Multivariate normality rejected (confidence: 0.0%)
+* **Mardia's Test:** Multivariate normality rejected due to both skewness and kurtosis
+* **Royston's Test:** Multivariate normality not rejected (p >= 0.05)
+* **Violations:** Multivariate skewness detected, Multivariate kurtosis detected
+* **Recommendations:** Consider data transformations (log, Box-Cox) to improve normality; Use non-parametric or robust statistical methods
+
+**3.4.E. Variable Relationship Analysis:**
+* **Key Interactions:** study_hours_per_day ↔ exam_score (linear, strength: 0.825); mental_health_rating ↔ exam_score (linear, strength: 0.322)
+* **Correlated Groups:** 1 groups of highly correlated variables identified
+* **Independent Variables:** 6 variables with low correlations
+* **Dimensionality:** Reduction recommended - 1 effective dimensions detected
+
+**3.4.F. Multivariate Insights & Recommendations:**
+**Key Multivariate Findings:**
+    1. 2 natural clusters identified (silhouette: 0.126)
+    2. 595 multivariate outliers detected (59.5%)
+    3. 1 strong variable relationships identified
+
+**Data Quality Issues:**
+    * High multivariate outlier rate may indicate data quality issues
+    * Multivariate normality assumption violated
+
+**Preprocessing Recommendations:**
+    * Investigate and potentially remove or transform outliers
+    * Consider data transformations or robust methods
+
+**Analysis Recommendations:**
+    * Dimensionality reduction recommended based on correlation structure
+
+**Analysis Limitations:** PCA not applicable due to insufficient variables or observations
+
+**3.5. Specific Analysis Modules (Activated Based on Data Characteristics):**
+
+    * **3.5.B. Text Analytics Deep Dive:**
+        * **Detected Text Columns:** 1 columns identified
+        * **Primary Text Column:** `student_id`
+        * **Advanced Analysis Available:** N-gram analysis, topic modelling, named entity recognition, sentiment analysis
+        * **Sample Keywords:** [student_id, s1000, s1001, s1002, s1003]
+        * **Recommendation:** Apply NLP preprocessing pipeline for deeper text insights if required for analysis goals.
+
+**3.6. EDA Summary & Key Hypotheses/Insights:**
+    * **Top Statistical Findings:**
+    1. Streaming analysis processed 1,001 rows using only 10MB peak memory
+    * **Data Quality Issues Uncovered:**
+    * No major data quality issues identified during EDA.
+    * **Hypotheses Generated for Further Testing:**
+    * No specific hypotheses generated - consider domain knowledge for hypothesis formation.
+    * **Recommendations for Data Preprocessing & Feature Engineering:**
+    * Consider encoding or grouping high-cardinality columns: student_id
+    * **Critical Warnings & Considerations:**
+
+
+
+
+---
+
+**Analysis Performance Summary:**
+* **Processing Time:** 103ms (0.10 seconds)
+* **Rows Analysed:** 1,001
+* **Memory Efficiency:** Constant ~10MB usage
+* **Analysis Method:** Streaming with online algorithms
+* **Dataset Size:** 1,001 records across 16 columns

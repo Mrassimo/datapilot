@@ -103,6 +103,7 @@ export class Section6Analyzer {
       const { cartAnalysis, residualAnalysis } = await this.generateSpecializedAnalyses(
         identifiedTasks,
         algorithmRecommendations,
+        section3Result,
         progressCallback
       );
 
@@ -386,6 +387,7 @@ export class Section6Analyzer {
   private async generateSpecializedAnalyses(
     tasks: ModelingTask[],
     algorithms: AlgorithmRecommendation[],
+    section3Result: Section3Result,
     progressCallback?: (progress: Section6Progress) => void,
   ): Promise<{ cartAnalysis?: CARTAnalysis; residualAnalysis?: ResidualAnalysis }> {
     this.reportProgress(progressCallback, 'workflow_design', 50, 'Generating specialized analyses');
@@ -405,7 +407,9 @@ export class Section6Analyzer {
     // Generate residual analysis for regression tasks
     const regressionTasks = tasks.filter(task => task.taskType === 'regression');
     if (regressionTasks.length > 0) {
-      residualAnalysis = await this.residualAnalyzer.generateResidualAnalysis(regressionTasks, algorithms);
+      // Extract correlation data from Section 3 bivariate analysis
+      const correlationPairs = section3Result.edaAnalysis.bivariateAnalysis.numericalVsNumerical.correlationPairs;
+      residualAnalysis = await this.residualAnalyzer.generateResidualAnalysis(regressionTasks, algorithms, correlationPairs);
     }
 
     return { cartAnalysis, residualAnalysis };

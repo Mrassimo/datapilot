@@ -24,7 +24,7 @@ export class Section3Analyzer {
       outlierMethods: ['iqr', 'zscore', 'modified_zscore'],
       normalityTests: ['shapiro', 'jarque_bera', 'ks_test'],
       maxCategoricalLevels: 50,
-      enableMultivariate: false,
+      enableMultivariate: true,
       samplingThreshold: 10000,
       useStreamingAnalysis: true,
       ...config,

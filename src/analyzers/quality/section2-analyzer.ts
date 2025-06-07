@@ -16,6 +16,7 @@ import type {
   Section2Result,
 } from './types';
 import type { DataType } from '../../core/types';
+import type { Section3Result, CorrelationPair } from '../eda/types';
 import { CompletenessAnalyzer } from './completeness-analyzer';
 import { UniquenessAnalyzer } from './uniqueness-analyzer';
 import { ValidityAnalyzer } from './validity-analyzer';
@@ -30,6 +31,7 @@ export interface Section2AnalyzerInput {
   columnCount: number;
   config?: Section2Config;
   onProgress?: (progress: Section2Progress) => void;
+  section3Result?: Section3Result; // Optional for enhanced quality scoring
 }
 
 export class Section2Analyzer {
@@ -42,6 +44,7 @@ export class Section2Analyzer {
   private onProgress?: (progress: Section2Progress) => void;
   private warnings: Section2Warning[] = [];
   private startTime: number = 0;
+  private section3Result?: Section3Result;
 
   constructor(input: Section2AnalyzerInput) {
     this.data = input.data;
@@ -51,6 +54,7 @@ export class Section2Analyzer {
     this.columnCount = input.columnCount;
     this.config = this.mergeConfig(input.config);
     this.onProgress = input.onProgress;
+    this.section3Result = input.section3Result;
   }
 
   public async analyze(): Promise<Section2Result> {
@@ -84,9 +88,9 @@ export class Section2Analyzer {
       const { accuracy, consistency } = await this.analyzeBusinessRulesAndPatterns();
       performanceMetrics.businessRules = performance.now() - businessRuleStart;
 
-      // Additional dimensions (simplified for initial implementation)
+      // Additional dimensions (enhanced with statistical insights)
       const timeliness = this.createPlaceholderTimeliness();
-      const integrity = this.createPlaceholderIntegrity();
+      const integrity = this.createEnhancedIntegrity();
       const reasonableness = this.createPlaceholderReasonableness();
       const precision = this.createPlaceholderPrecision();
       const representational = this.createPlaceholderRepresentational();
@@ -247,7 +251,8 @@ export class Section2Analyzer {
       score: this.calculateAccuracyScore(businessRuleResults, patternResults),
     };
 
-    // Enhanced Consistency Analysis
+    // Enhanced Consistency Analysis with statistical insights
+    const statisticalInsights = this.extractStatisticalInsights();
     const consistency = {
       intraRecord: businessRuleResults.intraRecordConsistency,
       interRecord: [], // TODO: Implement entity resolution
@@ -258,7 +263,12 @@ export class Section2Analyzer {
         violationsBySeverity: patternSummary.violationsBySeverity,
         problematicColumns: patternSummary.mostProblematicColumns,
       },
-      score: this.calculateConsistencyScore(businessRuleResults, patternResults),
+      statisticalConsistency: {
+        correlationStability: statisticalInsights.multicollinearity?.severity === 'none' ? 'stable' : 'unstable',
+        normalityConsistency: statisticalInsights.normality?.violatedVariables === 0 ? 'consistent' : 'inconsistent',
+        outliersImpact: statisticalInsights.outliers?.percentage || 0 < 5 ? 'minimal' : 'significant',
+      },
+      score: this.calculateEnhancedConsistencyScore(businessRuleResults, patternResults, statisticalInsights),
     };
 
     // Add warnings for high violation counts
@@ -319,19 +329,81 @@ export class Section2Analyzer {
   }
 
   private calculateConsistencyScore(businessRuleResults: any, patternResults: any): any {
+    return this.calculateEnhancedConsistencyScore(businessRuleResults, patternResults, { hasStatisticalTests: false });
+  }
+
+  /**
+   * Enhanced consistency scoring with statistical insights
+   */
+  private calculateEnhancedConsistencyScore(businessRuleResults: any, patternResults: any, statisticalInsights: any): any {
     const totalFormatIssues = patternResults.formatConsistency?.length || 0;
     const intraRecordIssues = businessRuleResults.intraRecordConsistency?.length || 0;
 
     // Base score calculation
     let score = 100;
+    const details: string[] = [];
 
     // Deduct for format inconsistencies
-    score -= totalFormatIssues * 10; // 10 points per format inconsistency type
+    if (totalFormatIssues > 0) {
+      const formatPenalty = totalFormatIssues * 10;
+      score -= formatPenalty;
+      details.push(`${totalFormatIssues} format inconsistencies (-${formatPenalty})`);
+    }
 
     // Deduct for intra-record consistency issues
-    score -= intraRecordIssues * 15; // 15 points per intra-record rule violation type
+    if (intraRecordIssues > 0) {
+      const recordPenalty = intraRecordIssues * 15;
+      score -= recordPenalty;
+      details.push(`${intraRecordIssues} intra-record issues (-${recordPenalty})`);
+    }
 
-    score = Math.max(0, Math.round(score));
+    // Factor in statistical consistency
+    if (statisticalInsights.hasStatisticalTests) {
+      // Multicollinearity affects consistency
+      if (statisticalInsights.multicollinearity) {
+        const severity = statisticalInsights.multicollinearity.severity;
+        if (severity === 'severe') {
+          score -= 15;
+          details.push('Severe multicollinearity affecting variable consistency (-15)');
+        } else if (severity === 'moderate') {
+          score -= 8;
+          details.push('Moderate multicollinearity detected (-8)');
+        } else {
+          score += 3; // Bonus for good correlation structure
+          details.push('Stable correlation structure (+3)');
+        }
+      }
+
+      // Normality consistency
+      if (statisticalInsights.normality) {
+        const violatedVars = statisticalInsights.normality.violatedVariables;
+        if (violatedVars > 0) {
+          const normalityPenalty = Math.min(8, violatedVars * 3);
+          score -= normalityPenalty;
+          details.push(`${violatedVars} variables violate normality (-${normalityPenalty})`);
+        } else {
+          score += 2;
+          details.push('Variables satisfy normality assumptions (+2)');
+        }
+      }
+
+      // Outlier impact on consistency
+      if (statisticalInsights.outliers) {
+        const outlierPercentage = statisticalInsights.outliers.percentage;
+        if (outlierPercentage > 10) {
+          score -= 12;
+          details.push(`High outlier rate (${outlierPercentage.toFixed(1)}%) affects consistency (-12)`);
+        } else if (outlierPercentage > 5) {
+          score -= 6;
+          details.push(`Moderate outlier rate (${outlierPercentage.toFixed(1)}%) (-6)`);
+        } else {
+          score += 2;
+          details.push(`Low outlier rate (${outlierPercentage.toFixed(1)}%) supports consistency (+2)`);
+        }
+      }
+    }
+
+    score = Math.max(0, Math.min(100, Math.round(score)));
 
     let interpretation: 'Excellent' | 'Good' | 'Fair' | 'Needs Improvement' | 'Poor';
     if (score >= 95) interpretation = 'Excellent';
@@ -340,10 +412,12 @@ export class Section2Analyzer {
     else if (score >= 50) interpretation = 'Needs Improvement';
     else interpretation = 'Poor';
 
+    const detailsText = details.length > 0 ? details.join('; ') : 'No consistency issues detected';
+
     return {
       score,
       interpretation,
-      details: `${totalFormatIssues} format inconsistencies, ${intraRecordIssues} intra-record issues`,
+      details: detailsText,
     };
   }
 
@@ -400,16 +474,195 @@ export class Section2Analyzer {
     };
   }
 
-  private createPlaceholderIntegrity() {
+  /**
+   * Enhanced integrity analysis with statistical test insights
+   */
+  private createEnhancedIntegrity() {
+    const statisticalInsights = this.extractStatisticalInsights();
+    
+    let baseScore = 85;
+    const issues: string[] = [];
+    const strengths: string[] = [];
+    
+    // Factor in statistical test results
+    if (statisticalInsights.hasStatisticalTests) {
+      // Multicollinearity affects data integrity
+      if (statisticalInsights.multicollinearity) {
+        const severity = statisticalInsights.multicollinearity.severity;
+        if (severity === 'severe') {
+          baseScore -= 20;
+          issues.push('Severe multicollinearity detected - data relationships may be unstable');
+        } else if (severity === 'moderate') {
+          baseScore -= 10;
+          issues.push('Moderate multicollinearity detected - some variables highly correlated');
+        } else {
+          strengths.push('No significant multicollinearity detected');
+        }
+      }
+      
+      // Outlier analysis affects integrity
+      if (statisticalInsights.outliers) {
+        const outlierPercentage = statisticalInsights.outliers.percentage;
+        if (outlierPercentage > 10) {
+          baseScore -= 15;
+          issues.push(`High outlier rate (${outlierPercentage.toFixed(1)}%) may indicate data quality issues`);
+        } else if (outlierPercentage > 5) {
+          baseScore -= 8;
+          issues.push(`Moderate outlier rate (${outlierPercentage.toFixed(1)}%) detected`);
+        } else {
+          strengths.push(`Low outlier rate (${outlierPercentage.toFixed(1)}%) indicates good data integrity`);
+        }
+      }
+      
+      // Normality assumption violations
+      if (statisticalInsights.normality) {
+        const violatedVars = statisticalInsights.normality.violatedVariables;
+        if (violatedVars > 0) {
+          const penalty = Math.min(10, violatedVars * 2);
+          baseScore -= penalty;
+          issues.push(`${violatedVars} variables violate normality assumptions`);
+        } else {
+          strengths.push('Variables satisfy normality assumptions');
+        }
+      }
+      
+      // Clustering structure indicates natural data groupings (positive for integrity)
+      if (statisticalInsights.clustering?.hasNaturalClusters) {
+        baseScore += 5;
+        strengths.push(`Natural data clustering structure detected (${statisticalInsights.clustering.optimalClusters} clusters)`);
+      }
+    }
+    
+    baseScore = Math.max(0, Math.min(100, Math.round(baseScore)));
+    
+    let interpretation: 'Excellent' | 'Good' | 'Fair' | 'Needs Improvement' | 'Poor';
+    if (baseScore >= 95) interpretation = 'Excellent';
+    else if (baseScore >= 85) interpretation = 'Good';
+    else if (baseScore >= 70) interpretation = 'Fair';
+    else if (baseScore >= 50) interpretation = 'Needs Improvement';
+    else interpretation = 'Poor';
+    
+    const details = issues.length > 0 ? 
+      `Statistical analysis reveals: ${issues.join('; ')}` :
+      strengths.length > 0 ? 
+        `Statistical analysis confirms: ${strengths.join('; ')}` :
+        'Enhanced integrity analysis with statistical validation';
+    
     return {
       orphanedRecords: [],
       cardinalityViolations: [],
+      statisticalValidation: {
+        multicollinearityCheck: statisticalInsights.multicollinearity,
+        outlierAnalysis: statisticalInsights.outliers,
+        normalityAssessment: statisticalInsights.normality,
+        clusteringStructure: statisticalInsights.clustering,
+      },
       score: {
-        score: 85,
-        interpretation: 'Good' as const,
-        details: 'Integrity analysis not yet implemented',
+        score: baseScore,
+        interpretation,
+        details,
       },
     };
+  }
+
+  /**
+   * Extract statistical insights from Section 3 results for quality scoring
+   */
+  private extractStatisticalInsights(): {
+    hasStatisticalTests: boolean;
+    multicollinearity?: {
+      severity: 'none' | 'moderate' | 'severe';
+      affectedVariables: string[];
+      maxVIF?: number;
+    };
+    outliers?: {
+      count: number;
+      percentage: number;
+      method: string;
+    };
+    normality?: {
+      violatedVariables: number;
+      totalTested: number;
+    };
+    clustering?: {
+      hasNaturalClusters: boolean;
+      optimalClusters?: number;
+      qualityScore?: number;
+    };
+  } {
+    if (!this.section3Result?.edaAnalysis?.multivariateAnalysis) {
+      return { hasStatisticalTests: false };
+    }
+    
+    const multivariateAnalysis = this.section3Result.edaAnalysis.multivariateAnalysis;
+    const insights: any = { hasStatisticalTests: true };
+    
+    try {
+      // Extract multicollinearity insights from correlation analysis
+      const correlationPairs = this.section3Result.edaAnalysis.bivariateAnalysis?.numericalVsNumerical?.correlationPairs || [];
+      if (correlationPairs.length > 0) {
+        const highCorrelations = correlationPairs.filter(pair => Math.abs(pair.correlation) > 0.8);
+        const veryHighCorrelations = correlationPairs.filter(pair => Math.abs(pair.correlation) > 0.95);
+        
+        let severity: 'none' | 'moderate' | 'severe' = 'none';
+        const affectedVariables: string[] = [];
+        
+        if (veryHighCorrelations.length > 0) {
+          severity = 'severe';
+          veryHighCorrelations.forEach(pair => {
+            if (!affectedVariables.includes(pair.variable1)) affectedVariables.push(pair.variable1);
+            if (!affectedVariables.includes(pair.variable2)) affectedVariables.push(pair.variable2);
+          });
+        } else if (highCorrelations.length > 0) {
+          severity = 'moderate';
+          highCorrelations.forEach(pair => {
+            if (!affectedVariables.includes(pair.variable1)) affectedVariables.push(pair.variable1);
+            if (!affectedVariables.includes(pair.variable2)) affectedVariables.push(pair.variable2);
+          });
+        }
+        
+        insights.multicollinearity = {
+          severity,
+          affectedVariables,
+          maxVIF: Math.max(...correlationPairs.map(p => 1 / (1 - p.correlation * p.correlation))),
+        };
+      }
+      
+      // Extract outlier insights
+      const outlierAnalysis = multivariateAnalysis.outlierDetection;
+      if (outlierAnalysis?.isApplicable) {
+        insights.outliers = {
+          count: outlierAnalysis.totalOutliers,
+          percentage: outlierAnalysis.outlierPercentage,
+          method: outlierAnalysis.method,
+        };
+      }
+      
+      // Extract normality insights
+      const normalityTests = multivariateAnalysis.normalityTests;
+      if (normalityTests) {
+        const violatedCount = normalityTests.overallAssessment.violations.length;
+        insights.normality = {
+          violatedVariables: violatedCount,
+          totalTested: 1, // Simplified - multivariate normality
+        };
+      }
+      
+      // Extract clustering insights
+      const clusteringAnalysis = multivariateAnalysis.clusteringAnalysis;
+      if (clusteringAnalysis?.isApplicable) {
+        insights.clustering = {
+          hasNaturalClusters: clusteringAnalysis.finalClustering.validation.silhouetteScore > 0.3,
+          optimalClusters: clusteringAnalysis.optimalClusters,
+          qualityScore: clusteringAnalysis.finalClustering.validation.silhouetteScore,
+        };
+      }
+      
+    } catch (error) {
+      console.warn('Error extracting statistical insights for quality scoring:', error);
+    }
+    
+    return insights;
   }
 
   private createPlaceholderReasonableness() {

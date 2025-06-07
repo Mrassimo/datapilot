@@ -397,13 +397,232 @@ export interface BivariateAnalysis {
   categoricalVsCategorical: CategoricalBivariateAnalysis[];
 }
 
-// Multivariate analysis (placeholder for advanced features)
-export interface MultivariatePlaceholder {
-  principalComponents: any[];
-  clusteringInsights: any[];
-  dimensionalityRecommendations: string;
-  featureImportanceHints: any[];
-  keyPatterns?: string[]; // For backward compatibility
+// ===== MULTIVARIATE ANALYSIS TYPES =====
+
+// Principal Component Analysis (PCA) results
+export interface PrincipalComponent {
+  componentNumber: number;
+  eigenvalue: number;
+  varianceExplained: number;
+  cumulativeVarianceExplained: number;
+  loadings: Record<string, number>; // Variable name -> loading value
+  interpretation: string;
+}
+
+export interface PCAAnalysis {
+  isApplicable: boolean;
+  applicabilityReason: string;
+  totalVariance: number;
+  componentsAnalyzed: number;
+  components: PrincipalComponent[];
+  screeData: Array<{ component: number; eigenvalue: number }>;
+  varianceThresholds: {
+    componentsFor80Percent: number;
+    componentsFor85Percent: number;
+    componentsFor90Percent: number;
+    componentsFor95Percent: number;
+  };
+  dominantVariables: Array<{
+    variable: string;
+    dominantComponent: number;
+    maxLoading: number;
+    interpretation: string;
+  }>;
+  dimensionalityRecommendations: string[];
+  technicalDetails: {
+    covarianceMatrix: number[][];
+    correlationMatrix: number[][];
+    standardizedData: boolean;
+    numericVariablesUsed: string[];
+    sampleSize: number;
+  };
+}
+
+// Clustering analysis types
+export interface ClusterValidationMetrics {
+  silhouetteScore: number;
+  silhouetteInterpretation: string;
+  wcss: number; // Within-cluster sum of squares
+  betweenClusterVariance: number;
+  totalVariance: number;
+  varianceExplainedRatio: number;
+}
+
+export interface ClusterProfile {
+  clusterId: number;
+  clusterName: string;
+  size: number;
+  percentage: number;
+  centroid: Record<string, number>;
+  characteristics: Array<{
+    variable: string;
+    mean: number;
+    relativeToGlobal: 'much_higher' | 'higher' | 'similar' | 'lower' | 'much_lower';
+    zScore: number;
+    interpretation: string;
+  }>;
+  distinctiveFeatures: string[];
+  description: string;
+}
+
+export interface KMeansAnalysis {
+  isApplicable: boolean;
+  applicabilityReason: string;
+  optimalClusters: number;
+  optimalityMethod: 'elbow' | 'silhouette' | 'gap_statistic';
+  elbowAnalysis: Array<{
+    k: number;
+    wcss: number;
+    silhouetteScore: number;
+    improvement: number;
+  }>;
+  finalClustering: {
+    k: number;
+    converged: boolean;
+    iterations: number;
+    validation: ClusterValidationMetrics;
+    clusterProfiles: ClusterProfile[];
+  };
+  insights: string[];
+  recommendations: string[];
+  technicalDetails: {
+    numericVariablesUsed: string[];
+    standardizedData: boolean;
+    sampleSize: number;
+    randomSeed: number;
+  };
+}
+
+// Multivariate outlier detection
+export interface MultivariateOutlier {
+  rowIndex: number;
+  mahalanobisDistance: number;
+  pValue: number;
+  isOutlier: boolean;
+  severity: 'mild' | 'moderate' | 'extreme';
+  affectedVariables: Array<{
+    variable: string;
+    value: number;
+    zScore: number;
+    contribution: number; // Contribution to outlier score
+  }>;
+  interpretation: string;
+}
+
+export interface MultivariateOutlierAnalysis {
+  isApplicable: boolean;
+  applicabilityReason: string;
+  method: 'mahalanobis_distance';
+  threshold: number;
+  criticalValue: number;
+  totalOutliers: number;
+  outlierPercentage: number;
+  outliers: MultivariateOutlier[];
+  severityDistribution: {
+    mild: number;
+    moderate: number;
+    extreme: number;
+  };
+  affectedVariables: Array<{
+    variable: string;
+    outliersCount: number;
+    meanContribution: number;
+  }>;
+  recommendations: string[];
+  technicalDetails: {
+    numericVariablesUsed: string[];
+    covarianceMatrix: number[][];
+    sampleSize: number;
+    degreesOfFreedom: number;
+  };
+}
+
+// Multivariate normality and assumptions testing
+export interface MultivariateNormalityTests {
+  mardiasTest: {
+    skewnessStatistic: number;
+    kurtosisStatistic: number;
+    skewnessPValue: number;
+    kurtosisPValue: number;
+    interpretation: string;
+  };
+  roystonTest: {
+    statistic: number;
+    pValue: number;
+    interpretation: string;
+  };
+  overallAssessment: {
+    isMultivariateNormal: boolean;
+    confidence: number;
+    violations: string[];
+    recommendations: string[];
+  };
+}
+
+// Multivariate relationship analysis
+export interface MultivariateRelationshipAnalysis {
+  variableInteractions: Array<{
+    variables: string[];
+    interactionType: 'linear' | 'non_linear' | 'threshold' | 'synergistic';
+    strength: number;
+    significance: number;
+    interpretation: string;
+  }>;
+  correlationStructure: {
+    stronglyCorrelatedGroups: Array<{
+      variables: string[];
+      avgCorrelation: number;
+      description: string;
+    }>;
+    independentVariables: string[];
+    redundantVariables: Array<{
+      variable: string;
+      redundantWith: string;
+      correlation: number;
+    }>;
+  };
+  dimensionalityInsights: {
+    effectiveDimensionality: number;
+    intrinsicDimensionality: number;
+    dimensionalityReduction: {
+      recommended: boolean;
+      methods: string[];
+      expectedVarianceRetention: number;
+    };
+  };
+}
+
+// Main multivariate analysis interface (replaces MultivariatePlaceholder)
+export interface MultivariateAnalysis {
+  summary: {
+    analysisPerformed: boolean;
+    applicabilityAssessment: string;
+    numericVariablesCount: number;
+    variablesAnalyzed: string[];
+    sampleSize: number;
+    analysisLimitations: string[];
+  };
+  principalComponentAnalysis: PCAAnalysis;
+  clusteringAnalysis: KMeansAnalysis;
+  outlierDetection: MultivariateOutlierAnalysis;
+  normalityTests: MultivariateNormalityTests;
+  relationshipAnalysis: MultivariateRelationshipAnalysis;
+  insights: {
+    keyFindings: string[];
+    dataQualityIssues: string[];
+    hypothesesGenerated: string[];
+    preprocessingRecommendations: string[];
+    analysisRecommendations: string[];
+  };
+  technicalMetadata: {
+    analysisTime: number;
+    memoryUsage: string;
+    computationalComplexity: string;
+    algorithmsUsed: string[];
+  };
+  
+  // Backward compatibility fields
+  keyPatterns?: string[];
   pcaOverview?: {
     componentsFor85PercentVariance: number;
     dominantVariables: string[];
@@ -431,7 +650,7 @@ export interface EdaInsights {
 export interface Section3EdaAnalysis {
   univariateAnalysis: ColumnAnalysis[];
   bivariateAnalysis: BivariateAnalysis;
-  multivariateAnalysis: MultivariatePlaceholder;
+  multivariateAnalysis: MultivariateAnalysis;
   crossVariableInsights: EdaInsights;
   methodology?: {
     approach: string;

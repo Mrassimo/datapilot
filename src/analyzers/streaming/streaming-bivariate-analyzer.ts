@@ -3,8 +3,9 @@
  * Processes pair relationships incrementally using online algorithms
  */
 
-import { OnlineCovariance, ReservoirSampler, BoundedFrequencyCounter } from './online-statistics';
+import { OnlineCovariance, OnlineStatistics, ReservoirSampler, BoundedFrequencyCounter } from './online-statistics';
 import { ChiSquaredTest, CorrelationSignificanceTest } from './statistical-tests';
+import { anovaFTest, kruskalWallisTest, GroupData } from '../statistical-tests/hypothesis-tests';
 import type {
   BivariateAnalysis,
   NumericalBivariateAnalysis,
@@ -36,7 +37,8 @@ export interface ColumnPair {
 export class StreamingBivariateAnalyzer {
   private numericalPairs = new Map<string, OnlineCovariance>();
   private categoricalPairs = new Map<string, BoundedFrequencyCounter<string>>();
-  private numericalCategoricalPairs = new Map<string, Map<string, OnlineCovariance>>();
+  private numericalCategoricalPairs = new Map<string, Map<string, OnlineStatistics>>();
+  private numericalCategoricalSamples = new Map<string, Map<string, ReservoirSampler<number>>>(); // For Kruskal-Wallis
   private scatterSamples = new Map<string, ReservoirSampler<[number, number]>>();
   private warnings: Section3Warning[] = [];
   private maxPairs: number;
@@ -76,7 +78,7 @@ export class StreamingBivariateAnalyzer {
       if (this.isNumericalType(pair.col1Type) && this.isNumericalType(pair.col2Type)) {
         // Numerical vs Numerical
         this.numericalPairs.set(pairKey, new OnlineCovariance());
-        this.scatterSamples.set(pairKey, new ReservoirSampler<[number, number]>(50)); // Reduced from 1000
+        this.scatterSamples.set(pairKey, new ReservoirSampler<[number, number]>(50, 42)); // Reduced from 1000, seeded for deterministic results
       } else if (this.isCategoricalType(pair.col1Type) && this.isCategoricalType(pair.col2Type)) {
         // Categorical vs Categorical
         this.categoricalPairs.set(pairKey, new BoundedFrequencyCounter<string>(200)); // Reduced from 5000
@@ -85,7 +87,8 @@ export class StreamingBivariateAnalyzer {
         (this.isCategoricalType(pair.col1Type) && this.isNumericalType(pair.col2Type))
       ) {
         // Numerical vs Categorical
-        this.numericalCategoricalPairs.set(pairKey, new Map<string, OnlineCovariance>());
+        this.numericalCategoricalPairs.set(pairKey, new Map<string, OnlineStatistics>());
+        this.numericalCategoricalSamples.set(pairKey, new Map<string, ReservoirSampler<number>>());
       }
     }
   }
@@ -152,12 +155,18 @@ export class StreamingBivariateAnalyzer {
         }
 
         if (numValue !== null && catValue !== null) {
+          // Update statistics
           if (!categoryGroups.has(catValue)) {
-            categoryGroups.set(catValue, new OnlineCovariance());
+            categoryGroups.set(catValue, new OnlineStatistics());
           }
-          // For numerical vs categorical, we track the numerical values within each category
-          // This allows us to compute group statistics later
-          categoryGroups.get(catValue)!.update(numValue, numValue); // Use same value for both x,y
+          categoryGroups.get(catValue)!.update(numValue); // Only need to update with the numerical value
+
+          // Update samples for Kruskal-Wallis test
+          const categorySamples = this.numericalCategoricalSamples.get(pairKey)!;
+          if (!categorySamples.has(catValue)) {
+            categorySamples.set(catValue, new ReservoirSampler<number>(30, 42)); // Smaller sample per group, seeded
+          }
+          categorySamples.get(catValue)!.sample(numValue);
         }
       }
     }
@@ -235,20 +244,23 @@ export class StreamingBivariateAnalyzer {
         totalCount += count;
 
         if (count > 0) {
-          // Extract statistics from the covariance object (we used same value for x,y)
-          const mean =
-            stats.getCount() > 0
-              ? Array.from({ length: count }, (_, i) => i).reduce((sum, _) => sum, 0) / count
-              : 0;
+          // Extract statistics from the OnlineStatistics object
+          const mean = stats.getMean();
+          const stdDev = stats.getStandardDeviation();
+          
+          // Use statistical approximations for quartiles (OnlineStatistics doesn't have getQuantile)
+          const q1 = mean - 0.675 * stdDev; // Approximation for Q1 in normal distribution
+          const median = mean; // Use mean as median approximation for streaming data
+          const q3 = mean + 0.675 * stdDev; // Approximation for Q3 in normal distribution
 
           groupComparisons.push({
             category,
             count,
             mean: Number(mean.toFixed(4)),
-            median: Number(mean.toFixed(4)), // Approximation
-            standardDeviation: 0, // Would need additional tracking
-            quartile1st: Number(mean.toFixed(4)),
-            quartile3rd: Number(mean.toFixed(4)),
+            median: Number(median.toFixed(4)), 
+            standardDeviation: Number(stdDev.toFixed(4)),
+            quartile1st: Number(q1.toFixed(4)),
+            quartile3rd: Number(q3.toFixed(4)),
           });
         }
       }
@@ -258,7 +270,7 @@ export class StreamingBivariateAnalyzer {
           numericalVariable: col1Name.includes('numerical') ? col1Name : col2Name,
           categoricalVariable: col1Name.includes('numerical') ? col2Name : col1Name,
           groupComparisons,
-          statisticalTests: this.generateMockTests(), // Simplified
+          statisticalTests: this.generateRealStatisticalTests(pairKey, groupComparisons), // Real ANOVA and Kruskal-Wallis tests
           summary: this.generateGroupSummary(groupComparisons),
         });
       }
@@ -341,19 +353,119 @@ export class StreamingBivariateAnalyzer {
     return { table, rowTotals, columnTotals };
   }
 
-  private generateMockTests(): NumericalCategoricalTests {
-    return {
-      anova: {
-        fStatistic: 1.5,
-        pValue: 0.2,
-        interpretation: 'No significant difference between groups',
-      },
-      kruskalWallis: {
-        hStatistic: 2.1,
-        pValue: 0.15,
-        interpretation: 'No significant difference between groups (non-parametric)',
-      },
-    };
+  /**
+   * Generate real statistical tests using proper ANOVA F-test and Kruskal-Wallis test
+   */
+  private generateRealStatisticalTests(pairKey: string, groupComparisons: GroupComparison[]): NumericalCategoricalTests {
+    try {
+      // Convert group comparisons to GroupData format for statistical tests
+      const groupData: GroupData[] = groupComparisons.map(group => ({
+        name: group.category,
+        count: group.count,
+        mean: group.mean,
+        variance: Math.pow(group.standardDeviation, 2), // Convert std dev to variance
+        values: this.extractGroupValues(pairKey, group.category), // Get raw values if available
+      }));
+
+      // Handle edge cases
+      if (groupData.length < 2) {
+        return {
+          anova: {
+            fStatistic: 0,
+            pValue: 1,
+            interpretation: 'Insufficient groups for statistical comparison (need ≥2 groups)',
+          },
+          kruskalWallis: {
+            hStatistic: 0,
+            pValue: 1,
+            interpretation: 'Insufficient groups for statistical comparison (need ≥2 groups)',
+          },
+        };
+      }
+
+      // Perform ANOVA F-test
+      const anovaResult = anovaFTest(groupData);
+      
+      // Perform Kruskal-Wallis test
+      const kwResult = kruskalWallisTest(groupData);
+
+      return {
+        anova: {
+          fStatistic: anovaResult.statistic,
+          pValue: anovaResult.pValue,
+          interpretation: this.formatAnovaInterpretation(anovaResult),
+        },
+        kruskalWallis: {
+          hStatistic: kwResult.statistic,
+          pValue: kwResult.pValue,
+          interpretation: this.formatKruskalWallisInterpretation(kwResult),
+        },
+      };
+    } catch (error) {
+      // Fallback to safe default values if statistical tests fail
+      console.warn(`Statistical tests failed for ${pairKey}:`, error);
+      return {
+        anova: {
+          fStatistic: 0,
+          pValue: 1,
+          interpretation: 'Statistical test failed due to insufficient or invalid data',
+        },
+        kruskalWallis: {
+          hStatistic: 0,
+          pValue: 1,
+          interpretation: 'Statistical test failed due to insufficient or invalid data',
+        },
+      };
+    }
+  }
+
+  /**
+   * Extract raw values for a specific group if available from reservoir samples
+   */
+  private extractGroupValues(pairKey: string, categoryName: string): number[] | undefined {
+    const categorySamples = this.numericalCategoricalSamples.get(pairKey);
+    if (!categorySamples) {
+      return undefined;
+    }
+
+    const groupSampler = categorySamples.get(categoryName);
+    if (!groupSampler) {
+      return undefined;
+    }
+
+    return groupSampler.getSample();
+  }
+
+  /**
+   * Format ANOVA result interpretation for compact display
+   */
+  private formatAnovaInterpretation(result: any): string {
+    const significance = result.pValue < 0.001 ? 'highly significant (p < 0.001)' :
+                        result.pValue < 0.01 ? 'very significant (p < 0.01)' :
+                        result.pValue < 0.05 ? 'significant (p < 0.05)' :
+                        'not significant (p ≥ 0.05)';
+    
+    const conclusion = result.pValue < 0.05 ? 
+      'Group means differ significantly' : 
+      'No significant difference between group means';
+
+    return `F(${Array.isArray(result.degreesOfFreedom) ? result.degreesOfFreedom.join(',') : result.degreesOfFreedom}) = ${result.statistic.toFixed(3)}, p = ${result.pValue.toFixed(4)} (${significance}). ${conclusion}.`;
+  }
+
+  /**
+   * Format Kruskal-Wallis result interpretation for compact display
+   */
+  private formatKruskalWallisInterpretation(result: any): string {
+    const significance = result.pValue < 0.001 ? 'highly significant (p < 0.001)' :
+                        result.pValue < 0.01 ? 'very significant (p < 0.01)' :
+                        result.pValue < 0.05 ? 'significant (p < 0.05)' :
+                        'not significant (p ≥ 0.05)';
+    
+    const conclusion = result.pValue < 0.05 ? 
+      'Group distributions differ significantly' : 
+      'No significant difference between group distributions';
+
+    return `H = ${result.statistic.toFixed(3)}, df = ${result.degreesOfFreedom}, p = ${result.pValue.toFixed(4)} (${significance}). ${conclusion}.`;
   }
 
   private generateAssociationTests(

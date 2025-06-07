@@ -1,0 +1,243 @@
+---
+
+### **Section 2: Comprehensive Data Quality & Integrity Audit Report** 🧐🛡️
+
+This section provides an exhaustive assessment of the dataset's reliability, structural soundness, and adherence to quality standards. Each dimension of data quality is examined in detail, offering insights from dataset-wide summaries down to granular column-specific checks.
+
+**2.1. Overall Data Quality Cockpit:**
+    * **Composite Data Quality Score (CDQS):** 93.8 / 100
+        * *Methodology:* Weighted average of individual quality dimension scores.
+        * *Interpretation:* Good - Weighted average of 10 quality dimensions
+    * **Data Quality Dimensions Summary:**
+        * Completeness: 99.4/100 (Excellent)
+        * Uniqueness: 100.0/100 (Excellent)
+        * Validity: 100.0/100 (Excellent)
+        * Consistency: 90.0/100 (Good)
+        * Accuracy: 95.0/100 (Excellent)
+        * Timeliness: 75.0/100 (Fair)
+        * Integrity: 85.0/100 (Good)
+        * Reasonableness: 80.0/100 (Good)
+        * Precision: 0.0/100 (Poor)
+        * Representational: 80.0/100 (Good)
+    * **Top 3 Data Quality Strengths:**
+        1. Excellent completeness with 99.38% score (completeness).
+        2. Excellent accuracy with 95% score (accuracy).
+        3. Excellent consistency with 90% score (consistency).
+    * **Top 3 Data Quality Weaknesses (Areas for Immediate Attention):**
+        1. precision quality needs attention (0% score) (Priority: 10/10).
+        2. timeliness quality needs attention (75% score) (Priority: 6/10).
+        3. reasonableness quality needs attention (80% score) (Priority: 6/10).
+    * **Estimated Technical Debt (Data Cleaning Effort):**
+        * *Time Estimate:* 18 hours estimated cleanup.
+        * *Complexity Level:* Medium.
+        * *Primary Debt Contributors:* precision quality needs attention (0% score), timeliness quality needs attention (75% score), reasonableness quality needs attention (80% score).
+    * **Automated Cleaning Potential:**
+        * *Number of Issues with Suggested Automated Fixes:* 0.
+        * *Examples:* Trimming leading/trailing spaces, Standardizing text casing, Date format normalization.
+
+**2.2. Completeness Dimension (Absence of Missing Data):**
+    * **Dataset-Level Completeness Overview:**
+        * Overall Dataset Completeness Ratio: 99.43%.
+        * Total Missing Values (Entire Dataset): 91.
+        * Percentage of Rows Containing at Least One Missing Value: 9.10%.
+        * Percentage of Columns Containing at Least One Missing Value: 6.25%.
+        * Missing Value Distribution Overview: Missing values predominantly in few columns.
+    * **Column-Level Completeness Deep Dive:** (Showing top 10 columns)
+        * `student_id`:
+            * Number of Missing Values: 0.
+            * Percentage of Missing Values: 0.00%.
+            * Missingness Pattern: No missing values detected.
+            * Suggested Imputation Strategy: None (Confidence: 100%).
+            * Missing Data Distribution: ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁.
+        * `age`:
+            * Number of Missing Values: 0.
+            * Percentage of Missing Values: 0.00%.
+            * Missingness Pattern: No missing values detected.
+            * Suggested Imputation Strategy: None (Confidence: 100%).
+            * Missing Data Distribution: ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁.
+        * `gender`:
+            * Number of Missing Values: 0.
+            * Percentage of Missing Values: 0.00%.
+            * Missingness Pattern: No missing values detected.
+            * Suggested Imputation Strategy: None (Confidence: 100%).
+            * Missing Data Distribution: ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁.
+        * `study_hours_per_day`:
+            * Number of Missing Values: 0.
+            * Percentage of Missing Values: 0.00%.
+            * Missingness Pattern: No missing values detected.
+            * Suggested Imputation Strategy: None (Confidence: 100%).
+            * Missing Data Distribution: ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁.
+        * `social_media_hours`:
+            * Number of Missing Values: 0.
+            * Percentage of Missing Values: 0.00%.
+            * Missingness Pattern: No missing values detected.
+            * Suggested Imputation Strategy: None (Confidence: 100%).
+            * Missing Data Distribution: ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁.
+        * `netflix_hours`:
+            * Number of Missing Values: 0.
+            * Percentage of Missing Values: 0.00%.
+            * Missingness Pattern: No missing values detected.
+            * Suggested Imputation Strategy: None (Confidence: 100%).
+            * Missing Data Distribution: ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁.
+        * `part_time_job`:
+            * Number of Missing Values: 0.
+            * Percentage of Missing Values: 0.00%.
+            * Missingness Pattern: No missing values detected.
+            * Suggested Imputation Strategy: None (Confidence: 100%).
+            * Missing Data Distribution: ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁.
+        * `attendance_percentage`:
+            * Number of Missing Values: 0.
+            * Percentage of Missing Values: 0.00%.
+            * Missingness Pattern: No missing values detected.
+            * Suggested Imputation Strategy: None (Confidence: 100%).
+            * Missing Data Distribution: ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁.
+        * `sleep_hours`:
+            * Number of Missing Values: 0.
+            * Percentage of Missing Values: 0.00%.
+            * Missingness Pattern: No missing values detected.
+            * Suggested Imputation Strategy: None (Confidence: 100%).
+            * Missing Data Distribution: ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁.
+        * `diet_quality`:
+            * Number of Missing Values: 0.
+            * Percentage of Missing Values: 0.00%.
+            * Missingness Pattern: No missing values detected.
+            * Suggested Imputation Strategy: None (Confidence: 100%).
+            * Missing Data Distribution: ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁.
+    * **Missing Data Correlations:**
+        * No significant missing data correlations detected.
+    * **Missing Data Block Patterns:**
+        * No block patterns detected.
+    * **Completeness Score:** 99.4/100 (Excellent) - 99.43% of cells contain data.
+
+**2.3. Accuracy Dimension (Conformity to "True" Values):**
+    * *(Note: True accuracy often requires external validation or domain expertise. Analysis shows rule-based conformity checks.)*
+    * **Value Conformity Assessment:** 100 total rule violations, 0 critical
+    * **Cross-Field Validation Results:**
+        * No cross-field rules configured.
+    * **Pattern Validation Results:**
+        * *UUID Format:* UUIDs should follow standard format. Violations: 100 across columns: student_id.
+    * **Business Rules Analysis:**
+        * *Business Rules Summary:* 0 rules evaluated, 0 violations (0 critical).
+    * **Impact of Outliers on Accuracy:** Outlier impact analysis to be integrated with Section 3 results
+    * **Accuracy Score:** 95.0/100 (Excellent).
+
+**2.4. Consistency Dimension (Absence of Contradictions):**
+    * **Intra-Record Consistency (Logical consistency across columns within the same row):**
+        * No intra-record consistency issues detected.
+    * **Inter-Record Consistency (Consistency of facts across different records for the same entity):**
+        * No entity resolution performed.
+    * **Format & Representational Consistency (Standardization of Data Values):**
+        * *exercise_frequency* (format_standardization): Standardize to Other/Unrecognized format. Inconsistency: 29.0% of values.
+    * **Pattern Consistency Summary:**
+        * *Pattern Analysis:* 9 patterns evaluated, 100 violations across 1 columns.
+    * **Consistency Score (Rule-based and pattern detection):** 90.0/100 (Good).
+
+**2.5. Timeliness & Currency Dimension:**
+    * **Data Freshness Indicators:** Timeliness analysis based on available date/timestamp columns
+    * **Update Frequency Analysis:** Not applicable for single-snapshot data.
+    * **Timeliness Score:** 75.0/100 (Fair).
+
+**2.6. Uniqueness Dimension (Minimisation of Redundancy):**
+    * **Exact Duplicate Record Detection:**
+        * Number of Fully Duplicate Rows: 0.
+        * Percentage of Dataset Comprised of Exact Duplicates: 0.00%.
+    * **Key Uniqueness & Integrity:**
+        * `student_id (Potential PK)`: 0 duplicate values found. Cardinality: 1000.
+    * **Column-Level Value Uniqueness Profile:**
+        * `student_id`: 100.0% unique values. 0 duplicates.
+        * `age`: 0.8% unique values. 992 duplicates. Most frequent: "20" (146 times).
+        * `gender`: 0.3% unique values. 997 duplicates. Most frequent: "Female" (481 times).
+        * `study_hours_per_day`: 7.8% unique values. 922 duplicates. Most frequent: "3.5" (38 times).
+        * `social_media_hours`: 6.0% unique values. 940 duplicates. Most frequent: "3.1" (38 times).
+        * `netflix_hours`: 5.1% unique values. 949 duplicates. Most frequent: "0.0" (59 times).
+        * `part_time_job`: 0.2% unique values. 998 duplicates. Most frequent: "No" (785 times).
+        * `attendance_percentage`: 32.0% unique values. 680 duplicates. Most frequent: "100.0" (66 times).
+    * **Fuzzy/Semantic Duplicate Detection:**
+        * Number of Record Pairs Suspected to be Semantic Duplicates: 903 pairs.
+        * Methods Used: levenshtein, soundex.
+    * **Uniqueness Score:** 100.0/100 (Excellent) - 0.00% duplicate rows, 0 key constraint violations.
+
+**2.7. Validity & Conformity Dimension:**
+    * **Data Type Conformance Deep Dive:**
+        * `student_id` (Expected: String, Detected: String, Confidence: 100%):
+            * Non-Conforming Values: 0 (100.0% conformance).
+            * Examples: None.
+            * Conversion Strategy: No conversion needed - high conformance.
+        * `age` (Expected: String, Detected: Integer, Confidence: 100%):
+            * Non-Conforming Values: 0 (100.0% conformance).
+            * Examples: None.
+            * Conversion Strategy: No conversion needed - high conformance.
+        * `gender` (Expected: String, Detected: String, Confidence: 100%):
+            * Non-Conforming Values: 0 (100.0% conformance).
+            * Examples: None.
+            * Conversion Strategy: No conversion needed - high conformance.
+        * `study_hours_per_day` (Expected: String, Detected: Float, Confidence: 100%):
+            * Non-Conforming Values: 0 (100.0% conformance).
+            * Examples: None.
+            * Conversion Strategy: No conversion needed - high conformance.
+        * `social_media_hours` (Expected: String, Detected: Float, Confidence: 100%):
+            * Non-Conforming Values: 0 (100.0% conformance).
+            * Examples: None.
+            * Conversion Strategy: No conversion needed - high conformance.
+        * `netflix_hours` (Expected: String, Detected: Float, Confidence: 100%):
+            * Non-Conforming Values: 0 (100.0% conformance).
+            * Examples: None.
+            * Conversion Strategy: No conversion needed - high conformance.
+        * `part_time_job` (Expected: String, Detected: Boolean, Confidence: 100%):
+            * Non-Conforming Values: 0 (100.0% conformance).
+            * Examples: None.
+            * Conversion Strategy: No conversion needed - high conformance.
+        * `attendance_percentage` (Expected: String, Detected: Float, Confidence: 100%):
+            * Non-Conforming Values: 0 (100.0% conformance).
+            * Examples: None.
+            * Conversion Strategy: No conversion needed - high conformance.
+    * **Range & Value Set Conformance:**
+        * No range constraints defined.
+    * **Pattern Conformance (Regex Validation):**
+        * No pattern constraints detected.
+    * **Cross-Column Validation Rules:**
+        * Business rules: 0 configured rules.
+    * **File Structure & Schema Validity:**
+        * Consistent Number of Columns Per Row: Yes.
+        * Header Row Conformance: Yes.
+    * **Validity Score:** 100.0/100 (Excellent) - 100.0% average type conformance, 0 total violations.
+
+**2.8. Integrity Dimension (Relationships & Structural Soundness):**
+    * **Potential Orphaned Record Detection:** Enhanced integrity analysis with statistical validation
+    * **Relationship Cardinality Conformance:** No relationships defined.
+    * **Data Model Integrity:** Schema validation not performed.
+    * **Integrity Score:** 85.0/100 (Good).
+
+**2.9. Reasonableness & Plausibility Dimension:**
+    * **Value Plausibility Analysis:** Reasonableness analysis not yet implemented
+    * **Inter-Field Semantic Plausibility:** No semantic rules configured.
+    * **Contextual Anomaly Detection:** Statistical analysis pending.
+    * **Plausibility Score:** 80.0/100 (Good).
+
+**2.10. Precision & Granularity Dimension:**
+    * **Numeric Precision Analysis:** Major precision problems affecting data reliability
+    * **Temporal Granularity:** To be implemented.
+    * **Categorical Specificity:** To be implemented.
+    * **Precision Score:** 0.0/100 (Poor).
+
+**2.11. Representational Form & Interpretability:**
+    * **Standardisation Analysis:** Representational analysis not yet implemented
+    * **Abbreviation & Code Standardisation:** To be implemented.
+    * **Boolean Value Representation:** To be implemented.
+    * **Text Field Formatting:** To be implemented.
+    * **Interpretability Score:** 80.0/100 (Good).
+
+**2.13. Data Profiling Insights Directly Impacting Quality:**
+    * **Value Length Analysis:** 0 columns analysed.
+    * **Character Set & Encoding Validation:** 0 columns analysed.
+    * **Special Character Analysis:** 0 columns analysed.
+    * *Note: Detailed profiling insights to be implemented in future versions.*
+
+---
+
+**Data Quality Audit Summary:**
+* **Generated:** 2025-06-07T09:41:26.410Z
+* **Version:** 1.0.0
+* **Overall Assessment:** Good data quality with 93.8/100 composite score.
+
+This comprehensive quality audit provides actionable insights for data improvement initiatives. Focus on addressing the identified weaknesses to enhance overall data reliability and analytical value.

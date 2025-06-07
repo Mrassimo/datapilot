@@ -263,8 +263,14 @@ export class P2Quantile {
 export class ReservoirSampler<T> {
   private reservoir: T[] = [];
   private count = 0;
+  private rng: () => number;
 
-  constructor(private size: number) {}
+  constructor(
+    private size: number,
+    seed?: number,
+  ) {
+    this.rng = seed !== undefined ? this.createSeededRandom(seed) : Math.random;
+  }
 
   sample(item: T): void {
     this.count++;
@@ -273,11 +279,24 @@ export class ReservoirSampler<T> {
       this.reservoir.push(item);
     } else {
       // Replace random element with probability size/count
-      const j = Math.floor(Math.random() * this.count);
+      const j = Math.floor(this.rng() * this.count);
       if (j < this.size) {
         this.reservoir[j] = item;
       }
     }
+  }
+
+  /**
+   * Creates a seeded pseudo-random number generator (PRNG).
+   * Uses a simple linear congruential generator (LCG) for simplicity.
+   */
+  private createSeededRandom(seed: number): () => number {
+    let currentSeed = seed;
+    return () => {
+      // LCG parameters from POSIX
+      currentSeed = (currentSeed * 1103515245 + 12345) % 2147483648;
+      return currentSeed / 2147483648;
+    };
   }
 
   getSample(): T[] {
@@ -352,6 +371,26 @@ export class OnlineCovariance {
 
   getCount(): number {
     return this.count;
+  }
+
+  getMeanX(): number {
+    return this.meanX;
+  }
+
+  getMeanY(): number {
+    return this.meanY;
+  }
+
+  getVarianceX(): number {
+    if (this.count < 2) return 0;
+    const n = this.count;
+    return (this.sumXX - (this.sumX * this.sumX) / n) / (n - 1);
+  }
+
+  getVarianceY(): number {
+    if (this.count < 2) return 0;
+    const n = this.count;
+    return (this.sumYY - (this.sumY * this.sumY) / n) / (n - 1);
   }
 }
 

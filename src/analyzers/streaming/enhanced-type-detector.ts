@@ -569,7 +569,17 @@ export class EnhancedTypeDetector {
 
   private static inferNumericalSemanticType(columnName: string): SemanticType {
     const name = columnName.toLowerCase();
-    if (name.includes('age')) return SemanticType.AGE;
+    
+    // Add negative checks to avoid misclassification
+    if (name.includes('percent') || name.includes('rate') || name.includes('%')) {
+      return SemanticType.PERCENTAGE;
+    }
+    
+    // More specific age detection to avoid words like "percentage", "average", "usage"
+    if (name.includes('age') && !name.includes('percent') && !name.includes('average') && !name.includes('usage') && !name.includes('damage')) {
+      return SemanticType.AGE;
+    }
+    
     if (name.includes('id')) return SemanticType.IDENTIFIER;
     if (name.includes('count') || name.includes('quantity')) return SemanticType.COUNT;
     if (name.includes('rating') || name.includes('score')) return SemanticType.RATING;

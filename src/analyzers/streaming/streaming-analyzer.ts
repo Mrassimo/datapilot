@@ -18,6 +18,7 @@ import {
   type StreamingColumnAnalyzer,
 } from './streaming-univariate-analyzer';
 import { StreamingBivariateAnalyzer, type ColumnPair } from './streaming-bivariate-analyzer';
+import { MultivariateOrchestrator } from '../multivariate/multivariate-orchestrator';
 import { EnhancedTypeDetector } from './enhanced-type-detector';
 import type {
   Section3Result,
@@ -67,6 +68,10 @@ export class StreamingAnalyzer {
   private warnings: Section3Warning[] = [];
   private typeDetectionResults: any[] = []; // Store enhanced detection results (limited)
   private hasHeaders: boolean = false; // Track if CSV has headers
+  
+  // Data collection for multivariate analysis (when enabled)
+  private collectedData: (string | number | null | undefined)[][] = [];
+  private maxCollectedRows: number = 2000; // Limit memory usage for multivariate analysis
 
   constructor(config: Partial<StreamingConfig> = {}) {
     this.config = {
@@ -83,7 +88,7 @@ export class StreamingAnalyzer {
       outlierMethods: ['iqr', 'zscore', 'modified_zscore'],
       normalityTests: ['shapiro', 'jarque_bera', 'ks_test'],
       maxCategoricalLevels: 50,
-      enableMultivariate: false,
+      enableMultivariate: true,
       samplingThreshold: 10000,
 
       ...config,
@@ -129,7 +134,7 @@ export class StreamingAnalyzer {
       await this.streamingPass(parser, filePath);
 
       // Phase 4: Finalize results
-      return this.finalizeResults();
+      return await this.finalizeResults();
     } catch (error) {
       logger.error('Streaming analysis failed:', error);
       throw error;
@@ -273,6 +278,11 @@ export class StreamingAnalyzer {
 
       // Process for bivariate analysis
       this.bivariateAnalyzer.processRow(row.data, this.detectedTypes);
+      
+      // Collect data for multivariate analysis (if enabled and within limit)
+      if (this.config.enableMultivariate && this.collectedData.length < this.maxCollectedRows) {
+        this.collectedData.push([...row.data]); // Store a copy of the row data
+      }
     }
 
     // Clear chunk from memory immediately
@@ -308,6 +318,14 @@ export class StreamingAnalyzer {
       if (analyzer.clearMemory) {
         analyzer.clearMemory();
       }
+    }
+    
+    // If under extreme memory pressure and we have sufficient data for multivariate analysis,
+    // limit the collected data to prevent memory issues
+    if (this.state.currentMemoryMB > this.config.memoryThresholdMB * 1.5 && 
+        this.collectedData.length > 1000) {
+      // Keep only the first 1000 rows for multivariate analysis
+      this.collectedData = this.collectedData.slice(0, 1000);
     }
 
     // Force garbage collection if available
@@ -364,7 +382,7 @@ export class StreamingAnalyzer {
   /**
    * Finalize analysis and generate results
    */
-  private finalizeResults(): Section3Result {
+  private async finalizeResults(): Promise<Section3Result> {
     this.reportProgress('finalization', 0, 'Finalizing results...');
 
     // Collect univariate results
@@ -396,15 +414,32 @@ export class StreamingAnalyzer {
     const endTime = Date.now();
     const analysisTime = endTime - this.state.startTime;
 
+    // Perform multivariate analysis if enabled and applicable
+    let multivariateAnalysis;
+    if (this.config.enableMultivariate && this.state.rowsProcessed > 50) {
+      this.reportProgress('multivariate', 90, 'Performing multivariate analysis...');
+      try {
+        multivariateAnalysis = await MultivariateOrchestrator.analyze(
+          this.collectedData || [],
+          this.headers,
+          this.detectedTypes,
+          this.state.rowsProcessed
+        );
+        logger.info('Multivariate analysis completed successfully');
+      } catch (error) {
+        logger.warn('Multivariate analysis failed:', error);
+        // Fallback to minimal analysis
+        multivariateAnalysis = await MultivariateOrchestrator.analyze([], [], [], 0);
+      }
+    } else {
+      // Create minimal multivariate analysis when disabled or insufficient data
+      multivariateAnalysis = await MultivariateOrchestrator.analyze([], [], [], 0);
+    }
+
     const edaAnalysis: Section3EdaAnalysis = {
       univariateAnalysis,
       bivariateAnalysis,
-      multivariateAnalysis: {
-        principalComponents: [],
-        clusteringInsights: [],
-        dimensionalityRecommendations: '',
-        featureImportanceHints: [],
-      },
+      multivariateAnalysis,
       crossVariableInsights: insights,
     };
 

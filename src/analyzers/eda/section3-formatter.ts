@@ -16,6 +16,7 @@ import type {
   NumericalCategoricalAnalysis,
   CategoricalBivariateAnalysis,
   Section3Warning,
+  MultivariateAnalysis,
 } from './types';
 import { EdaDataType } from './types';
 
@@ -388,7 +389,9 @@ ${scatterInsights || '        * No specific scatter plot insights available.'}`;
         | Category | Mean | Median | StdDev | Count |
         |----------|------|--------|--------|-------|
 ${groupTable}
-        * **Statistical Tests:** ANOVA F-statistic = ${analysis.statisticalTests.anova.fStatistic}, p-value = ${analysis.statisticalTests.anova.pValue} (${analysis.statisticalTests.anova.interpretation})
+        * **Statistical Tests:** 
+            * **ANOVA F-test:** ${analysis.statisticalTests.anova.interpretation}
+            * **Kruskal-Wallis test:** ${analysis.statisticalTests.kruskalWallis.interpretation}
         * **Summary:** ${analysis.summary}`;
       })
       .join('\n\n');
@@ -435,37 +438,208 @@ ${tableRows}
 ${analysisText}`;
   }
 
-  private static formatMultivariateAnalysis(multivariate: any): string {
-    if (!multivariate) {
-      return `**3.4. Multivariate Analysis (Preliminary Insights into Complex Interactions):**
-* Multivariate analysis not performed - insufficient numerical variables or computational limitations.`;
+  private static formatMultivariateAnalysis(multivariate: MultivariateAnalysis): string {
+    if (!multivariate || !multivariate.summary.analysisPerformed) {
+      return `**3.4. Multivariate Analysis (Advanced Multi-Variable Interactions):**
+* ${multivariate?.summary.applicabilityAssessment || 'Multivariate analysis not performed - insufficient numerical variables or computational limitations.'}`;
     }
 
-    const pcaText =
-      multivariate.principalComponents?.length > 0
-        ? `    * **Principal Component Analysis (PCA) Overview:**
-        * Number of Components: ${multivariate.principalComponents.length}
-        * ${multivariate.dimensionalityRecommendations}`
-        : '    * **Principal Component Analysis:** Not applicable - insufficient numerical variables.';
+    const sections = [
+      `**3.4. Multivariate Analysis (Advanced Multi-Variable Interactions):**`,
+      `**Analysis Overview:** ${multivariate.summary.applicabilityAssessment}`,
+      `**Variables Analysed:** ${multivariate.summary.variablesAnalyzed.join(', ')} (${multivariate.summary.numericVariablesCount} numerical variables)`,
+      '',
+      this.formatPCAAnalysis(multivariate.principalComponentAnalysis),
+      this.formatClusteringAnalysis(multivariate.clusteringAnalysis),
+      this.formatOutlierDetection(multivariate.outlierDetection),
+      this.formatNormalityTests(multivariate.normalityTests),
+      this.formatRelationshipAnalysis(multivariate.relationshipAnalysis),
+      this.formatMultivariateInsights(multivariate.insights),
+    ];
 
-    const clusterText =
-      multivariate.clusteringInsights?.length > 0
-        ? `    * **Cluster Analysis Snippet:**
-        ${multivariate.clusteringInsights.join('\n        ')}`
-        : '    * **Cluster Analysis:** Not performed - data characteristics not suitable for clustering.';
+    if (multivariate.summary.analysisLimitations.length > 0) {
+      sections.push(`**Analysis Limitations:** ${multivariate.summary.analysisLimitations.join('; ')}`);
+    }
 
-    const featuresText =
-      multivariate.featureImportanceHints?.length > 0
-        ? `    * **Feature Interaction Hints:**
-        ${multivariate.featureImportanceHints.join('\n        ')}`
-        : '    * **Feature Interactions:** No significant interactions detected.';
+    return sections.filter(section => section.length > 0).join('\n\n');
+  }
 
-    return `**3.4. Multivariate Analysis (Preliminary Insights into Complex Interactions):**
-${pcaText}
+  private static formatPCAAnalysis(pca: any): string {
+    if (!pca.isApplicable) {
+      return `**3.4.A. Principal Component Analysis (PCA):**
+* Not applicable: ${pca.applicabilityReason}`;
+    }
 
-${clusterText}
+    const varianceText = pca.varianceThresholds ? 
+      `* **Variance Explained:** ${pca.varianceThresholds.componentsFor85Percent} components explain 85% of variance, ${pca.varianceThresholds.componentsFor95Percent} explain 95%` :
+      '';
 
-${featuresText}`;
+    const dominantVarsText = pca.dominantVariables?.length > 0 ?
+      `* **Most Influential Variables:** ${pca.dominantVariables.slice(0, 3).map((v: any) => `${v.variable} (loading: ${v.maxLoading.toFixed(3)})`).join(', ')}` :
+      '';
+
+    const recommendationText = pca.dimensionalityReduction?.recommended ?
+      `* **Recommendation:** ${pca.dimensionalityReduction.explanation}` :
+      `* **Recommendation:** ${pca.interpretation || 'PCA completed successfully'}`;
+
+    return `**3.4.A. Principal Component Analysis (PCA):**
+${varianceText}
+${dominantVarsText}
+${recommendationText}`;
+  }
+
+  private static formatClusteringAnalysis(clustering: any): string {
+    if (!clustering.isApplicable) {
+      return `**3.4.B. Cluster Analysis:**
+* Not applicable: ${clustering.applicabilityReason}`;
+    }
+
+    const optimalText = `* **Optimal Clusters:** ${clustering.optimalClusters} clusters identified using elbow method`;
+    const qualityText = clustering.finalClustering?.validation?.silhouetteScore ?
+      `* **Cluster Quality:** Silhouette score = ${clustering.finalClustering.validation.silhouetteScore.toFixed(3)} (${clustering.finalClustering.validation.interpretation})` :
+      '';
+
+    const profilesText = clustering.finalClustering?.clusterProfiles?.length > 0 ?
+      clustering.finalClustering.clusterProfiles.slice(0, 3).map((profile: any, i: number) => 
+        `    * **Cluster ${i + 1}:** ${profile.description} (${profile.size} observations)`
+      ).join('\n') :
+      '';
+
+    return `**3.4.B. Cluster Analysis:**
+${optimalText}
+${qualityText}
+${profilesText ? `* **Cluster Profiles:**\n${profilesText}` : ''}
+* **Recommendation:** ${clustering.recommendation || 'Clustering analysis completed'}`;
+  }
+
+  private static formatOutlierDetection(outliers: any): string {
+    if (!outliers.isApplicable) {
+      return `**3.4.C. Multivariate Outlier Detection:**
+* Not applicable: ${outliers.applicabilityReason}`;
+    }
+
+    const detectionText = `* **Method:** Mahalanobis distance with ${(outliers.threshold * 100).toFixed(1)}% significance level`;
+    const countText = `* **Outliers Detected:** ${outliers.totalOutliers} observations (${outliers.outlierPercentage.toFixed(1)}% of dataset)`;
+    
+    const severityText = outliers.severityDistribution ?
+      `* **Severity Distribution:** ${outliers.severityDistribution.extreme} extreme, ${outliers.severityDistribution.moderate} moderate, ${outliers.severityDistribution.mild} mild` :
+      '';
+
+    const affectedVarsText = outliers.affectedVariables?.length > 0 ?
+      `* **Most Affected Variables:** ${outliers.affectedVariables.slice(0, 3).map((v: any) => `${v.variable} (${v.outliersCount} outliers)`).join(', ')}` :
+      '';
+
+    const recommendationsText = outliers.recommendations?.length > 0 ?
+      `* **Recommendations:** ${outliers.recommendations.slice(0, 2).join('; ')}` :
+      '';
+
+    return `**3.4.C. Multivariate Outlier Detection:**
+${detectionText}
+${countText}
+${severityText}
+${affectedVarsText}
+${recommendationsText}`;
+  }
+
+  private static formatNormalityTests(normality: any): string {
+    if (!normality || !normality.overallAssessment) {
+      return `**3.4.D. Multivariate Normality Tests:**
+* Normality testing not performed`;
+    }
+
+    const overallText = `* **Overall Assessment:** ${normality.overallAssessment.isMultivariateNormal ? 'Multivariate normality not rejected' : 'Multivariate normality rejected'} (confidence: ${(normality.overallAssessment.confidence * 100).toFixed(1)}%)`;
+    
+    const mardiasText = normality.mardiasTest ?
+      `* **Mardia's Test:** ${normality.mardiasTest.interpretation}` :
+      '';
+
+    const roystonText = normality.roystonTest ?
+      `* **Royston's Test:** ${normality.roystonTest.interpretation}` :
+      '';
+
+    const violationsText = normality.overallAssessment.violations?.length > 0 ?
+      `* **Violations:** ${normality.overallAssessment.violations.join(', ')}` :
+      '';
+
+    const recommendationsText = normality.overallAssessment.recommendations?.length > 0 ?
+      `* **Recommendations:** ${normality.overallAssessment.recommendations.slice(0, 2).join('; ')}` :
+      '';
+
+    return `**3.4.D. Multivariate Normality Tests:**
+${overallText}
+${mardiasText}
+${roystonText}
+${violationsText}
+${recommendationsText}`;
+  }
+
+  private static formatRelationshipAnalysis(relationships: any): string {
+    if (!relationships || (!relationships.variableInteractions?.length && !relationships.correlationStructure)) {
+      return `**3.4.E. Variable Relationship Analysis:**
+* No significant multivariate relationships detected`;
+    }
+
+    const interactionsText = relationships.variableInteractions?.length > 0 ?
+      `* **Key Interactions:** ${relationships.variableInteractions.slice(0, 3).map((int: any) => `${int.variables.join(' ↔ ')} (${int.interactionType}, strength: ${int.strength.toFixed(3)})`).join('; ')}` :
+      '';
+
+    const correlationText = relationships.correlationStructure ?
+      (
+        relationships.correlationStructure.stronglyCorrelatedGroups?.length > 0 ?
+        `* **Correlated Groups:** ${relationships.correlationStructure.stronglyCorrelatedGroups.length} groups of highly correlated variables identified` :
+        ''
+      ) +
+      (
+        relationships.correlationStructure.redundantVariables?.length > 0 ?
+        `\n* **Redundant Variables:** ${relationships.correlationStructure.redundantVariables.length} variables with high correlation (r > 0.9)` :
+        ''
+      ) +
+      (
+        relationships.correlationStructure.independentVariables?.length > 0 ?
+        `\n* **Independent Variables:** ${relationships.correlationStructure.independentVariables.length} variables with low correlations` :
+        ''
+      ) :
+      '';
+
+    const dimensionalityText = relationships.dimensionalityInsights?.dimensionalityReduction?.recommended ?
+      `* **Dimensionality:** Reduction recommended - ${relationships.dimensionalityInsights.effectiveDimensionality} effective dimensions detected` :
+      `* **Dimensionality:** ${relationships.dimensionalityInsights?.effectiveDimensionality || 'Full'} effective dimensions`;
+
+    return `**3.4.E. Variable Relationship Analysis:**
+${interactionsText}
+${correlationText}
+${dimensionalityText}`;
+  }
+
+  private static formatMultivariateInsights(insights: any): string {
+    if (!insights || (!insights.keyFindings?.length && !insights.dataQualityIssues?.length)) {
+      return '';
+    }
+
+    const sections = [];
+
+    if (insights.keyFindings?.length > 0) {
+      sections.push(`**Key Multivariate Findings:**
+${insights.keyFindings.slice(0, 3).map((finding: string, i: number) => `    ${i + 1}. ${finding}`).join('\n')}`);
+    }
+
+    if (insights.dataQualityIssues?.length > 0) {
+      sections.push(`**Data Quality Issues:**
+${insights.dataQualityIssues.slice(0, 2).map((issue: string) => `    * ${issue}`).join('\n')}`);
+    }
+
+    if (insights.preprocessingRecommendations?.length > 0) {
+      sections.push(`**Preprocessing Recommendations:**
+${insights.preprocessingRecommendations.slice(0, 2).map((rec: string) => `    * ${rec}`).join('\n')}`);
+    }
+
+    if (insights.analysisRecommendations?.length > 0) {
+      sections.push(`**Analysis Recommendations:**
+${insights.analysisRecommendations.slice(0, 2).map((rec: string) => `    * ${rec}`).join('\n')}`);
+    }
+
+    return sections.length > 0 ? `**3.4.F. Multivariate Insights & Recommendations:**
+${sections.join('\n\n')}` : '';
   }
 
   private static formatSpecificAnalysisModules(analyses: ColumnAnalysis[]): string {

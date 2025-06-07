@@ -16,6 +16,7 @@ import type {
   InfluentialPoint,
   ModelAssumption,
 } from './types';
+import type { CorrelationPair } from '../eda/types';
 import { logger } from '../../utils/logger';
 
 export class ResidualAnalyzer {
@@ -24,7 +25,8 @@ export class ResidualAnalyzer {
    */
   async generateResidualAnalysis(
     regressionTasks: ModelingTask[],
-    algorithms: AlgorithmRecommendation[]
+    algorithms: AlgorithmRecommendation[],
+    correlationPairs?: CorrelationPair[]
   ): Promise<ResidualAnalysis> {
     logger.info('Generating comprehensive residual analysis for regression models');
 
@@ -39,7 +41,7 @@ export class ResidualAnalyzer {
       heteroscedasticityTests: this.generateHeteroscedasticityTests(),
       autocorrelationTests: this.generateAutocorrelationTests(),
       outlierAnalysis: this.generateOutlierAnalysis(),
-      modelAssumptions: this.generateModelAssumptions(),
+      modelAssumptions: this.generateModelAssumptions(correlationPairs),
       improvementSuggestions: this.generateImprovementSuggestions(primaryTask, linearAlgorithms)
     };
   }
@@ -392,7 +394,7 @@ export class ResidualAnalyzer {
   /**
    * Generate model assumptions assessment
    */
-  private generateModelAssumptions(): ModelAssumption[] {
+  private generateModelAssumptions(correlationPairs?: CorrelationPair[]): ModelAssumption[] {
     const assumptions: ModelAssumption[] = [];
 
     // Linearity
@@ -448,20 +450,152 @@ export class ResidualAnalyzer {
       ]
     });
 
-    // No multicollinearity (placeholder)
+    // Multicollinearity with VIF calculation
+    const vifResults = this.calculateVIF(correlationPairs);
     assumptions.push({
       assumption: 'No severe multicollinearity: Predictors are not highly correlated',
-      status: 'satisfied',
-      evidence: 'VIF values < 5 for all predictors (detailed analysis in feature correlation section)',
-      impact: 'Coefficient estimates are stable and interpretable',
-      remediation: [
-        'Monitor correlation matrix as features are added',
-        'Consider ridge regression if multicollinearity emerges',
-        'Use variance inflation factors (VIF) for ongoing assessment'
-      ]
+      status: vifResults.status,
+      evidence: vifResults.evidence,
+      impact: vifResults.impact,
+      remediation: vifResults.remediation
     });
 
     return assumptions;
+  }
+
+  /**
+   * Calculate Variance Inflation Factors (VIF) from correlation data
+   */
+  private calculateVIF(correlationPairs?: CorrelationPair[]): {
+    status: 'satisfied' | 'questionable' | 'violated';
+    evidence: string;
+    impact: string;
+    remediation: string[];
+  } {
+    if (!correlationPairs || correlationPairs.length === 0) {
+      return {
+        status: 'satisfied',
+        evidence: 'Insufficient correlation data for VIF calculation; assumed no multicollinearity',
+        impact: 'Unable to assess multicollinearity precisely',
+        remediation: [
+          'Collect correlation data between predictors',
+          'Monitor for unstable coefficient estimates',
+          'Consider ridge regression as precautionary measure'
+        ]
+      };
+    }
+
+    // Build correlation matrix from pairs
+    const correlationMap = new Map<string, Map<string, number>>();
+    const variables = new Set<string>();
+
+    // Initialize correlation matrix
+    correlationPairs.forEach(pair => {
+      variables.add(pair.variable1);
+      variables.add(pair.variable2);
+      
+      if (!correlationMap.has(pair.variable1)) {
+        correlationMap.set(pair.variable1, new Map());
+      }
+      if (!correlationMap.has(pair.variable2)) {
+        correlationMap.set(pair.variable2, new Map());
+      }
+      
+      correlationMap.get(pair.variable1)!.set(pair.variable2, pair.correlation);
+      correlationMap.get(pair.variable2)!.set(pair.variable1, pair.correlation);
+    });
+
+    // Set diagonal to 1
+    variables.forEach(v => {
+      if (!correlationMap.has(v)) {
+        correlationMap.set(v, new Map());
+      }
+      correlationMap.get(v)!.set(v, 1);
+    });
+
+    // Calculate VIF for each variable
+    const vifValues: { variable: string; vif: number }[] = [];
+    const variableArray = Array.from(variables);
+    
+    variableArray.forEach(targetVar => {
+      // Get correlations of target variable with all others
+      const targetCorrelations = correlationMap.get(targetVar);
+      if (!targetCorrelations) return;
+
+      // Calculate R-squared from regressing target on all other variables
+      // Simplified calculation using correlation matrix
+      const otherVars = variableArray.filter(v => v !== targetVar);
+      if (otherVars.length === 0) return;
+
+      // Approximate R-squared using average squared correlation
+      let sumSquaredCorr = 0;
+      let count = 0;
+      
+      otherVars.forEach(v => {
+        const corr = targetCorrelations.get(v);
+        if (corr !== undefined) {
+          sumSquaredCorr += corr * corr;
+          count++;
+        }
+      });
+
+      if (count > 0) {
+        // Approximate R-squared (simplified)
+        const avgSquaredCorr = sumSquaredCorr / count;
+        const rSquared = Math.min(0.99, avgSquaredCorr * 1.2); // Adjustment factor
+        
+        // Calculate VIF = 1 / (1 - R²)
+        const vif = 1 / (1 - rSquared);
+        vifValues.push({ variable: targetVar, vif });
+      }
+    });
+
+    // Sort by VIF value
+    vifValues.sort((a, b) => b.vif - a.vif);
+
+    // Determine status and generate evidence
+    const maxVIF = Math.max(...vifValues.map(v => v.vif), 1);
+    const highVIFVars = vifValues.filter(v => v.vif > 5);
+    const moderateVIFVars = vifValues.filter(v => v.vif > 2.5 && v.vif <= 5);
+
+    let status: 'satisfied' | 'questionable' | 'violated';
+    let evidence: string;
+    let impact: string;
+    const remediation: string[] = [];
+
+    if (maxVIF > 10) {
+      status = 'violated';
+      evidence = `Severe multicollinearity detected: ${highVIFVars.map(v => `${v.variable} (VIF=${v.vif.toFixed(1)})`).join(', ')}`;
+      impact = 'Coefficient estimates are highly unstable and unreliable';
+      remediation.push(
+        'Remove or combine highly correlated predictors',
+        'Use ridge regression or elastic net',
+        'Consider principal component regression'
+      );
+    } else if (maxVIF > 5) {
+      status = 'questionable';
+      evidence = `Moderate multicollinearity: ${highVIFVars.map(v => `${v.variable} (VIF=${v.vif.toFixed(1)})`).join(', ')}`;
+      impact = 'Some coefficient instability; interpretation should be cautious';
+      remediation.push(
+        'Monitor affected variables closely',
+        'Consider removing redundant predictors',
+        'Use regularization methods if instability worsens'
+      );
+    } else {
+      status = 'satisfied';
+      evidence = `All VIF values < 5. Maximum VIF = ${maxVIF.toFixed(1)}`;
+      if (moderateVIFVars.length > 0) {
+        evidence += `. Variables with VIF > 2.5: ${moderateVIFVars.map(v => v.variable).join(', ')}`;
+      }
+      impact = 'Coefficient estimates are stable and interpretable';
+      remediation.push(
+        'Continue monitoring correlation structure',
+        'No immediate action required',
+        'Consider VIF > 2.5 variables if model performance degrades'
+      );
+    }
+
+    return { status, evidence, impact, remediation };
   }
 
   /**

@@ -10,6 +10,7 @@ import { ProgressReporter } from './progress-reporter';
 import { OutputManager } from './output-manager';
 import { Section1Analyzer } from '../analyzers/overview';
 import { Section2Analyzer } from '../analyzers/quality';
+import { Section2Formatter } from '../analyzers/quality/section2-formatter';
 import { StreamingAnalyzer } from '../analyzers/streaming/streaming-analyzer';
 import { Section3Formatter } from '../analyzers/eda/section3-formatter';
 import { Section4Analyzer, Section4Formatter } from '../analyzers/visualization';
@@ -22,10 +23,22 @@ import type { CLIResult } from './types';
 import { ValidationError, FileError } from './types';
 import { DataType } from '../core/types';
 
+// Add types for generic analysis configuration
+interface AnalysisConfig {
+  sectionName: string;
+  phase: string;
+  message: string;
+  dependencies?: string[];
+  analyzerFactory: (filePath: string, options: any, dependencies?: any[]) => Promise<any>;
+  formatterMethod?: (result: any) => string;
+  outputMethod: (outputManager: OutputManager, report: string | null, result: any, fileName?: string) => string[];
+}
+
 export class DataPilotCLI {
   private argumentParser: ArgumentParser;
   private progressReporter: ProgressReporter;
   private outputManager?: OutputManager;
+  private dependencyCache = new Map<string, any>();
 
   constructor() {
     this.argumentParser = new ArgumentParser();
@@ -89,6 +102,160 @@ export class DataPilotCLI {
   }
 
   /**
+   * Generic analysis execution method to reduce code duplication
+   */
+  private async executeGenericAnalysis(
+    config: AnalysisConfig,
+    filePath: string,
+    options: any,
+    startTime: number,
+  ): Promise<CLIResult> {
+    if (!this.outputManager) {
+      throw new Error('Output manager not initialised');
+    }
+
+    try {
+      this.progressReporter.startPhase(config.phase, config.message);
+
+      // Handle dependencies
+      const dependencies: any[] = [];
+      if (config.dependencies) {
+        for (let i = 0; i < config.dependencies.length; i++) {
+          const depName = config.dependencies[i];
+          const progressPercent = ((i + 1) / (config.dependencies.length + 2)) * 100;
+          
+          this.progressReporter.updateProgress({
+            phase: 'prerequisites',
+            progress: progressPercent,
+            message: `Running prerequisite ${depName} analysis...`,
+            timeElapsed: Date.now() - startTime,
+          });
+
+          let depResult = this.dependencyCache.get(depName);
+          if (!depResult) {
+            depResult = await this.executeDependency(depName, filePath, options);
+            this.dependencyCache.set(depName, depResult);
+          }
+          dependencies.push(depResult);
+        }
+      }
+
+      // Run the main analysis
+      const finalProgressPercent = config.dependencies ? 80 : 50;
+      this.progressReporter.updateProgress({
+        phase: config.sectionName,
+        progress: finalProgressPercent,
+        message: `Running ${config.sectionName} analysis...`,
+        timeElapsed: Date.now() - startTime,
+      });
+
+      const result = await config.analyzerFactory(filePath, options, dependencies);
+
+      const processingTime = Date.now() - startTime;
+      this.progressReporter.completePhase(`${config.sectionName} analysis completed`, processingTime);
+
+      // Generate report if formatter is provided
+      const report = config.formatterMethod ? config.formatterMethod(result) : null;
+
+      // Generate output files
+      const outputFiles = config.outputMethod(this.outputManager, report, result, filePath.split('/').pop());
+
+      // Calculate stats
+      const rowsProcessed = result.overview?.structuralDimensions?.totalDataRows || 
+                            result.performanceMetrics?.rowsAnalyzed || 
+                            result.stats?.rowsProcessed || 0;
+      const warnings = result.warnings?.length || 0;
+
+      // Show summary
+      this.progressReporter.showSummary({
+        processingTime,
+        rowsProcessed,
+        warnings,
+        errors: 0,
+      });
+
+      return {
+        success: true,
+        exitCode: 0,
+        outputFiles,
+        stats: {
+          processingTime,
+          rowsProcessed,
+          warnings,
+          errors: 0,
+        },
+      };
+    } catch (error) {
+      this.progressReporter.errorPhase(`${config.sectionName} analysis failed`);
+      throw error;
+    }
+  }
+
+  /**
+   * Execute dependency analysis and cache results
+   */
+  private async executeDependency(depName: string, filePath: string, options: any): Promise<any> {
+    switch (depName) {
+      case 'section1':
+        const section1Analyzer = new Section1Analyzer({
+          enableFileHashing: options.enableHashing !== false,
+          includeHostEnvironment: options.includeEnvironment !== false,
+          privacyMode: options.privacyMode || 'redacted',
+          detailedProfiling: options.verbose || false,
+          maxSampleSizeForSparsity: 10000,
+        });
+        return await section1Analyzer.analyze(filePath, `datapilot ${options.command || 'analysis'} ${filePath}`, []);
+
+      case 'section2':
+        // Parse CSV for Section 2
+        const parser = new CSVParser({
+          autoDetect: true,
+          maxRows: options.maxRows || 100000,
+          trimFields: true,
+        });
+        const rows = await parser.parseFile(filePath);
+        if (rows.length === 0) {
+          throw new ValidationError('No data found in file');
+        }
+        const hasHeader = parser.getOptions().hasHeader !== false;
+        const dataStartIndex = hasHeader ? 1 : 0;
+        const headers = hasHeader && rows.length > 0 ? rows[0].data : rows[0].data.map((_, i) => `Column_${i + 1}`);
+        const data = rows.slice(dataStartIndex).map((row) => row.data);
+        const columnTypes = headers.map(() => DataType.STRING);
+
+        const section2Analyzer = new Section2Analyzer({
+          data,
+          headers,
+          columnTypes,
+          rowCount: data.length,
+          columnCount: headers.length,
+          config: {
+            enabledDimensions: ['completeness', 'uniqueness', 'validity'],
+            strictMode: false,
+            maxOutlierDetection: 100,
+            semanticDuplicateThreshold: 0.85,
+          },
+        });
+        return await section2Analyzer.analyze();
+
+      case 'section3':
+        const section3Analyzer = new StreamingAnalyzer({
+          chunkSize: options.chunkSize || 500,
+          memoryThresholdMB: options.memoryLimit || 100,
+          maxRowsAnalyzed: options.maxRows || 500000,
+          enabledAnalyses: ['univariate', 'bivariate', 'correlations'],
+          significanceLevel: 0.05,
+          maxCorrelationPairs: 50,
+          enableMultivariate: true,
+        });
+        return await section3Analyzer.analyzeFile(filePath);
+
+      default:
+        throw new Error(`Unknown dependency: ${depName}`);
+    }
+  }
+
+  /**
    * Execute specific CLI command
    */
   private async executeCommand(
@@ -97,27 +264,165 @@ export class DataPilotCLI {
     options: any,
     startTime: number,
   ): Promise<CLIResult> {
+    // Clear dependency cache for each command
+    this.dependencyCache.clear();
+
     switch (command) {
       case 'all':
         return await this.executeFullAnalysis(filePath, options, startTime);
 
       case 'overview':
-        return await this.executeSection1Analysis(filePath, options, startTime);
+        return await this.executeGenericAnalysis({
+          sectionName: 'Section 1',
+          phase: 'analysis',
+          message: 'Starting dataset analysis...',
+          analyzerFactory: async (filePath, options) => {
+            const analyzer = new Section1Analyzer({
+              enableFileHashing: options.enableHashing !== false,
+              includeHostEnvironment: options.includeEnvironment !== false,
+              privacyMode: options.privacyMode || 'redacted',
+              detailedProfiling: options.verbose || false,
+              maxSampleSizeForSparsity: 10000,
+            });
+            return await analyzer.analyze(filePath, `datapilot ${options.command || 'overview'} ${filePath}`, ['overview']);
+          },
+          outputMethod: (outputManager, report, result, fileName) => outputManager.outputSection1(result, fileName),
+        }, filePath, options, startTime);
 
       case 'quality':
-        return await this.executeSection2Analysis(filePath, options, startTime);
+        return await this.executeGenericAnalysis({
+          sectionName: 'Section 2',
+          phase: 'quality',
+          message: 'Starting data quality analysis...',
+          analyzerFactory: async (filePath, options) => {
+            // Parse CSV to get data for Section 2
+            const parser = new CSVParser({
+              autoDetect: true,
+              maxRows: options.maxRows || 100000,
+              trimFields: true,
+            });
+            const rows = await parser.parseFile(filePath);
+            if (rows.length === 0) {
+              throw new ValidationError('No data found in file');
+            }
+            const hasHeader = parser.getOptions().hasHeader !== false;
+            const dataStartIndex = hasHeader ? 1 : 0;
+            const headers = hasHeader && rows.length > 0 ? rows[0].data : rows[0].data.map((_, i) => `Column_${i + 1}`);
+            const data = rows.slice(dataStartIndex).map((row) => row.data);
+            const columnTypes = headers.map(() => DataType.STRING);
+
+            const analyzer = new Section2Analyzer({
+              data,
+              headers,
+              columnTypes,
+              rowCount: data.length,
+              columnCount: headers.length,
+              config: {
+                enabledDimensions: ['completeness', 'uniqueness', 'validity'],
+                strictMode: false,
+                maxOutlierDetection: 100,
+                semanticDuplicateThreshold: 0.85,
+              },
+            });
+            return await analyzer.analyze();
+          },
+          formatterMethod: (result) => Section2Formatter.formatReport(result),
+          outputMethod: (outputManager, report, result, fileName) => outputManager.outputSection2(result),
+        }, filePath, options, startTime);
 
       case 'eda':
-        return await this.executeSection3Analysis(filePath, options, startTime);
+        return await this.executeGenericAnalysis({
+          sectionName: 'Section 3',
+          phase: 'eda',
+          message: 'Starting exploratory data analysis...',
+          analyzerFactory: async (filePath, options) => {
+            const analyzer = new StreamingAnalyzer({
+              chunkSize: options.chunkSize || 500,
+              memoryThresholdMB: options.memoryLimit || 100,
+              maxRowsAnalyzed: options.maxRows || 500000,
+              enabledAnalyses: ['univariate', 'bivariate', 'correlations'],
+              significanceLevel: 0.05,
+              maxCorrelationPairs: 50,
+              enableMultivariate: true,
+            });
+            return await analyzer.analyzeFile(filePath);
+          },
+          formatterMethod: (result) => Section3Formatter.formatSection3(result),
+          outputMethod: (outputManager, report, result, fileName) => outputManager.outputSection3(report!, result, fileName),
+        }, filePath, options, startTime);
 
       case 'viz':
-        return await this.executeSection4Analysis(filePath, options, startTime);
+        return await this.executeGenericAnalysis({
+          sectionName: 'Section 4',
+          phase: 'section4',
+          message: 'Starting visualization intelligence analysis...',
+          dependencies: ['section1', 'section3'],
+          analyzerFactory: async (filePath, options, dependencies) => {
+            const [section1Data, section3Data] = dependencies!;
+            const analyzer = new Section4Analyzer({
+              accessibilityLevel: options.accessibility || 'good',
+              complexityThreshold: options.complexity || 'moderate',
+              maxRecommendationsPerChart: options.maxRecommendations || 3,
+              includeCodeExamples: options.includeCode || false,
+              enabledRecommendations: [
+                RecommendationType.UNIVARIATE,
+                RecommendationType.BIVARIATE,
+                RecommendationType.DASHBOARD,
+                RecommendationType.ACCESSIBILITY,
+                RecommendationType.PERFORMANCE,
+              ],
+              targetLibraries: ['d3', 'plotly', 'observable'],
+            });
+            return await analyzer.analyze(section1Data, section3Data);
+          },
+          formatterMethod: (result) => Section4Formatter.formatSection4(result),
+          outputMethod: (outputManager, report, result, fileName) => outputManager.outputSection4(report!, result, fileName),
+        }, filePath, options, startTime);
 
       case 'engineering':
-        return await this.executeSection5Analysis(filePath, options, startTime);
+        return await this.executeGenericAnalysis({
+          sectionName: 'Section 5',
+          phase: 'engineering',
+          message: 'Starting data engineering analysis...',
+          dependencies: ['section1', 'section2', 'section3'],
+          analyzerFactory: async (filePath, options, dependencies) => {
+            const [section1Data, section2Data, section3Data] = dependencies!;
+            const analyzer = new Section5Analyzer({
+              targetDatabaseSystem: options.database || 'postgresql',
+              mlFrameworkTarget: options.framework || 'scikit_learn',
+            });
+            return await analyzer.analyze(section1Data, section2Data, section3Data);
+          },
+          formatterMethod: (result) => Section5Formatter.formatMarkdown(result),
+          outputMethod: (outputManager, report, result, fileName) => outputManager.outputSection5(report!, result, fileName),
+        }, filePath, options, startTime);
 
       case 'modeling':
-        return await this.executeSection6Analysis(filePath, options, startTime);
+        return await this.executeGenericAnalysis({
+          sectionName: 'Section 6',
+          phase: 'modeling',
+          message: 'Starting predictive modeling analysis...',
+          dependencies: ['section1', 'section2', 'section3'],
+          analyzerFactory: async (filePath, options, dependencies) => {
+            const [section1Data, section2Data, section3Data] = dependencies!;
+            
+            // Need Section 5 result as well
+            const section5Analyzer = new Section5Analyzer({
+              targetDatabaseSystem: options.database || 'postgresql',
+              mlFrameworkTarget: options.framework || 'scikit_learn',
+            });
+            const section5Result = await section5Analyzer.analyze(section1Data, section2Data, section3Data);
+            
+            const analyzer = new Section6Analyzer({
+              focusAreas: options.focus || ['regression', 'binary_classification', 'clustering'],
+              complexityPreference: options.complexity || 'moderate',
+              interpretabilityRequirement: options.interpretability || 'medium',
+            });
+            return await analyzer.analyze(section1Data, section2Data, section3Data, section5Result);
+          },
+          formatterMethod: (result) => Section6Formatter.formatMarkdown(result),
+          outputMethod: (outputManager, report, result, fileName) => outputManager.outputSection6(report!, result, fileName),
+        }, filePath, options, startTime);
 
       case 'validate':
         return await this.executeValidation(filePath, options);
@@ -343,6 +648,7 @@ export class DataPilotCLI {
         enabledAnalyses: ['univariate', 'bivariate', 'correlations'],
         significanceLevel: 0.05,
         maxCorrelationPairs: 50,
+        enableMultivariate: true,
       });
 
       // Set up progress callback
@@ -487,6 +793,7 @@ export class DataPilotCLI {
         enabledAnalyses: ['univariate', 'bivariate', 'correlations'],
         significanceLevel: 0.05,
         maxCorrelationPairs: 50,
+        enableMultivariate: true,
       });
 
       const section3Data = await section3Analyzer.analyzeFile(filePath);
@@ -808,6 +1115,7 @@ export class DataPilotCLI {
         enabledAnalyses: ['univariate', 'bivariate', 'correlations'],
         significanceLevel: 0.05,
         maxCorrelationPairs: 50,
+        enableMultivariate: true,
       });
 
       const section3Data = await section3Analyzer.analyzeFile(filePath);
@@ -977,6 +1285,7 @@ export class DataPilotCLI {
         enabledAnalyses: ['univariate', 'bivariate', 'correlations'],
         significanceLevel: 0.05,
         maxCorrelationPairs: 50,
+        enableMultivariate: true,
       });
 
       const section3Data = await section3Analyzer.analyzeFile(filePath);
