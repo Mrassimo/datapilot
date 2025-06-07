@@ -10,8 +10,10 @@ import type { CSVParserOptions, ParsedRow, ParserStats } from './types';
 import { OPTIMAL_CHUNK_SIZE, MAX_SAMPLE_SIZE } from './types';
 import { CSVDetector } from './csv-detector';
 import { CSVStateMachine } from './csv-state-machine';
-import { DataPilotError } from '../core/types';
+import { DataPilotError, ErrorSeverity, ErrorCategory } from '../core/types';
 import { getConfig } from '../core/config';
+import { logger } from '../utils/logger';
+import { ErrorUtils } from '../utils/error-handler';
 
 export class CSVParser {
   private options: Required<CSVParserOptions>;
@@ -102,10 +104,45 @@ export class CSVParser {
         }
       });
 
-      // Process file
-      await pipeline(readStream, parseTransform);
+      // Process file with error handling
+      try {
+        await pipeline(readStream, parseTransform);
+      } catch (pipelineError) {
+        if (pipelineError instanceof DataPilotError) {
+          throw pipelineError;
+        }
+        
+        throw DataPilotError.parsing(
+          `Pipeline processing failed: ${pipelineError instanceof Error ? pipelineError.message : 'Unknown error'}`,
+          'PIPELINE_ERROR',
+          { filePath, rowIndex: rows.length },
+          [
+            {
+              action: 'Check file format',
+              description: 'Verify the CSV format is valid',
+              severity: ErrorSeverity.HIGH
+            },
+            {
+              action: 'Try different options',
+              description: 'Experiment with different delimiter or quote settings',
+              severity: ErrorSeverity.MEDIUM,
+              command: '--delimiter ";" --quote "\""'
+            }
+          ]
+        );
+      }
 
       this.stats.endTime = Date.now();
+      
+      // Validate results
+      if (rows.length === 0) {
+        throw ErrorUtils.handleInsufficientData(
+          0, 1,
+          { filePath, operationName: 'parseFile' },
+          [] // Empty array as fallback
+        );
+      }
+      
       return rows;
     } catch (error) {
       if (error instanceof DataPilotError && error.code === 'MEMORY_LIMIT') {
@@ -116,7 +153,9 @@ export class CSVParser {
       throw new DataPilotError(
         `Failed to parse CSV file: ${error instanceof Error ? error.message : 'Unknown error'}`,
         'PARSE_FAILED',
-        { filePath, stats: this.stats },
+        ErrorSeverity.HIGH,
+        ErrorCategory.PARSING,
+        { filePath }
       );
     }
   }
@@ -155,7 +194,32 @@ export class CSVParser {
       }
     });
 
-    await pipeline(readStream, parseTransform);
+    try {
+      await pipeline(readStream, parseTransform);
+    } catch (error) {
+      if (error instanceof DataPilotError) {
+        throw error;
+      }
+      
+      throw DataPilotError.parsing(
+        `Streaming pipeline failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        'STREAMING_PIPELINE_ERROR',
+        { filePath, rowIndex: rows.length },
+        [
+          {
+            action: 'Reduce batch size',
+            description: 'Try processing with smaller chunks',
+            severity: ErrorSeverity.MEDIUM,
+            command: '--chunkSize 1000'
+          },
+          {
+            action: 'Check system resources',
+            description: 'Ensure sufficient memory and disk space',
+            severity: ErrorSeverity.HIGH
+          }
+        ]
+      );
+    }
 
     // Add any remaining rows in the final batch
     if (currentBatch.length > 0) {
@@ -207,28 +271,96 @@ export class CSVParser {
   }
 
   /**
-   * Auto-detect CSV format from file sample
+   * Auto-detect CSV format from file sample with error handling
    */
   private async detectFormat(filePath: string): Promise<void> {
-    const sampleSize = Math.min(this.options.sampleSize, statSync(filePath).size);
-    // Sample from beginning of file
+    try {
+      const fileStats = statSync(filePath);
+      const sampleSize = Math.min(this.options.sampleSize, fileStats.size);
+      
+      if (sampleSize === 0) {
+        logger.warn('Cannot detect format from empty file, using defaults');
+        return;
+      }
 
-    const stream = createReadStream(filePath, { start: 0, end: sampleSize - 1 });
-    const chunks: Buffer[] = [];
+      // Sample from beginning of file
+      const stream = createReadStream(filePath, { start: 0, end: sampleSize - 1 });
+      const chunks: Buffer[] = [];
 
-    for await (const chunk of stream) {
-      chunks.push(chunk as Buffer);
+      try {
+        for await (const chunk of stream) {
+          chunks.push(chunk as Buffer);
+        }
+      } catch (streamError) {
+        throw DataPilotError.parsing(
+          `Failed to read sample for format detection: ${streamError instanceof Error ? streamError.message : 'Unknown error'}`,
+          'SAMPLE_READ_ERROR',
+          { filePath },
+          [
+            {
+              action: 'Check file permissions',
+              description: 'Ensure the file is readable',
+              severity: ErrorSeverity.HIGH
+            },
+            {
+              action: 'Specify format manually',
+              description: 'Skip auto-detection and specify format options',
+              severity: ErrorSeverity.MEDIUM,
+              command: '--delimiter "," --encoding utf8 --no-auto-detect'
+            }
+          ]
+        );
+      }
+
+      if (chunks.length === 0) {
+        logger.warn('No data read for format detection, using defaults');
+        return;
+      }
+
+      const sampleBuffer = Buffer.concat(chunks);
+      
+      try {
+        const detected = CSVDetector.detect(sampleBuffer);
+
+        // Update options with detected values
+        this.options.encoding = detected.encoding;
+        this.options.delimiter = detected.delimiter;
+        this.options.quote = detected.quote;
+        this.options.lineEnding = detected.lineEnding;
+        this.options.hasHeader = detected.hasHeader;
+        
+        logger.debug(`Auto-detected format: delimiter='${detected.delimiter}', encoding='${detected.encoding}', quote='${detected.quote}'`);
+      } catch (detectionError) {
+        throw DataPilotError.parsing(
+          `Format detection failed: ${detectionError instanceof Error ? detectionError.message : 'Unknown error'}`,
+          'FORMAT_DETECTION_FAILED',
+          { filePath },
+          [
+            {
+              action: 'Use manual settings',
+              description: 'Specify delimiter, encoding, and quote characters manually',
+              severity: ErrorSeverity.MEDIUM,
+              command: '--delimiter "," --encoding utf8 --quote "\\""'
+            },
+            {
+              action: 'Check file format',
+              description: 'Verify the file is a valid CSV with consistent formatting',
+              severity: ErrorSeverity.HIGH
+            }
+          ]
+        );
+      }
+    } catch (error) {
+      if (error instanceof DataPilotError) {
+        throw error;
+      }
+      
+      throw DataPilotError.parsing(
+        `Detection process failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        'DETECTION_PROCESS_ERROR',
+        { filePath }
+      );
     }
-
-    const sampleBuffer = Buffer.concat(chunks);
-    const detected = CSVDetector.detect(sampleBuffer);
-
-    // Update options with detected values
-    this.options.encoding = detected.encoding;
-    this.options.delimiter = detected.delimiter;
-    this.options.quote = detected.quote;
-    this.options.lineEnding = detected.lineEnding;
-    this.options.hasHeader = detected.hasHeader;
   }
 
   /**
@@ -361,35 +493,97 @@ export class CSVParser {
   }
 
   /**
-   * Process raw string arrays into ParsedRow objects
+   * Process raw string arrays into ParsedRow objects with error handling
    */
   private processRawRows(rawRows: string[][]): ParsedRow[] {
     const processedRows: ParsedRow[] = [];
+    let skippedRows = 0;
+    let errorRows = 0;
 
     for (let i = 0; i < rawRows.length; i++) {
-      const rawRow = rawRows[i];
+      try {
+        const rawRow = rawRows[i];
 
-      // Skip empty rows if configured
-      if (this.options.skipEmptyLines && this.isEmptyRow(rawRow)) {
-        continue;
+        // Validate row data
+        if (!Array.isArray(rawRow)) {
+          errorRows++;
+          logger.debug(`Invalid row data at index ${i}: expected array, got ${typeof rawRow}`);
+          continue;
+        }
+
+        // Skip empty rows if configured
+        if (this.options.skipEmptyLines && this.isEmptyRow(rawRow)) {
+          skippedRows++;
+          continue;
+        }
+
+        // Check for excessively long fields
+        const hasOversizedField = rawRow.some(field => 
+          typeof field === 'string' && field.length > this.options.maxFieldSize
+        );
+        
+        if (hasOversizedField) {
+          logger.warn(`Row ${i} contains oversized field(s), truncating`);
+          // Truncate oversized fields
+          const truncatedRow = rawRow.map(field => 
+            typeof field === 'string' && field.length > this.options.maxFieldSize
+              ? field.substring(0, this.options.maxFieldSize) + '...'
+              : field
+          );
+          
+          const row: ParsedRow = {
+            index: this.stats.rowsProcessed + processedRows.length,
+            data: truncatedRow,
+          };
+          processedRows.push(row);
+        } else {
+          const row: ParsedRow = {
+            index: this.stats.rowsProcessed + processedRows.length,
+            data: rawRow,
+          };
+          processedRows.push(row);
+        }
+      } catch (error) {
+        errorRows++;
+        logger.debug(`Error processing row ${i}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        
+        // If too many errors, warn the user
+        if (errorRows > 10 && errorRows / (i + 1) > 0.1) {
+          logger.warn(`High error rate in row processing: ${errorRows} errors in ${i + 1} rows`);
+        }
       }
+    }
 
-      const row: ParsedRow = {
-        index: this.stats.rowsProcessed + processedRows.length,
-        data: rawRow,
-      };
-
-      processedRows.push(row);
+    if (skippedRows > 0) {
+      logger.debug(`Skipped ${skippedRows} empty rows`);
+    }
+    
+    if (errorRows > 0) {
+      logger.warn(`Encountered ${errorRows} invalid rows during processing`);
     }
 
     return processedRows;
   }
 
   /**
-   * Check if a row is empty
+   * Check if a row is empty with error handling
    */
   private isEmptyRow(row: string[]): boolean {
-    return row.every((field) => field.trim().length === 0);
+    try {
+      if (!Array.isArray(row)) {
+        return true; // Treat invalid data as empty
+      }
+      
+      return row.every((field) => {
+        if (typeof field !== 'string') {
+          return false; // Non-string fields are considered non-empty
+        }
+        return field.trim().length === 0;
+      });
+    } catch (error) {
+      logger.debug(`Error checking if row is empty: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      return true; // Treat errors as empty to skip problematic rows
+    }
   }
 
   /**

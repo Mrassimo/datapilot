@@ -823,20 +823,149 @@ export class ChartComposer {
 
   // Additional placeholder implementations...
   private static generateRedundantEncodings(dimensions: EncodingDimension[]): RedundantEncoding[] {
-    return []; // Implementation would add accessibility redundancies
+    const redundancies: RedundantEncoding[] = [];
+    
+    // Add pattern redundancy for color-blind accessibility
+    dimensions.forEach(dim => {
+      if (dim.channel === 'color_hue' || dim.channel === 'color_saturation') {
+        redundancies.push({
+          primaryChannel: dim.channel,
+          redundantChannel: 'shape',
+          redundancyLevel: 85,
+          purpose: 'accessibility',
+          effectiveness: 90
+        });
+        
+        // Add texture redundancy for important categorical data
+        if (dim.dataType === 'nominal' && dim.encodingStrength > 0.7) {
+          redundancies.push({
+            primaryChannel: dim.channel,
+            redundantChannel: 'texture',
+            redundancyLevel: 70,
+            purpose: 'emphasis',
+            effectiveness: 75
+          });
+        }
+      }
+      
+      // Add size redundancy for important quantitative data
+      if (dim.channel === 'position_y' && dim.dataType === 'quantitative' && dim.encodingStrength > 0.8) {
+        redundancies.push({
+          primaryChannel: dim.channel,
+          redundantChannel: 'size_area',
+          redundancyLevel: 60,
+          purpose: 'emphasis',
+          effectiveness: 80
+        });
+      }
+    });
+    
+    return redundancies;
   }
 
   private static createVisualHierarchy(dimensions: EncodingDimension[], chartType: string): VisualHierarchy {
+    // Sort dimensions by importance (encoding strength)
+    const sortedDimensions = [...dimensions].sort((a, b) => b.encodingStrength - a.encodingStrength);
+    
+    // Create hierarchy levels based on encoding strength
+    const levels: HierarchyLevel[] = [
+      {
+        level: 1,
+        elements: sortedDimensions.slice(0, 1).map(d => d.dataField),
+        visualWeight: 100,
+        precedence: 1
+      },
+      {
+        level: 2,
+        elements: sortedDimensions.slice(1, 3).map(d => d.dataField),
+        visualWeight: 75,
+        precedence: 2
+      },
+      {
+        level: 3,
+        elements: sortedDimensions.slice(3).map(d => d.dataField),
+        visualWeight: 50,
+        precedence: 3
+      }
+    ].filter(level => level.elements.length > 0);
+    
+    // Create focus points for most important dimensions
+    const focusPoints: FocusPoint[] = sortedDimensions.slice(0, 2).map((dim, index) => ({
+      element: dim.dataField,
+      attentionWeight: 100 - (index * 25),
+      visualTechniques: index === 0 ? ['primary_color', 'large_size', 'central_position'] : ['secondary_color', 'moderate_size'],
+      cognitiveReasoning: index === 0 ? 'Primary data dimension requiring immediate attention' : 'Secondary dimension providing context'
+    }));
+    
+    // Create visual flow based on chart type
+    const visualFlow: FlowDirection[] = this.generateVisualFlow(sortedDimensions, chartType);
+    
+    // Create attention guides
+    const attentionGuides: AttentionGuide[] = [
+      {
+        technique: 'color_contrast',
+        target: sortedDimensions[0]?.dataField || 'primary',
+        effectiveness: 90,
+        subtlety: 30
+      },
+      {
+        technique: 'size_progression',
+        target: 'hierarchy',
+        effectiveness: 85,
+        subtlety: 60
+      }
+    ];
+    
     return {
-      levels: [],
-      focusPoints: [],
-      visualFlow: [],
-      attentionGuides: []
+      levels,
+      focusPoints,
+      visualFlow,
+      attentionGuides
     };
   }
 
   private static selectBaseColor(dataCharacteristics: any, contextualRequirements: any): HSLColor {
-    return { hue: 220, saturation: 70, lightness: 50 }; // Default blue
+    // Analyze data sentiment and domain context
+    const domain = contextualRequirements?.domain || 'general';
+    const sentiment = this.analyzeDataSentiment(dataCharacteristics);
+    const brandColors = contextualRequirements?.brandColors;
+    
+    // If brand colors are provided, use primary brand color
+    if (brandColors && brandColors.length > 0) {
+      return this.hexToHSL(brandColors[0]);
+    }
+    
+    // Domain-specific color selection
+    const domainColorMap: Record<string, HSLColor> = {
+      'education': { hue: 220, saturation: 65, lightness: 55 }, // Trustworthy blue
+      'healthcare': { hue: 160, saturation: 55, lightness: 50 }, // Calming green-blue
+      'finance': { hue: 200, saturation: 75, lightness: 45 }, // Professional blue
+      'marketing': { hue: 280, saturation: 70, lightness: 60 }, // Creative purple
+      'technology': { hue: 210, saturation: 80, lightness: 50 }, // Tech blue
+      'environment': { hue: 120, saturation: 60, lightness: 45 }, // Natural green
+      'social': { hue: 340, saturation: 65, lightness: 55 }, // Warm red-pink
+      'general': { hue: 220, saturation: 60, lightness: 50 } // Neutral blue
+    };
+    
+    let baseColor = domainColorMap[domain] || domainColorMap['general'];
+    
+    // Adjust based on data sentiment
+    if (sentiment === 'positive') {
+      baseColor.saturation = Math.min(90, baseColor.saturation + 15);
+      baseColor.lightness = Math.min(70, baseColor.lightness + 10);
+    } else if (sentiment === 'negative') {
+      baseColor.saturation = Math.max(30, baseColor.saturation - 10);
+      baseColor.lightness = Math.max(30, baseColor.lightness - 10);
+    }
+    
+    // Adjust for data complexity
+    const complexity = this.calculateDataComplexity(dataCharacteristics);
+    if (complexity > 0.7) {
+      // Use more muted colors for complex data to reduce cognitive load
+      baseColor.saturation = Math.max(40, baseColor.saturation - 20);
+    }
+    
+    return baseColor;
   }
 
   private static selectColorScheme(dataCharacteristics: any): ColorScheme {
@@ -874,11 +1003,152 @@ export class ChartComposer {
   }
 
   private static createSemanticColorMappings(dataCharacteristics: any): SemanticColorMapping[] {
-    return [];
+    const mappings: SemanticColorMapping[] = [];
+    
+    // Analyze data for semantic meaning
+    const fields = dataCharacteristics.fields || [];
+    
+    fields.forEach((field: any) => {
+      const fieldName = field.name?.toLowerCase() || '';
+      const fieldType = field.type || 'unknown';
+      
+      // Performance/success indicators
+      if (fieldName.includes('success') || fieldName.includes('positive') || fieldName.includes('good')) {
+        mappings.push({
+          concept: 'success',
+          color: { hue: 120, saturation: 70, lightness: 50 }, // Green
+          culturalRelevance: 90,
+          universalRecognition: 95
+        });
+      }
+      
+      // Warning/caution indicators
+      if (fieldName.includes('warning') || fieldName.includes('caution') || fieldName.includes('moderate')) {
+        mappings.push({
+          concept: 'warning',
+          color: { hue: 45, saturation: 85, lightness: 55 }, // Orange
+          culturalRelevance: 85,
+          universalRecognition: 90
+        });
+      }
+      
+      // Error/danger indicators
+      if (fieldName.includes('error') || fieldName.includes('danger') || fieldName.includes('bad') || fieldName.includes('negative')) {
+        mappings.push({
+          concept: 'danger',
+          color: { hue: 0, saturation: 75, lightness: 50 }, // Red
+          culturalRelevance: 85,
+          universalRecognition: 95
+        });
+      }
+      
+      // Information/neutral indicators
+      if (fieldName.includes('info') || fieldName.includes('neutral') || fieldName.includes('standard')) {
+        mappings.push({
+          concept: 'information',
+          color: { hue: 210, saturation: 60, lightness: 55 }, // Blue
+          culturalRelevance: 90,
+          universalRecognition: 85
+        });
+      }
+      
+      // Temporal mappings
+      if (fieldType === 'temporal' || fieldName.includes('time') || fieldName.includes('date')) {
+        mappings.push({
+          concept: 'temporal',
+          color: { hue: 260, saturation: 50, lightness: 60 }, // Purple
+          culturalRelevance: 70,
+          universalRecognition: 70
+        });
+      }
+      
+      // Financial mappings
+      if (fieldName.includes('profit') || fieldName.includes('revenue') || fieldName.includes('income')) {
+        mappings.push({
+          concept: 'financial_positive',
+          color: { hue: 140, saturation: 65, lightness: 45 }, // Forest green
+          culturalRelevance: 80,
+          universalRecognition: 75
+        });
+      }
+      
+      if (fieldName.includes('loss') || fieldName.includes('cost') || fieldName.includes('expense')) {
+        mappings.push({
+          concept: 'financial_negative',
+          color: { hue: 15, saturation: 70, lightness: 45 }, // Red-orange
+          culturalRelevance: 80,
+          universalRecognition: 75
+        });
+      }
+    });
+    
+    // Add default semantic mappings if none found
+    if (mappings.length === 0) {
+      mappings.push(
+        {
+          concept: 'primary',
+          color: { hue: 220, saturation: 70, lightness: 50 },
+          culturalRelevance: 90,
+          universalRecognition: 85
+        },
+        {
+          concept: 'secondary',
+          color: { hue: 45, saturation: 60, lightness: 55 },
+          culturalRelevance: 80,
+          universalRecognition: 80
+        }
+      );
+    }
+    
+    return mappings;
   }
 
   private static calculateHarmonyScore(harmony: HSLColor[], palette: ColorPalette): number {
-    return 85; // Placeholder score
+    if (harmony.length === 0) return 0;
+    
+    let score = 0;
+    let factors = 0;
+    
+    // Factor 1: Hue distribution (0-25 points)
+    const hues = harmony.map(c => c.hue);
+    const hueSpread = this.calculateHueSpread(hues);
+    const hueScore = Math.min(25, hueSpread / 360 * 100);
+    score += hueScore;
+    factors++;
+    
+    // Factor 2: Saturation consistency (0-25 points)
+    const saturations = harmony.map(c => c.saturation);
+    const saturationVariance = this.calculateVariance(saturations);
+    const saturationScore = Math.max(0, 25 - (saturationVariance / 100));
+    score += saturationScore;
+    factors++;
+    
+    // Factor 3: Lightness distribution (0-25 points)
+    const lightnesses = harmony.map(c => c.lightness);
+    const lightnessRange = Math.max(...lightnesses) - Math.min(...lightnesses);
+    const lightnessScore = Math.min(25, (lightnessRange / 80) * 25); // Good range is 0-80
+    score += lightnessScore;
+    factors++;
+    
+    // Factor 4: Color theory compliance (0-25 points)
+    const theoryScore = this.evaluateColorTheoryCompliance(hues, palette.harmonyType);
+    score += theoryScore;
+    factors++;
+    
+    // Bonus factors
+    // Accessibility bonus (0-10 points)
+    const accessibilityBonus = this.calculateAccessibilityBonus(harmony);
+    score += accessibilityBonus;
+    
+    // Cultural appropriateness bonus (0-5 points)
+    const culturalBonus = this.calculateCulturalBonus(harmony);
+    score += culturalBonus;
+    
+    // Normalize to 0-100 scale
+    const baseScore = (score / factors) * (100 / 25);
+    const bonusPoints = accessibilityBonus + culturalBonus;
+    
+    return Math.min(100, Math.max(0, baseScore + bonusPoints));
   }
 
   private static designTypographySystem(chartType: string, contextualRequirements: any): TypographySystem {
@@ -966,7 +1236,67 @@ export class ChartComposer {
   }
 
   private static applyGestaltPrinciples(visualEncoding: MultiDimensionalEncoding): GestaltApplication[] {
-    return [];
+    const applications: GestaltApplication[] = [];
+    
+    // Proximity: Group related data elements
+    if (visualEncoding.primaryDimensions.length > 1) {
+      applications.push({
+        principle: 'proximity',
+        application: 'Group related data points using spatial proximity to show relationships',
+        effectiveness: 85,
+        cognitiveSupport: 'Reduces cognitive load by naturally grouping related information'
+      });
+    }
+    
+    // Similarity: Use consistent visual properties for similar data
+    const categoricalDimensions = visualEncoding.primaryDimensions.filter(d => d.dataType === 'nominal');
+    if (categoricalDimensions.length > 0) {
+      applications.push({
+        principle: 'similarity',
+        application: 'Use consistent colors, shapes, or patterns for data elements in the same category',
+        effectiveness: 90,
+        cognitiveSupport: 'Enables rapid categorization and pattern recognition'
+      });
+    }
+    
+    // Closure: Complete implied shapes and patterns
+    applications.push({
+      principle: 'closure',
+      application: 'Use implied connections and boundaries to group data without explicit lines',
+      effectiveness: 75,
+      cognitiveSupport: 'Reduces visual clutter while maintaining data relationships'
+    });
+    
+    // Continuity: Create visual flow through data
+    const temporalDimensions = visualEncoding.primaryDimensions.filter(d => d.dataType === 'temporal');
+    if (temporalDimensions.length > 0) {
+      applications.push({
+        principle: 'continuity',
+        application: 'Create smooth visual transitions and flow in temporal data visualization',
+        effectiveness: 80,
+        cognitiveSupport: 'Supports natural reading patterns and temporal understanding'
+      });
+    }
+    
+    // Figure-ground: Establish clear hierarchy
+    applications.push({
+      principle: 'figure_ground',
+      application: 'Use contrast and visual weight to distinguish primary data from background context',
+      effectiveness: 95,
+      cognitiveSupport: 'Enables immediate focus on most important information'
+    });
+    
+    // Common fate: Show data relationships through movement or transformation
+    if (visualEncoding.informationDensity > 60) {
+      applications.push({
+        principle: 'common_fate',
+        application: 'Use coordinated animations or transformations to show data relationships',
+        effectiveness: 70,
+        cognitiveSupport: 'Reveals hidden patterns and connections in complex datasets'
+      });
+    }
+    
+    return applications;
   }
 
   private static analyzeCognitiveLoad(
@@ -1099,9 +1429,20 @@ export class ChartComposer {
     const functionalScore = visualEncoding.encodingEfficiency;
     const accessibilityScore = accessibilityCompliance.complianceScore;
     const usabilityScore = perceptualOptimization.usabilityMetrics.overall;
-    const originalityScore = 75; // Placeholder
+    
+    // Calculate originality score based on encoding innovation and visual uniqueness
+    const originalityScore = this.calculateOriginalityScore(visualEncoding, aestheticProfile);
     
     const overallQuality = (aestheticScore + functionalScore + accessibilityScore + usabilityScore + originalityScore) / 5;
+
+    // Identify improvement areas based on scores
+    const improvementAreas = this.identifyImprovementAreas({
+      aestheticScore,
+      functionalScore,
+      accessibilityScore,
+      usabilityScore,
+      originalityScore
+    });
 
     return {
       aestheticScore,
@@ -1110,7 +1451,412 @@ export class ChartComposer {
       usabilityScore,
       originalityScore,
       overallQuality,
-      improvementAreas: []
+      improvementAreas
     };
+  }
+
+  // Helper methods for enhanced implementations
+  
+  private static generateVisualFlow(dimensions: EncodingDimension[], chartType: string): FlowDirection[] {
+    const flow: FlowDirection[] = [];
+    
+    if (dimensions.length < 2) return flow;
+    
+    // Create flow based on encoding strength
+    for (let i = 0; i < dimensions.length - 1; i++) {
+      const strengthDiff = dimensions[i].encodingStrength - dimensions[i + 1].encodingStrength;
+      if (strengthDiff > 0.2) {
+        flow.push({
+          from: dimensions[i].dataField,
+          to: dimensions[i + 1].dataField,
+          strength: Math.min(100, strengthDiff * 100),
+          technique: this.selectFlowTechnique(dimensions[i], dimensions[i + 1])
+        });
+      }
+    }
+    
+    return flow;
+  }
+  
+  private static selectFlowTechnique(from: EncodingDimension, to: EncodingDimension): 'color_gradient' | 'size_progression' | 'position_flow' | 'line_connection' {
+    if (from.channel.includes('color') || to.channel.includes('color')) {
+      return 'color_gradient';
+    } else if (from.channel.includes('size') || to.channel.includes('size')) {
+      return 'size_progression';
+    } else if (from.channel.includes('position') || to.channel.includes('position')) {
+      return 'position_flow';
+    } else {
+      return 'line_connection';
+    }
+  }
+  
+  private static analyzeDataSentiment(dataCharacteristics: any): 'positive' | 'negative' | 'neutral' {
+    const fields = dataCharacteristics.fields || [];
+    let positiveCount = 0;
+    let negativeCount = 0;
+    
+    fields.forEach((field: any) => {
+      const name = field.name?.toLowerCase() || '';
+      if (name.includes('positive') || name.includes('success') || name.includes('good') || 
+          name.includes('profit') || name.includes('growth') || name.includes('improvement')) {
+        positiveCount++;
+      } else if (name.includes('negative') || name.includes('error') || name.includes('bad') || 
+                 name.includes('loss') || name.includes('decline') || name.includes('problem')) {
+        negativeCount++;
+      }
+    });
+    
+    if (positiveCount > negativeCount) return 'positive';
+    if (negativeCount > positiveCount) return 'negative';
+    return 'neutral';
+  }
+  
+  private static calculateDataComplexity(dataCharacteristics: any): number {
+    const fieldCount = dataCharacteristics.fields?.length || 0;
+    const recordCount = dataCharacteristics.recordCount || 0;
+    const categoricalFields = dataCharacteristics.categoricalColumns || 0;
+    const numericalFields = dataCharacteristics.numericalColumns || 0;
+    
+    // Normalize complexity factors
+    const fieldComplexity = Math.min(1, fieldCount / 20);
+    const recordComplexity = Math.min(1, recordCount / 10000);
+    const typeComplexity = Math.min(1, (categoricalFields + numericalFields) / 15);
+    
+    return (fieldComplexity + recordComplexity + typeComplexity) / 3;
+  }
+  
+  private static hexToHSL(hex: string): HSLColor {
+    // Remove # if present
+    hex = hex.replace('#', '');
+    
+    // Parse RGB values
+    const r = parseInt(hex.substr(0, 2), 16) / 255;
+    const g = parseInt(hex.substr(2, 2), 16) / 255;
+    const b = parseInt(hex.substr(4, 2), 16) / 255;
+    
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    const diff = max - min;
+    
+    let h = 0;
+    let s = 0;
+    const l = (max + min) / 2;
+    
+    if (diff !== 0) {
+      s = l > 0.5 ? diff / (2 - max - min) : diff / (max + min);
+      
+      switch (max) {
+        case r:
+          h = (g - b) / diff + (g < b ? 6 : 0);
+          break;
+        case g:
+          h = (b - r) / diff + 2;
+          break;
+        case b:
+          h = (r - g) / diff + 4;
+          break;
+      }
+      h /= 6;
+    }
+    
+    return {
+      hue: Math.round(h * 360),
+      saturation: Math.round(s * 100),
+      lightness: Math.round(l * 100)
+    };
+  }
+  
+  private static calculateHueSpread(hues: number[]): number {
+    if (hues.length < 2) return 0;
+    
+    // Sort hues and calculate maximum spread
+    const sortedHues = [...hues].sort((a, b) => a - b);
+    let maxSpread = 0;
+    
+    for (let i = 0; i < sortedHues.length - 1; i++) {
+      const spread = sortedHues[i + 1] - sortedHues[i];
+      maxSpread = Math.max(maxSpread, spread);
+    }
+    
+    // Check wrap-around spread
+    const wrapSpread = (360 - sortedHues[sortedHues.length - 1]) + sortedHues[0];
+    maxSpread = Math.max(maxSpread, wrapSpread);
+    
+    return maxSpread;
+  }
+  
+  private static evaluateColorTheoryCompliance(hues: number[], harmonyType: string): number {
+    if (hues.length < 2) return 0;
+    
+    switch (harmonyType) {
+      case 'analogous':
+        return this.checkAnalogousCompliance(hues);
+      case 'complementary':
+        return this.checkComplementaryCompliance(hues);
+      case 'triadic':
+        return this.checkTriadicCompliance(hues);
+      case 'tetradic':
+        return this.checkTetradicCompliance(hues);
+      case 'monochromatic':
+        return this.checkMonochromaticCompliance(hues);
+      default:
+        return 15; // Base score for unknown types
+    }
+  }
+  
+  private static checkAnalogousCompliance(hues: number[]): number {
+    // Analogous colors should be within 30-60 degrees of each other
+    let totalCompliance = 0;
+    let comparisons = 0;
+    
+    for (let i = 0; i < hues.length - 1; i++) {
+      for (let j = i + 1; j < hues.length; j++) {
+        const diff = Math.abs(hues[i] - hues[j]);
+        const circularDiff = Math.min(diff, 360 - diff);
+        
+        if (circularDiff >= 15 && circularDiff <= 60) {
+          totalCompliance += 25;
+        } else if (circularDiff <= 90) {
+          totalCompliance += 15;
+        } else {
+          totalCompliance += 5;
+        }
+        comparisons++;
+      }
+    }
+    
+    return comparisons > 0 ? totalCompliance / comparisons : 0;
+  }
+  
+  private static checkComplementaryCompliance(hues: number[]): number {
+    // Look for hues approximately 180 degrees apart
+    for (let i = 0; i < hues.length - 1; i++) {
+      for (let j = i + 1; j < hues.length; j++) {
+        const diff = Math.abs(hues[i] - hues[j]);
+        const circularDiff = Math.min(diff, 360 - diff);
+        
+        if (Math.abs(circularDiff - 180) <= 30) {
+          return 25; // Perfect complementary
+        }
+      }
+    }
+    return 10; // No complementary found
+  }
+  
+  private static checkTriadicCompliance(hues: number[]): number {
+    if (hues.length < 3) return 0;
+    
+    // Check if any three hues form a triadic relationship (120 degrees apart)
+    for (let i = 0; i < hues.length - 2; i++) {
+      for (let j = i + 1; j < hues.length - 1; j++) {
+        for (let k = j + 1; k < hues.length; k++) {
+          const sorted = [hues[i], hues[j], hues[k]].sort((a, b) => a - b);
+          const diff1 = sorted[1] - sorted[0];
+          const diff2 = sorted[2] - sorted[1];
+          const diff3 = (360 - sorted[2]) + sorted[0];
+          
+          if (Math.abs(diff1 - 120) <= 30 && Math.abs(diff2 - 120) <= 30 && Math.abs(diff3 - 120) <= 30) {
+            return 25;
+          }
+        }
+      }
+    }
+    return 8;
+  }
+  
+  private static checkTetradicCompliance(hues: number[]): number {
+    if (hues.length < 4) return 0;
+    // Simplified: check if hues are reasonably distributed
+    const averageSpacing = 360 / hues.length;
+    const idealSpacing = 90; // For tetradic
+    
+    if (Math.abs(averageSpacing - idealSpacing) <= 30) {
+      return 25;
+    }
+    return 12;
+  }
+  
+  private static checkMonochromaticCompliance(hues: number[]): number {
+    // All hues should be very similar
+    const hueRange = Math.max(...hues) - Math.min(...hues);
+    if (hueRange <= 15) return 25;
+    if (hueRange <= 30) return 18;
+    if (hueRange <= 45) return 10;
+    return 5;
+  }
+  
+  private static calculateAccessibilityBonus(harmony: HSLColor[]): number {
+    let bonus = 0;
+    
+    // Check contrast potential
+    const lightnesses = harmony.map(c => c.lightness);
+    const lightnessRange = Math.max(...lightnesses) - Math.min(...lightnesses);
+    
+    if (lightnessRange >= 50) bonus += 5; // Good contrast potential
+    if (lightnessRange >= 70) bonus += 3; // Excellent contrast potential
+    
+    // Check color-blind friendliness (avoid red-green combinations with similar lightness)
+    const hasProblematicRedGreen = this.checkRedGreenProblems(harmony);
+    if (!hasProblematicRedGreen) bonus += 2;
+    
+    return Math.min(10, bonus);
+  }
+  
+  private static checkRedGreenProblems(harmony: HSLColor[]): boolean {
+    for (let i = 0; i < harmony.length - 1; i++) {
+      for (let j = i + 1; j < harmony.length; j++) {
+        const color1 = harmony[i];
+        const color2 = harmony[j];
+        
+        // Check if one is red-ish and one is green-ish with similar lightness
+        const isRed1 = (color1.hue >= 330 || color1.hue <= 30);
+        const isGreen1 = (color1.hue >= 90 && color1.hue <= 150);
+        const isRed2 = (color2.hue >= 330 || color2.hue <= 30);
+        const isGreen2 = (color2.hue >= 90 && color2.hue <= 150);
+        
+        if ((isRed1 && isGreen2) || (isGreen1 && isRed2)) {
+          const lightnessDiff = Math.abs(color1.lightness - color2.lightness);
+          if (lightnessDiff < 20) {
+            return true; // Problematic combination
+          }
+        }
+      }
+    }
+    return false;
+  }
+  
+  private static calculateCulturalBonus(harmony: HSLColor[]): number {
+    // Simplified cultural appropriateness check
+    // Avoid culturally sensitive color combinations
+    let bonus = 5; // Base cultural bonus
+    
+    // Check for balance - avoid overly aggressive colors
+    const highSaturationCount = harmony.filter(c => c.saturation > 85).length;
+    if (highSaturationCount / harmony.length < 0.5) {
+      bonus += 2; // Moderate saturation is generally more culturally appropriate
+    }
+    
+    return Math.min(5, bonus);
+  }
+  
+  private static calculateOriginalityScore(
+    visualEncoding: MultiDimensionalEncoding,
+    aestheticProfile: AestheticProfile
+  ): number {
+    let originalityScore = 50; // Base score
+    
+    // Reward innovative encoding combinations
+    const uniqueChannels = new Set(
+      visualEncoding.primaryDimensions.concat(visualEncoding.secondaryDimensions)
+        .map(d => d.channel)
+    ).size;
+    
+    if (uniqueChannels >= 4) originalityScore += 20; // Diverse channel usage
+    if (uniqueChannels >= 6) originalityScore += 10; // Very diverse
+    
+    // Reward effective use of redundant encodings
+    if (visualEncoding.redundantEncodings.length > 0) {
+      const avgEffectiveness = visualEncoding.redundantEncodings
+        .reduce((sum, enc) => sum + enc.effectiveness, 0) / visualEncoding.redundantEncodings.length;
+      originalityScore += Math.min(15, avgEffectiveness / 100 * 15);
+    }
+    
+    // Reward sophisticated hierarchy
+    const hierarchyComplexity = visualEncoding.hierarchicalStructure.levels.length;
+    if (hierarchyComplexity >= 3) originalityScore += 10;
+    
+    // Penalize overly complex solutions
+    if (visualEncoding.cognitiveLoad > 80) originalityScore -= 20;
+    if (visualEncoding.cognitiveLoad > 90) originalityScore -= 10;
+    
+    // Reward high information density without complexity
+    if (visualEncoding.informationDensity > 70 && visualEncoding.cognitiveLoad < 60) {
+      originalityScore += 15;
+    }
+    
+    return Math.max(0, Math.min(100, originalityScore));
+  }
+  
+  private static identifyImprovementAreas(scores: {
+    aestheticScore: number;
+    functionalScore: number;
+    accessibilityScore: number;
+    usabilityScore: number;
+    originalityScore: number;
+  }): ImprovementArea[] {
+    const areas: ImprovementArea[] = [];
+    const threshold = 75; // Scores below this need improvement
+    
+    if (scores.aestheticScore < threshold) {
+      areas.push({
+        area: 'Aesthetic Design',
+        currentScore: scores.aestheticScore,
+        potentialScore: Math.min(95, scores.aestheticScore + 20),
+        recommendations: [
+          'Improve color harmony and consistency',
+          'Enhance visual balance and proportion',
+          'Refine typography system'
+        ],
+        priority: scores.aestheticScore < 50 ? 'critical' : scores.aestheticScore < 65 ? 'high' : 'medium'
+      });
+    }
+    
+    if (scores.functionalScore < threshold) {
+      areas.push({
+        area: 'Functional Efficiency',
+        currentScore: scores.functionalScore,
+        potentialScore: Math.min(95, scores.functionalScore + 15),
+        recommendations: [
+          'Optimize encoding channel assignment',
+          'Reduce cognitive load while maintaining information density',
+          'Improve data-to-visualization mapping'
+        ],
+        priority: scores.functionalScore < 50 ? 'critical' : 'high'
+      });
+    }
+    
+    if (scores.accessibilityScore < threshold) {
+      areas.push({
+        area: 'Accessibility Compliance',
+        currentScore: scores.accessibilityScore,
+        potentialScore: Math.min(98, scores.accessibilityScore + 23),
+        recommendations: [
+          'Enhance color contrast and alternative encodings',
+          'Improve screen reader compatibility',
+          'Add motor impairment support features'
+        ],
+        priority: scores.accessibilityScore < 60 ? 'critical' : 'high'
+      });
+    }
+    
+    if (scores.usabilityScore < threshold) {
+      areas.push({
+        area: 'User Experience',
+        currentScore: scores.usabilityScore,
+        potentialScore: Math.min(92, scores.usabilityScore + 17),
+        recommendations: [
+          'Simplify interaction patterns',
+          'Improve learnability and memorability',
+          'Enhance user satisfaction through better feedback'
+        ],
+        priority: scores.usabilityScore < 55 ? 'critical' : 'high'
+      });
+    }
+    
+    if (scores.originalityScore < threshold) {
+      areas.push({
+        area: 'Visual Innovation',
+        currentScore: scores.originalityScore,
+        potentialScore: Math.min(90, scores.originalityScore + 15),
+        recommendations: [
+          'Explore innovative encoding combinations',
+          'Balance complexity with clarity',
+          'Implement sophisticated visual hierarchies'
+        ],
+        priority: 'medium'
+      });
+    }
+    
+    return areas;
   }
 }

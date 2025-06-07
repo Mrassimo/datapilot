@@ -1126,7 +1126,46 @@ export class DashboardLayoutEngine {
     visualizations: VisualizationSpec[],
     analysis: VisualizationAnalysis
   ): ContextualConnection[] {
-    return [];
+    const connections: ContextualConnection[] = [];
+    
+    // Analyze shared dimensions between visualizations
+    for (let i = 0; i < visualizations.length - 1; i++) {
+      for (let j = i + 1; j < visualizations.length; j++) {
+        const viz1 = visualizations[i];
+        const viz2 = visualizations[j];
+        
+        // Find shared data dimensions
+        const sharedDimensions = this.findSharedDimensions(viz1, viz2);
+        
+        if (sharedDimensions.length > 0) {
+          // Create contextual connection based on shared dimensions
+          const connection = this.createDimensionConnection(viz1, viz2, sharedDimensions);
+          connections.push(connection);
+        }
+        
+        // Check for complementary analysis types
+        const complementaryConnection = this.checkComplementaryAnalysis(viz1, viz2);
+        if (complementaryConnection) {
+          connections.push(complementaryConnection);
+        }
+        
+        // Check for hierarchical relationships
+        const hierarchicalConnection = this.checkHierarchicalRelationship(viz1, viz2);
+        if (hierarchicalConnection) {
+          connections.push(hierarchicalConnection);
+        }
+      }
+    }
+    
+    // Add temporal connections if applicable
+    const temporalConnections = this.identifyTemporalConnections(visualizations);
+    connections.push(...temporalConnections);
+    
+    // Add narrative flow connections
+    const narrativeConnections = this.establishNarrativeConnections(visualizations, analysis);
+    connections.push(...narrativeConnections);
+    
+    return connections;
   }
 
   private static establishPerceptualHierarchy(
@@ -1303,6 +1342,162 @@ export class DashboardLayoutEngine {
       },
       overallScore: 82
     };
+  }
+
+  // Helper methods for contextual connections
+  
+  private static findSharedDimensions(viz1: VisualizationSpec, viz2: VisualizationSpec): string[] {
+    const dims1 = viz1.dataDimensions || [];
+    const dims2 = viz2.dataDimensions || [];
+    
+    return dims1.filter(dim1 => dims2.some(dim2 => 
+      dim1.field === dim2.field || dim1.semanticType === dim2.semanticType
+    )).map(dim => dim.field);
+  }
+  
+  private static createDimensionConnection(
+    viz1: VisualizationSpec, 
+    viz2: VisualizationSpec, 
+    sharedDimensions: string[]
+  ): ContextualConnection {
+    return {
+      sourceVisualization: viz1.id,
+      targetVisualization: viz2.id,
+      connectionType: 'dimensional_relationship',
+      strength: this.calculateConnectionStrength(sharedDimensions.length),
+      purpose: 'Show relationship through shared data dimensions',
+      implementation: {
+        visualTechnique: 'coordinated_highlighting',
+        interactionPattern: 'brush_and_link',
+        aestheticCues: ['consistent_color_encoding', 'aligned_axes']
+      },
+      semanticMeaning: `Visualizations share ${sharedDimensions.length} data dimension(s): ${sharedDimensions.join(', ')}`,
+      cognitiveSupport: 'Enables cross-visualization comparison and pattern recognition'
+    };
+  }
+  
+  private static calculateConnectionStrength(sharedCount: number): number {
+    // Strength based on number of shared dimensions
+    if (sharedCount >= 3) return 90;
+    if (sharedCount === 2) return 75;
+    if (sharedCount === 1) return 60;
+    return 30;
+  }
+  
+  private static checkComplementaryAnalysis(viz1: VisualizationSpec, viz2: VisualizationSpec): ContextualConnection | null {
+    const complementaryPairs = [
+      ['overview', 'detail'],
+      ['trend', 'distribution'],
+      ['correlation', 'composition'],
+      ['temporal', 'categorical'],
+      ['quantitative', 'qualitative']
+    ];
+    
+    for (const [type1, type2] of complementaryPairs) {
+      if ((viz1.analysisType === type1 && viz2.analysisType === type2) ||
+          (viz1.analysisType === type2 && viz2.analysisType === type1)) {
+        return {
+          sourceVisualization: viz1.id,
+          targetVisualization: viz2.id,
+          connectionType: 'complementary_analysis',
+          strength: 80,
+          purpose: `Provide complementary ${type1}-${type2} perspective`,
+          implementation: {
+            visualTechnique: 'contextual_placement',
+            interactionPattern: 'detail_on_demand',
+            aestheticCues: ['visual_grouping', 'consistent_styling']
+          },
+          semanticMeaning: `${type1} and ${type2} analysis provide complementary insights`,
+          cognitiveSupport: 'Supports comprehensive understanding through multiple perspectives'
+        };
+      }
+    }
+    
+    return null;
+  }
+  
+  private static checkHierarchicalRelationship(viz1: VisualizationSpec, viz2: VisualizationSpec): ContextualConnection | null {
+    // Check if one visualization shows detail of another
+    if (viz1.granularityLevel && viz2.granularityLevel) {
+      const levelDiff = Math.abs(viz1.granularityLevel - viz2.granularityLevel);
+      
+      if (levelDiff >= 2) {
+        const [parentViz, childViz] = viz1.granularityLevel > viz2.granularityLevel ? [viz1, viz2] : [viz2, viz1];
+        
+        return {
+          sourceVisualization: parentViz.id,
+          targetVisualization: childViz.id,
+          connectionType: 'hierarchical_detail',
+          strength: 85,
+          purpose: 'Show hierarchical relationship between overview and detail',
+          implementation: {
+            visualTechnique: 'nested_layout',
+            interactionPattern: 'drill_down',
+            aestheticCues: ['size_hierarchy', 'containment_relationships']
+          },
+          semanticMeaning: 'Detail view of selected elements from overview',
+          cognitiveSupport: 'Enables progressive disclosure and focused exploration'
+        };
+      }
+    }
+    
+    return null;
+  }
+  
+  private static identifyTemporalConnections(visualizations: VisualizationSpec[]): ContextualConnection[] {
+    const temporalViz = visualizations.filter(viz => viz.hasTemporalDimension);
+    const connections: ContextualConnection[] = [];
+    
+    // Connect temporal visualizations for synchronized time navigation
+    for (let i = 0; i < temporalViz.length - 1; i++) {
+      for (let j = i + 1; j < temporalViz.length; j++) {
+        connections.push({
+          sourceVisualization: temporalViz[i].id,
+          targetVisualization: temporalViz[j].id,
+          connectionType: 'temporal_synchronization',
+          strength: 95,
+          purpose: 'Synchronize temporal navigation across time-based visualizations',
+          implementation: {
+            visualTechnique: 'synchronized_time_axis',
+            interactionPattern: 'coordinated_temporal_navigation',
+            aestheticCues: ['aligned_time_scales', 'synchronized_highlighting']
+          },
+          semanticMeaning: 'Coordinated exploration of temporal patterns',
+          cognitiveSupport: 'Enables temporal pattern comparison across multiple dimensions'
+        });
+      }
+    }
+    
+    return connections;
+  }
+  
+  private static establishNarrativeConnections(
+    visualizations: VisualizationSpec[], 
+    analysis: VisualizationAnalysis
+  ): ContextualConnection[] {
+    const connections: ContextualConnection[] = [];
+    
+    // Create narrative flow based on analysis structure
+    const sortedViz = [...visualizations].sort((a, b) => (a.narrativeOrder || 0) - (b.narrativeOrder || 0));
+    
+    for (let i = 0; i < sortedViz.length - 1; i++) {
+      connections.push({
+        sourceVisualization: sortedViz[i].id,
+        targetVisualization: sortedViz[i + 1].id,
+        connectionType: 'narrative_flow',
+        strength: 70,
+        purpose: 'Guide user through logical analysis progression',
+        implementation: {
+          visualTechnique: 'directional_flow_indicators',
+          interactionPattern: 'guided_navigation',
+          aestheticCues: ['flow_arrows', 'progressive_reveal', 'breadcrumb_trail']
+        },
+        semanticMeaning: `Step ${i + 1} to ${i + 2} in analytical narrative`,
+        cognitiveSupport: 'Provides clear analytical progression and reduces cognitive burden'
+      });
+    }
+    
+    return connections;
   }
 }
 

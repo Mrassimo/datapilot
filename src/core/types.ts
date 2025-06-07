@@ -301,14 +301,185 @@ export interface EvaluationStrategy {
 }
 
 // Error Types
+export enum ErrorSeverity {
+  LOW = 'low',
+  MEDIUM = 'medium',
+  HIGH = 'high',
+  CRITICAL = 'critical'
+}
+
+export enum ErrorCategory {
+  PARSING = 'parsing',
+  VALIDATION = 'validation',
+  ANALYSIS = 'analysis',
+  MEMORY = 'memory',
+  IO = 'io',
+  CONFIGURATION = 'configuration',
+  NETWORK = 'network',
+  PERMISSION = 'permission'
+}
+
+export interface ErrorContext {
+  filePath?: string;
+  section?: string;
+  analyzer?: string;
+  rowIndex?: number;
+  columnIndex?: number;
+  columnName?: string;
+  operationName?: string;
+  memoryUsage?: number;
+  timeElapsed?: number;
+  retryCount?: number;
+}
+
+export interface ErrorRecoveryStrategy {
+  strategy: 'skip' | 'retry' | 'fallback' | 'abort' | 'continue';
+  fallbackValue?: unknown;
+  maxRetries?: number;
+  retryDelay?: number;
+  condition?: (error: DataPilotError) => boolean;
+}
+
+export interface ActionableSuggestion {
+  action: string;
+  description: string;
+  severity: ErrorSeverity;
+  automated?: boolean;
+  command?: string;
+}
+
 export class DataPilotError extends Error {
   constructor(
     message: string,
     public code: string,
+    public severity: ErrorSeverity = ErrorSeverity.MEDIUM,
+    public category: ErrorCategory = ErrorCategory.ANALYSIS,
+    public context?: ErrorContext,
+    public suggestions?: ActionableSuggestion[],
+    public recoverable: boolean = true,
     public details?: unknown,
   ) {
     super(message);
     this.name = 'DataPilotError';
+  }
+
+  /**
+   * Create a parsing error with appropriate context
+   */
+  static parsing(
+    message: string,
+    code: string,
+    context?: ErrorContext,
+    suggestions?: ActionableSuggestion[]
+  ): DataPilotError {
+    return new DataPilotError(
+      message,
+      code,
+      ErrorSeverity.HIGH,
+      ErrorCategory.PARSING,
+      context,
+      suggestions,
+      true
+    );
+  }
+
+  /**
+   * Create a memory error with appropriate context
+   */
+  static memory(
+    message: string,
+    code: string,
+    context?: ErrorContext,
+    suggestions?: ActionableSuggestion[]
+  ): DataPilotError {
+    return new DataPilotError(
+      message,
+      code,
+      ErrorSeverity.CRITICAL,
+      ErrorCategory.MEMORY,
+      context,
+      suggestions,
+      true
+    );
+  }
+
+  /**
+   * Create a validation error with appropriate context
+   */
+  static validation(
+    message: string,
+    code: string,
+    context?: ErrorContext,
+    suggestions?: ActionableSuggestion[]
+  ): DataPilotError {
+    return new DataPilotError(
+      message,
+      code,
+      ErrorSeverity.HIGH,
+      ErrorCategory.VALIDATION,
+      context,
+      suggestions,
+      false
+    );
+  }
+
+  /**
+   * Create an analysis error with graceful degradation
+   */
+  static analysis(
+    message: string,
+    code: string,
+    context?: ErrorContext,
+    suggestions?: ActionableSuggestion[]
+  ): DataPilotError {
+    return new DataPilotError(
+      message,
+      code,
+      ErrorSeverity.MEDIUM,
+      ErrorCategory.ANALYSIS,
+      context,
+      suggestions,
+      true
+    );
+  }
+
+  /**
+   * Get formatted error message with context
+   */
+  getFormattedMessage(): string {
+    let message = `[${this.category.toUpperCase()}:${this.code}] ${this.message}`;
+    
+    if (this.context) {
+      const contextParts = [];
+      if (this.context.filePath) contextParts.push(`File: ${this.context.filePath}`);
+      if (this.context.section) contextParts.push(`Section: ${this.context.section}`);
+      if (this.context.analyzer) contextParts.push(`Analyzer: ${this.context.analyzer}`);
+      if (this.context.rowIndex !== undefined) contextParts.push(`Row: ${this.context.rowIndex}`);
+      if (this.context.columnName) contextParts.push(`Column: ${this.context.columnName}`);
+      
+      if (contextParts.length > 0) {
+        message += ` (${contextParts.join(', ')})`;
+      }
+    }
+    
+    return message;
+  }
+
+  /**
+   * Get actionable suggestions as formatted text
+   */
+  getSuggestions(): string[] {
+    if (!this.suggestions || this.suggestions.length === 0) {
+      return [];
+    }
+    
+    return this.suggestions.map(suggestion => {
+      let text = `• ${suggestion.action}: ${suggestion.description}`;
+      if (suggestion.command) {
+        text += ` (Run: ${suggestion.command})`;
+      }
+      return text;
+    });
   }
 }
 

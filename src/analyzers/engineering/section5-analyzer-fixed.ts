@@ -74,7 +74,11 @@ export class Section5Analyzer {
         },
       };
     } catch (error) {
-      logger.error('Section 5 analysis failed:', error);
+      logger.error('Section 5 analysis failed', { 
+        section: 'engineering',
+        analyzer: 'Section5Analyzer',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
       throw error;
     }
   }
@@ -485,7 +489,11 @@ ${columnDefs}
 
     } catch (error) {
       // Handle gracefully if multivariate analysis is not available
-      logger.warn('Could not extract PCA insights:', error);
+      logger.warn('Could not extract PCA insights', {
+        section: 'engineering',
+        analyzer: 'Section5Analyzer',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
       challenges.push({
         challenge: 'Multivariate Analysis Unavailable',
         severity: 'low' as const,

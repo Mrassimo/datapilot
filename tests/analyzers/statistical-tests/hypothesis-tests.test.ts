@@ -2,7 +2,7 @@
  * Comprehensive tests for statistical hypothesis testing implementations
  */
 
-import { anovaFTest, kruskalWallisTest, welchTTest, mannWhitneyUTest, andersonDarlingTest, GroupData } from '../../../src/analyzers/statistical-tests/hypothesis-tests';
+import { anovaFTest, kruskalWallisTest, welchsTTest, mannWhitneyUTest, andersonDarlingTest, GroupData } from '../../../src/analyzers/statistical-tests/hypothesis-tests';
 
 describe('Statistical Hypothesis Tests', () => {
   describe('ANOVA F-Test', () => {
@@ -18,7 +18,7 @@ describe('Statistical Hypothesis Tests', () => {
       expect(result.statistic).toBeGreaterThan(0);
       expect(result.pValue).toBeLessThan(0.05); // Should be significant
       expect(result.degreesOfFreedom).toEqual([2, 12]); // df_between = 3-1, df_within = 15-3
-      expect(result.conclusion).toContain('significant');
+      expect(result.interpretation).toContain('significant');
     });
 
     test('should return non-significant result for similar group means', () => {
@@ -32,7 +32,7 @@ describe('Statistical Hypothesis Tests', () => {
 
       expect(result.statistic).toBeGreaterThan(0);
       expect(result.pValue).toBeGreaterThan(0.05); // Should not be significant
-      expect(result.conclusion).toContain('not significant');
+      expect(result.interpretation).toContain('not significant');
     });
 
     test('should handle edge case with single group', () => {
@@ -44,7 +44,7 @@ describe('Statistical Hypothesis Tests', () => {
 
       expect(result.statistic).toBe(0);
       expect(result.pValue).toBe(1);
-      expect(result.conclusion).toContain('Insufficient groups');
+      expect(result.interpretation).toContain('Insufficient groups');
     });
 
     test('should handle groups with zero variance', () => {
@@ -73,7 +73,7 @@ describe('Statistical Hypothesis Tests', () => {
       expect(result.statistic).toBeGreaterThan(0);
       expect(result.pValue).toBeLessThan(0.05); // Should be significant
       expect(result.degreesOfFreedom).toBe(2); // k-1 = 3-1
-      expect(result.conclusion).toContain('significant');
+      expect(result.interpretation).toContain('significant');
     });
 
     test('should handle tied ranks correctly', () => {
@@ -100,7 +100,7 @@ describe('Statistical Hypothesis Tests', () => {
 
       expect(result.statistic).toBe(0);
       expect(result.pValue).toBe(1);
-      expect(result.conclusion).toContain('not significant');
+      expect(result.interpretation).toContain('not significant');
     });
   });
 
@@ -121,12 +121,12 @@ describe('Statistical Hypothesis Tests', () => {
         values: [105, 107, 108, 109, 110, 111, 112, 113, 114, 116]
       };
 
-      const result = welchTTest(group1, group2);
+      const result = welchsTTest(group1, group2);
 
       expect(result.statistic).toBeGreaterThan(0);
       expect(result.pValue).toBeLessThan(0.05);
       expect(result.degreesOfFreedom).toBeGreaterThan(0);
-      expect(result.conclusion).toContain('significant');
+      expect(result.interpretation).toContain('significant');
     });
 
     test('should handle groups with different variances (Welch correction)', () => {
@@ -145,7 +145,7 @@ describe('Statistical Hypothesis Tests', () => {
         values: [5, 7.5, 10, 12.5, 15]
       };
 
-      const result = welchTTest(group1, group2);
+      const result = welchsTTest(group1, group2);
 
       expect(result.statistic).toBeDefined();
       expect(result.pValue).toBeGreaterThan(0.05); // Means are same, should not be significant
@@ -168,11 +168,11 @@ describe('Statistical Hypothesis Tests', () => {
         values: [8, 9, 10, 11, 12]
       };
 
-      const result = welchTTest(group1, group2);
+      const result = welchsTTest(group1, group2);
 
       expect(result.statistic).toBe(0);
       expect(result.pValue).toBe(1);
-      expect(result.conclusion).toContain('not significant');
+      expect(result.interpretation).toContain('not significant');
     });
   });
 
@@ -197,7 +197,7 @@ describe('Statistical Hypothesis Tests', () => {
 
       expect(result.statistic).toBeDefined();
       expect(result.pValue).toBeLessThan(0.05); // Should be significant
-      expect(result.conclusion).toContain('significant');
+      expect(result.interpretation).toContain('significant');
     });
 
     test('should handle overlapping distributions', () => {
@@ -220,7 +220,7 @@ describe('Statistical Hypothesis Tests', () => {
 
       expect(result.statistic).toBeDefined();
       expect(result.pValue).toBeGreaterThan(0.05); // Should not be significant due to overlap
-      expect(result.conclusion).toContain('not significant');
+      expect(result.interpretation).toContain('not significant');
     });
 
     test('should handle tied values correctly', () => {
@@ -257,7 +257,7 @@ describe('Statistical Hypothesis Tests', () => {
 
       expect(result.statistic).toBeGreaterThan(0);
       expect(result.pValue).toBeGreaterThan(0.05); // Should not reject normality
-      expect(result.conclusion).toContain('normal');
+      expect(result.interpretation).toContain('normal');
     });
 
     test('should identify non-normal distribution', () => {
@@ -269,7 +269,7 @@ describe('Statistical Hypothesis Tests', () => {
       expect(result.statistic).toBeGreaterThan(0);
       // Note: Small sample size might not always reject normality
       expect(result.pValue).toBeDefined();
-      expect(result.conclusion).toBeDefined();
+      expect(result.interpretation).toBeDefined();
     });
 
     test('should handle skewed distribution', () => {
@@ -280,7 +280,7 @@ describe('Statistical Hypothesis Tests', () => {
 
       expect(result.statistic).toBeGreaterThan(0);
       expect(result.pValue).toBeLessThan(0.05); // Should reject normality
-      expect(result.conclusion).toContain('not normal');
+      expect(result.interpretation).toContain('not normal');
     });
 
     test('should handle constant values', () => {
@@ -290,7 +290,7 @@ describe('Statistical Hypothesis Tests', () => {
 
       expect(result.statistic).toBeDefined();
       expect(result.pValue).toBe(0); // Should strongly reject normality
-      expect(result.conclusion).toContain('not normal');
+      expect(result.interpretation).toContain('not normal');
     });
 
     test('should handle minimum sample size', () => {
@@ -300,7 +300,7 @@ describe('Statistical Hypothesis Tests', () => {
 
       expect(result.statistic).toBeDefined();
       expect(result.pValue).toBeDefined();
-      expect(result.conclusion).toContain('sample size');
+      expect(result.interpretation).toContain('sample size');
     });
   });
 
@@ -309,10 +309,10 @@ describe('Statistical Hypothesis Tests', () => {
       const emptyGroups: GroupData[] = [];
 
       const anovaResult = anovaFTest(emptyGroups);
-      expect(anovaResult.conclusion).toContain('No groups');
+      expect(anovaResult.interpretation).toContain('No groups');
 
       const kwResult = kruskalWallisTest(emptyGroups);
-      expect(kwResult.conclusion).toContain('No groups');
+      expect(kwResult.interpretation).toContain('No groups');
     });
 
     test('should handle groups with single observations', () => {
@@ -322,7 +322,7 @@ describe('Statistical Hypothesis Tests', () => {
       ];
 
       const result = anovaFTest(singleObsGroups);
-      expect(result.conclusion).toContain('variance calculation');
+      expect(result.interpretation).toContain('variance calculation');
     });
 
     test('should handle extreme values without crashing', () => {
@@ -345,7 +345,7 @@ describe('Statistical Hypothesis Tests', () => {
       };
 
       // Tests should handle invalid input gracefully
-      expect(() => welchTTest(invalidGroup, invalidGroup)).not.toThrow();
+      expect(() => welchsTTest(invalidGroup, invalidGroup)).not.toThrow();
     });
   });
 
@@ -381,7 +381,7 @@ describe('Statistical Hypothesis Tests', () => {
         values: [2, 2]
       };
 
-      const result = welchTTest(group1, group2);
+      const result = welchsTTest(group1, group2);
       
       // With zero variance, t-statistic should be infinite (or very large)
       expect(Math.abs(result.statistic)).toBeGreaterThan(100);

@@ -18,7 +18,12 @@ import { RecommendationType } from '../analyzers/visualization/types';
 import { Section5Analyzer, Section5Formatter } from '../analyzers/engineering';
 import { Section6Analyzer, Section6Formatter } from '../analyzers/modeling';
 import { CSVParser } from '../parsers/csv-parser';
-import { logger, LogLevel } from '../utils/logger';
+import { logger, LogLevel, LogUtils, LogContext } from '../utils/logger';
+import { DataPilotError, ErrorSeverity, ErrorCategory } from '../core/types';
+import { globalErrorHandler, ErrorUtils } from '../utils/error-handler';
+import { Validator } from '../utils/validation';
+import { globalMemoryManager, globalResourceManager, globalCleanupHandler } from '../utils/memory-manager';
+import { RetryManager, RetryUtils } from '../utils/retry';
 import type { CLIResult } from './types';
 import { ValidationError, FileError } from './types';
 import { DataType } from '../core/types';
@@ -39,10 +44,95 @@ export class DataPilotCLI {
   private progressReporter: ProgressReporter;
   private outputManager?: OutputManager;
   private dependencyCache = new Map<string, any>();
+  private errorContext: LogContext = {};
+  private sectionErrors = new Map<string, DataPilotError[]>();
+  private isInitialized = false;
+
+  /**
+   * Comprehensive input validation with actionable feedback
+   */
+  private async validateInputs(filePath: string, options: any): Promise<string> {
+    this.errorContext = {
+      operation: 'validation',
+      filePath
+    };
+
+    // Use basic file validation first
+    const basicValidation = this.argumentParser.validateFile(filePath);
+    
+    // Enhanced validation using new validation system
+    const enhancedValidation = Validator.validateAll(basicValidation, options);
+    
+    // Report warnings
+    if (enhancedValidation.warnings.length > 0) {
+      logger.warn(`Found ${enhancedValidation.warnings.length} validation warnings:`, this.errorContext);
+      enhancedValidation.warnings.forEach(warning => {
+        console.warn(`⚠️  ${warning.getFormattedMessage()}`);
+        const suggestions = warning.getSuggestions();
+        if (suggestions.length > 0) {
+          console.warn('   Suggestions:');
+          suggestions.forEach(suggestion => console.warn(`     ${suggestion}`));
+        }
+      });
+    }
+    
+    // Handle errors
+    if (enhancedValidation.errors.length > 0) {
+      const firstError = enhancedValidation.errors[0];
+      
+      // Show all errors in verbose mode
+      if (options.verbose && enhancedValidation.errors.length > 1) {
+        console.error(`\n❌ Found ${enhancedValidation.errors.length} validation errors:`);
+        enhancedValidation.errors.forEach((error, index) => {
+          console.error(`   ${index + 1}. ${error.getFormattedMessage()}`);
+        });
+        console.error('\nAddressing the first error:');
+      }
+      
+      throw firstError;
+    }
+    
+    return basicValidation;
+  }
 
   constructor() {
     this.argumentParser = new ArgumentParser();
     this.progressReporter = new ProgressReporter();
+    
+    // Initialize error handling and memory management
+    this.initializeErrorHandling();
+  }
+
+  /**
+   * Initialize comprehensive error handling systems
+   */
+  private initializeErrorHandling(): void {
+    // Start memory monitoring
+    globalMemoryManager.startMonitoring({ analyzer: 'CLI', operation: 'initialization' });
+    
+    // Register cleanup callbacks
+    globalMemoryManager.registerCleanupCallback(() => {
+      logger.debug('Memory cleanup: clearing dependency cache');
+      this.dependencyCache.clear();
+    });
+    
+    globalResourceManager.register('cli-progress', () => {
+      this.progressReporter.cleanup();
+    }, 'ui');
+    
+    globalResourceManager.register('cli-output', () => {
+      if (this.outputManager) {
+        // Cleanup any open file handles in output manager
+        logger.debug('Cleaning up output manager resources');
+      }
+    }, 'io');
+    
+    // Register global cleanup handler
+    globalCleanupHandler.register(async () => {
+      logger.debug('CLI cleanup: stopping memory monitoring');
+      globalMemoryManager.stopMonitoring();
+      this.dependencyCache.clear();
+    });
   }
 
   /**
@@ -82,8 +172,8 @@ export class DataPilotCLI {
 
       this.outputManager = new OutputManager(commandContext.options);
 
-      // Validate the input file
-      const validatedFilePath = this.argumentParser.validateFile(commandContext.file);
+      // Comprehensive input validation
+      const validatedFilePath = await this.validateInputs(commandContext.file, commandContext.options);
 
       // Execute the appropriate command
       const result = await this.executeCommand(
@@ -102,7 +192,7 @@ export class DataPilotCLI {
   }
 
   /**
-   * Generic analysis execution method to reduce code duplication
+   * Generic analysis execution method with comprehensive error handling
    */
   private async executeGenericAnalysis(
     config: AnalysisConfig,
@@ -114,81 +204,131 @@ export class DataPilotCLI {
       throw new Error('Output manager not initialised');
     }
 
-    try {
-      this.progressReporter.startPhase(config.phase, config.message);
+    const analysisContext: LogContext = {
+      section: config.sectionName,
+      analyzer: config.sectionName,
+      filePath,
+      operation: 'genericAnalysis'
+    };
 
-      // Handle dependencies
-      const dependencies: any[] = [];
-      if (config.dependencies) {
-        for (let i = 0; i < config.dependencies.length; i++) {
-          const depName = config.dependencies[i];
-          const progressPercent = ((i + 1) / (config.dependencies.length + 2)) * 100;
-          
-          this.progressReporter.updateProgress({
-            phase: 'prerequisites',
-            progress: progressPercent,
-            message: `Running prerequisite ${depName} analysis...`,
-            timeElapsed: Date.now() - startTime,
-          });
+    return await this.executeWithErrorPropagation(
+      async () => {
+        this.progressReporter.startPhase(config.phase, config.message);
 
-          let depResult = this.dependencyCache.get(depName);
-          if (!depResult) {
-            depResult = await this.executeDependency(depName, filePath, options);
-            this.dependencyCache.set(depName, depResult);
+        // Handle dependencies with error propagation
+        const dependencies: any[] = [];
+        if (config.dependencies) {
+          for (let i = 0; i < config.dependencies.length; i++) {
+            const depName = config.dependencies[i];
+            const progressPercent = ((i + 1) / (config.dependencies.length + 2)) * 100;
+            
+            this.progressReporter.updateProgress({
+              phase: 'prerequisites',
+              progress: progressPercent,
+              message: `Running prerequisite ${depName} analysis...`,
+              timeElapsed: Date.now() - startTime,
+            });
+
+            let depResult = this.dependencyCache.get(depName);
+            if (!depResult) {
+              // Execute dependency with retry logic for transient failures
+              depResult = await RetryUtils.retryAnalysis(
+                () => this.executeDependency(depName, filePath, options),
+                { ...analysisContext, operation: `dependency_${depName}` }
+              );
+              this.dependencyCache.set(depName, depResult);
+            }
+            dependencies.push(depResult);
           }
-          dependencies.push(depResult);
         }
-      }
 
-      // Run the main analysis
-      const finalProgressPercent = config.dependencies ? 80 : 50;
-      this.progressReporter.updateProgress({
-        phase: config.sectionName,
-        progress: finalProgressPercent,
-        message: `Running ${config.sectionName} analysis...`,
-        timeElapsed: Date.now() - startTime,
-      });
+        // Check memory before main analysis
+        globalMemoryManager.checkMemoryUsage(analysisContext);
 
-      const result = await config.analyzerFactory(filePath, options, dependencies);
+        // Run the main analysis with memory monitoring
+        const finalProgressPercent = config.dependencies ? 80 : 50;
+        this.progressReporter.updateProgress({
+          phase: config.sectionName,
+          progress: finalProgressPercent,
+          message: `Running ${config.sectionName} analysis...`,
+          timeElapsed: Date.now() - startTime,
+        });
 
-      const processingTime = Date.now() - startTime;
-      this.progressReporter.completePhase(`${config.sectionName} analysis completed`, processingTime);
+        // Execute main analysis with retry logic
+        const result = await RetryUtils.retryAnalysis(
+          () => config.analyzerFactory(filePath, options, dependencies),
+          analysisContext
+        );
 
-      // Generate report if formatter is provided
-      const report = config.formatterMethod ? config.formatterMethod(result) : null;
+        const processingTime = Date.now() - startTime;
+        this.progressReporter.completePhase(`${config.sectionName} analysis completed`, processingTime);
 
-      // Generate output files
-      const outputFiles = config.outputMethod(this.outputManager, report, result, filePath.split('/').pop());
+        // Generate report if formatter is provided
+        let report: string | null = null;
+        if (config.formatterMethod) {
+          try {
+            report = config.formatterMethod(result);
+          } catch (formatError) {
+            logger.warn(`Failed to format ${config.sectionName} report, using raw data`, analysisContext, formatError);
+            report = JSON.stringify(result, null, 2); // Fallback to JSON
+          }
+        }
 
-      // Calculate stats
-      const rowsProcessed = result.overview?.structuralDimensions?.totalDataRows || 
-                            result.performanceMetrics?.rowsAnalyzed || 
-                            result.stats?.rowsProcessed || 0;
-      const warnings = result.warnings?.length || 0;
+        // Generate output files with error handling
+        let outputFiles: string[] = [];
+        try {
+          outputFiles = config.outputMethod(this.outputManager!, report, result, filePath.split('/').pop());
+        } catch (outputError) {
+          logger.warn(`Failed to generate ${config.sectionName} output files`, analysisContext, outputError);
+          // Continue without output files in case of output errors
+        }
 
-      // Show summary
-      this.progressReporter.showSummary({
-        processingTime,
-        rowsProcessed,
-        warnings,
-        errors: 0,
-      });
+        // Calculate stats with safe property access
+        const rowsProcessed = Number(ErrorUtils.safeGet(result, 'overview.structuralDimensions.totalDataRows') ||
+                              ErrorUtils.safeGet(result, 'performanceMetrics.rowsAnalyzed') ||
+                              ErrorUtils.safeGet(result, 'stats.rowsProcessed') || 0);
+        
+        const warnings = Array.isArray(result.warnings) ? result.warnings.length : 0;
+        const errors = this.sectionErrors.get(config.sectionName)?.length || 0;
 
-      return {
-        success: true,
-        exitCode: 0,
-        outputFiles,
-        stats: {
+        // Log memory usage after analysis
+        logger.memory(analysisContext);
+
+        // Show summary
+        this.progressReporter.showSummary({
           processingTime,
           rowsProcessed,
           warnings,
-          errors: 0,
-        },
-      };
-    } catch (error) {
+          errors,
+        });
+
+        return {
+          success: true,
+          exitCode: 0,
+          outputFiles,
+          stats: {
+            processingTime,
+            rowsProcessed,
+            warnings,
+            errors,
+          },
+        };
+      },
+      config.sectionName,
+      undefined, // dependencies are handled internally
+      analysisContext
+    ).catch(error => {
       this.progressReporter.errorPhase(`${config.sectionName} analysis failed`);
+      
+      // Record section-specific errors
+      const sectionErrors = this.sectionErrors.get(config.sectionName) || [];
+      if (error instanceof DataPilotError) {
+        sectionErrors.push(error);
+      }
+      this.sectionErrors.set(config.sectionName, sectionErrors);
+      
       throw error;
-    }
+    });
   }
 
   /**
@@ -1405,36 +1545,242 @@ export class DataPilotCLI {
   }
 
   /**
-   * Handle errors and convert to CLI result
+   * Handle errors with comprehensive reporting and recovery suggestions
    */
   private handleError(error: unknown): CLIResult {
+    const errorStats = globalErrorHandler.getStats();
+    const recentErrors = globalErrorHandler.getRecentErrors(5);
+    
+    // DataPilot-specific error handling
+    if (error instanceof DataPilotError) {
+      console.error(`\n❌ ${error.severity.toUpperCase()} ERROR: ${error.getFormattedMessage()}`);
+      
+      // Show suggestions if available
+      const suggestions = error.getSuggestions();
+      if (suggestions.length > 0) {
+        console.error('\n💡 Suggestions:');
+        suggestions.forEach(suggestion => {
+          console.error(`   ${suggestion}`);
+        });
+      }
+      
+      // Show error context if available
+      if (error.context) {
+        const contextParts = [];
+        if (error.context.filePath) contextParts.push(`File: ${error.context.filePath}`);
+        if (error.context.section) contextParts.push(`Section: ${error.context.section}`);
+        if (error.context.rowIndex !== undefined) contextParts.push(`Row: ${error.context.rowIndex}`);
+        
+        if (contextParts.length > 0) {
+          console.error(`\n📍 Context: ${contextParts.join(', ')}`);
+        }
+      }
+      
+      return { 
+        success: false, 
+        exitCode: error.severity === ErrorSeverity.CRITICAL ? 2 : 1, 
+        message: error.message 
+      };
+    }
+
+    // Legacy error types
     if (error instanceof ValidationError) {
-      console.error(`❌ Validation Error: ${error.message}`);
+      console.error(`\n❌ Validation Error: ${error.message}`);
       if (error.showHelp) {
-        console.error('\nUse --help for usage information.');
+        console.error('\n💡 Use --help for usage information.');
       }
       return { success: false, exitCode: 1, message: error.message };
     }
 
     if (error instanceof FileError) {
-      console.error(`❌ File Error: ${error.message}`);
+      console.error(`\n❌ File Error: ${error.message}`);
+      console.error('\n💡 Suggestions:');
+      console.error('   • Check that the file path is correct');
+      console.error('   • Ensure you have read permissions for the file');
+      console.error('   • Verify the file is not locked by another process');
       return { success: false, exitCode: 1, message: error.message };
     }
 
     if (error instanceof Error && error.name === 'CLIError') {
-      console.error(`❌ ${error.message}`);
+      console.error(`\n❌ ${error.message}`);
       return { success: false, exitCode: (error as any).exitCode || 1, message: error.message };
     }
 
-    // Generic error handling
+    // Generic error handling with enhanced reporting
     const message = error instanceof Error ? error.message : 'Unknown error occurred';
-    console.error(`❌ Unexpected Error: ${message}`);
-
+    console.error(`\n❌ Unexpected Error: ${message}`);
+    
+    // Show error statistics if there were multiple errors
+    if (errorStats.totalErrors > 1) {
+      console.error(`\n📊 Error Summary: ${errorStats.totalErrors} total errors, ${errorStats.criticalErrors} critical`);
+    }
+    
+    // Show recent errors in development mode
     if (process.env.NODE_ENV === 'development') {
+      console.error('\n🔍 Full Error Details:');
       console.error(error);
+      
+      if (recentErrors.length > 1) {
+        console.error('\n📋 Recent Errors:');
+        recentErrors.slice(0, 3).forEach((err, i) => {
+          console.error(`   ${i + 1}. [${err.code}] ${err.message}`);
+        });
+      }
+    } else {
+      console.error('\n💡 General Suggestions:');
+      console.error('   • Check your input file format and data quality');
+      console.error('   • Try with --verbose flag for more detailed output');
+      console.error('   • Use validate command to diagnose file issues: datapilot validate <file>');
+      console.error('   • Report persistent issues at: https://github.com/your-repo/issues');
     }
 
     return { success: false, exitCode: 1, message };
+  }
+
+  /**
+   * Enhanced error propagation between analysis sections
+   */
+  private async executeWithErrorPropagation<T>(
+    operation: () => Promise<T>,
+    sectionName: string,
+    dependencies?: T[],
+    context?: LogContext
+  ): Promise<T> {
+    try {
+      // Check for dependency errors
+      if (dependencies) {
+        const dependencyErrors = this.checkDependencyErrors(dependencies);
+        if (dependencyErrors.length > 0) {
+          throw DataPilotError.analysis(
+            `Cannot execute ${sectionName} due to dependency errors: ${dependencyErrors.join(', ')}`,
+            'DEPENDENCY_ERROR',
+            { ...context, section: sectionName },
+            [
+              {
+                action: 'Fix dependency issues',
+                description: 'Resolve errors in prerequisite sections',
+                severity: ErrorSeverity.HIGH
+              },
+              {
+                action: 'Run sections individually',
+                description: 'Try running each section separately to isolate issues',
+                severity: ErrorSeverity.MEDIUM,
+                command: `datapilot ${sectionName.toLowerCase()} <file>`
+              }
+            ]
+          );
+        }
+      }
+
+      // Execute operation with memory monitoring
+      globalErrorHandler.checkMemoryUsage(context);
+      const result = await operation();
+      
+      // Validate result
+      if (!result || (typeof result === 'object' && Object.keys(result).length === 0)) {
+        logger.warn(`${sectionName} returned empty result`, context);
+      }
+      
+      return result;
+    } catch (error) {
+      // Enhanced error context for section failures
+      if (error instanceof DataPilotError) {
+        // Add section context if not already present
+        if (!error.context?.section) {
+          error.context = { ...error.context, section: sectionName };
+        }
+        throw error;
+      }
+      
+      // Convert generic errors to DataPilot errors with section context
+      throw DataPilotError.analysis(
+        `${sectionName} analysis failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        'SECTION_ANALYSIS_ERROR',
+        { ...context, section: sectionName },
+        [
+          {
+            action: 'Check input data',
+            description: 'Verify the input file is valid and properly formatted',
+            severity: ErrorSeverity.HIGH
+          },
+          {
+            action: 'Try with reduced scope',
+            description: 'Use --maxRows to limit processing scope',
+            severity: ErrorSeverity.MEDIUM,
+            command: '--maxRows 10000'
+          },
+          {
+            action: 'Enable verbose logging',
+            description: 'Use --verbose flag for detailed error information',
+            severity: ErrorSeverity.LOW,
+            command: '--verbose'
+          }
+        ]
+      );
+    }
+  }
+
+  /**
+   * Check for errors in dependency results
+   */
+  private checkDependencyErrors(dependencies: any[]): string[] {
+    const errors: string[] = [];
+    
+    dependencies.forEach((dep, index) => {
+      if (!dep) {
+        errors.push(`Dependency ${index + 1} is null or undefined`);
+        return;
+      }
+      
+      // Check for warnings that might indicate problems
+      if (dep.warnings && Array.isArray(dep.warnings)) {
+        const criticalWarnings = dep.warnings.filter((w: any) => 
+          w.severity === 'critical' || w.severity === 'high'
+        );
+        
+        if (criticalWarnings.length > 0) {
+          errors.push(`Dependency ${index + 1} has critical warnings: ${criticalWarnings.map((w: any) => w.message).join(', ')}`);
+        }
+      }
+      
+      // Check for empty or insufficient data
+      if (dep.datasetCharacteristics) {
+        const totalRows = dep.datasetCharacteristics.totalRows || 0;
+        if (totalRows === 0) {
+          errors.push(`Dependency ${index + 1} contains no data`);
+        } else if (totalRows < 10) {
+          errors.push(`Dependency ${index + 1} has insufficient data (${totalRows} rows)`);
+        }
+      }
+    });
+    
+    return errors;
+  }
+
+  /**
+   * Create a safe execution wrapper for analysis operations
+   */
+  private async safeExecuteAnalysis<T>(
+    analysisFunction: () => Promise<T>,
+    sectionName: string,
+    filePath: string,
+    options: any
+  ): Promise<T | null> {
+    const context: LogContext = {
+      section: sectionName,
+      filePath,
+      operation: 'analysis'
+    };
+    
+    return await globalErrorHandler.wrapOperation(
+      analysisFunction,
+      `${sectionName}_analysis`,
+      context,
+      {
+        strategy: 'continue', // Continue with degraded functionality
+        fallbackValue: null
+      }
+    );
   }
 }
 

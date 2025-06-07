@@ -61,6 +61,506 @@ class DistanceUtils {
 }
 
 /**
+ * Advanced cluster quality metrics and validation
+ */
+class ClusterQualityMetrics {
+  /**
+   * Calculate Davies-Bouldin Index for cluster quality assessment
+   * Lower values indicate better clustering
+   */
+  static calculateDaviesBouldinIndex(points: ClusterPoint[], centroids: Centroid[]): number {
+    const clusterIds = [...new Set(points.map(p => p.clusterId))];
+    const k = clusterIds.length;
+    
+    if (k <= 1) return 0;
+    
+    let dbIndex = 0;
+    
+    for (const clusterId of clusterIds) {
+      const clusterPoints = points.filter(p => p.clusterId === clusterId);
+      const centroid = centroids.find(c => c.clusterId === clusterId);
+      
+      if (!centroid || clusterPoints.length === 0) continue;
+      
+      // Calculate within-cluster scatter (average distance to centroid)
+      const Si = clusterPoints.reduce((sum, point) => {
+        return sum + DistanceUtils.euclidean(point.values, centroid.values);
+      }, 0) / clusterPoints.length;
+      
+      // Find maximum ratio with other clusters
+      let maxRatio = 0;
+      for (const otherClusterId of clusterIds) {
+        if (otherClusterId === clusterId) continue;
+        
+        const otherClusterPoints = points.filter(p => p.clusterId === otherClusterId);
+        const otherCentroid = centroids.find(c => c.clusterId === otherClusterId);
+        
+        if (!otherCentroid || otherClusterPoints.length === 0) continue;
+        
+        // Calculate within-cluster scatter for other cluster
+        const Sj = otherClusterPoints.reduce((sum, point) => {
+          return sum + DistanceUtils.euclidean(point.values, otherCentroid.values);
+        }, 0) / otherClusterPoints.length;
+        
+        // Distance between centroids
+        const Mij = DistanceUtils.euclidean(centroid.values, otherCentroid.values);
+        
+        if (Mij > 0) {
+          const ratio = (Si + Sj) / Mij;
+          maxRatio = Math.max(maxRatio, ratio);
+        }
+      }
+      
+      dbIndex += maxRatio;
+    }
+    
+    return dbIndex / k;
+  }
+  
+  /**
+   * Calculate Calinski-Harabasz Index (Variance Ratio Criterion)
+   * Higher values indicate better clustering
+   */
+  static calculateCalinskiHarabaszIndex(
+    points: ClusterPoint[], 
+    centroids: Centroid[]
+  ): number {
+    const n = points.length;
+    const k = centroids.length;
+    
+    if (k <= 1 || n <= k) return 0;
+    
+    // Calculate global centroid
+    const globalCentroid = this.calculateGlobalCentroid(points);
+    
+    // Calculate between-cluster sum of squares (BCSS)
+    let bcss = 0;
+    for (const centroid of centroids) {
+      const clusterSize = points.filter(p => p.clusterId === centroid.clusterId).length;
+      const distanceToGlobal = DistanceUtils.euclidean(centroid.values, globalCentroid);
+      bcss += clusterSize * distanceToGlobal * distanceToGlobal;
+    }
+    
+    // Calculate within-cluster sum of squares (WCSS)
+    let wcss = 0;
+    for (const point of points) {
+      const centroid = centroids.find(c => c.clusterId === point.clusterId);
+      if (centroid) {
+        const distance = DistanceUtils.euclidean(point.values, centroid.values);
+        wcss += distance * distance;
+      }
+    }
+    
+    // Calculate Calinski-Harabasz index
+    const chIndex = (bcss / (k - 1)) / (wcss / (n - k));
+    return isFinite(chIndex) ? chIndex : 0;
+  }
+  
+  /**
+   * Calculate Dunn Index for cluster quality
+   * Higher values indicate better clustering (well-separated, compact clusters)
+   */
+  static calculateDunnIndex(points: ClusterPoint[]): number {
+    const clusterIds = [...new Set(points.map(p => p.clusterId))];
+    const k = clusterIds.length;
+    
+    if (k <= 1) return 0;
+    
+    // Calculate minimum inter-cluster distance
+    let minInterClusterDistance = Infinity;
+    
+    for (let i = 0; i < clusterIds.length; i++) {
+      for (let j = i + 1; j < clusterIds.length; j++) {
+        const cluster1Points = points.filter(p => p.clusterId === clusterIds[i]);
+        const cluster2Points = points.filter(p => p.clusterId === clusterIds[j]);
+        
+        // Find minimum distance between clusters
+        for (const point1 of cluster1Points) {
+          for (const point2 of cluster2Points) {
+            const distance = DistanceUtils.euclidean(point1.values, point2.values);
+            minInterClusterDistance = Math.min(minInterClusterDistance, distance);
+          }
+        }
+      }
+    }
+    
+    // Calculate maximum intra-cluster distance
+    let maxIntraClusterDistance = 0;
+    
+    for (const clusterId of clusterIds) {
+      const clusterPoints = points.filter(p => p.clusterId === clusterId);
+      
+      for (let i = 0; i < clusterPoints.length; i++) {
+        for (let j = i + 1; j < clusterPoints.length; j++) {
+          const distance = DistanceUtils.euclidean(
+            clusterPoints[i].values, 
+            clusterPoints[j].values
+          );
+          maxIntraClusterDistance = Math.max(maxIntraClusterDistance, distance);
+        }
+      }
+    }
+    
+    // Dunn index
+    return maxIntraClusterDistance > 0 ? minInterClusterDistance / maxIntraClusterDistance : 0;
+  }
+  
+  /**
+   * Perform cluster stability analysis using bootstrap resampling
+   */
+  static performStabilityAnalysis(
+    data: number[][],
+    k: number,
+    numBootstrap: number = 50,
+    randomSeed: number = 42
+  ): {
+    stabilityScore: number;
+    confidenceInterval: [number, number];
+    interpretation: string;
+  } {
+    const stabilityScores: number[] = [];
+    const rng = this.createSeededRandom(randomSeed);
+    
+    // Convert data to cluster points format
+    const originalPoints = data.map((values, index) => ({
+      values,
+      clusterId: 0,
+      originalIndex: index,
+    }));
+    
+    // Perform original clustering
+    const originalClustering = this.performKMeansClusteringStatic(
+      originalPoints, k, randomSeed
+    );
+    
+    // Bootstrap resampling
+    for (let bootstrap = 0; bootstrap < numBootstrap; bootstrap++) {
+      // Create bootstrap sample
+      const bootstrapIndices: number[] = [];
+      for (let i = 0; i < data.length; i++) {
+        const randomIndex = Math.floor(rng() * data.length);
+        bootstrapIndices.push(randomIndex);
+      }
+      
+      const bootstrapData = bootstrapIndices.map(idx => data[idx]);
+      const bootstrapPoints = bootstrapData.map((values, index) => ({
+        values,
+        clusterId: 0,
+        originalIndex: index,
+      }));
+      
+      // Perform clustering on bootstrap sample
+      const bootstrapClustering = this.performKMeansClusteringStatic(
+        bootstrapPoints, k, randomSeed + bootstrap
+      );
+      
+      // Calculate stability using adjusted rand index
+      const stability = this.calculateAdjustedRandIndex(
+        originalClustering.points.map(p => p.clusterId),
+        bootstrapClustering.points.map(p => p.clusterId)
+      );
+      
+      stabilityScores.push(stability);
+    }
+    
+    // Calculate summary statistics
+    const meanStability = stabilityScores.reduce((sum, score) => sum + score, 0) / stabilityScores.length;
+    const stdStability = Math.sqrt(
+      stabilityScores.reduce((sum, score) => sum + Math.pow(score - meanStability, 2), 0) / (stabilityScores.length - 1)
+    );
+    
+    // 95% confidence interval
+    const marginOfError = 1.96 * stdStability / Math.sqrt(stabilityScores.length);
+    const confidenceInterval: [number, number] = [
+      Math.max(0, meanStability - marginOfError),
+      Math.min(1, meanStability + marginOfError)
+    ];
+    
+    // Interpretation
+    let interpretation: string;
+    if (meanStability > 0.8) {
+      interpretation = 'Highly stable clustering - consistent across bootstrap samples';
+    } else if (meanStability > 0.6) {
+      interpretation = 'Moderately stable clustering - some variability in bootstrap samples';
+    } else if (meanStability > 0.4) {
+      interpretation = 'Low stability - clustering varies significantly across samples';
+    } else {
+      interpretation = 'Very unstable clustering - results highly dependent on sample';
+    }
+    
+    return {
+      stabilityScore: meanStability,
+      confidenceInterval,
+      interpretation,
+    };
+  }
+  
+  /**
+   * Calculate Adjusted Rand Index for cluster comparison
+   */
+  private static calculateAdjustedRandIndex(labels1: number[], labels2: number[]): number {
+    if (labels1.length !== labels2.length) return 0;
+    
+    const n = labels1.length;
+    const contingencyTable = this.buildContingencyTable(labels1, labels2);
+    
+    let sumComb = 0;
+    let sumRows = 0;
+    let sumCols = 0;
+    
+    // Calculate combinations
+    for (const row of contingencyTable.table) {
+      for (const cell of row) {
+        sumComb += this.combination(cell, 2);
+      }
+    }
+    
+    for (const rowSum of contingencyTable.rowSums) {
+      sumRows += this.combination(rowSum, 2);
+    }
+    
+    for (const colSum of contingencyTable.colSums) {
+      sumCols += this.combination(colSum, 2);
+    }
+    
+    const totalComb = this.combination(n, 2);
+    const expectedIndex = (sumRows * sumCols) / totalComb;
+    const maxIndex = (sumRows + sumCols) / 2;
+    
+    return maxIndex > expectedIndex ? 
+      (sumComb - expectedIndex) / (maxIndex - expectedIndex) : 0;
+  }
+  
+  /**
+   * Build contingency table for cluster comparison
+   */
+  private static buildContingencyTable(labels1: number[], labels2: number[]): {
+    table: number[][];
+    rowSums: number[];
+    colSums: number[];
+  } {
+    const uniqueLabels1 = [...new Set(labels1)];
+    const uniqueLabels2 = [...new Set(labels2)];
+    
+    const table = Array(uniqueLabels1.length)
+      .fill(0)
+      .map(() => Array(uniqueLabels2.length).fill(0));
+    
+    // Fill contingency table
+    for (let i = 0; i < labels1.length; i++) {
+      const row = uniqueLabels1.indexOf(labels1[i]);
+      const col = uniqueLabels2.indexOf(labels2[i]);
+      table[row][col]++;
+    }
+    
+    // Calculate row and column sums
+    const rowSums = table.map(row => row.reduce((sum, val) => sum + val, 0));
+    const colSums = Array(uniqueLabels2.length).fill(0);
+    
+    for (let j = 0; j < uniqueLabels2.length; j++) {
+      for (let i = 0; i < uniqueLabels1.length; i++) {
+        colSums[j] += table[i][j];
+      }
+    }
+    
+    return { table, rowSums, colSums };
+  }
+  
+  /**
+   * Calculate binomial coefficient (n choose k)
+   */
+  private static combination(n: number, k: number): number {
+    if (n < k || k < 0) return 0;
+    if (k === 0 || k === n) return 1;
+    if (k === 1) return n;
+    
+    // Use the multiplicative formula for efficiency
+    let result = 1;
+    for (let i = 1; i <= k; i++) {
+      result = result * (n - i + 1) / i;
+    }
+    
+    return Math.floor(result);
+  }
+  
+  /**
+   * Calculate global centroid
+   */
+  private static calculateGlobalCentroid(points: ClusterPoint[]): number[] {
+    const dimensions = points[0].values.length;
+    const centroid = Array(dimensions).fill(0);
+    
+    for (const point of points) {
+      for (let d = 0; d < dimensions; d++) {
+        centroid[d] += point.values[d];
+      }
+    }
+    
+    for (let d = 0; d < dimensions; d++) {
+      centroid[d] /= points.length;
+    }
+    
+    return centroid;
+  }
+  
+  /**
+   * Static version of k-means clustering for stability analysis
+   */
+  private static performKMeansClusteringStatic(
+    points: ClusterPoint[],
+    k: number,
+    randomSeed: number
+  ): {
+    points: ClusterPoint[];
+    centroids: Centroid[];
+    converged: boolean;
+    iterations: number;
+  } {
+    // This is a simplified version for stability analysis
+    // In a real implementation, you'd use the full k-means algorithm
+    const MAX_ITERATIONS = 100;
+    const CONVERGENCE_TOLERANCE = 1e-6;
+    
+    // Initialize centroids using k-means++
+    const centroids = this.initializeCentroidsKMeansPlusPlusStatic(points, k, randomSeed);
+    
+    let converged = false;
+    let iterations = 0;
+    const clusterPoints = points.map(p => ({ ...p }));
+    
+    while (iterations < MAX_ITERATIONS && !converged) {
+      // Assign points to nearest centroids
+      for (const point of clusterPoints) {
+        let minDistance = Infinity;
+        let nearestCentroid = 0;
+        
+        for (const centroid of centroids) {
+          const distance = DistanceUtils.euclidean(point.values, centroid.values);
+          if (distance < minDistance) {
+            minDistance = distance;
+            nearestCentroid = centroid.clusterId;
+          }
+        }
+        
+        point.clusterId = nearestCentroid;
+      }
+      
+      // Update centroids
+      const previousCentroids = centroids.map(c => ({ ...c, values: [...c.values] }));
+      
+      for (const centroid of centroids) {
+        const clusterPoints_filtered = clusterPoints.filter(
+          p => p.clusterId === centroid.clusterId
+        );
+        
+        if (clusterPoints_filtered.length > 0) {
+          const dimensions = centroid.values.length;
+          const newCentroid = Array(dimensions).fill(0);
+          
+          for (const point of clusterPoints_filtered) {
+            for (let d = 0; d < dimensions; d++) {
+              newCentroid[d] += point.values[d];
+            }
+          }
+          
+          for (let d = 0; d < dimensions; d++) {
+            centroid.values[d] = newCentroid[d] / clusterPoints_filtered.length;
+          }
+        }
+      }
+      
+      // Check convergence
+      let maxCentroidMovement = 0;
+      for (let i = 0; i < centroids.length; i++) {
+        const movement = DistanceUtils.euclidean(
+          centroids[i].values,
+          previousCentroids[i].values
+        );
+        maxCentroidMovement = Math.max(maxCentroidMovement, movement);
+      }
+      
+      converged = maxCentroidMovement < CONVERGENCE_TOLERANCE;
+      iterations++;
+    }
+    
+    return {
+      points: clusterPoints,
+      centroids,
+      converged,
+      iterations,
+    };
+  }
+  
+  /**
+   * Initialize centroids using k-means++ (static version)
+   */
+  private static initializeCentroidsKMeansPlusPlusStatic(
+    points: ClusterPoint[],
+    k: number,
+    randomSeed: number
+  ): Centroid[] {
+    const rng = this.createSeededRandom(randomSeed);
+    const centroids: Centroid[] = [];
+    const dimensions = points[0].values.length;
+    
+    // Choose first centroid randomly
+    const firstIndex = Math.floor(rng() * points.length);
+    centroids.push({
+      values: [...points[firstIndex].values],
+      clusterId: 0,
+    });
+    
+    // Choose remaining centroids using weighted probability
+    for (let c = 1; c < k; c++) {
+      const distances: number[] = [];
+      let totalDistance = 0;
+      
+      // Calculate min distance to existing centroids for each point
+      for (const point of points) {
+        let minDistance = Infinity;
+        for (const centroid of centroids) {
+          const distance = DistanceUtils.euclidean(point.values, centroid.values);
+          minDistance = Math.min(minDistance, distance);
+        }
+        distances.push(minDistance * minDistance); // Square for weighting
+        totalDistance += minDistance * minDistance;
+      }
+      
+      // Choose next centroid with probability proportional to squared distance
+      const target = rng() * totalDistance;
+      let cumulative = 0;
+      let selectedIndex = 0;
+      
+      for (let i = 0; i < distances.length; i++) {
+        cumulative += distances[i];
+        if (cumulative >= target) {
+          selectedIndex = i;
+          break;
+        }
+      }
+      
+      centroids.push({
+        values: [...points[selectedIndex].values],
+        clusterId: c,
+      });
+    }
+    
+    return centroids;
+  }
+  
+  /**
+   * Create seeded random number generator
+   */
+  private static createSeededRandom(seed: number): () => number {
+    let state = seed;
+    return function() {
+      state = (state * 1664525 + 1013904223) % Math.pow(2, 32);
+      return state / Math.pow(2, 32);
+    };
+  }
+}
+
+/**
  * Silhouette analysis for cluster validation
  */
 class SilhouetteAnalysis {
@@ -211,6 +711,21 @@ export class ClusteringAnalyzer {
 
       // Calculate validation metrics
       const validation = this.calculateValidationMetrics(finalClustering.points);
+      
+      // Perform stability analysis for robust clusters
+      if (sampleSize >= 100 && optimalK >= 2) {
+        try {
+          const stabilityAnalysis = ClusterQualityMetrics.performStabilityAnalysis(
+            standardizedData,
+            optimalK,
+            Math.min(30, Math.floor(sampleSize / 10)), // Adaptive bootstrap samples
+            randomSeed
+          );
+          validation.stabilityAnalysis = stabilityAnalysis;
+        } catch (error) {
+          console.warn('Stability analysis failed:', error);
+        }
+      }
 
       // Generate insights and recommendations
       const insights = this.generateInsights(clusterProfiles, validation);
@@ -770,8 +1285,23 @@ export class ClusteringAnalyzer {
   private static calculateValidationMetrics(points: ClusterPoint[]): ClusterValidationMetrics {
     const silhouetteScore = SilhouetteAnalysis.calculateSilhouetteScore(points);
     
-    // Calculate within-cluster and between-cluster variance
+    // Calculate centroids for additional metrics
     const clusterIds = [...new Set(points.map(p => p.clusterId))];
+    const centroids: Centroid[] = [];
+    
+    for (const clusterId of clusterIds) {
+      const clusterPoints = points.filter(p => p.clusterId === clusterId);
+      const centroid = this.calculateClusterCentroid(clusterPoints);
+      centroids.push({ values: centroid, clusterId });
+    }
+    
+    // Calculate advanced quality metrics
+    const daviesBouldinIndex = ClusterQualityMetrics.calculateDaviesBouldinIndex(points, centroids);
+    const calinskiHarabaszIndex = ClusterQualityMetrics.calculateCalinskiHarabaszIndex(points, centroids);
+    const dunnIndex = ClusterQualityMetrics.calculateDunnIndex(points);
+    
+    // Calculate within-cluster and between-cluster variance
+    // Note: clusterIds already defined above
     
     let totalWithinClusterSS = 0;
     let totalBetweenClusterSS = 0;
@@ -804,6 +1334,15 @@ export class ClusteringAnalyzer {
       betweenClusterVariance: totalBetweenClusterSS,
       totalVariance,
       varianceExplainedRatio,
+      daviesBouldinIndex,
+      calinskiHarabaszIndex,
+      dunnIndex,
+      qualityInterpretation: this.interpretClusterQuality(
+        silhouetteScore, 
+        daviesBouldinIndex, 
+        calinskiHarabaszIndex, 
+        dunnIndex
+      ),
     };
   }
 
@@ -848,6 +1387,60 @@ export class ClusteringAnalyzer {
   }
 
   /**
+   * Interpret cluster quality based on multiple metrics
+   */
+  private static interpretClusterQuality(
+    silhouetteScore: number,
+    daviesBouldinIndex: number,
+    calinskiHarabaszIndex: number,
+    dunnIndex: number
+  ): string {
+    const metrics = [];
+    
+    // Silhouette score (higher is better, range -1 to 1)
+    if (silhouetteScore > 0.7) {
+      metrics.push('excellent separation (silhouette)');
+    } else if (silhouetteScore > 0.5) {
+      metrics.push('good separation (silhouette)');
+    } else if (silhouetteScore > 0.25) {
+      metrics.push('fair separation (silhouette)');
+    } else {
+      metrics.push('poor separation (silhouette)');
+    }
+    
+    // Davies-Bouldin index (lower is better)
+    if (daviesBouldinIndex < 0.5) {
+      metrics.push('excellent compactness (DB)');
+    } else if (daviesBouldinIndex < 1.0) {
+      metrics.push('good compactness (DB)');
+    } else if (daviesBouldinIndex < 2.0) {
+      metrics.push('fair compactness (DB)');
+    } else {
+      metrics.push('poor compactness (DB)');
+    }
+    
+    // Calinski-Harabasz index (higher is better)
+    if (calinskiHarabaszIndex > 10) {
+      metrics.push('strong cluster definition (CH)');
+    } else if (calinskiHarabaszIndex > 5) {
+      metrics.push('moderate cluster definition (CH)');
+    } else {
+      metrics.push('weak cluster definition (CH)');
+    }
+    
+    // Dunn index (higher is better)
+    if (dunnIndex > 1.0) {
+      metrics.push('excellent cluster validity (Dunn)');
+    } else if (dunnIndex > 0.5) {
+      metrics.push('good cluster validity (Dunn)');
+    } else {
+      metrics.push('fair cluster validity (Dunn)');
+    }
+    
+    return `Clustering quality: ${metrics.join(', ')}`;
+  }
+  
+  /**
    * Generate insights from clustering results
    */
   private static generateInsights(
@@ -856,13 +1449,28 @@ export class ClusteringAnalyzer {
   ): string[] {
     const insights: string[] = [];
 
-    // Clustering quality insight
+    // Multi-metric clustering quality insight
+    insights.push(validation.qualityInterpretation || 'Clustering quality assessment completed');
+    
+    // Individual metric insights
     if (validation.silhouetteScore > 0.5) {
       insights.push(`Strong clustering structure detected (silhouette score: ${validation.silhouetteScore.toFixed(3)})`);
     } else if (validation.silhouetteScore > 0.25) {
       insights.push(`Moderate clustering structure detected (silhouette score: ${validation.silhouetteScore.toFixed(3)})`);
     } else {
       insights.push(`Weak clustering structure (silhouette score: ${validation.silhouetteScore.toFixed(3)})`);
+    }
+    
+    // Davies-Bouldin index insight
+    if (validation.daviesBouldinIndex && validation.daviesBouldinIndex < 1.0) {
+      insights.push(`Compact, well-separated clusters (Davies-Bouldin: ${validation.daviesBouldinIndex.toFixed(3)})`);
+    } else if (validation.daviesBouldinIndex && validation.daviesBouldinIndex > 2.0) {
+      insights.push(`Overlapping clusters detected (Davies-Bouldin: ${validation.daviesBouldinIndex.toFixed(3)})`);
+    }
+    
+    // Calinski-Harabasz index insight
+    if (validation.calinskiHarabaszIndex && validation.calinskiHarabaszIndex > 10) {
+      insights.push(`Strong between-cluster separation (Calinski-Harabasz: ${validation.calinskiHarabaszIndex.toFixed(1)})`);
     }
 
     // Variance explained insight

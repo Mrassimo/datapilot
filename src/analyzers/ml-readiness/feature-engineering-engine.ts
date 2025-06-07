@@ -6,10 +6,45 @@
  */
 
 import { 
-  ColumnAnalysis as ColumnMetadata, 
-  UnivariateAnalysis, 
-  BivariateAnalysis 
+  ColumnAnalysis,
+  NumericalColumnAnalysis,
+  CategoricalColumnAnalysis,
+  DateTimeAnalysis,
+  BooleanAnalysis,
+  TextColumnAnalysis,
+  BivariateAnalysis,
+  BaseColumnProfile,
+  EdaDataType,
+  SemanticType
 } from '../eda/types';
+
+// Type aliases for compatibility
+type ColumnMetadata = BaseColumnProfile & {
+  name: string;
+  dataType: string;
+  semanticType?: string;
+};
+
+type UnivariateAnalysis = NumericalColumnAnalysis & {
+  count: number;
+  min?: number;
+  max?: number;
+  quartiles?: {
+    q1: number;
+    q3: number;
+  };
+  uniqueCount: number;
+};
+
+// Compatibility type for bivariate results
+type BivariateResult = {
+  column1: string;
+  column2: string;
+  correlationType?: string;
+  correlation?: {
+    pearson: number;
+  };
+};
 
 interface FeatureEngineeringRecommendation {
   featureName: string;
@@ -79,7 +114,7 @@ export class FeatureEngineeringEngine {
   static analyzeFeatureEngineering(
     columns: ColumnMetadata[],
     univariateResults: Map<string, UnivariateAnalysis>,
-    bivariateResults: BivariateAnalysis[],
+    bivariateResults: BivariateResult[],
     pcaResults?: any, // From multivariate analysis
     targetColumn?: string
   ): FeatureEngineeringResults {
@@ -454,7 +489,7 @@ df['${column.name}_month_cos'] = np.cos(2 * np.pi * df['${column.name}_month'] /
   }
 
   private static detectFeatureInteractions(
-    bivariateResults: BivariateAnalysis[],
+    bivariateResults: BivariateResult[],
     pcaResults?: any
   ): FeatureInteraction[] {
     const interactions: FeatureInteraction[] = [];
@@ -677,7 +712,7 @@ df['${column.name}_month_cos'] = np.cos(2 * np.pi * df['${column.name}_month'] /
   private static findTargetCorrelation(
     column: string,
     target: string,
-    bivariateResults: BivariateAnalysis[]
+    bivariateResults: BivariateResult[]
   ): number | null {
     const result = bivariateResults.find(
       r => (r.column1 === column && r.column2 === target) ||

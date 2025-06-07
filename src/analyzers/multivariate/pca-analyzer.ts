@@ -280,6 +280,194 @@ class EigenDecomposition {
 }
 
 /**
+ * Advanced feature importance and variable selection
+ */
+class FeatureImportanceAnalyzer {
+  /**
+   * Calculate feature importance based on PCA loadings
+   */
+  static calculateFeatureImportance(
+    components: Array<{ eigenvalue: number; loadings: Record<string, number> }>,
+    variableNames: string[],
+    numComponents: number = 3
+  ): Array<{
+    variable: string;
+    importance: number;
+    contributingComponents: Array<{ component: number; loading: number; weight: number }>;
+    interpretation: string;
+  }> {
+    const featureImportance: Record<string, {
+      totalImportance: number;
+      components: Array<{ component: number; loading: number; weight: number }>;
+    }> = {};
+    
+    // Initialize feature importance tracking
+    for (const variable of variableNames) {
+      featureImportance[variable] = {
+        totalImportance: 0,
+        components: [],
+      };
+    }
+    
+    // Calculate weighted importance across specified components
+    const componentsToAnalyze = Math.min(numComponents, components.length);
+    
+    for (let i = 0; i < componentsToAnalyze; i++) {
+      const component = components[i];
+      const eigenvalueWeight = component.eigenvalue; // Weight by explained variance
+      
+      for (const variable of variableNames) {
+        const loading = component.loadings[variable] || 0;
+        const weightedImportance = Math.abs(loading) * eigenvalueWeight;
+        
+        featureImportance[variable].totalImportance += weightedImportance;
+        featureImportance[variable].components.push({
+          component: i + 1,
+          loading,
+          weight: weightedImportance,
+        });
+      }
+    }
+    
+    // Normalize importance scores
+    const maxImportance = Math.max(
+      ...Object.values(featureImportance).map(f => f.totalImportance)
+    );
+    
+    const results = variableNames.map(variable => {
+      const feature = featureImportance[variable];
+      const normalizedImportance = maxImportance > 0 ? feature.totalImportance / maxImportance : 0;
+      
+      // Sort contributing components by weight
+      const sortedComponents = feature.components
+        .sort((a, b) => Math.abs(b.weight) - Math.abs(a.weight))
+        .slice(0, 3); // Top 3 contributing components
+      
+      const interpretation = this.interpretFeatureImportance(
+        normalizedImportance,
+        sortedComponents,
+        variable
+      );
+      
+      return {
+        variable,
+        importance: normalizedImportance,
+        contributingComponents: sortedComponents,
+        interpretation,
+      };
+    });
+    
+    return results.sort((a, b) => b.importance - a.importance);
+  }
+  
+  /**
+   * Perform variable selection based on importance scores
+   */
+  static performVariableSelection(
+    featureImportance: Array<{
+      variable: string;
+      importance: number;
+    }>,
+    selectionMethod: 'top_k' | 'threshold' | 'elbow' = 'threshold',
+    parameter: number = 0.1
+  ): {
+    selectedVariables: string[];
+    rejectedVariables: string[];
+    selectionRatio: number;
+    method: string;
+    rationale: string;
+  } {
+    let selectedVariables: string[] = [];
+    let rationale = '';
+    
+    switch (selectionMethod) {
+      case 'top_k':
+        const k = Math.min(Math.floor(parameter), featureImportance.length);
+        selectedVariables = featureImportance.slice(0, k).map(f => f.variable);
+        rationale = `Selected top ${k} most important variables`;
+        break;
+        
+      case 'threshold':
+        selectedVariables = featureImportance
+          .filter(f => f.importance >= parameter)
+          .map(f => f.variable);
+        rationale = `Selected variables with importance >= ${parameter.toFixed(3)}`;
+        break;
+        
+      case 'elbow':
+        const elbowPoint = this.findElbowPoint(featureImportance.map(f => f.importance));
+        selectedVariables = featureImportance.slice(0, elbowPoint + 1).map(f => f.variable);
+        rationale = `Selected variables up to elbow point (${elbowPoint + 1} variables)`;
+        break;
+    }
+    
+    // Ensure at least one variable is selected
+    if (selectedVariables.length === 0 && featureImportance.length > 0) {
+      selectedVariables = [featureImportance[0].variable];
+      rationale += ' (minimum: 1 variable)';
+    }
+    
+    const rejectedVariables = featureImportance
+      .map(f => f.variable)
+      .filter(v => !selectedVariables.includes(v));
+    
+    const selectionRatio = featureImportance.length > 0 ? 
+      selectedVariables.length / featureImportance.length : 0;
+    
+    return {
+      selectedVariables,
+      rejectedVariables,
+      selectionRatio,
+      method: selectionMethod,
+      rationale,
+    };
+  }
+  
+  // Helper methods
+  private static interpretFeatureImportance(
+    importance: number,
+    components: Array<{ component: number; loading: number; weight: number }>,
+    variable: string
+  ): string {
+    let level: string;
+    if (importance > 0.8) level = 'critical';
+    else if (importance > 0.6) level = 'high';
+    else if (importance > 0.4) level = 'moderate';
+    else if (importance > 0.2) level = 'low';
+    else level = 'minimal';
+    
+    const topComponent = components[0];
+    const direction = topComponent?.loading > 0 ? 'positively' : 'negatively';
+    
+    return `${level} importance variable (${(importance * 100).toFixed(1)}%), contributes ${direction} to PC${topComponent?.component}`;
+  }
+  
+  private static findElbowPoint(values: number[]): number {
+    if (values.length <= 2) return 0;
+    
+    // Calculate second differences to find elbow
+    const differences: number[] = [];
+    for (let i = 1; i < values.length - 1; i++) {
+      const secondDiff = values[i - 1] - 2 * values[i] + values[i + 1];
+      differences.push(secondDiff);
+    }
+    
+    // Find maximum second difference (elbow point)
+    let maxDiffIndex = 0;
+    let maxDiff = differences[0];
+    
+    for (let i = 1; i < differences.length; i++) {
+      if (differences[i] > maxDiff) {
+        maxDiff = differences[i];
+        maxDiffIndex = i;
+      }
+    }
+    
+    return maxDiffIndex + 1; // Adjust for offset
+  }
+}
+
+/**
  * Main PCA Analyzer class
  */
 export class PCAAnalyzer {
@@ -351,11 +539,27 @@ export class PCAAnalyzer {
         variableNames
       );
 
+      // Calculate feature importance
+      const featureImportance = FeatureImportanceAnalyzer.calculateFeatureImportance(
+        components,
+        variableNames,
+        Math.min(5, components.length)
+      );
+      
+      // Perform variable selection
+      const variableSelection = FeatureImportanceAnalyzer.performVariableSelection(
+        featureImportance,
+        'threshold',
+        0.2
+      );
+      
       // Generate recommendations
       const recommendations = this.generateDimensionalityRecommendations(
         components,
         varianceThresholds,
-        numericalColumnIndices.length
+        numericalColumnIndices.length,
+        featureImportance,
+        variableSelection
       );
 
       // Create scree plot data
@@ -376,12 +580,15 @@ export class PCAAnalyzer {
         varianceThresholds,
         dominantVariables,
         dimensionalityRecommendations: recommendations,
+        featureImportance,
+        variableSelection,
         technicalDetails: {
           covarianceMatrix,
           correlationMatrix,
           standardizedData: true,
           numericVariablesUsed: variableNames,
           sampleSize,
+          eigenvalueDecompositionConverged: converged,
         },
       };
     } catch (error) {
@@ -688,7 +895,9 @@ export class PCAAnalyzer {
   private static generateDimensionalityRecommendations(
     components: PrincipalComponent[],
     thresholds: any,
-    originalDimensions: number
+    originalDimensions: number,
+    featureImportance?: Array<{ variable: string; importance: number }>,
+    variableSelection?: { selectedVariables: string[]; selectionRatio: number; rationale: string }
   ): string[] {
     const recommendations: string[] = [];
 
@@ -726,6 +935,29 @@ export class PCAAnalyzer {
       );
     }
 
+    // Feature importance recommendations
+    if (featureImportance && featureImportance.length > 0) {
+      const highImportanceVars = featureImportance.filter(f => f.importance > 0.8).length;
+      const lowImportanceVars = featureImportance.filter(f => f.importance < 0.2).length;
+      
+      if (highImportanceVars > 0 && lowImportanceVars > 0) {
+        recommendations.push(
+          `${highImportanceVars} variables show high importance, ${lowImportanceVars} show low importance - consider feature selection`
+        );
+      }
+    }
+    
+    // Variable selection recommendations
+    if (variableSelection) {
+      if (variableSelection.selectionRatio < 0.7) {
+        recommendations.push(
+          `Variable selection suggests using ${variableSelection.selectedVariables.length}/${originalDimensions} variables (${(variableSelection.selectionRatio * 100).toFixed(1)}% retention)`
+        );
+      }
+      
+      recommendations.push(variableSelection.rationale);
+    }
+    
     if (recommendations.length === 0) {
       recommendations.push('No clear dimensionality reduction recommended based on standard criteria');
     }
@@ -773,12 +1005,21 @@ export class PCAAnalyzer {
       },
       dominantVariables: [],
       dimensionalityRecommendations: [reason],
+      featureImportance: [],
+      variableSelection: {
+        selectedVariables: [],
+        rejectedVariables: [],
+        selectionRatio: 0,
+        method: 'none',
+        rationale: reason,
+      },
       technicalDetails: {
         covarianceMatrix: [],
         correlationMatrix: [],
         standardizedData: false,
         numericVariablesUsed: [],
         sampleSize: 0,
+        eigenvalueDecompositionConverged: false,
       },
     };
   }

@@ -731,7 +731,14 @@ export class PerformanceOptimizer {
           preservePeaks: true
         };
       default:
-        return {};
+        // Default aggregation for unknown methods
+        return {
+          level: Math.min(10, Math.max(2, Math.ceil(reductionFactor / 100))),
+          method: 'adaptive',
+          fallbackStrategy: 'statistical_sampling',
+          preserveDistribution: true,
+          qualityThreshold: 0.85
+        };
     }
   }
 

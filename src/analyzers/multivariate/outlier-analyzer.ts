@@ -355,6 +355,375 @@ class RobustStatistics {
 }
 
 /**
+ * Advanced outlier detection methods
+ */
+class AdvancedOutlierDetection {
+  /**
+   * Isolation Forest outlier detection
+   * Effective for high-dimensional data and various types of anomalies
+   */
+  static isolationForest(
+    data: number[][],
+    numTrees: number = 100,
+    subsampleSize: number = 256,
+    contamination: number = 0.1
+  ): {
+    outlierScores: number[];
+    threshold: number;
+    outlierIndices: number[];
+  } {
+    const n = data.length;
+    
+    // Build isolation trees
+    const trees = this.buildIsolationTrees(data, numTrees, subsampleSize);
+    
+    // Calculate anomaly scores
+    const pathLengths = data.map(point => 
+      this.calculateAveragePathLength(point, trees)
+    );
+    
+    // Normalize scores using expected path length
+    const c = this.expectedPathLength(subsampleSize);
+    const anomalyScores = pathLengths.map(length => 
+      Math.pow(2, -length / c)
+    );
+    
+    // Determine threshold
+    const sortedScores = [...anomalyScores].sort((a, b) => b - a);
+    const thresholdIndex = Math.floor(contamination * n);
+    const threshold = sortedScores[thresholdIndex];
+    
+    // Identify outliers
+    const outlierIndices = anomalyScores
+      .map((score, index) => ({ score, index }))
+      .filter(item => item.score >= threshold)
+      .map(item => item.index);
+    
+    return {
+      outlierScores: anomalyScores,
+      threshold,
+      outlierIndices,
+    };
+  }
+  
+  /**
+   * Local Outlier Factor (LOF) detection
+   * Identifies outliers based on local density deviations
+   */
+  static localOutlierFactor(
+    data: number[][],
+    k: number = 20,
+    contamination: number = 0.1
+  ): {
+    lofScores: number[];
+    threshold: number;
+    outlierIndices: number[];
+  } {
+    const n = data.length;
+    
+    // Calculate k-distance and k-neighbors for each point
+    const neighborInfo = data.map((point, i) => {
+      const distances = data.map((otherPoint, j) => ({
+        distance: this.euclideanDistance(point, otherPoint),
+        index: j,
+      })).filter(item => item.index !== i)
+        .sort((a, b) => a.distance - b.distance);
+      
+      const kNeighbors = distances.slice(0, k);
+      const kDistance = kNeighbors[k - 1].distance;
+      
+      return {
+        index: i,
+        kNeighbors: kNeighbors.map(n => n.index),
+        kDistance,
+      };
+    });
+    
+    // Calculate local reachability density
+    const lrd = neighborInfo.map(info => {
+      const reachDistSum = info.kNeighbors.reduce((sum, neighborIndex) => {
+        const neighborKDist = neighborInfo[neighborIndex].kDistance;
+        const actualDist = this.euclideanDistance(
+          data[info.index],
+          data[neighborIndex]
+        );
+        return sum + Math.max(actualDist, neighborKDist);
+      }, 0);
+      
+      return info.kNeighbors.length / reachDistSum;
+    });
+    
+    // Calculate LOF scores
+    const lofScores = neighborInfo.map((info, i) => {
+      const neighborLRDs = info.kNeighbors.map(neighborIndex => lrd[neighborIndex]);
+      const avgNeighborLRD = neighborLRDs.reduce((sum, val) => sum + val, 0) / neighborLRDs.length;
+      
+      return avgNeighborLRD / lrd[i];
+    });
+    
+    // Determine threshold
+    const sortedScores = [...lofScores].sort((a, b) => b - a);
+    const thresholdIndex = Math.floor(contamination * n);
+    const threshold = sortedScores[thresholdIndex];
+    
+    // Identify outliers
+    const outlierIndices = lofScores
+      .map((score, index) => ({ score, index }))
+      .filter(item => item.score >= threshold)
+      .map(item => item.index);
+    
+    return {
+      lofScores,
+      threshold,
+      outlierIndices,
+    };
+  }
+  
+  /**
+   * Ensemble outlier detection combining multiple methods
+   */
+  static ensembleOutlierDetection(
+    data: number[][],
+    contamination: number = 0.1
+  ): {
+    ensembleScores: number[];
+    methodScores: {
+      mahalanobis: number[];
+      isolationForest: number[];
+      lof: number[];
+    };
+    threshold: number;
+    outlierIndices: number[];
+    consensus: Array<{
+      index: number;
+      methodsAgreeing: number;
+      confidenceScore: number;
+    }>;
+  } {
+    const n = data.length;
+    
+    // Calculate Mahalanobis distances
+    const { mahalanobisDistances } = this.calculateMahalanobisDistances(data);
+    
+    // Calculate Isolation Forest scores
+    const { outlierScores: isolationScores } = this.isolationForest(
+      data, 50, Math.min(256, Math.floor(n * 0.8)), contamination
+    );
+    
+    // Calculate LOF scores  
+    const { lofScores } = this.localOutlierFactor(
+      data, Math.min(20, Math.floor(n * 0.1)), contamination
+    );
+    
+    // Normalize all scores to [0, 1] range
+    const normalizedMahalanobis = this.normalizeScores(mahalanobisDistances);
+    const normalizedIsolation = this.normalizeScores(isolationScores);
+    const normalizedLOF = this.normalizeScores(lofScores);
+    
+    // Calculate ensemble scores (weighted average)
+    const weights = { mahalanobis: 0.4, isolation: 0.3, lof: 0.3 };
+    const ensembleScores = normalizedMahalanobis.map((score, i) => 
+      weights.mahalanobis * score +
+      weights.isolation * normalizedIsolation[i] +
+      weights.lof * normalizedLOF[i]
+    );
+    
+    // Determine threshold
+    const sortedScores = [...ensembleScores].sort((a, b) => b - a);
+    const thresholdIndex = Math.floor(contamination * n);
+    const threshold = sortedScores[thresholdIndex];
+    
+    // Calculate consensus
+    const methodThresholds = {
+      mahalanobis: this.calculateThreshold(normalizedMahalanobis, contamination),
+      isolation: this.calculateThreshold(normalizedIsolation, contamination),
+      lof: this.calculateThreshold(normalizedLOF, contamination),
+    };
+    
+    const consensus = ensembleScores.map((score, index) => {
+      let methodsAgreeing = 0;
+      if (normalizedMahalanobis[index] >= methodThresholds.mahalanobis) methodsAgreeing++;
+      if (normalizedIsolation[index] >= methodThresholds.isolation) methodsAgreeing++;
+      if (normalizedLOF[index] >= methodThresholds.lof) methodsAgreeing++;
+      
+      const confidenceScore = score * (methodsAgreeing / 3);
+      
+      return {
+        index,
+        methodsAgreeing,
+        confidenceScore,
+      };
+    });
+    
+    // Identify outliers
+    const outlierIndices = ensembleScores
+      .map((score, index) => ({ score, index }))
+      .filter(item => item.score >= threshold)
+      .map(item => item.index);
+    
+    return {
+      ensembleScores,
+      methodScores: {
+        mahalanobis: normalizedMahalanobis,
+        isolationForest: normalizedIsolation,
+        lof: normalizedLOF,
+      },
+      threshold,
+      outlierIndices,
+      consensus,
+    };
+  }
+  
+  // Helper methods
+  private static buildIsolationTrees(
+    data: number[][],
+    numTrees: number,
+    subsampleSize: number
+  ): Array<any> {
+    const trees = [];
+    
+    for (let t = 0; t < numTrees; t++) {
+      // Random subsample
+      const subsample = this.randomSample(data, subsampleSize);
+      
+      // Build tree (simplified)
+      const tree = this.buildIsolationTree(subsample, 0, Math.ceil(Math.log2(subsampleSize)));
+      trees.push(tree);
+    }
+    
+    return trees;
+  }
+  
+  private static buildIsolationTree(
+    data: number[][],
+    currentDepth: number,
+    maxDepth: number
+  ): any {
+    if (data.length <= 1 || currentDepth >= maxDepth) {
+      return { type: 'leaf', size: data.length };
+    }
+    
+    // Random split
+    const p = data[0].length;
+    const splitFeature = Math.floor(Math.random() * p);
+    const featureValues = data.map(point => point[splitFeature]);
+    const minVal = Math.min(...featureValues);
+    const maxVal = Math.max(...featureValues);
+    const splitValue = Math.random() * (maxVal - minVal) + minVal;
+    
+    const leftData = data.filter(point => point[splitFeature] < splitValue);
+    const rightData = data.filter(point => point[splitFeature] >= splitValue);
+    
+    return {
+      type: 'node',
+      splitFeature,
+      splitValue,
+      left: this.buildIsolationTree(leftData, currentDepth + 1, maxDepth),
+      right: this.buildIsolationTree(rightData, currentDepth + 1, maxDepth),
+    };
+  }
+  
+  private static calculateAveragePathLength(point: number[], trees: Array<any>): number {
+    const pathLengths = trees.map(tree => this.calculatePathLength(point, tree, 0));
+    return pathLengths.reduce((sum, length) => sum + length, 0) / pathLengths.length;
+  }
+  
+  private static calculatePathLength(point: number[], node: any, currentDepth: number): number {
+    if (node.type === 'leaf') {
+      return currentDepth + this.expectedPathLength(node.size);
+    }
+    
+    if (point[node.splitFeature] < node.splitValue) {
+      return this.calculatePathLength(point, node.left, currentDepth + 1);
+    } else {
+      return this.calculatePathLength(point, node.right, currentDepth + 1);
+    }
+  }
+  
+  private static expectedPathLength(n: number): number {
+    if (n <= 1) return 0;
+    return 2 * (Math.log(n - 1) + 0.5772156649) - (2 * (n - 1)) / n;
+  }
+  
+  private static randomSample<T>(array: T[], size: number): T[] {
+    const shuffled = [...array].sort(() => 0.5 - Math.random());
+    return shuffled.slice(0, Math.min(size, array.length));
+  }
+  
+  private static euclideanDistance(a: number[], b: number[]): number {
+    let sum = 0;
+    for (let i = 0; i < a.length; i++) {
+      const diff = a[i] - b[i];
+      sum += diff * diff;
+    }
+    return Math.sqrt(sum);
+  }
+  
+  private static calculateMahalanobisDistances(data: number[][]): {
+    mahalanobisDistances: number[];
+    mean: number[];
+    covarianceMatrix: number[][];
+  } {
+    const n = data.length;
+    const p = data[0].length;
+    
+    // Calculate mean
+    const mean = Array(p).fill(0);
+    for (let j = 0; j < p; j++) {
+      for (let i = 0; i < n; i++) {
+        mean[j] += data[i][j];
+      }
+      mean[j] /= n;
+    }
+    
+    // Calculate covariance matrix
+    const cov = Array(p).fill(0).map(() => Array(p).fill(0));
+    for (let i = 0; i < p; i++) {
+      for (let j = 0; j < p; j++) {
+        for (let k = 0; k < n; k++) {
+          cov[i][j] += (data[k][i] - mean[i]) * (data[k][j] - mean[j]);
+        }
+        cov[i][j] /= (n - 1);
+      }
+    }
+    
+    // Invert covariance matrix
+    const covInv = MatrixOperations.invert(cov);
+    
+    // Calculate Mahalanobis distances
+    const distances = data.map(point => {
+      const diff = point.map((val, i) => val - mean[i]);
+      const temp = MatrixOperations.vectorMatrixMultiply(diff, covInv);
+      return Math.sqrt(MatrixOperations.dotProduct(diff, temp));
+    });
+    
+    return {
+      mahalanobisDistances: distances,
+      mean,
+      covarianceMatrix: cov,
+    };
+  }
+  
+  private static normalizeScores(scores: number[]): number[] {
+    const minScore = Math.min(...scores);
+    const maxScore = Math.max(...scores);
+    const range = maxScore - minScore;
+    
+    if (range === 0) {
+      return scores.map(() => 0);
+    }
+    
+    return scores.map(score => (score - minScore) / range);
+  }
+  
+  private static calculateThreshold(scores: number[], contamination: number): number {
+    const sortedScores = [...scores].sort((a, b) => b - a);
+    const thresholdIndex = Math.floor(contamination * scores.length);
+    return sortedScores[thresholdIndex];
+  }
+}
+
+/**
  * Main multivariate outlier analyzer
  */
 export class MultivariateOutlierAnalyzer {

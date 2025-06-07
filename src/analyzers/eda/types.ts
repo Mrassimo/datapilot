@@ -429,12 +429,26 @@ export interface PCAAnalysis {
     interpretation: string;
   }>;
   dimensionalityRecommendations: string[];
+  featureImportance?: Array<{
+    variable: string;
+    importance: number;
+    contributingComponents: Array<{ component: number; loading: number; weight: number }>;
+    interpretation: string;
+  }>;
+  variableSelection?: {
+    selectedVariables: string[];
+    rejectedVariables: string[];
+    selectionRatio: number;
+    method: string;
+    rationale: string;
+  };
   technicalDetails: {
     covarianceMatrix: number[][];
     correlationMatrix: number[][];
     standardizedData: boolean;
     numericVariablesUsed: string[];
     sampleSize: number;
+    eigenvalueDecompositionConverged?: boolean;
   };
 }
 
@@ -446,6 +460,15 @@ export interface ClusterValidationMetrics {
   betweenClusterVariance: number;
   totalVariance: number;
   varianceExplainedRatio: number;
+  daviesBouldinIndex?: number; // Lower is better
+  calinskiHarabaszIndex?: number; // Higher is better
+  dunnIndex?: number; // Higher is better
+  qualityInterpretation?: string; // Overall quality assessment
+  stabilityAnalysis?: {
+    stabilityScore: number;
+    confidenceInterval: [number, number];
+    interpretation: string;
+  };
 }
 
 export interface ClusterProfile {
