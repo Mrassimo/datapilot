@@ -80,9 +80,12 @@ export class PatternValidationEngine {
     }
 
     // Analyze format consistency
-    const formatConsistency = this.config.enableFormatStandardization
-      ? this.analyzeFormatConsistency()
-      : [];
+    let formatConsistency: FormatConsistency[] = [];
+    if (this.config.enableFormatStandardization) {
+      formatConsistency = this.analyzeFormatConsistency();
+      // Add unit standardization analysis
+      formatConsistency.push(...this.addUnitStandardizationAnalysis());
+    }
 
     return {
       patternValidations: this.generatePatternReport(),
@@ -206,10 +209,353 @@ export class PatternValidationEngine {
       enabled: true,
     });
 
+    // Additional enhanced patterns
+    this.addInternationalPatterns();
+    this.addBusinessPatterns();
+    this.addSecurityPatterns();
+    this.addEducationalPatterns();
+
     // Add custom patterns if provided
     if (this.config.customPatterns) {
       this.patterns.push(...this.config.customPatterns.filter((p) => p.enabled));
     }
+  }
+
+  /**
+   * International format patterns
+   */
+  private addInternationalPatterns(): void {
+    // International phone numbers (E.164 format)
+    this.patterns.push({
+      id: 'phone_international',
+      name: 'International Phone Number (E.164)',
+      description: 'International phone numbers should follow E.164 format',
+      columnPattern: /(phone|tel|mobile|cell|contact)/i,
+      valuePattern: /^\+[1-9]\d{1,14}$/,
+      severity: 'medium',
+      examples: ['+1234567890123', '+441234567890'],
+      enabled: true,
+    });
+
+    // Canadian postal codes
+    this.patterns.push({
+      id: 'postal_canada',
+      name: 'Canadian Postal Code',
+      description: 'Canadian postal codes should follow A1A 1A1 format',
+      columnPattern: /(postal|postcode|zip)/i,
+      valuePattern: /^[A-Z]\d[A-Z][\s-]?\d[A-Z]\d$/i,
+      severity: 'medium',
+      examples: ['K1A 0A6', 'M5V-3A8'],
+      enabled: true,
+    });
+
+    // UK postal codes
+    this.patterns.push({
+      id: 'postal_uk',
+      name: 'UK Postal Code',
+      description: 'UK postal codes should follow standard format',
+      columnPattern: /(postal|postcode|zip)/i,
+      valuePattern: /^[A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2}$/i,
+      severity: 'medium',
+      examples: ['SW1A 1AA', 'M1 1AA', 'B33 8TH'],
+      enabled: true,
+    });
+
+    // IBAN validation (basic structure)
+    this.patterns.push({
+      id: 'iban_format',
+      name: 'International Bank Account Number (IBAN)',
+      description: 'IBAN should follow international standard format',
+      columnPattern: /(iban|bank.*account)/i,
+      valuePattern: /^[A-Z]{2}\d{2}[A-Z0-9]{4,30}$/i,
+      severity: 'high',
+      examples: ['GB82WEST12345698765432', 'DE89370400440532013000'],
+      enabled: true,
+    });
+
+    // ISO country codes (2-letter)
+    this.patterns.push({
+      id: 'country_iso2',
+      name: 'ISO 3166-1 Alpha-2 Country Code',
+      description: 'Country codes should follow ISO 3166-1 alpha-2 standard',
+      columnPattern: /(country.*code|ctry|nation.*code)/i,
+      valuePattern: /^[A-Z]{2}$/,
+      severity: 'medium',
+      examples: ['US', 'GB', 'CA', 'DE'],
+      enabled: true,
+    });
+
+    // ISO currency codes
+    this.patterns.push({
+      id: 'currency_iso',
+      name: 'ISO 4217 Currency Code',
+      description: 'Currency codes should follow ISO 4217 standard',
+      columnPattern: /(currency|curr|money.*code)/i,
+      valuePattern: /^[A-Z]{3}$/,
+      severity: 'medium',
+      examples: ['USD', 'EUR', 'GBP', 'CAD'],
+      enabled: true,
+    });
+  }
+
+  /**
+   * Business domain patterns
+   */
+  private addBusinessPatterns(): void {
+    // EIN (US Employer Identification Number)
+    this.patterns.push({
+      id: 'ein_us',
+      name: 'US Employer Identification Number (EIN)',
+      description: 'EIN should follow XX-XXXXXXX format',
+      columnPattern: /(ein|tax.*id|employer.*id)/i,
+      valuePattern: /^\d{2}-\d{7}$/,
+      severity: 'high',
+      examples: ['12-3456789'],
+      enabled: true,
+    });
+
+    // Stock symbols (basic)
+    this.patterns.push({
+      id: 'stock_symbol',
+      name: 'Stock Trading Symbol',
+      description: 'Stock symbols should be 1-5 uppercase letters',
+      columnPattern: /(symbol|ticker|stock)/i,
+      valuePattern: /^[A-Z]{1,5}$/,
+      severity: 'low',
+      examples: ['AAPL', 'MSFT', 'GOOGL'],
+      enabled: true,
+    });
+
+    // SKU patterns (flexible business format)
+    this.patterns.push({
+      id: 'sku_format',
+      name: 'Stock Keeping Unit (SKU)',
+      description: 'SKU should follow consistent alphanumeric format',
+      columnPattern: /(sku|product.*code|item.*code)/i,
+      valuePattern: /^[A-Z0-9]{3,20}(-[A-Z0-9]{1,10})*$/i,
+      severity: 'medium',
+      examples: ['ABC-123', 'PROD001-XL-BLU', 'SKU12345'],
+      enabled: true,
+    });
+
+    // Invoice numbers
+    this.patterns.push({
+      id: 'invoice_number',
+      name: 'Invoice Number Format',
+      description: 'Invoice numbers should follow consistent format',
+      columnPattern: /(invoice|bill|receipt)/i,
+      valuePattern: /^(INV|BILL|RCP)[-]?\d{4,10}$/i,
+      severity: 'low',
+      examples: ['INV-123456', 'BILL0001234', 'RCP-456789'],
+      enabled: true,
+    });
+
+    // Purchase order numbers
+    this.patterns.push({
+      id: 'po_number',
+      name: 'Purchase Order Number',
+      description: 'PO numbers should follow business format',
+      columnPattern: /(po|purchase.*order|order.*number)/i,
+      valuePattern: /^(PO|ORD)[-]?\d{4,12}$/i,
+      severity: 'low',
+      examples: ['PO-123456789', 'ORD001234567'],
+      enabled: true,
+    });
+  }
+
+  /**
+   * Security and compliance patterns
+   */
+  private addSecurityPatterns(): void {
+    // Password complexity (basic)
+    this.patterns.push({
+      id: 'password_complexity',
+      name: 'Password Complexity',
+      description: 'Passwords should meet basic complexity requirements',
+      columnPattern: /(password|passwd|pwd)/i,
+      valuePattern: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/,
+      severity: 'critical',
+      examples: ['Password123!', 'MyS3cur3P@ss'],
+      enabled: true,
+    });
+
+    // API keys (generic pattern)
+    this.patterns.push({
+      id: 'api_key_format',
+      name: 'API Key Format',
+      description: 'API keys should follow secure format standards',
+      columnPattern: /(api.*key|access.*key|secret.*key)/i,
+      valuePattern: /^[A-Za-z0-9_-]{20,128}$/,
+      severity: 'critical',
+      examples: ['sk_test_1234567890abcdef', 'pk_live_abcd1234567890ef'],
+      enabled: true,
+    });
+
+    // JWT tokens (basic structure)
+    this.patterns.push({
+      id: 'jwt_token',
+      name: 'JSON Web Token (JWT)',
+      description: 'JWT tokens should have three base64 parts separated by dots',
+      columnPattern: /(jwt|token|bearer)/i,
+      valuePattern: /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/,
+      severity: 'critical',
+      examples: ['eyJhbGci.eyJzdWIi.SflKxwRJ'],
+      enabled: true,
+    });
+
+    // Hash values (SHA-256, MD5, etc.)
+    this.patterns.push({
+      id: 'hash_format',
+      name: 'Cryptographic Hash',
+      description: 'Hash values should be valid hexadecimal strings',
+      columnPattern: /(hash|checksum|digest|sha|md5)/i,
+      valuePattern: /^[a-fA-F0-9]{32,128}$/,
+      severity: 'medium',
+      examples: ['d41d8cd98f00b204e9800998ecf8427e', '2cf24dba4f21d4288094e4b5c0d37b16'],
+      enabled: true,
+    });
+  }
+
+  /**
+   * Educational domain patterns
+   */
+  private addEducationalPatterns(): void {
+    // Student ID formats
+    this.patterns.push({
+      id: 'student_id',
+      name: 'Student ID Format',
+      description: 'Student IDs should follow institutional format',
+      columnPattern: /(student.*id|matriculation|enrollment.*id)/i,
+      valuePattern: /^(STU|ST)?\d{6,12}$/i,
+      severity: 'medium',
+      examples: ['STU1234567', '123456789', 'ST001234567'],
+      enabled: true,
+    });
+
+    // Course codes
+    this.patterns.push({
+      id: 'course_code',
+      name: 'Course Code Format',
+      description: 'Course codes should follow academic format',
+      columnPattern: /(course.*code|subject.*code|class.*code)/i,
+      valuePattern: /^[A-Z]{2,4}\d{3,4}[A-Z]?$/i,
+      severity: 'medium',
+      examples: ['CS101', 'MATH2001', 'ENG1101A'],
+      enabled: true,
+    });
+
+    // GPA formats
+    this.patterns.push({
+      id: 'gpa_format',
+      name: 'Grade Point Average Format',
+      description: 'GPA should be decimal number with appropriate precision',
+      columnPattern: /(gpa|grade.*point)/i,
+      valuePattern: /^[0-4]\.\d{1,3}$|^[0-5]\.\d{1,3}$|^[0-9]{1,2}(\.\d{1,2})?$/,
+      severity: 'medium',
+      examples: ['3.85', '4.0', '2.75', '85.5'],
+      enabled: true,
+    });
+
+    // Grade letter formats
+    this.patterns.push({
+      id: 'letter_grade',
+      name: 'Letter Grade Format',
+      description: 'Letter grades should follow standard format',
+      columnPattern: /(grade|letter.*grade|final.*grade)/i,
+      valuePattern: /^[A-F][+-]?$|^(HD|D|C|P|F|N)$/i,
+      severity: 'low',
+      examples: ['A+', 'B-', 'C', 'HD', 'P'],
+      enabled: true,
+    });
+
+    // Academic year formats
+    this.patterns.push({
+      id: 'academic_year',
+      name: 'Academic Year Format',
+      description: 'Academic years should follow YYYY-YY or YYYY format',
+      columnPattern: /(academic.*year|school.*year|year)/i,
+      valuePattern: /^(19|20)\d{2}(-\d{2})?$|^(19|20)\d{2}\/(19|20)?\d{2}$/,
+      severity: 'low',
+      examples: ['2023-24', '2023/24', '2023'],
+      enabled: true,
+    });
+  }
+
+  /**
+   * Enhanced format consistency analysis with unit standardization
+   */
+  private addUnitStandardizationAnalysis(): FormatConsistency[] {
+    const unitAnalysis: FormatConsistency[] = [];
+
+    for (let colIndex = 0; colIndex < this.headers.length; colIndex++) {
+      const columnName = this.headers[colIndex];
+
+      // Weight/mass units
+      if (/(weight|mass|kg|lb|pound)/i.test(columnName)) {
+        const weightFormats = this.analyzeColumnFormatConsistency(colIndex, columnName, [
+          { pattern: /^\d+(\.\d+)?\s*kg$/i, name: 'Kilograms (kg)' },
+          { pattern: /^\d+(\.\d+)?\s*lb$/i, name: 'Pounds (lb)' },
+          { pattern: /^\d+(\.\d+)?\s*g$/i, name: 'Grams (g)' },
+          { pattern: /^\d+(\.\d+)?\s*oz$/i, name: 'Ounces (oz)' },
+          { pattern: /^\d+(\.\d+)?$/, name: 'Numeric only (no unit)' },
+        ]);
+        if (weightFormats) {
+          weightFormats.analysisType = 'unit_standardization';
+          weightFormats.recommendedAction = 'Standardize weight units to kilograms (kg)';
+          unitAnalysis.push(weightFormats);
+        }
+      }
+
+      // Length/distance units
+      if (/(length|height|distance|cm|ft|in|meter)/i.test(columnName)) {
+        const lengthFormats = this.analyzeColumnFormatConsistency(colIndex, columnName, [
+          { pattern: /^\d+(\.\d+)?\s*cm$/i, name: 'Centimeters (cm)' },
+          { pattern: /^\d+(\.\d+)?\s*m$/i, name: 'Meters (m)' },
+          { pattern: /^\d+(\.\d+)?\s*ft$/i, name: 'Feet (ft)' },
+          { pattern: /^\d+(\.\d+)?\s*in$/i, name: 'Inches (in)' },
+          { pattern: /^\d+'\d+"?$/i, name: "Feet'Inches\"" },
+          { pattern: /^\d+(\.\d+)?$/, name: 'Numeric only (no unit)' },
+        ]);
+        if (lengthFormats) {
+          lengthFormats.analysisType = 'unit_standardization';
+          lengthFormats.recommendedAction = 'Standardize length units to centimeters (cm)';
+          unitAnalysis.push(lengthFormats);
+        }
+      }
+
+      // Currency units
+      if (/(price|cost|amount|salary|revenue|\$|£|€)/i.test(columnName)) {
+        const currencyFormats = this.analyzeColumnFormatConsistency(colIndex, columnName, [
+          { pattern: /^\$\d+(\.\d{2})?$/i, name: 'USD ($123.45)' },
+          { pattern: /^£\d+(\.\d{2})?$/i, name: 'GBP (£123.45)' },
+          { pattern: /^€\d+(\.\d{2})?$/i, name: 'EUR (€123.45)' },
+          { pattern: /^\d+(\.\d{2})?\s*(USD|GBP|EUR)$/i, name: 'Number with currency code' },
+          { pattern: /^\d+(\.\d{2})?$/, name: 'Numeric only (no currency)' },
+        ]);
+        if (currencyFormats) {
+          currencyFormats.analysisType = 'unit_standardization';
+          currencyFormats.recommendedAction = 'Standardize currency format with clear currency symbols';
+          unitAnalysis.push(currencyFormats);
+        }
+      }
+
+      // Temperature units
+      if (/(temperature|temp|°|degree)/i.test(columnName)) {
+        const tempFormats = this.analyzeColumnFormatConsistency(colIndex, columnName, [
+          { pattern: /^\d+(\.\d+)?\s*°?C$/i, name: 'Celsius (°C)' },
+          { pattern: /^\d+(\.\d+)?\s*°?F$/i, name: 'Fahrenheit (°F)' },
+          { pattern: /^\d+(\.\d+)?\s*K$/i, name: 'Kelvin (K)' },
+          { pattern: /^\d+(\.\d+)?$/, name: 'Numeric only (no unit)' },
+        ]);
+        if (tempFormats) {
+          tempFormats.analysisType = 'unit_standardization';
+          tempFormats.recommendedAction = 'Standardize temperature units to Celsius (°C)';
+          unitAnalysis.push(tempFormats);
+        }
+      }
+    }
+
+    return unitAnalysis;
   }
 
   private validateColumnPattern(colIndex: number, columnName: string, pattern: PatternRule): void {

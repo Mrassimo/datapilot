@@ -618,6 +618,480 @@ export class BusinessRuleEngine {
         },
       });
     }
+
+    // Additional enhanced validation rules
+    this.addEducationalValidationRules();
+    this.addDataIntegrityRules();
+    this.addStringFormatConsistencyRules();
+    this.addBusinessDomainRules();
+  }
+
+  /**
+   * Educational Domain Validation Rules
+   */
+  private addEducationalValidationRules(): void {
+    const gradeCol = this.findColumnsByPattern(/(grade|gpa|score|mark)/i)[0];
+    const ageCol = this.findColumnsByPattern(/^age$/i)[0];
+    const graduationCol = this.findColumnsByPattern(/(graduation|graduate|completed)/i)[0];
+    const enrollmentCol = this.findColumnsByPattern(/(enrollment|enroll|start)/i)[0];
+
+    // GPA Range Validation
+    if (gradeCol) {
+      this.rules.push({
+        id: 'gpa_range_validation',
+        name: 'GPA Range Validation',
+        description: 'GPA/Grade should be within valid academic range',
+        type: 'business_logic',
+        severity: 'medium',
+        enabled: true,
+        validate: (row, _headers, rowIndex) => {
+          const grade = this.parseNumber(row[gradeCol.index]);
+
+          if (grade !== null) {
+            // Common GPA scales: 0-4.0, 0-5.0, 0-100 percentage
+            const isValidGPA = (grade >= 0 && grade <= 4.0) || 
+                              (grade >= 0 && grade <= 5.0) || 
+                              (grade >= 0 && grade <= 100);
+
+            if (!isValidGPA || grade < 0) {
+              return {
+                ruleId: 'gpa_range_validation',
+                passed: false,
+                rowIndex,
+                values: { [gradeCol.name]: row[gradeCol.index] },
+                issue: `Grade/GPA (${grade}) outside valid academic range (0-4.0, 0-5.0, or 0-100)`,
+                severity: 'medium',
+              };
+            }
+          }
+
+          return null;
+        },
+      });
+    }
+
+    // Age vs Academic Year Validation
+    if (ageCol && gradeCol) {
+      this.rules.push({
+        id: 'age_academic_consistency',
+        name: 'Age vs Academic Performance Consistency',
+        description: 'Student age should be appropriate for academic context',
+        type: 'cross_field',
+        severity: 'low',
+        enabled: true,
+        validate: (row, _headers, rowIndex) => {
+          const age = this.parseNumber(row[ageCol.index]);
+          const grade = this.parseNumber(row[gradeCol.index]);
+
+          if (age !== null && grade !== null) {
+            // Very basic age validation for students
+            if (age < 3 || age > 100) {
+              return {
+                ruleId: 'age_academic_consistency',
+                passed: false,
+                rowIndex,
+                values: { age: row[ageCol.index], grade: row[gradeCol.index] },
+                issue: `Student age (${age}) seems unrealistic for academic context`,
+                severity: 'low',
+              };
+            }
+          }
+
+          return null;
+        },
+      });
+    }
+
+    // Graduation vs Enrollment Date Logic
+    if (graduationCol && enrollmentCol) {
+      this.rules.push({
+        id: 'enrollment_graduation_chronology',
+        name: 'Enrollment vs Graduation Chronology',
+        description: 'Graduation date should be after enrollment date',
+        type: 'cross_field',
+        severity: 'high',
+        enabled: true,
+        validate: (row, _headers, rowIndex) => {
+          const enrollmentDate = this.parseDate(row[enrollmentCol.index] || '');
+          const graduationDate = this.parseDate(row[graduationCol.index] || '');
+
+          if (enrollmentDate && graduationDate) {
+            if (graduationDate <= enrollmentDate) {
+              return {
+                ruleId: 'enrollment_graduation_chronology',
+                passed: false,
+                rowIndex,
+                values: { 
+                  enrollment: row[enrollmentCol.index], 
+                  graduation: row[graduationCol.index] 
+                },
+                issue: `Graduation date (${row[graduationCol.index]}) should be after enrollment date (${row[enrollmentCol.index]})`,
+                severity: 'high',
+              };
+            }
+
+            // Check for unrealistic graduation timeline (too fast or too slow)
+            const timeDiffYears = (graduationDate.getTime() - enrollmentDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
+            if (timeDiffYears < 0.5 || timeDiffYears > 10) {
+              return {
+                ruleId: 'enrollment_graduation_chronology',
+                passed: false,
+                rowIndex,
+                values: { 
+                  enrollment: row[enrollmentCol.index], 
+                  graduation: row[graduationCol.index] 
+                },
+                issue: `Time between enrollment and graduation (${timeDiffYears.toFixed(1)} years) seems unrealistic`,
+                severity: 'medium',
+              };
+            }
+          }
+
+          return null;
+        },
+      });
+    }
+  }
+
+  /**
+   * Data Integrity and Consistency Rules
+   */
+  private addDataIntegrityRules(): void {
+    // Percentage fields validation
+    const percentageColumns = this.findColumnsByPattern(/(percent|rate|ratio|%)/i);
+    
+    percentageColumns.forEach(col => {
+      this.rules.push({
+        id: `percentage_range_${col.name}`,
+        name: 'Percentage Range Validation',
+        description: `${col.name} should be between 0 and 100`,
+        type: 'business_logic',
+        severity: 'medium',
+        enabled: true,
+        validate: (row, _headers, rowIndex) => {
+          const value = this.parseNumber(row[col.index]);
+
+          if (value !== null) {
+            if (value < 0 || value > 100) {
+              return {
+                ruleId: `percentage_range_${col.name}`,
+                passed: false,
+                rowIndex,
+                values: { [col.name]: row[col.index] },
+                issue: `Percentage value (${value}) in ${col.name} outside valid range (0-100)`,
+                severity: 'medium',
+              };
+            }
+          }
+
+          return null;
+        },
+      });
+    });
+
+    // ID field consistency (should not be negative)
+    const idColumns = this.findColumnsByPattern(/(^id$|_id$|^.*id$)/i);
+    
+    idColumns.forEach(col => {
+      this.rules.push({
+        id: `id_positive_${col.name}`,
+        name: 'ID Field Positive Validation',
+        description: `${col.name} should be positive`,
+        type: 'business_logic',
+        severity: 'high',
+        enabled: true,
+        validate: (row, _headers, rowIndex) => {
+          const value = this.parseNumber(row[col.index]);
+
+          if (value !== null && value <= 0) {
+            return {
+              ruleId: `id_positive_${col.name}`,
+              passed: false,
+              rowIndex,
+              values: { [col.name]: row[col.index] },
+              issue: `ID field ${col.name} should be positive (found: ${value})`,
+              severity: 'high',
+            };
+          }
+
+          return null;
+        },
+      });
+    });
+
+    // Count/Quantity field validation
+    const countColumns = this.findColumnsByPattern(/(count|quantity|number|amount)/i);
+    
+    countColumns.forEach(col => {
+      this.rules.push({
+        id: `count_non_negative_${col.name}`,
+        name: 'Count Field Non-Negative Validation',
+        description: `${col.name} should not be negative`,
+        type: 'business_logic',
+        severity: 'medium',
+        enabled: true,
+        validate: (row, _headers, rowIndex) => {
+          const value = this.parseNumber(row[col.index]);
+
+          if (value !== null && value < 0) {
+            return {
+              ruleId: `count_non_negative_${col.name}`,
+              passed: false,
+              rowIndex,
+              values: { [col.name]: row[col.index] },
+              issue: `Count/quantity field ${col.name} should not be negative (found: ${value})`,
+              severity: 'medium',
+            };
+          }
+
+          return null;
+        },
+      });
+    });
+  }
+
+  /**
+   * String Format Consistency Rules
+   */
+  private addStringFormatConsistencyRules(): void {
+    // Email format validation
+    const emailColumns = this.findColumnsByPattern(/(email|mail)/i);
+    
+    emailColumns.forEach(col => {
+      this.rules.push({
+        id: `email_format_${col.name}`,
+        name: 'Email Format Validation',
+        description: `${col.name} should contain valid email format`,
+        type: 'business_logic',
+        severity: 'medium',
+        enabled: true,
+        validate: (row, _headers, rowIndex) => {
+          const email = row[col.index]?.toString().trim();
+
+          if (email && email.length > 0) {
+            const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            
+            if (!emailPattern.test(email)) {
+              return {
+                ruleId: `email_format_${col.name}`,
+                passed: false,
+                rowIndex,
+                values: { [col.name]: email },
+                issue: `Invalid email format: '${email}'`,
+                severity: 'medium',
+              };
+            }
+          }
+
+          return null;
+        },
+      });
+    });
+
+    // Phone number format validation
+    const phoneColumns = this.findColumnsByPattern(/(phone|tel|mobile|contact)/i);
+    
+    phoneColumns.forEach(col => {
+      this.rules.push({
+        id: `phone_format_${col.name}`,
+        name: 'Phone Number Format Validation',
+        description: `${col.name} should contain valid phone format`,
+        type: 'business_logic',
+        severity: 'low',
+        enabled: true,
+        validate: (row, _headers, rowIndex) => {
+          const phone = row[col.index]?.toString().trim();
+
+          if (phone && phone.length > 0) {
+            // Basic phone pattern (allows various formats)
+            const phonePattern = /^[\+]?[\d\s\-\(\)]{7,}$/;
+            
+            if (!phonePattern.test(phone)) {
+              return {
+                ruleId: `phone_format_${col.name}`,
+                passed: false,
+                rowIndex,
+                values: { [col.name]: phone },
+                issue: `Invalid phone number format: '${phone}'`,
+                severity: 'low',
+              };
+            }
+          }
+
+          return null;
+        },
+      });
+    });
+
+    // URL format validation
+    const urlColumns = this.findColumnsByPattern(/(url|website|link|uri)/i);
+    
+    urlColumns.forEach(col => {
+      this.rules.push({
+        id: `url_format_${col.name}`,
+        name: 'URL Format Validation',
+        description: `${col.name} should contain valid URL format`,
+        type: 'business_logic',
+        severity: 'low',
+        enabled: true,
+        validate: (row, _headers, rowIndex) => {
+          const url = row[col.index]?.toString().trim();
+
+          if (url && url.length > 0) {
+            const urlPattern = /^https?:\/\/[^\s]+$/;
+            
+            if (!urlPattern.test(url)) {
+              return {
+                ruleId: `url_format_${col.name}`,
+                passed: false,
+                rowIndex,
+                values: { [col.name]: url },
+                issue: `Invalid URL format: '${url}' (should start with http:// or https://)`,
+                severity: 'low',
+              };
+            }
+          }
+
+          return null;
+        },
+      });
+    });
+  }
+
+  /**
+   * Business Domain Specific Rules
+   */
+  private addBusinessDomainRules(): void {
+    // Product/Inventory validation
+    const skuCol = this.findColumnsByPattern(/(sku|product.*code|item.*code)/i)[0];
+    const stockCol = this.findColumnsByPattern(/(stock|inventory|quantity.*hand)/i)[0];
+    const priceCol = this.findColumnsByPattern(/(price|cost|amount)/i)[0];
+
+    if (skuCol && stockCol) {
+      this.rules.push({
+        id: 'product_stock_consistency',
+        name: 'Product Stock Consistency',
+        description: 'Product with SKU should have valid stock quantity',
+        type: 'cross_field',
+        severity: 'medium',
+        enabled: true,
+        validate: (row, _headers, rowIndex) => {
+          const sku = row[skuCol.index]?.toString().trim();
+          const stock = this.parseNumber(row[stockCol.index]);
+
+          if (sku && sku.length > 0 && stock !== null && stock < 0) {
+            return {
+              ruleId: 'product_stock_consistency',
+              passed: false,
+              rowIndex,
+              values: { sku, stock: row[stockCol.index] },
+              issue: `Product ${sku} has negative stock quantity (${stock})`,
+              severity: 'medium',
+            };
+          }
+
+          return null;
+        },
+      });
+    }
+
+    if (priceCol && stockCol) {
+      this.rules.push({
+        id: 'price_stock_business_logic',
+        name: 'Price Stock Business Logic',
+        description: 'Products with price should have reasonable stock levels',
+        type: 'business_logic',
+        severity: 'low',
+        enabled: true,
+        validate: (row, _headers, rowIndex) => {
+          const price = this.parseNumber(row[priceCol.index]);
+          const stock = this.parseNumber(row[stockCol.index]);
+
+          if (price !== null && stock !== null) {
+            // Business rule: High-value items (>$1000) with zero stock might need attention
+            if (price > 1000 && stock === 0) {
+              return {
+                ruleId: 'price_stock_business_logic',
+                passed: false,
+                rowIndex,
+                values: { price: row[priceCol.index], stock: row[stockCol.index] },
+                issue: `High-value item (${price}) has zero stock - potential business impact`,
+                severity: 'low',
+              };
+            }
+          }
+
+          return null;
+        },
+      });
+    }
+
+    // Customer relationship validation
+    const customerIdCol = this.findColumnsByPattern(/(customer.*id|client.*id)/i)[0];
+    const orderCol = this.findColumnsByPattern(/(order|purchase|transaction)/i)[0];
+    const statusCol = this.findColumnsByPattern(/(status|state)/i)[0];
+
+    if (customerIdCol && orderCol) {
+      this.rules.push({
+        id: 'customer_order_relationship',
+        name: 'Customer Order Relationship',
+        description: 'Order should have valid customer ID',
+        type: 'cross_field',
+        severity: 'high',
+        enabled: true,
+        validate: (row, _headers, rowIndex) => {
+          const customerId = row[customerIdCol.index]?.toString().trim();
+          const order = row[orderCol.index]?.toString().trim();
+
+          if (order && order.length > 0 && (!customerId || customerId.length === 0)) {
+            return {
+              ruleId: 'customer_order_relationship',
+              passed: false,
+              rowIndex,
+              values: { customerId, order },
+              issue: `Order '${order}' exists but customer ID is missing`,
+              severity: 'high',
+            };
+          }
+
+          return null;
+        },
+      });
+    }
+
+    // Status field consistency
+    if (statusCol) {
+      this.rules.push({
+        id: 'status_field_standardization',
+        name: 'Status Field Standardization',
+        description: 'Status values should follow consistent format',
+        type: 'business_logic',
+        severity: 'low',
+        enabled: true,
+        validate: (row, _headers, rowIndex) => {
+          const status = row[statusCol.index]?.toString().trim();
+
+          if (status && status.length > 0) {
+            // Check for common status inconsistencies
+            const hasInconsistentCasing = status !== status.toLowerCase() && status !== status.toUpperCase();
+            const hasSpecialChars = /[^a-zA-Z0-9\s\-_]/.test(status);
+            
+            if (hasInconsistentCasing && hasSpecialChars) {
+              return {
+                ruleId: 'status_field_standardization',
+                passed: false,
+                rowIndex,
+                values: { status },
+                issue: `Status '${status}' has inconsistent format (mixed case and special characters)`,
+                severity: 'low',
+              };
+            }
+          }
+
+          return null;
+        },
+      });
+    }
   }
 
   private findColumnsByPattern(pattern: RegExp): Array<{ name: string; index: number }> {

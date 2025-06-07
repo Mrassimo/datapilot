@@ -235,12 +235,9 @@ export class Section2Analyzer {
 
     // Enhanced Accuracy Analysis
     const accuracy = {
-      valueConformity: [], // TODO: Add external reference validation
+      valueConformity: this.performExternalReferenceValidation(),
       crossFieldValidation: businessRuleResults.crossFieldValidations,
-      outlierImpact: {
-        percentageErrornousOutliers: 0, // TODO: Link with Section 3 outlier analysis
-        description: 'Outlier impact analysis to be integrated with Section 3 results',
-      },
+      outlierImpact: this.analyzeOutlierImpact(),
       patternValidation: patternResults.patternValidations,
       businessRuleSummary: {
         totalRules: businessRuleSummary.totalRulesEvaluated,
@@ -255,7 +252,7 @@ export class Section2Analyzer {
     const statisticalInsights = this.extractStatisticalInsights();
     const consistency = {
       intraRecord: businessRuleResults.intraRecordConsistency,
-      interRecord: [], // TODO: Implement entity resolution
+      interRecord: this.performEntityResolution(),
       formatConsistency: patternResults.formatConsistency,
       patternSummary: {
         totalPatterns: patternSummary.totalPatternsEvaluated,
@@ -961,6 +958,414 @@ export class Section2Analyzer {
     };
 
     return { ...defaultConfig, ...userConfig };
+  }
+
+  /**
+   * External Reference Validation (TODO item 1)
+   * Validates data against external reference lists and standards
+   */
+  private performExternalReferenceValidation(): any[] {
+    const conformityChecks: any[] = [];
+    const externalRefs = this.config.externalReferences || {};
+
+    // Country code validation
+    if (externalRefs.countryCodesList) {
+      const countryColumns = this.headers
+        .map((header, index) => ({ header, index }))
+        .filter(({ header }) => 
+          /country|nation|ctry|cntry/i.test(header) || 
+          header.toLowerCase().includes('country_code') ||
+          header.toLowerCase() === 'cc'
+        );
+
+      countryColumns.forEach(({ header, index }) => {
+        const violations = this.validateAgainstReferenceList(
+          index, 
+          externalRefs.countryCodesList!, 
+          'Country Code Standard'
+        );
+        
+        if (violations.violationsFound > 0) {
+          conformityChecks.push({
+            columnName: header,
+            standard: 'ISO 3166 Country Codes',
+            violationsFound: violations.violationsFound,
+            examples: violations.examples,
+            description: `${violations.violationsFound} invalid country codes found`,
+          });
+        }
+      });
+    }
+
+    // Currency code validation
+    if (externalRefs.currencyCodesList) {
+      const currencyColumns = this.headers
+        .map((header, index) => ({ header, index }))
+        .filter(({ header }) => 
+          /currency|curr|money/i.test(header) ||
+          header.toLowerCase().includes('currency_code') ||
+          header.toLowerCase() === 'ccy'
+        );
+
+      currencyColumns.forEach(({ header, index }) => {
+        const violations = this.validateAgainstReferenceList(
+          index, 
+          externalRefs.currencyCodesList!, 
+          'Currency Code Standard'
+        );
+        
+        if (violations.violationsFound > 0) {
+          conformityChecks.push({
+            columnName: header,
+            standard: 'ISO 4217 Currency Codes',
+            violationsFound: violations.violationsFound,
+            examples: violations.examples,
+            description: `${violations.violationsFound} invalid currency codes found`,
+          });
+        }
+      });
+    }
+
+    // Product master list validation
+    if (externalRefs.productMasterList) {
+      const productColumns = this.headers
+        .map((header, index) => ({ header, index }))
+        .filter(({ header }) => 
+          /product|item|sku|part/i.test(header)
+        );
+
+      productColumns.forEach(({ header, index }) => {
+        const violations = this.validateAgainstReferenceList(
+          index, 
+          externalRefs.productMasterList!, 
+          'Product Master List'
+        );
+        
+        if (violations.violationsFound > 0) {
+          conformityChecks.push({
+            columnName: header,
+            standard: 'Product Master Reference',
+            violationsFound: violations.violationsFound,
+            examples: violations.examples,
+            description: `${violations.violationsFound} products not found in master list`,
+          });
+        }
+      });
+    }
+
+    return conformityChecks;
+  }
+
+  /**
+   * Validates column values against a reference list
+   */
+  private validateAgainstReferenceList(columnIndex: number, referenceList: string[], standardName: string) {
+    const referenceSet = new Set(referenceList.map(ref => ref.toLowerCase().trim()));
+    const violations: string[] = [];
+    let violationsFound = 0;
+    
+    // Sample up to 1000 rows for performance
+    const sampleSize = Math.min(1000, this.data.length);
+    
+    for (let rowIndex = 0; rowIndex < sampleSize; rowIndex++) {
+      const value = this.data[rowIndex][columnIndex];
+      if (value && typeof value === 'string') {
+        const normalizedValue = value.toLowerCase().trim();
+        if (normalizedValue && !referenceSet.has(normalizedValue)) {
+          violationsFound++;
+          if (violations.length < 10) {
+            violations.push(value);
+          }
+        }
+      }
+    }
+    
+    return {
+      violationsFound,
+      examples: violations,
+    };
+  }
+
+  /**
+   * Outlier Impact Analysis (TODO item 2)
+   * Links with Section 3 outlier analysis results to assess impact on accuracy
+   */
+  private analyzeOutlierImpact(): any {
+    if (!this.section3Result?.edaAnalysis?.multivariateAnalysis?.outlierDetection) {
+      return {
+        percentageErrornousOutliers: 0,
+        description: 'Outlier analysis not available - Section 3 results required',
+      };
+    }
+
+    const outlierAnalysis = this.section3Result.edaAnalysis.multivariateAnalysis.outlierDetection;
+    
+    if (!outlierAnalysis.isApplicable) {
+      return {
+        percentageErrornousOutliers: 0,
+        description: 'Outlier detection not applicable for this dataset',
+      };
+    }
+
+    // Calculate erroneous outlier percentage based on business context
+    const totalOutliers = outlierAnalysis.totalOutliers;
+    const outlierPercentage = outlierAnalysis.outlierPercentage;
+    
+    // Heuristic: assume outliers in certain contexts are more likely to be errors
+    let errorLikelihood = 0.3; // Base 30% likelihood of outliers being errors
+    
+    // Increase likelihood for specific column types
+    const numericColumns = this.headers
+      .map((header, index) => ({ header: header.toLowerCase(), index, type: this.columnTypes[index] }))
+      .filter(({ type }) => type === 'number' || type === 'integer' || type === 'float');
+    
+    // Check for error-prone contexts
+    let contextualErrorLikelihood = 0;
+    numericColumns.forEach(({ header }) => {
+      if (header.includes('age') || header.includes('score') || header.includes('rating')) {
+        contextualErrorLikelihood += 0.2; // 20% increase for age/score fields
+      }
+      if (header.includes('price') || header.includes('amount') || header.includes('cost')) {
+        contextualErrorLikelihood += 0.15; // 15% increase for financial fields
+      }
+      if (header.includes('quantity') || header.includes('count')) {
+        contextualErrorLikelihood += 0.1; // 10% increase for quantity fields
+      }
+    });
+    
+    errorLikelihood = Math.min(0.8, errorLikelihood + contextualErrorLikelihood / numericColumns.length);
+    
+    const percentageErrornousOutliers = outlierPercentage * errorLikelihood;
+    
+    let description = `Estimated ${percentageErrornousOutliers.toFixed(2)}% of data may contain outlier-related errors`;
+    
+    if (percentageErrornousOutliers > 10) {
+      description += ' - High outlier error rate suggests data quality issues';
+    } else if (percentageErrornousOutliers > 5) {
+      description += ' - Moderate outlier error rate detected';
+    } else {
+      description += ' - Low outlier error rate indicates good data quality';
+    }
+    
+    return {
+      percentageErrornousOutliers,
+      description,
+      outlierDetails: {
+        totalOutliers,
+        outlierPercentage,
+        method: outlierAnalysis.method,
+        errorLikelihood: Math.round(errorLikelihood * 100) / 100,
+      },
+    };
+  }
+
+  /**
+   * Entity Resolution (TODO item 3)
+   * Identifies and resolves duplicate entities across records
+   */
+  private performEntityResolution(): any[] {
+    const entityResolutionResults: any[] = [];
+    
+    // Identify potential entity identifier columns
+    const entityColumns = this.identifyEntityColumns();
+    
+    if (entityColumns.length === 0) {
+      return [{
+        entityType: 'Generic Records',
+        inconsistentEntities: 0,
+        examples: [],
+        analysis: 'No clear entity identifier columns found for resolution analysis',
+      }];
+    }
+    
+    // Perform entity resolution for each identified entity type
+    entityColumns.forEach(entityCol => {
+      const resolution = this.resolveEntitiesForColumn(entityCol);
+      if (resolution.inconsistentEntities > 0) {
+        entityResolutionResults.push(resolution);
+      }
+    });
+    
+    return entityResolutionResults;
+  }
+
+  /**
+   * Identifies columns that likely represent entity identifiers
+   */
+  private identifyEntityColumns(): Array<{ name: string; index: number; entityType: string }> {
+    const entityColumns: Array<{ name: string; index: number; entityType: string }> = [];
+    
+    this.headers.forEach((header, index) => {
+      const lowerHeader = header.toLowerCase();
+      
+      // Customer/Person entities
+      if (lowerHeader.includes('customer') || lowerHeader.includes('client') || 
+          lowerHeader.includes('person') || lowerHeader.includes('user')) {
+        entityColumns.push({
+          name: header,
+          index,
+          entityType: 'Customer/Person'
+        });
+      }
+      
+      // Product entities
+      if (lowerHeader.includes('product') || lowerHeader.includes('item') || 
+          lowerHeader.includes('sku') || lowerHeader.includes('part')) {
+        entityColumns.push({
+          name: header,
+          index,
+          entityType: 'Product'
+        });
+      }
+      
+      // Organization entities
+      if (lowerHeader.includes('company') || lowerHeader.includes('organization') || 
+          lowerHeader.includes('vendor') || lowerHeader.includes('supplier')) {
+        entityColumns.push({
+          name: header,
+          index,
+          entityType: 'Organization'
+        });
+      }
+      
+      // Location entities
+      if (lowerHeader.includes('location') || lowerHeader.includes('address') || 
+          lowerHeader.includes('city') || lowerHeader.includes('region')) {
+        entityColumns.push({
+          name: header,
+          index,
+          entityType: 'Location'
+        });
+      }
+      
+      // Generic ID columns
+      if ((lowerHeader.includes('id') && !lowerHeader.includes('_id_')) || 
+          lowerHeader.includes('identifier') || lowerHeader === 'key') {
+        entityColumns.push({
+          name: header,
+          index,
+          entityType: 'Generic Entity'
+        });
+      }
+    });
+    
+    return entityColumns.slice(0, 5); // Limit to 5 entity columns for performance
+  }
+
+  /**
+   * Performs entity resolution for a specific column
+   */
+  private resolveEntitiesForColumn(entityCol: { name: string; index: number; entityType: string }): any {
+    const entityValueMap = new Map<string, Array<{
+      rowIndex: number;
+      associatedData: Record<string, any>;
+    }>>();
+    
+    // Group records by entity identifier
+    for (let rowIndex = 0; rowIndex < Math.min(this.data.length, 2000); rowIndex++) { // Limit for performance
+      const entityValue = this.data[rowIndex][entityCol.index];
+      if (entityValue && typeof entityValue === 'string') {
+        const normalizedEntity = entityValue.trim().toLowerCase();
+        
+        if (!entityValueMap.has(normalizedEntity)) {
+          entityValueMap.set(normalizedEntity, []);
+        }
+        
+        // Collect associated data for this entity
+        const associatedData: Record<string, any> = {};
+        this.headers.forEach((header, colIndex) => {
+          if (colIndex !== entityCol.index) { // Exclude the entity column itself
+            associatedData[header] = this.data[rowIndex][colIndex];
+          }
+        });
+        
+        entityValueMap.get(normalizedEntity)!.push({
+          rowIndex,
+          associatedData,
+        });
+      }
+    }
+    
+    // Find entities with conflicting information
+    const inconsistentEntities: any[] = [];
+    
+    entityValueMap.forEach((records, entityId) => {
+      if (records.length > 1) {
+        const conflicts = this.detectEntityConflicts(records);
+        if (conflicts.length > 0) {
+          inconsistentEntities.push({
+            entityId,
+            conflictingValues: conflicts,
+            recordIndices: records.map(r => r.rowIndex),
+          });
+        }
+      }
+    });
+    
+    return {
+      entityType: entityCol.entityType,
+      inconsistentEntities: inconsistentEntities.length,
+      examples: inconsistentEntities.slice(0, 5), // Limit examples
+      analysis: `Found ${inconsistentEntities.length} entities with conflicting information across ${entityValueMap.size} total entities`,
+    };
+  }
+
+  /**
+   * Detects conflicts in entity data across multiple records
+   */
+  private detectEntityConflicts(records: Array<{ rowIndex: number; associatedData: Record<string, any> }>): any[] {
+    const conflicts: any[] = [];
+    const firstRecord = records[0];
+    
+    // Compare each subsequent record with the first one
+    for (let i = 1; i < records.length; i++) {
+      const currentRecord = records[i];
+      
+      Object.keys(firstRecord.associatedData).forEach(column => {
+        const value1 = this.normalizeValueForComparison(firstRecord.associatedData[column]);
+        const value2 = this.normalizeValueForComparison(currentRecord.associatedData[column]);
+        
+        // Only flag as conflict if both values are non-null and different
+        if (value1 !== null && value2 !== null && value1 !== value2) {
+          // Check if this conflict already exists
+          const existingConflict = conflicts.find(c => c.column === column);
+          
+          if (existingConflict) {
+            if (!existingConflict.values.includes(value2)) {
+              existingConflict.values.push(value2);
+              existingConflict.recordIndices.push(currentRecord.rowIndex);
+            }
+          } else {
+            conflicts.push({
+              column,
+              value1,
+              value2,
+              values: [value1, value2],
+              recordIndices: [firstRecord.rowIndex, currentRecord.rowIndex],
+            });
+          }
+        }
+      });
+    }
+    
+    return conflicts;
+  }
+
+  /**
+   * Normalizes values for entity comparison
+   */
+  private normalizeValueForComparison(value: any): string | null {
+    if (value === null || value === undefined) return null;
+    
+    const strValue = String(value).trim().toLowerCase();
+    
+    // Treat empty strings, 'null', 'na', etc. as null
+    if (strValue === '' || strValue === 'null' || strValue === 'na' || 
+        strValue === 'n/a' || strValue === 'none' || strValue === 'unknown') {
+      return null;
+    }
+    
+    return strValue;
   }
 
   /**
