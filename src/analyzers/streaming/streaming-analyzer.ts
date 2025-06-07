@@ -6,10 +6,11 @@
 import { createReadStream } from 'fs';
 import { Transform } from 'stream';
 import { pipeline } from 'stream/promises';
-import { logger } from '../../utils/logger';
+import { logger, LogContext } from '../../utils/logger';
 import { CSVParser } from '../../parsers/csv-parser';
 import type { ParsedRow } from '../../parsers/types';
 import { getConfig } from '../../core/config';
+import { DataPilotError, ErrorSeverity } from '../../core/types';
 import {
   StreamingNumericalAnalyzer,
   StreamingCategoricalAnalyzer,
@@ -29,6 +30,7 @@ import type {
   Section3Warning,
   EdaInsights,
   ColumnAnalysis,
+  MultivariateAnalysis,
 } from '../eda/types';
 import { EdaDataType, SemanticType } from '../eda/types';
 
@@ -91,8 +93,8 @@ export class StreamingAnalyzer {
       enabledAnalyses: analysisConfig.enabledAnalyses,
       significanceLevel: statisticalConfig.significanceLevel,
       maxCorrelationPairs: analysisConfig.maxCorrelationPairs,
-      outlierMethods: analysisConfig.outlierMethods,
-      normalityTests: analysisConfig.normalityTests,
+      outlierMethods: analysisConfig.outlierMethods as ("iqr" | "zscore" | "modified_zscore")[],
+      normalityTests: analysisConfig.normalityTests as ("shapiro" | "jarque_bera" | "ks_test")[],
       maxCategoricalLevels: analysisConfig.maxCategoricalLevels,
       enableMultivariate: analysisConfig.enableMultivariate,
       samplingThreshold: analysisConfig.samplingThreshold,
@@ -125,7 +127,14 @@ export class StreamingAnalyzer {
    * Analyze a CSV file using streaming processing
    */
   async analyzeFile(filePath: string): Promise<Section3Result> {
-    logger.info('Starting streaming analysis of file:', filePath);
+    const context: LogContext = {
+      section: 'eda',
+      analyzer: 'StreamingAnalyzer',
+      filePath,
+      operation: 'analyzeFile'
+    };
+    
+    logger.info('Starting streaming analysis of file', context);
     this.state.startTime = Date.now();
 
     try {
@@ -146,7 +155,7 @@ export class StreamingAnalyzer {
       // Phase 4: Finalize results
       return await this.finalizeResults();
     } catch (error) {
-      logger.error('Streaming analysis failed:', error);
+      logger.errorWithStack(error instanceof Error ? error : new Error(String(error)), context);
       throw error;
     }
   }
@@ -422,7 +431,11 @@ export class StreamingAnalyzer {
         univariateAnalysis.push(result);
         this.warnings.push(...analyzer.getWarnings());
       } catch (error) {
-        logger.error(`Error finalizing analysis for column ${columnName}:`, error);
+        logger.error(`Error finalizing analysis for column ${columnName}:`, {
+          section: 'eda',
+          analyzer: 'StreamingAnalyzer',
+          operation: 'finalizeColumnAnalysis'
+        }, error);
         this.warnings.push({
           category: 'error',
           severity: 'high',
@@ -456,7 +469,11 @@ export class StreamingAnalyzer {
         );
         logger.info('Multivariate analysis completed successfully');
       } catch (error) {
-        logger.warn('Multivariate analysis failed:', error);
+        logger.warn('Multivariate analysis failed:', {
+          section: 'eda',
+          analyzer: 'StreamingAnalyzer',
+          operation: 'multivariateAnalysis'
+        }, error);
         // Fallback to minimal analysis
         multivariateAnalysis = await MultivariateOrchestrator.analyze([], [], [], 0);
       }
@@ -690,6 +707,129 @@ export class StreamingAnalyzer {
         currentStep: this.state.chunksProcessed,
         totalSteps: Math.ceil(this.config.maxRowsAnalyzed / this.state.currentChunkSize),
       });
+    }
+  }
+
+  /**
+   * Handle analysis errors with graceful degradation
+   */
+  private async handleAnalysisError(error: unknown, logContext: LogContext): Promise<Section3Result> {
+    logger.errorWithStack(error instanceof Error ? error : new Error(String(error)), logContext);
+    
+    if (error instanceof DataPilotError) {
+      // Check if we can provide a degraded result
+      if (error.recoverable && this.state.rowsProcessed > 0) {
+        this.warnings.push({
+          category: 'error',
+          message: `Analysis completed with errors: ${error.message}`,
+          severity: 'high',
+          impact: 'Partial results available',
+          suggestion: 'Check data quality or review error logs'
+        });
+        
+        logger.warn('Returning partial results due to recoverable error', logContext);
+        return await this.createDegradedResult(error);
+      }
+    }
+    
+    // Re-throw non-recoverable errors
+    throw error;
+  }
+
+  /**
+   * Create a degraded result when full analysis fails
+   */
+  private async createDegradedResult(error: DataPilotError): Promise<Section3Result> {
+    // Use the existing MultivariateOrchestrator to create an empty analysis
+    const emptyMultivariateAnalysis = await MultivariateOrchestrator.analyze([], [], [], 0);
+
+    return {
+      edaAnalysis: {
+        univariateAnalysis: [],
+        bivariateAnalysis: {
+          correlationMatrix: {
+            matrix: [],
+            columnNames: this.headers,
+            significantPairs: []
+          },
+          strongCorrelations: [],
+          significantAssociations: [],
+          crossTabulations: [],
+          numericVsNumeric: [],
+          numericVsCategorical: [],
+          categoricalVsCategorical: [],
+          insights: {
+            keyFindings: [`Analysis failed: ${error.message}`],
+            strongestCorrelations: [],
+            interestingPatterns: [],
+            recommendations: []
+          }
+        },
+        multivariateAnalysis: emptyMultivariateAnalysis,
+        crossVariableInsights: {
+          topFindings: [`Analysis interrupted: ${error.message}`],
+          dataQualityIssues: ['Incomplete analysis due to processing error'],
+          hypothesesGenerated: [],
+          preprocessingRecommendations: []
+        }
+      },
+      warnings: [
+        ...this.warnings,
+        {
+          category: 'error',
+          message: 'Analysis completed with reduced functionality due to errors',
+          severity: 'high',
+          impact: 'No analysis results available',
+          suggestion: 'Check error logs and retry with different configuration'
+        }
+      ],
+      performanceMetrics: {
+        analysisTimeMs: Date.now() - this.state.startTime,
+        peakMemoryMB: this.state.peakMemoryMB,
+        rowsAnalyzed: this.state.rowsProcessed,
+        chunksProcessed: this.state.chunksProcessed
+      },
+      metadata: {
+        analysisApproach: 'StreamingAnalyzer (degraded)',
+        datasetSize: this.state.rowsProcessed,
+        columnsAnalyzed: this.headers.length,
+        samplingApplied: false
+      }
+    };
+  }
+
+  /**
+   * Validate analyzer state before operations
+   */
+  private validateAnalyzerState(operation: string): void {
+    if (this.headers.length === 0) {
+      throw DataPilotError.analysis(
+        `Cannot perform ${operation}: no headers detected`,
+        'NO_HEADERS_DETECTED',
+        { analyzer: 'StreamingAnalyzer', operationName: operation },
+        [
+          {
+            action: 'Check data format',
+            description: 'Ensure the CSV file has proper column headers',
+            severity: ErrorSeverity.HIGH
+          }
+        ]
+      );
+    }
+
+    if (this.detectedTypes.length !== this.headers.length) {
+      throw DataPilotError.analysis(
+        `Type detection mismatch: ${this.headers.length} headers, ${this.detectedTypes.length} types`,
+        'TYPE_HEADER_MISMATCH',
+        { analyzer: 'StreamingAnalyzer', operationName: operation },
+        [
+          {
+            action: 'Re-run type detection',
+            description: 'Retry the analysis to fix type detection',
+            severity: ErrorSeverity.MEDIUM
+          }
+        ]
+      );
     }
   }
 }
