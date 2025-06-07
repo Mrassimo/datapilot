@@ -674,6 +674,32 @@ export interface Section3Config {
   enableMultivariate: boolean;
   samplingThreshold: number; // For intensive computations
   useStreamingAnalysis?: boolean; // Use streaming algorithms for memory efficiency
+  
+  // Advanced statistical configuration (from global config)
+  alternativeSignificanceLevels?: {
+    normalityTests: number;
+    correlationTests: number;
+    hypothesisTests: number;
+    outlierDetection: number;
+  };
+  confidenceLevel?: number;
+  correlationThresholds?: {
+    weak: number;
+    moderate: number;
+    strong: number;
+    veryStrong: number;
+  };
+  outlierThresholds?: {
+    zScoreThreshold: number;
+    modifiedZScoreThreshold: number;
+    iqrMultiplier: number;
+  };
+  normalityThresholds?: {
+    shapiroWilkMinSample: number;
+    shapiroWilkMaxSample: number;
+    jarqueBeraThreshold: number;
+    ksTestThreshold: number;
+  };
 }
 
 // Progress tracking

@@ -11,6 +11,7 @@ import { OPTIMAL_CHUNK_SIZE, MAX_SAMPLE_SIZE } from './types';
 import { CSVDetector } from './csv-detector';
 import { CSVStateMachine } from './csv-state-machine';
 import { DataPilotError } from '../core/types';
+import { getConfig } from '../core/config';
 
 export class CSVParser {
   private options: Required<CSVParserOptions>;
@@ -18,6 +19,9 @@ export class CSVParser {
   private aborted = false;
 
   constructor(options: Partial<CSVParserOptions> = {}) {
+    const configManager = getConfig();
+    const perfConfig = configManager.getPerformanceConfig();
+    
     this.options = {
       delimiter: ',',
       quote: '"',
@@ -26,13 +30,13 @@ export class CSVParser {
       hasHeader: true,
       lineEnding: '\n',
       skipEmptyLines: true,
-      maxRows: options.maxRows ?? 1000000, // Default 1M rows to prevent memory issues
-      chunkSize: OPTIMAL_CHUNK_SIZE,
+      maxRows: options.maxRows ?? perfConfig.maxRows,
+      chunkSize: options.chunkSize ?? perfConfig.chunkSize,
       detectTypes: true,
       trimFields: true,
-      maxFieldSize: 1024 * 1024, // 1MB per field
+      maxFieldSize: options.maxFieldSize ?? perfConfig.maxFieldSize,
       autoDetect: true,
-      sampleSize: MAX_SAMPLE_SIZE,
+      sampleSize: options.sampleSize ?? perfConfig.sampleSize,
       ...options,
     };
 
@@ -63,7 +67,9 @@ export class CSVParser {
 
       // For large files, use streaming with batching to prevent memory overflow
       const fileSizeMB = fileStats.size / (1024 * 1024);
-      const isLargeFile = fileSizeMB > 100; // Files over 100MB
+      const configManager = getConfig();
+      const streamingConfig = configManager.getStreamingConfig();
+      const isLargeFile = fileSizeMB > streamingConfig.memoryThresholdMB;
 
       if (isLargeFile) {
         return this.parseFileStreaming(filePath);
@@ -84,8 +90,10 @@ export class CSVParser {
           const memUsage = process.memoryUsage();
           this.stats.peakMemoryUsage = Math.max(this.stats.peakMemoryUsage || 0, memUsage.heapUsed);
 
-          if (memUsage.heapUsed > 1024 * 1024 * 1024) {
-            // 1GB threshold
+          const configManager = getConfig();
+          const perfConfig = configManager.getPerformanceConfig();
+          
+          if (memUsage.heapUsed > perfConfig.memoryThresholdBytes) {
             throw new DataPilotError(
               'Memory limit reached, file too large for in-memory parsing',
               'MEMORY_LIMIT',
@@ -118,7 +126,9 @@ export class CSVParser {
    */
   private async parseFileStreaming(filePath: string): Promise<ParsedRow[]> {
     const rows: ParsedRow[] = [];
-    const batchSize = 1000; // Process in batches
+    const configManager = getConfig();
+    const perfConfig = configManager.getPerformanceConfig();
+    const batchSize = perfConfig.batchSize;
     let currentBatch: ParsedRow[] = [];
 
     const readStream = createReadStream(filePath, {

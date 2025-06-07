@@ -312,7 +312,7 @@ export class DataPilotError extends Error {
   }
 }
 
-// Configuration Types
+// Configuration Types (Legacy - replaced by new config system)
 export interface DataPilotConfig {
   maxFileSize?: number;
   maxRowsInMemory?: number;

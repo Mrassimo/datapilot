@@ -9,6 +9,7 @@ import { pipeline } from 'stream/promises';
 import { logger } from '../../utils/logger';
 import { CSVParser } from '../../parsers/csv-parser';
 import type { ParsedRow } from '../../parsers/types';
+import { getConfig } from '../../core/config';
 import {
   StreamingNumericalAnalyzer,
   StreamingCategoricalAnalyzer,
@@ -31,7 +32,7 @@ import type {
 } from '../eda/types';
 import { EdaDataType, SemanticType } from '../eda/types';
 
-interface StreamingConfig extends Section3Config {
+interface StreamingAnalyzerConfig extends Section3Config {
   chunkSize: number;
   memoryThresholdMB: number;
   maxRowsAnalyzed: number;
@@ -53,7 +54,7 @@ interface StreamingState {
  * Processes any size dataset with constant memory usage
  */
 export class StreamingAnalyzer {
-  private config: StreamingConfig;
+  private config: StreamingAnalyzerConfig;
   private state: StreamingState;
   private progressCallback?: (progress: Section3Progress) => void;
 
@@ -71,28 +72,37 @@ export class StreamingAnalyzer {
   
   // Data collection for multivariate analysis (when enabled)
   private collectedData: (string | number | null | undefined)[][] = [];
-  private maxCollectedRows: number = 2000; // Limit memory usage for multivariate analysis
+  private maxCollectedRows: number;
 
-  constructor(config: Partial<StreamingConfig> = {}) {
+  constructor(config: Partial<StreamingAnalyzerConfig> = {}) {
+    const configManager = getConfig();
+    const streamingConfig = configManager.getStreamingConfig();
+    const analysisConfig = configManager.getAnalysisConfig();
+    const statisticalConfig = configManager.getStatisticalConfig();
+    
     this.config = {
-      // Default streaming config
-      chunkSize: 500, // Reduced from 1000
-      memoryThresholdMB: 100, // Reduced from 200
-      maxRowsAnalyzed: 500000, // Reduced from 1000000
-      adaptiveChunkSizing: true,
+      // Default streaming config from configuration manager
+      chunkSize: streamingConfig.adaptiveChunkSizing.minChunkSize,
+      memoryThresholdMB: streamingConfig.memoryThresholdMB,
+      maxRowsAnalyzed: streamingConfig.maxRowsAnalyzed,
+      adaptiveChunkSizing: streamingConfig.adaptiveChunkSizing.enabled,
 
-      // Default Section3Config
-      enabledAnalyses: ['univariate', 'bivariate', 'correlations'],
-      significanceLevel: 0.05,
-      maxCorrelationPairs: 50,
-      outlierMethods: ['iqr', 'zscore', 'modified_zscore'],
-      normalityTests: ['shapiro', 'jarque_bera', 'ks_test'],
-      maxCategoricalLevels: 50,
-      enableMultivariate: true,
-      samplingThreshold: 10000,
+      // Default Section3Config from configuration manager
+      enabledAnalyses: analysisConfig.enabledAnalyses,
+      significanceLevel: statisticalConfig.significanceLevel,
+      maxCorrelationPairs: analysisConfig.maxCorrelationPairs,
+      outlierMethods: analysisConfig.outlierMethods,
+      normalityTests: analysisConfig.normalityTests,
+      maxCategoricalLevels: analysisConfig.maxCategoricalLevels,
+      enableMultivariate: analysisConfig.enableMultivariate,
+      samplingThreshold: analysisConfig.samplingThreshold,
 
       ...config,
     };
+
+    // Set maxCollectedRows from configuration
+    const perfConfig = configManager.getPerformanceConfig();
+    this.maxCollectedRows = perfConfig.maxCollectedRowsMultivariate;
 
     this.state = {
       rowsProcessed: 0,
@@ -222,7 +232,7 @@ export class StreamingAnalyzer {
                 severity: 'medium',
                 message: `Analysis stopped at ${this.config.maxRowsAnalyzed} rows to prevent memory issues`,
                 impact: 'Results based on subset of data',
-                suggestion: 'Increase maxRowsAnalyzed if more memory is available',
+                suggestion: 'Increase maxRowsAnalyzed in configuration if more memory is available',
               });
               return callback();
             }
@@ -288,8 +298,11 @@ export class StreamingAnalyzer {
     // Clear chunk from memory immediately
     chunk.length = 0;
 
-    // Update progress periodically
-    if (this.state.chunksProcessed % 10 === 0) {
+    // Update progress periodically based on configuration
+    const configManager = getConfig();
+    const perfConfig = configManager.getPerformanceConfig();
+    
+    if (this.state.chunksProcessed % perfConfig.performanceMonitoringInterval === 0) {
       const progress = Math.min(90, (this.state.rowsProcessed / this.config.maxRowsAnalyzed) * 90);
       this.reportProgress(
         'univariate',
@@ -298,8 +311,8 @@ export class StreamingAnalyzer {
       );
     }
 
-    // Aggressive memory cleanup every 20 chunks
-    if (this.state.chunksProcessed % 20 === 0) {
+    // Memory cleanup based on configuration interval
+    if (this.state.chunksProcessed % perfConfig.memoryCleanupInterval === 0) {
       this.performMemoryCleanup();
     }
   }
@@ -308,8 +321,12 @@ export class StreamingAnalyzer {
    * Perform aggressive memory cleanup
    */
   private performMemoryCleanup(): void {
+    const configManager = getConfig();
+    const perfConfig = configManager.getPerformanceConfig();
+    const streamingConfig = configManager.getStreamingConfig();
+    
     // Clear type detection results after initial setup
-    if (this.state.chunksProcessed > 10) {
+    if (this.state.chunksProcessed > perfConfig.performanceMonitoringInterval) {
       this.typeDetectionResults = [];
     }
 
@@ -322,14 +339,17 @@ export class StreamingAnalyzer {
     
     // If under extreme memory pressure and we have sufficient data for multivariate analysis,
     // limit the collected data to prevent memory issues
-    if (this.state.currentMemoryMB > this.config.memoryThresholdMB * 1.5 && 
-        this.collectedData.length > 1000) {
-      // Keep only the first 1000 rows for multivariate analysis
-      this.collectedData = this.collectedData.slice(0, 1000);
+    const emergencyThreshold = this.config.memoryThresholdMB * streamingConfig.memoryManagement.emergencyThresholdMultiplier;
+    const minMultivariateRows = Math.min(1000, perfConfig.maxCollectedRowsMultivariate / 2);
+    
+    if (this.state.currentMemoryMB > emergencyThreshold && 
+        this.collectedData.length > minMultivariateRows) {
+      // Keep only the minimum required rows for multivariate analysis
+      this.collectedData = this.collectedData.slice(0, minMultivariateRows);
     }
 
-    // Force garbage collection if available
-    if (global.gc) {
+    // Force garbage collection if available and enabled
+    if (streamingConfig.memoryManagement.forceGarbageCollection && global.gc) {
       global.gc();
     }
   }
@@ -342,38 +362,47 @@ export class StreamingAnalyzer {
     this.state.currentMemoryMB = Math.round(memUsage.heapUsed / (1024 * 1024));
     this.state.peakMemoryMB = Math.max(this.state.peakMemoryMB, this.state.currentMemoryMB);
 
+    const configManager = getConfig();
+    const streamingConfig = configManager.getStreamingConfig();
+
     if (this.config.adaptiveChunkSizing) {
       if (this.state.currentMemoryMB > this.config.memoryThresholdMB) {
-        // Reduce chunk size to use less memory
-        this.state.currentChunkSize = Math.max(50, Math.floor(this.state.currentChunkSize * 0.6)); // More aggressive reduction
+        // Reduce chunk size to use less memory based on configuration
+        this.state.currentChunkSize = Math.max(
+          streamingConfig.adaptiveChunkSizing.minChunkSize, 
+          Math.floor(this.state.currentChunkSize * streamingConfig.adaptiveChunkSizing.reductionFactor)
+        );
 
         // Clear type detection results to free memory
         this.typeDetectionResults = [];
 
-        // Force garbage collection if available
-        if (global.gc) {
+        // Force garbage collection if available and enabled
+        if (streamingConfig.memoryManagement.forceGarbageCollection && global.gc) {
           global.gc();
         }
       } else if (this.state.currentMemoryMB < this.config.memoryThresholdMB * 0.3) {
-        // Increase chunk size for better performance (less aggressive)
-        this.state.currentChunkSize = Math.min(2000, Math.floor(this.state.currentChunkSize * 1.1)); // Reduced max
+        // Increase chunk size for better performance
+        this.state.currentChunkSize = Math.min(
+          streamingConfig.adaptiveChunkSizing.maxChunkSize, 
+          Math.floor(this.state.currentChunkSize * streamingConfig.adaptiveChunkSizing.expansionFactor)
+        );
       }
     }
 
     // Emergency brake if memory gets too high
-    if (this.state.currentMemoryMB > this.config.memoryThresholdMB * 1.5) {
-      // Lower threshold
+    const emergencyThreshold = this.config.memoryThresholdMB * streamingConfig.memoryManagement.emergencyThresholdMultiplier;
+    if (this.state.currentMemoryMB > emergencyThreshold) {
       this.warnings.push({
         category: 'performance',
         severity: 'high',
-        message: `High memory usage detected (${this.state.currentMemoryMB}MB). Consider reducing maxRowsAnalyzed.`,
+        message: `High memory usage detected (${this.state.currentMemoryMB}MB). Consider reducing maxRowsAnalyzed in configuration.`,
         impact: 'Analysis may slow down or fail',
-        suggestion: 'Reduce dataset size or increase available memory',
+        suggestion: 'Reduce dataset size, increase available memory, or adjust memory thresholds in configuration',
       });
 
       // Aggressive memory cleanup
       this.typeDetectionResults = [];
-      if (global.gc) {
+      if (streamingConfig.memoryManagement.forceGarbageCollection && global.gc) {
         global.gc();
       }
     }
@@ -670,7 +699,7 @@ export class StreamingAnalyzer {
  */
 export async function analyzeFileStreaming(
   filePath: string,
-  config: Partial<StreamingConfig> = {},
+  config: Partial<StreamingAnalyzerConfig> = {},
 ): Promise<Section3Result> {
   const analyzer = new StreamingAnalyzer(config);
   return analyzer.analyzeFile(filePath);

@@ -22,6 +22,7 @@ import { UniquenessAnalyzer } from './uniqueness-analyzer';
 import { ValidityAnalyzer } from './validity-analyzer';
 import { BusinessRuleEngine, type BusinessRuleConfig } from './business-rule-engine';
 import { PatternValidationEngine, type PatternValidationConfig } from './pattern-validation-engine';
+import { getConfig } from '../../core/config';
 
 export interface Section2AnalyzerInput {
   data: (string | null | undefined)[][];
@@ -46,6 +47,12 @@ export class Section2Analyzer {
   private startTime: number = 0;
   private section3Result?: Section3Result;
 
+  // Performance optimization: Pre-computed column lookups
+  private columnIndexMap = new Map<string, number>();
+  private entityColumnCache = new Set<number>();
+  private dateColumnCache = new Set<number>();
+  private numericColumnCache = new Set<number>();
+
   constructor(input: Section2AnalyzerInput) {
     this.data = input.data;
     this.headers = input.headers;
@@ -55,6 +62,58 @@ export class Section2Analyzer {
     this.config = this.mergeConfig(input.config);
     this.onProgress = input.onProgress;
     this.section3Result = input.section3Result;
+    
+    // Pre-build column index maps for O(1) lookups
+    this.buildColumnIndexMaps();
+  }
+
+  /**
+   * Pre-build column index maps for performance optimization
+   */
+  private buildColumnIndexMaps(): void {
+    // Build column name to index mapping
+    this.headers.forEach((header, index) => {
+      this.columnIndexMap.set(header.toLowerCase(), index);
+      
+      const lowerHeader = header.toLowerCase();
+      const columnType = this.columnTypes[index];
+      
+      // Cache entity identifier columns
+      if (this.isEntityIdentifierColumn(lowerHeader)) {
+        this.entityColumnCache.add(index);
+      }
+      
+      // Cache date columns
+      if (this.isDateColumn(lowerHeader)) {
+        this.dateColumnCache.add(index);
+      }
+      
+      // Cache numeric columns
+      if (this.isNumericColumn(columnType)) {
+        this.numericColumnCache.add(index);
+      }
+    });
+  }
+
+  private isEntityIdentifierColumn(headerLower: string): boolean {
+    return headerLower.includes('customer') || headerLower.includes('client') || 
+           headerLower.includes('person') || headerLower.includes('user') ||
+           headerLower.includes('product') || headerLower.includes('item') || 
+           headerLower.includes('sku') || headerLower.includes('part') ||
+           headerLower.includes('company') || headerLower.includes('organization') || 
+           headerLower.includes('vendor') || headerLower.includes('supplier') ||
+           headerLower.includes('location') || headerLower.includes('address') || 
+           headerLower.includes('city') || headerLower.includes('region') ||
+           (headerLower.includes('id') && !headerLower.includes('_id_')) || 
+           headerLower.includes('identifier') || headerLower === 'key';
+  }
+
+  private isDateColumn(headerLower: string): boolean {
+    return /(date|time|created|updated|timestamp|modified)/i.test(headerLower);
+  }
+
+  private isNumericColumn(columnType: DataType): boolean {
+    return columnType === 'number' || columnType === 'integer' || columnType === 'float';
   }
 
   public async analyze(): Promise<Section2Result> {
@@ -759,19 +818,10 @@ export class Section2Analyzer {
     precision: DataQualityScore;
     representational: DataQualityScore;
   }): DataQualityCockpit {
-    // Calculate composite score with configurable weights
-    const weights = {
-      completeness: 0.2,
-      uniqueness: 0.15,
-      validity: 0.2,
-      consistency: 0.15,
-      accuracy: 0.15,
-      timeliness: 0.05,
-      integrity: 0.05,
-      reasonableness: 0.03,
-      precision: 0.01,
-      representational: 0.01,
-    };
+    // Use configurable weights for quality scoring
+    const configManager = getConfig();
+    const qualityConfig = configManager.getQualityConfig();
+    const weights = qualityConfig.qualityWeights;
 
     let compositeScore = 0;
     for (const [dimension, score] of Object.entries(scores)) {
@@ -804,10 +854,14 @@ export class Section2Analyzer {
   private interpretScore(
     score: number,
   ): 'Excellent' | 'Good' | 'Fair' | 'Needs Improvement' | 'Poor' {
-    if (score >= 95) return 'Excellent';
-    if (score >= 85) return 'Good';
-    if (score >= 70) return 'Fair';
-    if (score >= 50) return 'Needs Improvement';
+    const configManager = getConfig();
+    const qualityConfig = configManager.getQualityConfig();
+    const thresholds = qualityConfig.qualityThresholds;
+    
+    if (score >= thresholds.excellent) return 'Excellent';
+    if (score >= thresholds.good) return 'Good';
+    if (score >= thresholds.fair) return 'Fair';
+    if (score >= thresholds.needsImprovement) return 'Needs Improvement';
     return 'Poor';
   }
 
@@ -1057,23 +1111,28 @@ export class Section2Analyzer {
   }
 
   /**
-   * Validates column values against a reference list
+   * Validates column values against a reference list (Optimized O(n))
    */
   private validateAgainstReferenceList(columnIndex: number, referenceList: string[], standardName: string) {
+    const configManager = getConfig();
+    const qualityConfig = configManager.getQualityConfig();
+    
     const referenceSet = new Set(referenceList.map(ref => ref.toLowerCase().trim()));
     const violations: string[] = [];
     let violationsFound = 0;
     
-    // Sample up to 1000 rows for performance
-    const sampleSize = Math.min(1000, this.data.length);
+    // Use configurable sample size for performance
+    const sampleSize = Math.min(qualityConfig.externalValidation.maxSampleSize, this.data.length);
+    const maxExamples = qualityConfig.externalValidation.maxExampleViolations;
     
+    // Single pass through the data
     for (let rowIndex = 0; rowIndex < sampleSize; rowIndex++) {
       const value = this.data[rowIndex][columnIndex];
       if (value && typeof value === 'string') {
         const normalizedValue = value.toLowerCase().trim();
         if (normalizedValue && !referenceSet.has(normalizedValue)) {
           violationsFound++;
-          if (violations.length < 10) {
+          if (violations.length < maxExamples) {
             violations.push(value);
           }
         }
@@ -1160,14 +1219,14 @@ export class Section2Analyzer {
   }
 
   /**
-   * Entity Resolution (TODO item 3)
+   * Entity Resolution (Optimized O(n*m) where m is avg entities per type)
    * Identifies and resolves duplicate entities across records
    */
   private performEntityResolution(): any[] {
     const entityResolutionResults: any[] = [];
     
-    // Identify potential entity identifier columns
-    const entityColumns = this.identifyEntityColumns();
+    // Use cached entity columns for O(1) lookup
+    const entityColumns = this.getEntityColumnsFromCache();
     
     if (entityColumns.length === 0) {
       return [{
@@ -1178,9 +1237,13 @@ export class Section2Analyzer {
       }];
     }
     
+    // Limit entity columns to prevent excessive computation
+    const maxEntityColumns = 3; // Configurable limit
+    const limitedEntityColumns = entityColumns.slice(0, maxEntityColumns);
+    
     // Perform entity resolution for each identified entity type
-    entityColumns.forEach(entityCol => {
-      const resolution = this.resolveEntitiesForColumn(entityCol);
+    limitedEntityColumns.forEach(entityCol => {
+      const resolution = this.resolveEntitiesForColumnOptimized(entityCol);
       if (resolution.inconsistentEntities > 0) {
         entityResolutionResults.push(resolution);
       }
@@ -1190,113 +1253,122 @@ export class Section2Analyzer {
   }
 
   /**
-   * Identifies columns that likely represent entity identifiers
+   * Get entity columns from pre-computed cache (O(1))
    */
-  private identifyEntityColumns(): Array<{ name: string; index: number; entityType: string }> {
+  private getEntityColumnsFromCache(): Array<{ name: string; index: number; entityType: string }> {
     const entityColumns: Array<{ name: string; index: number; entityType: string }> = [];
     
-    this.headers.forEach((header, index) => {
+    // Use pre-computed cache instead of scanning all headers
+    this.entityColumnCache.forEach(index => {
+      const header = this.headers[index];
       const lowerHeader = header.toLowerCase();
       
-      // Customer/Person entities
+      let entityType = 'Generic Entity';
+      
+      // Determine entity type (optimized with early returns)
       if (lowerHeader.includes('customer') || lowerHeader.includes('client') || 
           lowerHeader.includes('person') || lowerHeader.includes('user')) {
-        entityColumns.push({
-          name: header,
-          index,
-          entityType: 'Customer/Person'
-        });
-      }
-      
-      // Product entities
-      if (lowerHeader.includes('product') || lowerHeader.includes('item') || 
+        entityType = 'Customer/Person';
+      } else if (lowerHeader.includes('product') || lowerHeader.includes('item') || 
           lowerHeader.includes('sku') || lowerHeader.includes('part')) {
-        entityColumns.push({
-          name: header,
-          index,
-          entityType: 'Product'
-        });
-      }
-      
-      // Organization entities
-      if (lowerHeader.includes('company') || lowerHeader.includes('organization') || 
+        entityType = 'Product';
+      } else if (lowerHeader.includes('company') || lowerHeader.includes('organization') || 
           lowerHeader.includes('vendor') || lowerHeader.includes('supplier')) {
-        entityColumns.push({
-          name: header,
-          index,
-          entityType: 'Organization'
-        });
-      }
-      
-      // Location entities
-      if (lowerHeader.includes('location') || lowerHeader.includes('address') || 
+        entityType = 'Organization';
+      } else if (lowerHeader.includes('location') || lowerHeader.includes('address') || 
           lowerHeader.includes('city') || lowerHeader.includes('region')) {
-        entityColumns.push({
-          name: header,
-          index,
-          entityType: 'Location'
-        });
+        entityType = 'Location';
       }
       
-      // Generic ID columns
-      if ((lowerHeader.includes('id') && !lowerHeader.includes('_id_')) || 
-          lowerHeader.includes('identifier') || lowerHeader === 'key') {
-        entityColumns.push({
-          name: header,
-          index,
-          entityType: 'Generic Entity'
-        });
-      }
+      entityColumns.push({
+        name: header,
+        index,
+        entityType
+      });
     });
     
-    return entityColumns.slice(0, 5); // Limit to 5 entity columns for performance
+    return entityColumns;
   }
 
   /**
-   * Performs entity resolution for a specific column
+   * Identifies columns that likely represent entity identifiers (Legacy method for compatibility)
    */
-  private resolveEntitiesForColumn(entityCol: { name: string; index: number; entityType: string }): any {
-    const entityValueMap = new Map<string, Array<{
-      rowIndex: number;
-      associatedData: Record<string, any>;
-    }>>();
+  private identifyEntityColumns(): Array<{ name: string; index: number; entityType: string }> {
+    return this.getEntityColumnsFromCache();
+  }
+
+  /**
+   * Performs entity resolution for a specific column (Optimized O(n))
+   */
+  private resolveEntitiesForColumnOptimized(entityCol: { name: string; index: number; entityType: string }): any {
+    const configManager = getConfig();
+    const qualityConfig = configManager.getQualityConfig();
     
-    // Group records by entity identifier
-    for (let rowIndex = 0; rowIndex < Math.min(this.data.length, 2000); rowIndex++) { // Limit for performance
+    const entityValueMap = new Map<string, {
+      firstOccurrence: { rowIndex: number; data: Record<string, any> };
+      conflictCount: number;
+      conflictingFields: Set<string>;
+      totalOccurrences: number;
+    }>();
+    
+    // Single pass through data to build entity map and detect conflicts
+    const maxSampleSize = Math.min(this.data.length, qualityConfig.externalValidation.maxSampleSize);
+    
+    for (let rowIndex = 0; rowIndex < maxSampleSize; rowIndex++) {
       const entityValue = this.data[rowIndex][entityCol.index];
       if (entityValue && typeof entityValue === 'string') {
         const normalizedEntity = entityValue.trim().toLowerCase();
         
         if (!entityValueMap.has(normalizedEntity)) {
-          entityValueMap.set(normalizedEntity, []);
-        }
-        
-        // Collect associated data for this entity
-        const associatedData: Record<string, any> = {};
-        this.headers.forEach((header, colIndex) => {
-          if (colIndex !== entityCol.index) { // Exclude the entity column itself
-            associatedData[header] = this.data[rowIndex][colIndex];
+          // First occurrence - store as baseline
+          const associatedData: Record<string, any> = {};
+          for (let colIndex = 0; colIndex < this.headers.length; colIndex++) {
+            if (colIndex !== entityCol.index) {
+              associatedData[this.headers[colIndex]] = this.data[rowIndex][colIndex];
+            }
           }
-        });
-        
-        entityValueMap.get(normalizedEntity)!.push({
-          rowIndex,
-          associatedData,
-        });
+          
+          entityValueMap.set(normalizedEntity, {
+            firstOccurrence: { rowIndex, data: associatedData },
+            conflictCount: 0,
+            conflictingFields: new Set(),
+            totalOccurrences: 1,
+          });
+        } else {
+          // Subsequent occurrence - check for conflicts
+          const entityInfo = entityValueMap.get(normalizedEntity)!;
+          entityInfo.totalOccurrences++;
+          
+          // Compare with first occurrence (O(m) where m is number of columns)
+          for (let colIndex = 0; colIndex < this.headers.length; colIndex++) {
+            if (colIndex !== entityCol.index) {
+              const header = this.headers[colIndex];
+              const currentValue = this.normalizeValueForComparison(this.data[rowIndex][colIndex]);
+              const firstValue = this.normalizeValueForComparison(entityInfo.firstOccurrence.data[header]);
+              
+              if (currentValue !== null && firstValue !== null && currentValue !== firstValue) {
+                entityInfo.conflictCount++;
+                entityInfo.conflictingFields.add(header);
+              }
+            }
+          }
+        }
       }
     }
     
-    // Find entities with conflicting information
-    const inconsistentEntities: any[] = [];
+    // Count entities with conflicts
+    let inconsistentEntitiesCount = 0;
+    const examples: any[] = [];
     
-    entityValueMap.forEach((records, entityId) => {
-      if (records.length > 1) {
-        const conflicts = this.detectEntityConflicts(records);
-        if (conflicts.length > 0) {
-          inconsistentEntities.push({
+    entityValueMap.forEach((entityInfo, entityId) => {
+      if (entityInfo.conflictCount > 0 && entityInfo.totalOccurrences > 1) {
+        inconsistentEntitiesCount++;
+        if (examples.length < 5) {
+          examples.push({
             entityId,
-            conflictingValues: conflicts,
-            recordIndices: records.map(r => r.rowIndex),
+            conflictCount: entityInfo.conflictCount,
+            conflictingFields: Array.from(entityInfo.conflictingFields),
+            totalOccurrences: entityInfo.totalOccurrences,
           });
         }
       }
@@ -1304,10 +1376,17 @@ export class Section2Analyzer {
     
     return {
       entityType: entityCol.entityType,
-      inconsistentEntities: inconsistentEntities.length,
-      examples: inconsistentEntities.slice(0, 5), // Limit examples
-      analysis: `Found ${inconsistentEntities.length} entities with conflicting information across ${entityValueMap.size} total entities`,
+      inconsistentEntities: inconsistentEntitiesCount,
+      examples,
+      analysis: `Found ${inconsistentEntitiesCount} entities with conflicting information across ${entityValueMap.size} total entities`,
     };
+  }
+
+  /**
+   * Legacy method for compatibility (redirects to optimized version)
+   */
+  private resolveEntitiesForColumn(entityCol: { name: string; index: number; entityType: string }): any {
+    return this.resolveEntitiesForColumnOptimized(entityCol);
   }
 
   /**
@@ -1369,12 +1448,14 @@ export class Section2Analyzer {
   }
 
   /**
-   * Helper methods for enhanced quality dimensions
+   * Helper methods for enhanced quality dimensions (Optimized with cache)
    */
   private findDateColumns(): Array<{ name: string; index: number }> {
-    return this.headers
-      .map((header, index) => ({ name: header, index }))
-      .filter((col) => /(date|time|created|updated|timestamp|modified)/i.test(col.name));
+    const dateColumns: Array<{ name: string; index: number }> = [];
+    this.dateColumnCache.forEach(index => {
+      dateColumns.push({ name: this.headers[index], index });
+    });
+    return dateColumns;
   }
 
   private analyzeDataFreshness(dateColumns: Array<{ name: string; index: number }>): any {
@@ -1387,12 +1468,15 @@ export class Section2Analyzer {
       };
     }
 
+    const configManager = getConfig();
+    const qualityConfig = configManager.getQualityConfig();
+
     let latestDate: Date | null = null;
     let oldestDate: Date | null = null;
     let validDates = 0;
 
-    // Sample up to 1000 rows to determine data freshness
-    const sampleSize = Math.min(1000, this.data.length);
+    // Use configurable sample size for performance
+    const sampleSize = Math.min(qualityConfig.externalValidation.maxSampleSize, this.data.length);
 
     for (let rowIndex = 0; rowIndex < sampleSize; rowIndex++) {
       const row = this.data[rowIndex];
