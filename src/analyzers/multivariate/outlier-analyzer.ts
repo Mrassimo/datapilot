@@ -1,6 +1,6 @@
 /**
  * Multivariate Outlier Detection Implementation
- * 
+ *
  * Features:
  * - Mahalanobis distance-based outlier detection
  * - Chi-squared distribution for threshold determination
@@ -9,10 +9,20 @@
  * - Variable contribution analysis for outlier understanding
  */
 
-import type {
-  MultivariateOutlierAnalysis,
-  MultivariateOutlier,
-} from '../eda/types';
+import type { MultivariateOutlierAnalysis, MultivariateOutlier } from '../eda/types';
+
+interface IsolationTreeNode {
+  type: 'node';
+  splitFeature: number;
+  splitValue: number;
+  left: IsolationTreeNode | IsolationTreeLeaf;
+  right: IsolationTreeNode | IsolationTreeLeaf;
+}
+
+interface IsolationTreeLeaf {
+  type: 'leaf';
+  size: number;
+}
 import { chisqccdf } from '../statistical-tests/distributions';
 
 /**
@@ -25,12 +35,12 @@ class MatrixOperations {
   static determinant(matrix: number[][]): number {
     const n = matrix.length;
     const lu = this.luDecomposition(matrix);
-    
+
     let det = 1;
     for (let i = 0; i < n; i++) {
       det *= lu.L[i][i] * lu.U[i][i];
     }
-    
+
     return lu.permutationParity * det;
   }
 
@@ -43,8 +53,10 @@ class MatrixOperations {
     permutationParity: number;
   } {
     const n = matrix.length;
-    const L = Array(n).fill(0).map(() => Array(n).fill(0));
-    const U = matrix.map(row => [...row]);
+    const L = Array(n)
+      .fill(0)
+      .map(() => Array(n).fill(0));
+    const U = matrix.map((row) => [...row]);
     let permutationParity = 1;
 
     // Initialize L as identity matrix
@@ -72,10 +84,10 @@ class MatrixOperations {
         if (Math.abs(U[k][k]) < 1e-10) {
           throw new Error('Matrix is singular');
         }
-        
+
         const factor = U[i][k] / U[k][k];
         L[i][k] = factor;
-        
+
         for (let j = k; j < n; j++) {
           U[i][j] -= factor * U[k][j];
         }
@@ -120,10 +132,16 @@ class MatrixOperations {
    */
   static invert(matrix: number[][]): number[][] {
     const n = matrix.length;
-    const inverse = Array(n).fill(0).map(() => Array(n).fill(0));
-    const identity = Array(n).fill(0).map((_, i) => 
-      Array(n).fill(0).map((_, j) => i === j ? 1 : 0)
-    );
+    const inverse = Array(n)
+      .fill(0)
+      .map(() => Array(n).fill(0));
+    const identity = Array(n)
+      .fill(0)
+      .map((_, i) =>
+        Array(n)
+          .fill(0)
+          .map((_, j) => (i === j ? 1 : 0)),
+      );
 
     try {
       for (let i = 0; i < n; i++) {
@@ -145,13 +163,15 @@ class MatrixOperations {
     const aRows = A.length;
     const aCols = A[0].length;
     const bCols = B[0].length;
-    
+
     if (aCols !== B.length) {
       throw new Error('Matrix dimensions incompatible for multiplication');
     }
 
-    const result = Array(aRows).fill(0).map(() => Array(bCols).fill(0));
-    
+    const result = Array(aRows)
+      .fill(0)
+      .map(() => Array(bCols).fill(0));
+
     for (let i = 0; i < aRows; i++) {
       for (let j = 0; j < bCols; j++) {
         let sum = 0;
@@ -169,13 +189,13 @@ class MatrixOperations {
    */
   static vectorMatrixMultiply(vector: number[], matrix: number[][]): number[] {
     const result = Array(matrix[0].length).fill(0);
-    
+
     for (let j = 0; j < matrix[0].length; j++) {
       for (let i = 0; i < vector.length; i++) {
         result[j] += vector[i] * matrix[i][j];
       }
     }
-    
+
     return result;
   }
 
@@ -201,7 +221,7 @@ class RobustStatistics {
    */
   static minimumCovarianceDeterminant(
     data: number[][],
-    subsampleRatio: number = 0.75
+    subsampleRatio: number = 0.75,
   ): {
     location: number[];
     scatter: number[][];
@@ -222,20 +242,20 @@ class RobustStatistics {
 
     // Try multiple random subsets
     const numTrials = Math.min(500, Math.max(10, n));
-    
+
     for (let trial = 0; trial < numTrials; trial++) {
       // Random subset selection
       const subset = this.randomSubset(n, h, trial);
-      const subsetData = subset.map(i => data[i]);
+      const subsetData = subset.map((i) => data[i]);
 
       try {
         // Calculate sample statistics for subset
         const location = this.calculateMean(subsetData);
         const scatter = this.calculateCovarianceMatrix(subsetData, location);
-        
+
         // Calculate determinant
         const det = MatrixOperations.determinant(scatter);
-        
+
         if (det > 0 && det < bestDeterminant) {
           bestDeterminant = det;
           bestLocation = location;
@@ -269,7 +289,7 @@ class RobustStatistics {
    */
   private static randomSubset(n: number, h: number, seed: number): number[] {
     const indices = Array.from({ length: n }, (_, i) => i);
-    
+
     // Simple seeded shuffle
     let state = seed;
     for (let i = n - 1; i > 0; i--) {
@@ -277,7 +297,7 @@ class RobustStatistics {
       const j = Math.floor((state / Math.pow(2, 32)) * (i + 1));
       [indices[i], indices[j]] = [indices[j], indices[i]];
     }
-    
+
     return indices.slice(0, h);
   }
 
@@ -305,7 +325,9 @@ class RobustStatistics {
   private static calculateCovarianceMatrix(data: number[][], mean: number[]): number[][] {
     const n = data.length;
     const p = data[0].length;
-    const cov = Array(p).fill(0).map(() => Array(p).fill(0));
+    const cov = Array(p)
+      .fill(0)
+      .map(() => Array(p).fill(0));
 
     for (let i = 0; i < p; i++) {
       for (let j = 0; j < p; j++) {
@@ -326,11 +348,11 @@ class RobustStatistics {
   private static calculateOutlierFlags(
     data: number[][],
     location: number[],
-    scatter: number[][]
+    scatter: number[][],
   ): boolean[] {
     const criticalValue = 3.0; // Conservative threshold
-    
-    return data.map(point => {
+
+    return data.map((point) => {
       try {
         const distance = this.mahalanobisDistance(point, location, scatter);
         return distance > criticalValue;
@@ -346,7 +368,7 @@ class RobustStatistics {
   static mahalanobisDistance(
     point: number[],
     center: number[],
-    covarianceInverse: number[][]
+    covarianceInverse: number[][],
   ): number {
     const diff = point.map((val, i) => val - center[i]);
     const temp = MatrixOperations.vectorMatrixMultiply(diff, covarianceInverse);
@@ -366,46 +388,42 @@ class AdvancedOutlierDetection {
     data: number[][],
     numTrees: number = 100,
     subsampleSize: number = 256,
-    contamination: number = 0.1
+    contamination: number = 0.1,
   ): {
     outlierScores: number[];
     threshold: number;
     outlierIndices: number[];
   } {
     const n = data.length;
-    
+
     // Build isolation trees
     const trees = this.buildIsolationTrees(data, numTrees, subsampleSize);
-    
+
     // Calculate anomaly scores
-    const pathLengths = data.map(point => 
-      this.calculateAveragePathLength(point, trees)
-    );
-    
+    const pathLengths = data.map((point) => this.calculateAveragePathLength(point, trees));
+
     // Normalize scores using expected path length
     const c = this.expectedPathLength(subsampleSize);
-    const anomalyScores = pathLengths.map(length => 
-      Math.pow(2, -length / c)
-    );
-    
+    const anomalyScores = pathLengths.map((length) => Math.pow(2, -length / c));
+
     // Determine threshold
     const sortedScores = [...anomalyScores].sort((a, b) => b - a);
     const thresholdIndex = Math.floor(contamination * n);
     const threshold = sortedScores[thresholdIndex];
-    
+
     // Identify outliers
     const outlierIndices = anomalyScores
       .map((score, index) => ({ score, index }))
-      .filter(item => item.score >= threshold)
-      .map(item => item.index);
-    
+      .filter((item) => item.score >= threshold)
+      .map((item) => item.index);
+
     return {
       outlierScores: anomalyScores,
       threshold,
       outlierIndices,
     };
   }
-  
+
   /**
    * Local Outlier Factor (LOF) detection
    * Identifies outliers based on local density deviations
@@ -413,78 +431,77 @@ class AdvancedOutlierDetection {
   static localOutlierFactor(
     data: number[][],
     k: number = 20,
-    contamination: number = 0.1
+    contamination: number = 0.1,
   ): {
     lofScores: number[];
     threshold: number;
     outlierIndices: number[];
   } {
     const n = data.length;
-    
+
     // Calculate k-distance and k-neighbors for each point
     const neighborInfo = data.map((point, i) => {
-      const distances = data.map((otherPoint, j) => ({
-        distance: this.euclideanDistance(point, otherPoint),
-        index: j,
-      })).filter(item => item.index !== i)
+      const distances = data
+        .map((otherPoint, j) => ({
+          distance: this.euclideanDistance(point, otherPoint),
+          index: j,
+        }))
+        .filter((item) => item.index !== i)
         .sort((a, b) => a.distance - b.distance);
-      
+
       const kNeighbors = distances.slice(0, k);
       const kDistance = kNeighbors[k - 1].distance;
-      
+
       return {
         index: i,
-        kNeighbors: kNeighbors.map(n => n.index),
+        kNeighbors: kNeighbors.map((n) => n.index),
         kDistance,
       };
     });
-    
+
     // Calculate local reachability density
-    const lrd = neighborInfo.map(info => {
+    const lrd = neighborInfo.map((info) => {
       const reachDistSum = info.kNeighbors.reduce((sum, neighborIndex) => {
         const neighborKDist = neighborInfo[neighborIndex].kDistance;
-        const actualDist = this.euclideanDistance(
-          data[info.index],
-          data[neighborIndex]
-        );
+        const actualDist = this.euclideanDistance(data[info.index], data[neighborIndex]);
         return sum + Math.max(actualDist, neighborKDist);
       }, 0);
-      
+
       return info.kNeighbors.length / reachDistSum;
     });
-    
+
     // Calculate LOF scores
     const lofScores = neighborInfo.map((info, i) => {
-      const neighborLRDs = info.kNeighbors.map(neighborIndex => lrd[neighborIndex]);
+      const neighborLRDs = info.kNeighbors.map((neighborIndex) => lrd[neighborIndex]);
       const avgNeighborLRD = neighborLRDs.reduce((sum, val) => sum + val, 0) / neighborLRDs.length;
-      
+
       return avgNeighborLRD / lrd[i];
     });
-    
+
     // Determine threshold
     const sortedScores = [...lofScores].sort((a, b) => b - a);
     const thresholdIndex = Math.floor(contamination * n);
     const threshold = sortedScores[thresholdIndex];
-    
+
     // Identify outliers
     const outlierIndices = lofScores
       .map((score, index) => ({ score, index }))
-      .filter(item => item.score >= threshold)
-      .map(item => item.index);
-    
+      .filter((item) => item.score >= threshold)
+      .map((item) => item.index);
+
     return {
       lofScores,
       threshold,
       outlierIndices,
     };
   }
-  
+
   /**
    * Ensemble outlier detection combining multiple methods
    */
   static ensembleOutlierDetection(
     data: number[][],
-    contamination: number = 0.1
+    contamination: number = 0.1,
   ): {
     ensembleScores: number[];
     methodScores: {
@@ -501,66 +518,72 @@ class AdvancedOutlierDetection {
     }>;
   } {
     const n = data.length;
-    
+
     // Calculate Mahalanobis distances
     const { mahalanobisDistances } = this.calculateMahalanobisDistances(data);
-    
+
     // Calculate Isolation Forest scores
     const { outlierScores: isolationScores } = this.isolationForest(
-      data, 50, Math.min(256, Math.floor(n * 0.8)), contamination
+      data,
+      50,
+      Math.min(256, Math.floor(n * 0.8)),
+      contamination,
     );
-    
-    // Calculate LOF scores  
+
+    // Calculate LOF scores
     const { lofScores } = this.localOutlierFactor(
-      data, Math.min(20, Math.floor(n * 0.1)), contamination
+      data,
+      Math.min(20, Math.floor(n * 0.1)),
+      contamination,
     );
-    
+
     // Normalize all scores to [0, 1] range
     const normalizedMahalanobis = this.normalizeScores(mahalanobisDistances);
     const normalizedIsolation = this.normalizeScores(isolationScores);
     const normalizedLOF = this.normalizeScores(lofScores);
-    
+
     // Calculate ensemble scores (weighted average)
     const weights = { mahalanobis: 0.4, isolation: 0.3, lof: 0.3 };
-    const ensembleScores = normalizedMahalanobis.map((score, i) => 
-      weights.mahalanobis * score +
-      weights.isolation * normalizedIsolation[i] +
-      weights.lof * normalizedLOF[i]
+    const ensembleScores = normalizedMahalanobis.map(
+      (score, i) =>
+        weights.mahalanobis * score +
+        weights.isolation * normalizedIsolation[i] +
+        weights.lof * normalizedLOF[i],
     );
-    
+
     // Determine threshold
     const sortedScores = [...ensembleScores].sort((a, b) => b - a);
     const thresholdIndex = Math.floor(contamination * n);
     const threshold = sortedScores[thresholdIndex];
-    
+
     // Calculate consensus
     const methodThresholds = {
       mahalanobis: this.calculateThreshold(normalizedMahalanobis, contamination),
       isolation: this.calculateThreshold(normalizedIsolation, contamination),
       lof: this.calculateThreshold(normalizedLOF, contamination),
     };
-    
+
     const consensus = ensembleScores.map((score, index) => {
       let methodsAgreeing = 0;
       if (normalizedMahalanobis[index] >= methodThresholds.mahalanobis) methodsAgreeing++;
       if (normalizedIsolation[index] >= methodThresholds.isolation) methodsAgreeing++;
       if (normalizedLOF[index] >= methodThresholds.lof) methodsAgreeing++;
-      
+
       const confidenceScore = score * (methodsAgreeing / 3);
-      
+
       return {
         index,
         methodsAgreeing,
         confidenceScore,
       };
     });
-    
+
     // Identify outliers
     const outlierIndices = ensembleScores
       .map((score, index) => ({ score, index }))
-      .filter(item => item.score >= threshold)
-      .map(item => item.index);
-    
+      .filter((item) => item.score >= threshold)
+      .map((item) => item.index);
+
     return {
       ensembleScores,
       methodScores: {
@@ -573,47 +596,47 @@ class AdvancedOutlierDetection {
       consensus,
     };
   }
-  
+
   // Helper methods
   private static buildIsolationTrees(
     data: number[][],
     numTrees: number,
-    subsampleSize: number
+    subsampleSize: number,
   ): Array<any> {
     const trees = [];
-    
+
     for (let t = 0; t < numTrees; t++) {
       // Random subsample
       const subsample = this.randomSample(data, subsampleSize);
-      
+
       // Build tree (simplified)
       const tree = this.buildIsolationTree(subsample, 0, Math.ceil(Math.log2(subsampleSize)));
       trees.push(tree);
     }
-    
+
     return trees;
   }
-  
+
   private static buildIsolationTree(
     data: number[][],
     currentDepth: number,
-    maxDepth: number
-  ): any {
+    maxDepth: number,
+  ): IsolationTreeNode | IsolationTreeLeaf {
     if (data.length <= 1 || currentDepth >= maxDepth) {
       return { type: 'leaf', size: data.length };
     }
-    
+
     // Random split
     const p = data[0].length;
     const splitFeature = Math.floor(Math.random() * p);
-    const featureValues = data.map(point => point[splitFeature]);
+    const featureValues = data.map((point) => point[splitFeature]);
     const minVal = Math.min(...featureValues);
     const maxVal = Math.max(...featureValues);
     const splitValue = Math.random() * (maxVal - minVal) + minVal;
-    
-    const leftData = data.filter(point => point[splitFeature] < splitValue);
-    const rightData = data.filter(point => point[splitFeature] >= splitValue);
-    
+
+    const leftData = data.filter((point) => point[splitFeature] < splitValue);
+    const rightData = data.filter((point) => point[splitFeature] >= splitValue);
+
     return {
       type: 'node',
       splitFeature,
@@ -622,34 +645,38 @@ class AdvancedOutlierDetection {
       right: this.buildIsolationTree(rightData, currentDepth + 1, maxDepth),
     };
   }
-  
+
   private static calculateAveragePathLength(point: number[], trees: Array<any>): number {
-    const pathLengths = trees.map(tree => this.calculatePathLength(point, tree, 0));
+    const pathLengths = trees.map((tree) => this.calculatePathLength(point, tree, 0));
     return pathLengths.reduce((sum, length) => sum + length, 0) / pathLengths.length;
   }
-  
-  private static calculatePathLength(point: number[], node: any, currentDepth: number): number {
+
+  private static calculatePathLength(
+    point: number[],
+    node: IsolationTreeNode | IsolationTreeLeaf,
+    currentDepth: number,
+  ): number {
     if (node.type === 'leaf') {
       return currentDepth + this.expectedPathLength(node.size);
     }
-    
+
     if (point[node.splitFeature] < node.splitValue) {
       return this.calculatePathLength(point, node.left, currentDepth + 1);
     } else {
       return this.calculatePathLength(point, node.right, currentDepth + 1);
     }
   }
-  
+
   private static expectedPathLength(n: number): number {
     if (n <= 1) return 0;
     return 2 * (Math.log(n - 1) + 0.5772156649) - (2 * (n - 1)) / n;
   }
-  
+
   private static randomSample<T>(array: T[], size: number): T[] {
     const shuffled = [...array].sort(() => 0.5 - Math.random());
     return shuffled.slice(0, Math.min(size, array.length));
   }
-  
+
   private static euclideanDistance(a: number[], b: number[]): number {
     let sum = 0;
     for (let i = 0; i < a.length; i++) {
@@ -658,7 +685,7 @@ class AdvancedOutlierDetection {
     }
     return Math.sqrt(sum);
   }
-  
+
   private static calculateMahalanobisDistances(data: number[][]): {
     mahalanobisDistances: number[];
     mean: number[];
@@ -666,7 +693,7 @@ class AdvancedOutlierDetection {
   } {
     const n = data.length;
     const p = data[0].length;
-    
+
     // Calculate mean
     const mean = Array(p).fill(0);
     for (let j = 0; j < p; j++) {
@@ -675,47 +702,49 @@ class AdvancedOutlierDetection {
       }
       mean[j] /= n;
     }
-    
+
     // Calculate covariance matrix
-    const cov = Array(p).fill(0).map(() => Array(p).fill(0));
+    const cov = Array(p)
+      .fill(0)
+      .map(() => Array(p).fill(0));
     for (let i = 0; i < p; i++) {
       for (let j = 0; j < p; j++) {
         for (let k = 0; k < n; k++) {
           cov[i][j] += (data[k][i] - mean[i]) * (data[k][j] - mean[j]);
         }
-        cov[i][j] /= (n - 1);
+        cov[i][j] /= n - 1;
       }
     }
-    
+
     // Invert covariance matrix
     const covInv = MatrixOperations.invert(cov);
-    
+
     // Calculate Mahalanobis distances
-    const distances = data.map(point => {
+    const distances = data.map((point) => {
       const diff = point.map((val, i) => val - mean[i]);
       const temp = MatrixOperations.vectorMatrixMultiply(diff, covInv);
       return Math.sqrt(MatrixOperations.dotProduct(diff, temp));
     });
-    
+
     return {
       mahalanobisDistances: distances,
       mean,
       covarianceMatrix: cov,
     };
   }
-  
+
   private static normalizeScores(scores: number[]): number[] {
     const minScore = Math.min(...scores);
     const maxScore = Math.max(...scores);
     const range = maxScore - minScore;
-    
+
     if (range === 0) {
       return scores.map(() => 0);
     }
-    
-    return scores.map(score => (score - minScore) / range);
+
+    return scores.map((score) => (score - minScore) / range);
   }
-  
+
   private static calculateThreshold(scores: number[], contamination: number): number {
     const sortedScores = [...scores].sort((a, b) => b - a);
     const thresholdIndex = Math.floor(contamination * scores.length);
@@ -739,14 +768,11 @@ export class MultivariateOutlierAnalyzer {
     data: (string | number | null | undefined)[][],
     headers: string[],
     numericalColumnIndices: number[],
-    sampleSize: number
+    sampleSize: number,
   ): MultivariateOutlierAnalysis {
     try {
       // Check applicability
-      const applicabilityCheck = this.checkApplicability(
-        numericalColumnIndices,
-        sampleSize
-      );
+      const applicabilityCheck = this.checkApplicability(numericalColumnIndices, sampleSize);
 
       if (!applicabilityCheck.isApplicable) {
         return this.createNonApplicableResult(applicabilityCheck.reason);
@@ -754,21 +780,21 @@ export class MultivariateOutlierAnalyzer {
 
       // Extract numerical data
       const numericData = this.extractNumericData(data, numericalColumnIndices);
-      const variableNames = numericalColumnIndices.map(i => headers[i]);
-      
+      const variableNames = numericalColumnIndices.map((i) => headers[i]);
+
       if (numericData.length === 0) {
         return this.createNonApplicableResult('No valid numerical data found');
       }
 
       // Calculate robust statistics using MCD
       const robustStats = RobustStatistics.minimumCovarianceDeterminant(numericData);
-      
+
       // Calculate Mahalanobis distances and p-values
       const outliers = this.detectOutliers(
         numericData,
         robustStats.location,
         robustStats.scatter,
-        variableNames
+        variableNames,
       );
 
       // Calculate critical value for chi-squared distribution
@@ -776,32 +802,30 @@ export class MultivariateOutlierAnalyzer {
       const criticalValue = this.calculateCriticalValue(degreesOfFreedom, this.OUTLIER_THRESHOLD);
 
       // Filter outliers based on threshold
-      const significantOutliers = outliers.filter(o => o.pValue < this.OUTLIER_THRESHOLD);
+      const significantOutliers = outliers.filter((o) => o.pValue < this.OUTLIER_THRESHOLD);
 
       // Analyze severity distribution
       const severityDistribution = this.analyzeSeverityDistribution(significantOutliers);
 
       // Analyze affected variables
-      const affectedVariables = this.analyzeAffectedVariables(
-        significantOutliers,
-        variableNames
-      );
+      const affectedVariables = this.analyzeAffectedVariables(significantOutliers, variableNames);
 
       // Generate recommendations
       const recommendations = this.generateRecommendations(
         significantOutliers,
         outliers.length,
-        affectedVariables
+        affectedVariables,
       );
 
       return {
         isApplicable: true,
-        applicabilityReason: 'Sufficient numerical variables and observations for outlier detection',
+        applicabilityReason:
+          'Sufficient numerical variables and observations for outlier detection',
         method: 'mahalanobis_distance',
         threshold: this.OUTLIER_THRESHOLD,
         criticalValue,
         totalOutliers: significantOutliers.length,
-        outlierPercentage: (significantOutliers.length / outliers.length) * 100,
+        outlierPercentage: (significantOutliers.length / numericData.length) * 100,
         outliers: significantOutliers.slice(0, 20), // Limit to top 20 for performance
         severityDistribution,
         affectedVariables,
@@ -816,7 +840,7 @@ export class MultivariateOutlierAnalyzer {
     } catch (error) {
       console.error('Multivariate outlier analysis failed:', error);
       return this.createNonApplicableResult(
-        `Outlier analysis failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+        `Outlier analysis failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
       );
     }
   }
@@ -826,7 +850,7 @@ export class MultivariateOutlierAnalyzer {
    */
   private static checkApplicability(
     numericalColumnIndices: number[],
-    sampleSize: number
+    sampleSize: number,
   ): { isApplicable: boolean; reason: string } {
     if (numericalColumnIndices.length < this.MIN_VARIABLES) {
       return {
@@ -868,7 +892,7 @@ export class MultivariateOutlierAnalyzer {
    */
   private static extractNumericData(
     data: (string | number | null | undefined)[][],
-    numericalColumnIndices: number[]
+    numericalColumnIndices: number[],
   ): number[][] {
     const numericData: number[][] = [];
 
@@ -879,13 +903,13 @@ export class MultivariateOutlierAnalyzer {
       // Extract values from numerical columns only
       for (const colIndex of numericalColumnIndices) {
         const value = row[colIndex];
-        
+
         // Check bounds
         if (colIndex >= row.length) {
           hasAllValidValues = false;
           break;
         }
-        
+
         // Convert string numbers to actual numbers if needed
         let numericValue: number;
         if (typeof value === 'string' && value.trim() !== '') {
@@ -921,10 +945,10 @@ export class MultivariateOutlierAnalyzer {
     data: number[][],
     center: number[],
     covariance: number[][],
-    variableNames: string[]
+    variableNames: string[],
   ): MultivariateOutlier[] {
     const outliers: MultivariateOutlier[] = [];
-    
+
     // Invert covariance matrix
     let covarianceInverse: number[][];
     try {
@@ -937,13 +961,9 @@ export class MultivariateOutlierAnalyzer {
 
     for (let i = 0; i < data.length; i++) {
       const point = data[i];
-      
+
       // Calculate Mahalanobis distance
-      const distance = RobustStatistics.mahalanobisDistance(
-        point,
-        center,
-        covarianceInverse
-      );
+      const distance = RobustStatistics.mahalanobisDistance(point, center, covarianceInverse);
 
       // Convert to p-value using chi-squared distribution
       const chiSquaredStatistic = distance * distance;
@@ -957,7 +977,7 @@ export class MultivariateOutlierAnalyzer {
         point,
         center,
         covarianceInverse,
-        variableNames
+        variableNames,
       );
 
       outliers.push({
@@ -1014,7 +1034,7 @@ export class MultivariateOutlierAnalyzer {
     point: number[],
     center: number[],
     covarianceInverse: number[][],
-    variableNames: string[]
+    variableNames: string[],
   ): MultivariateOutlier['affectedVariables'] {
     const diff = point.map((val, i) => val - center[i]);
     const contributions: MultivariateOutlier['affectedVariables'] = [];
@@ -1043,16 +1063,19 @@ export class MultivariateOutlierAnalyzer {
     distance: number,
     pValue: number,
     severity: string,
-    affectedVariables: MultivariateOutlier['affectedVariables']
+    affectedVariables: MultivariateOutlier['affectedVariables'],
   ): string {
     const topVariables = affectedVariables
       .slice(0, 2)
-      .map(v => v.variable)
+      .map((v) => v.variable)
       .join(' and ');
 
-    const severityText = severity === 'extreme' ? 'extremely unusual' :
-                        severity === 'moderate' ? 'moderately unusual' :
-                        'mildly unusual';
+    const severityText =
+      severity === 'extreme'
+        ? 'extremely unusual'
+        : severity === 'moderate'
+          ? 'moderately unusual'
+          : 'mildly unusual';
 
     return `${severityText} observation (p=${pValue.toFixed(4)}) primarily driven by ${topVariables}`;
   }
@@ -1079,7 +1102,7 @@ export class MultivariateOutlierAnalyzer {
    */
   private static analyzeAffectedVariables(
     outliers: MultivariateOutlier[],
-    variableNames: string[]
+    variableNames: string[],
   ): Array<{
     variable: string;
     outliersCount: number;
@@ -1116,36 +1139,46 @@ export class MultivariateOutlierAnalyzer {
   private static generateRecommendations(
     outliers: MultivariateOutlier[],
     totalObservations: number,
-    affectedVariables: Array<{ variable: string; outliersCount: number; meanContribution: number }>
+    affectedVariables: Array<{ variable: string; outliersCount: number; meanContribution: number }>,
   ): string[] {
     const recommendations: string[] = [];
     const outlierPercentage = (outliers.length / totalObservations) * 100;
 
     // Outlier percentage recommendations
     if (outlierPercentage > 10) {
-      recommendations.push('High outlier rate (>10%) suggests systematic data quality issues or model misspecification');
+      recommendations.push(
+        'High outlier rate (>10%) suggests systematic data quality issues or model misspecification',
+      );
     } else if (outlierPercentage > 5) {
-      recommendations.push('Moderate outlier rate (5-10%) - investigate potential data collection issues');
+      recommendations.push(
+        'Moderate outlier rate (5-10%) - investigate potential data collection issues',
+      );
     } else if (outlierPercentage < 1) {
       recommendations.push('Low outlier rate (<1%) indicates good data quality');
     }
 
     // Severity-based recommendations
-    const extremeOutliers = outliers.filter(o => o.severity === 'extreme');
+    const extremeOutliers = outliers.filter((o) => o.severity === 'extreme');
     if (extremeOutliers.length > 0) {
-      recommendations.push(`${extremeOutliers.length} extreme outliers detected - manual investigation recommended`);
+      recommendations.push(
+        `${extremeOutliers.length} extreme outliers detected - manual investigation recommended`,
+      );
     }
 
     // Variable-specific recommendations
     const topAffectedVariable = affectedVariables[0];
     if (topAffectedVariable && topAffectedVariable.outliersCount > outliers.length * 0.6) {
-      recommendations.push(`Variable '${topAffectedVariable.variable}' contributes to most outliers - check data quality`);
+      recommendations.push(
+        `Variable '${topAffectedVariable.variable}' contributes to most outliers - check data quality`,
+      );
     }
 
     // Action recommendations
     if (outliers.length > 0) {
       recommendations.push('Consider investigating outliers before statistical modeling');
-      recommendations.push('Evaluate whether outliers represent legitimate extreme values or data errors');
+      recommendations.push(
+        'Evaluate whether outliers represent legitimate extreme values or data errors',
+      );
     }
 
     if (recommendations.length === 0) {

@@ -395,6 +395,10 @@ export interface BivariateAnalysis {
   numericalVsNumerical: NumericalBivariateAnalysis;
   numericalVsCategorical: NumericalCategoricalAnalysis[];
   categoricalVsCategorical: CategoricalBivariateAnalysis[];
+  // Legacy compatibility properties for feature engineering
+  column1?: string;
+  column2?: string;
+  correlation?: number;
 }
 
 // ===== MULTIVARIATE ANALYSIS TYPES =====
@@ -464,6 +468,7 @@ export interface ClusterValidationMetrics {
   calinskiHarabaszIndex?: number; // Higher is better
   dunnIndex?: number; // Higher is better
   qualityInterpretation?: string; // Overall quality assessment
+  interpretation?: string; // General interpretation field
   stabilityAnalysis?: {
     stabilityScore: number;
     confidenceInterval: [number, number];
@@ -643,7 +648,7 @@ export interface MultivariateAnalysis {
     computationalComplexity: string;
     algorithmsUsed: string[];
   };
-  
+
   // Backward compatibility fields
   keyPatterns?: string[];
   pcaOverview?: {
@@ -697,7 +702,7 @@ export interface Section3Config {
   enableMultivariate: boolean;
   samplingThreshold: number; // For intensive computations
   useStreamingAnalysis?: boolean; // Use streaming algorithms for memory efficiency
-  
+
   // Advanced statistical configuration (from global config)
   alternativeSignificanceLevels?: {
     normalityTests: number;

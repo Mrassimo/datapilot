@@ -36,5 +36,18 @@ yarn-error.log*
 
 # Test data
 test-data/
+test-results-archive/
 *.csv
 !examples/*.csv
+!test-datasets/**/*.csv
+
+# Large test datasets (over 100MB limit)
+test-datasets/large/transactions-large.csv
+test-datasets/large/transactions-xlarge.csv
+test-datasets/large/yellow_tripdata_2023-01.csv
+
+# Test outputs
+*_datapilot_*.md
+*_datapilot_*.txt
+*_datapilot_*.json
+test-results-*/

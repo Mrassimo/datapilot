@@ -3,14 +3,18 @@
  * Simplified implementation that works with current data structures
  */
 
-import type { Section1Result } from '../overview/types';
+import type { Section1Result, ColumnInventory } from '../overview/types';
 import type { Section2Result } from '../quality/types';
 import type { Section3Result } from '../eda/types';
-import type {
-  Section5Result,
-  Section5Config,
-  Section5Progress,
+import type { 
+  Section5Result, 
+  Section5Config, 
+  Section5Progress, 
   Section5Warning,
+  DataEngineeringAnalysis,
+  FeaturePreparationEntry,
+  DatabaseTypeInference,
+  PCAInsights
 } from './types';
 import { logger } from '../../utils/logger';
 
@@ -21,7 +25,14 @@ export class Section5Analyzer {
 
   constructor(config: Partial<Section5Config> = {}) {
     this.config = {
-      enabledAnalyses: ['schema', 'integrity', 'transformations', 'scalability', 'governance', 'ml_readiness'],
+      enabledAnalyses: [
+        'schema',
+        'integrity',
+        'transformations',
+        'scalability',
+        'governance',
+        'ml_readiness',
+      ],
       targetDatabaseSystem: 'postgresql',
       mlFrameworkTarget: 'scikit_learn',
       includeKnowledgeBase: true,
@@ -34,24 +45,29 @@ export class Section5Analyzer {
   /**
    * Main analysis method
    */
-  async analyze(
+  analyze(
     section1Result: Section1Result,
     section2Result: Section2Result,
     section3Result: Section3Result,
     progressCallback?: (progress: Section5Progress) => void,
-  ): Promise<Section5Result> {
+  ): Section5Result {
     this.startTime = Date.now();
     logger.info('Starting Section 5: Data Engineering & Structural Insights analysis');
 
     try {
-      this.reportProgress(progressCallback, 'initialization', 0, 'Initializing engineering analysis');
+      this.reportProgress(
+        progressCallback,
+        'initialization',
+        0,
+        'Initializing engineering analysis',
+      );
 
       // Generate simplified engineering analysis
       const engineeringAnalysis = this.generateSimplifiedAnalysis(
         section1Result,
         section2Result,
         section3Result,
-        progressCallback
+        progressCallback,
       );
 
       const analysisTime = Date.now() - this.startTime;
@@ -63,21 +79,24 @@ export class Section5Analyzer {
         performanceMetrics: {
           analysisTimeMs: analysisTime,
           transformationsEvaluated: 15,
-          schemaRecommendationsGenerated: section1Result.overview.structuralDimensions.columnInventory.length,
-          mlFeaturesDesigned: section1Result.overview.structuralDimensions.columnInventory.length + 5,
+          schemaRecommendationsGenerated:
+            section1Result.overview.structuralDimensions.columnInventory.length,
+          mlFeaturesDesigned:
+            section1Result.overview.structuralDimensions.columnInventory.length + 5,
         },
         metadata: {
           analysisApproach: 'Comprehensive engineering analysis with ML optimization',
           sourceDatasetSize: section1Result.overview.structuralDimensions.totalDataRows,
-          engineeredFeatureCount: section1Result.overview.structuralDimensions.columnInventory.length + 5,
+          engineeredFeatureCount:
+            section1Result.overview.structuralDimensions.columnInventory.length + 5,
           mlReadinessScore: 85,
         },
       };
     } catch (error) {
-      logger.error('Section 5 analysis failed', { 
+      logger.error('Section 5 analysis failed', {
         section: 'engineering',
         analyzer: 'Section5Analyzer',
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       throw error;
     }
@@ -88,14 +107,13 @@ export class Section5Analyzer {
     section2Result: Section2Result,
     section3Result: Section3Result,
     progressCallback?: (progress: Section5Progress) => void,
-  ): any {
-    
+  ): DataEngineeringAnalysis {
     this.reportProgress(progressCallback, 'schema_analysis', 20, 'Analyzing schema structure');
 
     // Schema Analysis
     const schemaAnalysis = {
       currentSchema: {
-        columns: section1Result.overview.structuralDimensions.columnInventory.map(col => ({
+        columns: section1Result.overview.structuralDimensions.columnInventory.map((col) => ({
           originalName: col.name,
           detectedType: 'string', // Simplified
           inferredSemanticType: 'unknown',
@@ -109,22 +127,29 @@ export class Section5Analyzer {
       },
       optimizedSchema: {
         targetSystem: this.config.targetDatabaseSystem,
-        ddlStatement: this.generateSimpleDDL(section1Result.overview.structuralDimensions.columnInventory),
-        columns: section1Result.overview.structuralDimensions.columnInventory.map(col => ({
-          originalName: col.name,
-          optimizedName: this.standardizeColumnName(col.name),
-          recommendedType: 'VARCHAR(255)',
-          constraints: [],
-          reasoning: 'Default string type for safety',
-        })),
+        ddlStatement: this.generateSimpleDDL(
+          section1Result.overview.structuralDimensions.columnInventory,
+        ),
+        columns: section1Result.overview.structuralDimensions.columnInventory.map((col) => {
+          const typeInfo = this.inferDatabaseType(col.name, col);
+          return {
+            originalName: col.name,
+            optimizedName: this.standardizeColumnName(col.name),
+            recommendedType: typeInfo.sqlType,
+            constraints: typeInfo.constraints,
+            reasoning: typeInfo.reasoning,
+          };
+        }),
         indexes: [
           {
-            indexType: 'primary',
-            columns: [section1Result.overview.structuralDimensions.columnInventory[0]?.name || 'id'],
+            indexType: 'primary' as const,
+            columns: [
+              section1Result.overview.structuralDimensions.columnInventory[0]?.name || 'id',
+            ],
             purpose: 'Primary key constraint',
             expectedImpact: 'Improved query performance',
             maintenanceConsiderations: 'Minimal overhead',
-          }
+          },
         ],
         constraints: [],
       },
@@ -142,19 +167,25 @@ export class Section5Analyzer {
       },
     };
 
-    this.reportProgress(progressCallback, 'integrity_analysis', 40, 'Analyzing structural integrity');
+    this.reportProgress(
+      progressCallback,
+      'integrity_analysis',
+      40,
+      'Analyzing structural integrity',
+    );
 
     // Structural Integrity
     const structuralIntegrity = {
       primaryKeyCandidates: [
         {
-          columnName: section1Result.overview.structuralDimensions.columnInventory[0]?.name || 'first_column',
+          columnName:
+            section1Result.overview.structuralDimensions.columnInventory[0]?.name || 'first_column',
           uniqueness: 100,
           completeness: 95,
           stability: 90,
           confidence: 'high' as const,
           reasoning: 'First column appears to be unique identifier',
-        }
+        },
       ],
       foreignKeyRelationships: [],
       orphanedRecords: [],
@@ -172,16 +203,23 @@ export class Section5Analyzer {
       },
     };
 
-    this.reportProgress(progressCallback, 'transformations', 60, 'Generating transformation recommendations');
+    this.reportProgress(
+      progressCallback,
+      'transformations',
+      60,
+      'Generating transformation recommendations',
+    );
 
     // Transformation Pipeline
     const transformationPipeline = {
-      columnStandardization: section1Result.overview.structuralDimensions.columnInventory.map(col => ({
-        originalName: col.name,
-        standardizedName: this.standardizeColumnName(col.name),
-        namingConvention: 'snake_case',
-        reasoning: 'Improves consistency and SQL compatibility',
-      })),
+      columnStandardization: section1Result.overview.structuralDimensions.columnInventory.map(
+        (col) => ({
+          originalName: col.name,
+          standardizedName: this.standardizeColumnName(col.name),
+          namingConvention: 'snake_case',
+          reasoning: 'Improves consistency and SQL compatibility',
+        }),
+      ),
       missingValueStrategy: [
         {
           columnName: 'sample_column',
@@ -190,7 +228,7 @@ export class Section5Analyzer {
           flagColumn: 'sample_column_IsMissing',
           reasoning: 'Median is robust for numerical data',
           impact: 'Preserves distribution characteristics',
-        }
+        },
       ],
       outlierTreatment: [],
       categoricalEncoding: [],
@@ -220,7 +258,7 @@ export class Section5Analyzer {
             projectedSize: section1Result.overview.structuralDimensions.totalDataRows * 1.5,
             projectedComplexity: 'Moderate',
             recommendedApproach: 'Continue with current setup',
-          }
+          },
         ],
         technologyRecommendations: [
           {
@@ -229,7 +267,7 @@ export class Section5Analyzer {
             benefits: ['ACID compliance', 'Rich SQL support', 'Extensible'],
             considerations: ['Setup complexity', 'Resource requirements'],
             implementationComplexity: 'medium' as const,
-          }
+          },
         ],
         bottleneckAnalysis: [],
       },
@@ -261,7 +299,11 @@ export class Section5Analyzer {
     // ML Readiness with PCA-enhanced insights
     const pcaInsights = this.extractPCAInsights(section3Result);
     const mlReadiness = {
-      overallScore: this.calculateEnhancedMLReadinessScore(section1Result, section2Result, pcaInsights),
+      overallScore: this.calculateEnhancedMLReadinessScore(
+        section1Result,
+        section2Result,
+        pcaInsights,
+      ),
       enhancingFactors: [
         {
           factor: 'Clean Data Structure',
@@ -287,14 +329,17 @@ export class Section5Analyzer {
       ],
       featurePreparationMatrix: this.enhanceFeatureMatrix(
         section1Result.overview.structuralDimensions.columnInventory,
-        pcaInsights
+        pcaInsights,
       ),
       modelingConsiderations: [
         {
           aspect: 'Feature Engineering',
           consideration: 'Multiple categorical columns may need encoding',
           impact: 'Could create high-dimensional feature space',
-          recommendations: ['Use appropriate encoding methods', 'Consider dimensionality reduction'],
+          recommendations: [
+            'Use appropriate encoding methods',
+            'Consider dimensionality reduction',
+          ],
         },
         ...pcaInsights.modelingConsiderations,
       ],
@@ -312,7 +357,7 @@ export class Section5Analyzer {
         estimatedTechnicalDebtHours: 6,
         mlReadinessScore: 85,
       },
-      schemaRecommendations: schemaAnalysis.optimizedSchema.columns.map(col => ({
+      schemaRecommendations: schemaAnalysis.optimizedSchema.columns.map((col) => ({
         columnNameOriginal: col.originalName,
         columnNameTarget: col.optimizedName,
         recommendedType: col.recommendedType,
@@ -325,7 +370,7 @@ export class Section5Analyzer {
           featureGroup: 'Column Standardization',
           steps: ['Convert to snake_case', 'Remove special characters'],
           impact: 'Improves SQL compatibility and consistency',
-        }
+        },
       ],
     };
 
@@ -340,12 +385,18 @@ export class Section5Analyzer {
     };
   }
 
-  private generateSimpleDDL(columns: any[]): string {
-    const columnDefs = columns.map(col => 
-      `  ${this.standardizeColumnName(col.name)} VARCHAR(255)`
-    ).join(',\n');
-    
+  private generateSimpleDDL(columns: ColumnInventory[]): string {
+    const columnDefs = columns
+      .map((col) => {
+        const typeInfo = this.inferDatabaseType(col.name, col);
+        const constraintsStr =
+          typeInfo.constraints.length > 0 ? ` ${typeInfo.constraints.join(' ')}` : '';
+        return `  ${this.standardizeColumnName(col.name)} ${typeInfo.sqlType}${constraintsStr}`;
+      })
+      .join(',\n');
+
     return `-- Optimized Schema for ${this.config.targetDatabaseSystem}
+-- Generated with intelligent type inference
 CREATE TABLE optimized_dataset (
 ${columnDefs}
 );`;
@@ -360,20 +411,196 @@ ${columnDefs}
   }
 
   /**
+   * Infer appropriate database type based on column name and characteristics
+   */
+  private inferDatabaseType(
+    columnName: string,
+    _columnInfo: ColumnInventory,
+  ): DatabaseTypeInference {
+    const lowerName = columnName.toLowerCase();
+
+    // Numeric column patterns
+    const numericPatterns = [
+      'age',
+      'score',
+      'rating',
+      'count',
+      'quantity',
+      'amount',
+      'price',
+      'weight',
+      'height',
+      'rate',
+      'level',
+      'pressure',
+      'temperature',
+      'hours',
+      'minutes',
+      'seconds',
+      'year',
+      'month',
+      'day',
+    ];
+
+    // ID column patterns
+    const idPatterns = ['id', '_id', 'key', 'uuid', 'guid'];
+
+    // Boolean column patterns
+    const booleanPatterns = [
+      'is_',
+      'has_',
+      'can_',
+      'should_',
+      'enabled',
+      'disabled',
+      'active',
+      'inactive',
+      'valid',
+      'invalid',
+      'deleted',
+    ];
+
+    // Date/Time patterns
+    const datePatterns = [
+      'date',
+      'time',
+      'timestamp',
+      'created',
+      'updated',
+      'modified',
+      'birth',
+      'expiry',
+      'start',
+      'end',
+    ];
+
+    // Check for ID columns
+    if (idPatterns.some((pattern) => lowerName.includes(pattern))) {
+      if (lowerName.includes('uuid') || lowerName.includes('guid')) {
+        return {
+          sqlType: 'UUID',
+          constraints: ['PRIMARY KEY'],
+          reasoning: 'UUID identifier column',
+        };
+      } else {
+        return {
+          sqlType: 'BIGINT',
+          constraints: ['PRIMARY KEY', 'NOT NULL'],
+          reasoning: 'Numeric identifier column',
+        };
+      }
+    }
+
+    // Check for numeric columns
+    if (numericPatterns.some((pattern) => lowerName.includes(pattern))) {
+      // Age, scores, ratings are typically integers
+      if (
+        lowerName.includes('age') ||
+        lowerName.includes('score') ||
+        lowerName.includes('rating')
+      ) {
+        return {
+          sqlType: 'INTEGER',
+          constraints: [],
+          reasoning: 'Numeric value typically stored as integer',
+        };
+      }
+      // Hours can be decimal
+      else if (
+        lowerName.includes('hours') ||
+        lowerName.includes('rate') ||
+        lowerName.includes('weight')
+      ) {
+        return {
+          sqlType: 'DECIMAL(10,2)',
+          constraints: [],
+          reasoning: 'Numeric value that may contain decimals',
+        };
+      }
+      // General numeric
+      else {
+        return {
+          sqlType: 'NUMERIC',
+          constraints: [],
+          reasoning: 'General numeric column',
+        };
+      }
+    }
+
+    // Check for boolean columns
+    if (booleanPatterns.some((pattern) => lowerName.includes(pattern))) {
+      return {
+        sqlType: 'BOOLEAN',
+        constraints: [],
+        reasoning: 'Boolean flag column',
+      };
+    }
+
+    // Check for date/time columns
+    if (datePatterns.some((pattern) => lowerName.includes(pattern))) {
+      if (
+        lowerName.includes('timestamp') ||
+        lowerName.includes('created') ||
+        lowerName.includes('updated')
+      ) {
+        return {
+          sqlType: 'TIMESTAMP',
+          constraints: [],
+          reasoning: 'Timestamp column for tracking changes',
+        };
+      } else {
+        return {
+          sqlType: 'DATE',
+          constraints: [],
+          reasoning: 'Date column',
+        };
+      }
+    }
+
+    // Email patterns
+    if (lowerName.includes('email') || lowerName.includes('mail')) {
+      return {
+        sqlType: 'VARCHAR(255)',
+        constraints: [],
+        reasoning: 'Email address field',
+      };
+    }
+
+    // Name patterns (shorter varchar)
+    if (lowerName.includes('name') || lowerName.includes('title')) {
+      return {
+        sqlType: 'VARCHAR(100)',
+        constraints: [],
+        reasoning: 'Name or title field',
+      };
+    }
+
+    // Gender, status, category (short categorical)
+    if (
+      lowerName.includes('gender') ||
+      lowerName.includes('status') ||
+      lowerName.includes('category') ||
+      lowerName.includes('type')
+    ) {
+      return {
+        sqlType: 'VARCHAR(50)',
+        constraints: [],
+        reasoning: 'Categorical field with limited values',
+      };
+    }
+
+    // Default case - general text
+    return {
+      sqlType: 'VARCHAR(255)',
+      constraints: [],
+      reasoning: 'General text field',
+    };
+  }
+
+  /**
    * Extract PCA insights from Section 3 results for feature engineering
    */
-  private extractPCAInsights(section3Result: Section3Result): {
-    enhancingFactors: Array<{factor: string; impact: 'high' | 'medium' | 'low'; description: string}>;
-    challenges: Array<{challenge: string; severity: 'high' | 'medium' | 'low'; impact: string; mitigationStrategy: string; estimatedEffort: string}>;
-    modelingConsiderations: Array<{aspect: string; consideration: string; impact: string; recommendations: string[]}>;
-    dimensionalityRecommendations: {
-      applicable: boolean;
-      recommendedComponents?: number;
-      varianceRetained?: number;
-      dominantFeatures?: string[];
-      implementationSteps?: string[];
-    };
-  } {
+  private extractPCAInsights(section3Result: Section3Result): PCAInsights {
     const enhancingFactors: any[] = [];
     const challenges: any[] = [];
     const modelingConsiderations: any[] = [];
@@ -400,7 +627,7 @@ ${columnDefs}
             applicable: true,
             recommendedComponents: componentsFor85,
             varianceRetained: 0.85,
-            dominantFeatures: pcaAnalysis.dominantVariables.slice(0, 3).map(v => v.variable),
+            dominantFeatures: pcaAnalysis.dominantVariables.slice(0, 3).map((v) => v.variable),
             implementationSteps: [
               'Apply StandardScaler to normalize features',
               `Perform PCA transformation to ${componentsFor85} components`,
@@ -431,7 +658,9 @@ ${columnDefs}
 
         // Check for feature importance insights
         if (pcaAnalysis.dominantVariables.length > 0) {
-          const highLoadingVars = pcaAnalysis.dominantVariables.filter(v => Math.abs(v.maxLoading) > 0.7);
+          const highLoadingVars = pcaAnalysis.dominantVariables.filter(
+            (v) => Math.abs(v.maxLoading) > 0.7,
+          );
           if (highLoadingVars.length > 0) {
             enhancingFactors.push({
               factor: 'Clear Feature Importance Patterns',
@@ -466,7 +695,7 @@ ${columnDefs}
       const clusteringAnalysis = multivariateAnalysis?.clusteringAnalysis;
       if (clusteringAnalysis && clusteringAnalysis.isApplicable) {
         const silhouetteScore = clusteringAnalysis.finalClustering.validation.silhouetteScore;
-        
+
         if (silhouetteScore > 0.5) {
           enhancingFactors.push({
             factor: 'Natural Data Clustering Structure',
@@ -486,13 +715,12 @@ ${columnDefs}
           });
         }
       }
-
     } catch (error) {
       // Handle gracefully if multivariate analysis is not available
       logger.warn('Could not extract PCA insights', {
         section: 'engineering',
         analyzer: 'Section5Analyzer',
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       challenges.push({
         challenge: 'Multivariate Analysis Unavailable',
@@ -517,7 +745,7 @@ ${columnDefs}
   private calculateEnhancedMLReadinessScore(
     section1Result: Section1Result,
     section2Result: Section2Result,
-    pcaInsights: any
+    pcaInsights: PCAInsights,
   ): number {
     let baseScore = 85; // Default score
 
@@ -534,8 +762,8 @@ ${columnDefs}
     }
 
     // Factor in clustering structure
-    const hasClusteringStructure = pcaInsights.enhancingFactors.some(
-      (f: any) => f.factor.includes('Clustering')
+    const hasClusteringStructure = pcaInsights.enhancingFactors.some((f: any) =>
+      f.factor.includes('Clustering'),
     );
     if (hasClusteringStructure) {
       baseScore += 3; // Bonus for natural clustering
@@ -549,24 +777,15 @@ ${columnDefs}
    * Enhance feature preparation matrix with PCA insights
    */
   private enhanceFeatureMatrix(
-    columnInventory: any[],
-    pcaInsights: any
-  ): Array<{
-    featureName: string;
-    originalColumn: string;
-    finalDataType: string;
-    keyIssues: string[];
-    engineeringSteps: string[];
-    finalMLFeatureType: string;
-    modelingNotes: string[];
-    pcaRelevance?: string;
-  }> {
+    columnInventory: ColumnInventory[],
+    pcaInsights: PCAInsights,
+  ): FeaturePreparationEntry[] {
     const dominantFeatures = pcaInsights.dimensionalityRecommendations.dominantFeatures || [];
-    
-    return columnInventory.map(col => {
+
+    return columnInventory.map((col) => {
       const standardName = this.standardizeColumnName(col.name);
       const isDominant = dominantFeatures.includes(col.name);
-      
+
       const baseFeature = {
         featureName: `ml_${standardName}`,
         originalColumn: col.name,

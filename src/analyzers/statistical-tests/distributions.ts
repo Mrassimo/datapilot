@@ -1,7 +1,7 @@
 /**
  * Statistical Distributions Module
  * Provides accurate statistical distribution functions for hypothesis testing
- * 
+ *
  * Implements numerically stable algorithms for:
  * - F-distribution (for ANOVA)
  * - Chi-squared distribution (for Kruskal-Wallis)
@@ -12,7 +12,7 @@
  * Numerical constants for high precision calculations
  */
 const MACHEP = 1.11022302462515654042e-16; // Machine epsilon
-const MAXLOG = 7.09782712893383996732e2;   // log(MAXNUM)
+const MAXLOG = 7.09782712893383996732e2; // log(MAXNUM)
 const MINLOG = -7.451332191019412076235e2; // log(MINNUM)
 const MAXNUM = 1.79769313486231570815e308; // Maximum representable number
 
@@ -22,15 +22,9 @@ const MAXNUM = 1.79769313486231570815e308; // Maximum representable number
  */
 const LANCZOS_G = 7;
 const LANCZOS_COEFFICIENTS = [
-  0.99999999999980993,
-  676.5203681218851,
-  -1259.1392167224028,
-  771.32342877765313,
-  -176.61502916214059,
-  12.507343278686905,
-  -0.13857109526572012,
-  9.9843695780195716e-6,
-  1.5056327351493116e-7
+  0.99999999999980993, 676.5203681218851, -1259.1392167224028, 771.32342877765313,
+  -176.61502916214059, 12.507343278686905, -0.13857109526572012, 9.9843695780195716e-6,
+  1.5056327351493116e-7,
 ];
 
 /**
@@ -85,13 +79,14 @@ export function incompleteBeta(a: number, b: number, x: number): number {
   }
 
   // Calculate the coefficient
-  bt = Math.exp(logGamma(a + b) - logGamma(a) - logGamma(b) + 
-                a * Math.log(x) + b * Math.log(1 - x));
+  bt = Math.exp(
+    logGamma(a + b) - logGamma(a) - logGamma(b) + a * Math.log(x) + b * Math.log(1 - x),
+  );
 
   if (x < (a + 1) / (a + b + 2)) {
-    return bt * betacf(a, b, x) / a;
+    return (bt * betacf(a, b, x)) / a;
   } else {
-    return 1 - bt * betacf(b, a, 1 - x) / b;
+    return 1 - (bt * betacf(b, a, 1 - x)) / b;
   }
 }
 
@@ -108,7 +103,7 @@ function betacf(a: number, b: number, x: number): number {
   const qap = a + 1;
   const qam = a - 1;
   let c = 1;
-  let d = 1 - qab * x / qap;
+  let d = 1 - (qab * x) / qap;
 
   if (Math.abs(d) < FPMIN) d = FPMIN;
   d = 1 / d;
@@ -116,8 +111,8 @@ function betacf(a: number, b: number, x: number): number {
 
   for (let m = 1; m <= MAXIT; m++) {
     const m2 = 2 * m;
-    let aa = m * (b - m) * x / ((qam + m2) * (a + m2));
-    
+    let aa = (m * (b - m) * x) / ((qam + m2) * (a + m2));
+
     // Even step
     d = 1 + aa * d;
     if (Math.abs(d) < FPMIN) d = FPMIN;
@@ -127,7 +122,7 @@ function betacf(a: number, b: number, x: number): number {
     h *= d * c;
 
     // Odd step
-    aa = -(a + m) * (qab + m) * x / ((a + m2) * (qap + m2));
+    aa = (-(a + m) * (qab + m) * x) / ((a + m2) * (qap + m2));
     d = 1 + aa * d;
     if (Math.abs(d) < FPMIN) d = FPMIN;
     c = 1 + aa / c;
@@ -237,7 +232,7 @@ export function fccdf(f: number, df1: number, df2: number): number {
   if (f <= 0) return 1;
   if (!isFinite(f)) return 0;
 
-  const x = df1 * f / (df2 + df1 * f);
+  const x = (df1 * f) / (df2 + df1 * f);
   return incompleteBeta(df1 / 2, df2 / 2, x);
 }
 
@@ -266,7 +261,9 @@ export function chisqccdf(x: number, df: number): number {
 /**
  * Validate statistical test inputs
  */
-export function validateTestInputs(groups: Array<{count: number, mean: number, variance: number}>): void {
+export function validateTestInputs(
+  groups: Array<{ count: number; mean: number; variance: number }>,
+): void {
   if (groups.length < 2) {
     throw new Error('Statistical tests require at least 2 groups');
   }

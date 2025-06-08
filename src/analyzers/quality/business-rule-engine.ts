@@ -649,9 +649,10 @@ export class BusinessRuleEngine {
 
           if (grade !== null) {
             // Common GPA scales: 0-4.0, 0-5.0, 0-100 percentage
-            const isValidGPA = (grade >= 0 && grade <= 4.0) || 
-                              (grade >= 0 && grade <= 5.0) || 
-                              (grade >= 0 && grade <= 100);
+            const isValidGPA =
+              (grade >= 0 && grade <= 4.0) ||
+              (grade >= 0 && grade <= 5.0) ||
+              (grade >= 0 && grade <= 100);
 
             if (!isValidGPA || grade < 0) {
               return {
@@ -721,9 +722,9 @@ export class BusinessRuleEngine {
                 ruleId: 'enrollment_graduation_chronology',
                 passed: false,
                 rowIndex,
-                values: { 
-                  enrollment: row[enrollmentCol.index], 
-                  graduation: row[graduationCol.index] 
+                values: {
+                  enrollment: row[enrollmentCol.index],
+                  graduation: row[graduationCol.index],
                 },
                 issue: `Graduation date (${row[graduationCol.index]}) should be after enrollment date (${row[enrollmentCol.index]})`,
                 severity: 'high',
@@ -731,15 +732,17 @@ export class BusinessRuleEngine {
             }
 
             // Check for unrealistic graduation timeline (too fast or too slow)
-            const timeDiffYears = (graduationDate.getTime() - enrollmentDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
+            const timeDiffYears =
+              (graduationDate.getTime() - enrollmentDate.getTime()) /
+              (365.25 * 24 * 60 * 60 * 1000);
             if (timeDiffYears < 0.5 || timeDiffYears > 10) {
               return {
                 ruleId: 'enrollment_graduation_chronology',
                 passed: false,
                 rowIndex,
-                values: { 
-                  enrollment: row[enrollmentCol.index], 
-                  graduation: row[graduationCol.index] 
+                values: {
+                  enrollment: row[enrollmentCol.index],
+                  graduation: row[graduationCol.index],
                 },
                 issue: `Time between enrollment and graduation (${timeDiffYears.toFixed(1)} years) seems unrealistic`,
                 severity: 'medium',
@@ -759,8 +762,8 @@ export class BusinessRuleEngine {
   private addDataIntegrityRules(): void {
     // Percentage fields validation
     const percentageColumns = this.findColumnsByPattern(/(percent|rate|ratio|%)/i);
-    
-    percentageColumns.forEach(col => {
+
+    percentageColumns.forEach((col) => {
       this.rules.push({
         id: `percentage_range_${col.name}`,
         name: 'Percentage Range Validation',
@@ -791,8 +794,8 @@ export class BusinessRuleEngine {
 
     // ID field consistency (should not be negative)
     const idColumns = this.findColumnsByPattern(/(^id$|_id$|^.*id$)/i);
-    
-    idColumns.forEach(col => {
+
+    idColumns.forEach((col) => {
       this.rules.push({
         id: `id_positive_${col.name}`,
         name: 'ID Field Positive Validation',
@@ -821,8 +824,8 @@ export class BusinessRuleEngine {
 
     // Count/Quantity field validation
     const countColumns = this.findColumnsByPattern(/(count|quantity|number|amount)/i);
-    
-    countColumns.forEach(col => {
+
+    countColumns.forEach((col) => {
       this.rules.push({
         id: `count_non_negative_${col.name}`,
         name: 'Count Field Non-Negative Validation',
@@ -856,8 +859,8 @@ export class BusinessRuleEngine {
   private addStringFormatConsistencyRules(): void {
     // Email format validation
     const emailColumns = this.findColumnsByPattern(/(email|mail)/i);
-    
-    emailColumns.forEach(col => {
+
+    emailColumns.forEach((col) => {
       this.rules.push({
         id: `email_format_${col.name}`,
         name: 'Email Format Validation',
@@ -870,7 +873,7 @@ export class BusinessRuleEngine {
 
           if (email && email.length > 0) {
             const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            
+
             if (!emailPattern.test(email)) {
               return {
                 ruleId: `email_format_${col.name}`,
@@ -890,8 +893,8 @@ export class BusinessRuleEngine {
 
     // Phone number format validation
     const phoneColumns = this.findColumnsByPattern(/(phone|tel|mobile|contact)/i);
-    
-    phoneColumns.forEach(col => {
+
+    phoneColumns.forEach((col) => {
       this.rules.push({
         id: `phone_format_${col.name}`,
         name: 'Phone Number Format Validation',
@@ -905,7 +908,7 @@ export class BusinessRuleEngine {
           if (phone && phone.length > 0) {
             // Basic phone pattern (allows various formats)
             const phonePattern = /^[\+]?[\d\s\-\(\)]{7,}$/;
-            
+
             if (!phonePattern.test(phone)) {
               return {
                 ruleId: `phone_format_${col.name}`,
@@ -925,8 +928,8 @@ export class BusinessRuleEngine {
 
     // URL format validation
     const urlColumns = this.findColumnsByPattern(/(url|website|link|uri)/i);
-    
-    urlColumns.forEach(col => {
+
+    urlColumns.forEach((col) => {
       this.rules.push({
         id: `url_format_${col.name}`,
         name: 'URL Format Validation',
@@ -939,7 +942,7 @@ export class BusinessRuleEngine {
 
           if (url && url.length > 0) {
             const urlPattern = /^https?:\/\/[^\s]+$/;
-            
+
             if (!urlPattern.test(url)) {
               return {
                 ruleId: `url_format_${col.name}`,
@@ -1073,9 +1076,10 @@ export class BusinessRuleEngine {
 
           if (status && status.length > 0) {
             // Check for common status inconsistencies
-            const hasInconsistentCasing = status !== status.toLowerCase() && status !== status.toUpperCase();
+            const hasInconsistentCasing =
+              status !== status.toLowerCase() && status !== status.toUpperCase();
             const hasSpecialChars = /[^a-zA-Z0-9\s\-_]/.test(status);
-            
+
             if (hasInconsistentCasing && hasSpecialChars) {
               return {
                 ruleId: 'status_field_standardization',

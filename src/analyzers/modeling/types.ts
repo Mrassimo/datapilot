@@ -9,7 +9,7 @@ import type { Section3Result } from '../eda/types';
 import type { Section5Result } from '../engineering/types';
 
 // Core modeling task types
-export type ModelingTaskType = 
+export type ModelingTaskType =
   | 'regression'
   | 'binary_classification'
   | 'multiclass_classification'
@@ -502,9 +502,15 @@ export interface Section6Config {
 }
 
 export interface Section6Progress {
-  stage: 'initialization' | 'task_identification' | 'algorithm_selection' | 
-         'workflow_design' | 'evaluation_framework' | 'ethics_analysis' | 
-         'interpretation_guide' | 'finalization';
+  stage:
+    | 'initialization'
+    | 'task_identification'
+    | 'algorithm_selection'
+    | 'workflow_design'
+    | 'evaluation_framework'
+    | 'ethics_analysis'
+    | 'interpretation_guide'
+    | 'finalization';
   percentage: number;
   message: string;
   currentStep: number;

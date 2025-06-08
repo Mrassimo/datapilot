@@ -361,11 +361,13 @@ export class OutputManager {
     if (this.options.verbose && !this.options.quiet) {
       const mlReadiness = result.metadata?.mlReadinessScore || 0;
       const transformations = result.performanceMetrics?.transformationsEvaluated || 0;
-      
+
       console.log('\n🏗️ Data Engineering Quick Summary:');
       console.log(`   • ML Readiness Score: ${mlReadiness}%`);
       console.log(`   • Transformations Evaluated: ${transformations}`);
-      console.log(`   • Schema Optimization: Ready for ${result.engineeringAnalysis?.schemaAnalysis?.optimizedSchema?.targetSystem || 'generic SQL'}`);
+      console.log(
+        `   • Schema Optimization: Ready for ${result.engineeringAnalysis?.schemaAnalysis?.optimizedSchema?.targetSystem || 'generic SQL'}`,
+      );
     }
 
     return outputFiles;
@@ -429,7 +431,7 @@ export class OutputManager {
     if (this.options.verbose && !this.options.quiet) {
       const tasksIdentified = result.performanceMetrics?.tasksIdentified || 0;
       const algorithmsEvaluated = result.performanceMetrics?.algorithmsEvaluated || 0;
-      
+
       console.log('\n🧠 Modeling Analysis Quick Summary:');
       console.log(`   • Tasks Identified: ${tasksIdentified}`);
       console.log(`   • Algorithms Evaluated: ${algorithmsEvaluated}`);
@@ -456,7 +458,13 @@ export class OutputManager {
   /**
    * Output file information
    */
-  outputFileInfo(metadata: any): void {
+  outputFileInfo(metadata: {
+    originalFilename?: string;
+    fileSizeMB?: number;
+    encoding?: string;
+    mimeType?: string;
+    lastModified?: Date;
+  }): void {
     console.log('📁 File Information:');
     console.log(`   • Name: ${metadata.originalFilename}`);
     console.log(`   • Size: ${this.formatFileSize(metadata.fileSizeMB)}`);
@@ -506,7 +514,7 @@ export class OutputManager {
   /**
    * Simple object to YAML converter
    */
-  private objectToYAML(obj: any, indent: number = 0): string {
+  private objectToYAML(obj: Record<string, unknown>, indent: number = 0): string {
     const spaces = '  '.repeat(indent);
     let yaml = '';
 

@@ -180,7 +180,16 @@ export interface ColumnStandardization {
 
 export interface MissingValueStrategy {
   columnName: string;
-  strategy: 'drop' | 'median' | 'mean' | 'mode' | 'forward_fill' | 'backward_fill' | 'interpolate' | 'model_based' | 'fixed_value';
+  strategy:
+    | 'drop'
+    | 'median'
+    | 'mean'
+    | 'mode'
+    | 'forward_fill'
+    | 'backward_fill'
+    | 'interpolate'
+    | 'model_based'
+    | 'fixed_value';
   parameters: Record<string, any>;
   flagColumn: string;
   reasoning: string;
@@ -214,7 +223,16 @@ export interface NumericalTransformationStrategy {
 }
 
 export interface NumericalTransformation {
-  transformation: 'log' | 'sqrt' | 'power' | 'box_cox' | 'yeo_johnson' | 'standard_scale' | 'min_max_scale' | 'robust_scale' | 'quantile_transform';
+  transformation:
+    | 'log'
+    | 'sqrt'
+    | 'power'
+    | 'box_cox'
+    | 'yeo_johnson'
+    | 'standard_scale'
+    | 'min_max_scale'
+    | 'robust_scale'
+    | 'quantile_transform';
   parameters: Record<string, any>;
   resultingColumnName: string;
   purpose: string;
@@ -497,9 +515,36 @@ export interface DenormalizationJustification {
   tradeoffs: string[];
 }
 
+// Additional helper interfaces for analyzers
+export interface DatabaseTypeInference {
+  sqlType: string;
+  constraints: string[];
+  reasoning: string;
+}
+
+export interface PCAInsights {
+  enhancingFactors: MLEnhancingFactor[];
+  challenges: MLChallenge[];
+  modelingConsiderations: ModelingConsideration[];
+  dimensionalityRecommendations: {
+    applicable: boolean;
+    recommendedComponents?: number;
+    varianceRetained?: number;
+    dominantFeatures?: string[];
+    implementationSteps?: string[];
+  };
+}
+
 // Configuration
 export interface Section5Config {
-  enabledAnalyses: ('schema' | 'integrity' | 'transformations' | 'scalability' | 'governance' | 'ml_readiness')[];
+  enabledAnalyses: (
+    | 'schema'
+    | 'integrity'
+    | 'transformations'
+    | 'scalability'
+    | 'governance'
+    | 'ml_readiness'
+  )[];
   targetDatabaseSystem: 'postgresql' | 'mysql' | 'sqlite' | 'generic_sql';
   mlFrameworkTarget: 'scikit_learn' | 'pytorch' | 'tensorflow' | 'generic';
   includeKnowledgeBase: boolean;
@@ -509,7 +554,15 @@ export interface Section5Config {
 
 // Progress Tracking
 export interface Section5Progress {
-  stage: 'initialization' | 'schema_analysis' | 'integrity_analysis' | 'transformations' | 'scalability' | 'governance' | 'ml_readiness' | 'finalization';
+  stage:
+    | 'initialization'
+    | 'schema_analysis'
+    | 'integrity_analysis'
+    | 'transformations'
+    | 'scalability'
+    | 'governance'
+    | 'ml_readiness'
+    | 'finalization';
   percentage: number;
   message: string;
   currentStep: number;

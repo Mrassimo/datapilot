@@ -1,6 +1,6 @@
 /**
  * Sophisticated Dashboard Layout Engine
- * 
+ *
  * Advanced engine for intelligent dashboard composition using:
  * - Perceptual hierarchy optimization
  * - Spatial relationship analysis
@@ -22,7 +22,14 @@ export interface DashboardLayout {
 }
 
 export interface LayoutStrategy {
-  type: 'grid' | 'freeform' | 'golden_spiral' | 'z_pattern' | 'f_pattern' | 'narrative' | 'analytical';
+  type:
+    | 'grid'
+    | 'freeform'
+    | 'golden_spiral'
+    | 'z_pattern'
+    | 'f_pattern'
+    | 'narrative'
+    | 'analytical';
   reasoning: string;
   principles: LayoutPrinciple[];
   constraints: LayoutConstraint[];
@@ -287,7 +294,11 @@ export interface EmphasisTechnique {
 }
 
 export interface ContextualConnection {
-  connectionType: 'data_relationship' | 'temporal_sequence' | 'causal_link' | 'comparative_analysis';
+  connectionType:
+    | 'data_relationship'
+    | 'temporal_sequence'
+    | 'causal_link'
+    | 'comparative_analysis';
   elements: string[];
   visualConnection: VisualConnection;
   semanticConnection: SemanticConnection;
@@ -434,7 +445,12 @@ export interface InteractionDesign {
 }
 
 export interface InteractionPattern {
-  pattern: 'drill_down' | 'brush_link' | 'overview_detail' | 'small_multiples' | 'coordinated_views';
+  pattern:
+    | 'drill_down'
+    | 'brush_link'
+    | 'overview_detail'
+    | 'small_multiples'
+    | 'coordinated_views';
   applicableCharts: string[];
   implementation: InteractionImplementation;
   usabilityScore: number; // 0-100
@@ -696,40 +712,45 @@ export interface PerformanceMetrics {
  * Sophisticated Dashboard Layout Engine
  */
 export class DashboardLayoutEngine {
-  
   /**
    * Generate optimal dashboard layout based on visualization characteristics
    */
   static generateLayout(
     visualizations: VisualizationSpec[],
     constraints: LayoutConstraints,
-    context: LayoutContext
+    context: LayoutContext,
   ): DashboardLayout {
-    
     // Analyze visualization characteristics and relationships
     const analysis = this.analyzeVisualizations(visualizations);
-    
+
     // Generate layout strategy based on analysis and context
     const layoutStrategy = this.selectLayoutStrategy(analysis, constraints, context);
-    
+
     // Create spatial arrangement optimized for perception
-    const spatialArrangement = this.generateSpatialArrangement(visualizations, layoutStrategy, constraints);
-    
+    const spatialArrangement = this.generateSpatialArrangement(
+      visualizations,
+      layoutStrategy,
+      constraints,
+    );
+
     // Design narrative flow for optimal user experience
     const narrativeFlow = this.designNarrativeFlow(visualizations, analysis, context);
-    
+
     // Establish perceptual hierarchy
-    const perceptualHierarchy = this.establishPerceptualHierarchy(visualizations, spatialArrangement);
-    
+    const perceptualHierarchy = this.establishPerceptualHierarchy(
+      visualizations,
+      spatialArrangement,
+    );
+
     // Design interaction patterns
     const interactionDesign = this.designInteractions(visualizations, analysis);
-    
+
     // Create responsive adaptation strategy
     const responsiveAdaptation = this.designResponsiveAdaptation(spatialArrangement, constraints);
-    
+
     // Optimize for cognitive load
     const cognitiveOptimization = this.optimizeCognitivLoad(spatialArrangement, narrativeFlow);
-    
+
     // Calculate layout metrics
     const layoutMetrics = this.calculateLayoutMetrics(
       spatialArrangement,
@@ -737,7 +758,7 @@ export class DashboardLayoutEngine {
       perceptualHierarchy,
       interactionDesign,
       responsiveAdaptation,
-      cognitiveOptimization
+      cognitiveOptimization,
     );
 
     return {
@@ -748,7 +769,7 @@ export class DashboardLayoutEngine {
       interactionDesign,
       responsiveAdaptation,
       cognitiveOptimization,
-      layoutMetrics
+      layoutMetrics,
     };
   }
 
@@ -760,14 +781,14 @@ export class DashboardLayoutEngine {
     const importance = this.calculateImportance(visualizations);
     const complexity = this.assessComplexity(visualizations);
     const interactionPotential = this.assessInteractionPotential(visualizations);
-    
+
     return {
       relationships,
       importance,
       complexity,
       interactionPotential,
       count: visualizations.length,
-      diversity: this.calculateDiversity(visualizations)
+      diversity: this.calculateDiversity(visualizations),
     };
   }
 
@@ -777,12 +798,11 @@ export class DashboardLayoutEngine {
   private static selectLayoutStrategy(
     analysis: VisualizationAnalysis,
     constraints: LayoutConstraints,
-    context: LayoutContext
+    context: LayoutContext,
   ): LayoutStrategy {
-    
     let type: LayoutStrategy['type'];
     let reasoning: string;
-    
+
     // Select strategy based on visualization count and relationships
     if (analysis.count <= 2) {
       type = 'golden_spiral';
@@ -809,7 +829,7 @@ export class DashboardLayoutEngine {
       reasoning,
       principles,
       constraints: layoutConstraints,
-      flexibility: this.calculateFlexibility(type, analysis, constraints)
+      flexibility: this.calculateFlexibility(type, analysis, constraints),
     };
   }
 
@@ -819,21 +839,20 @@ export class DashboardLayoutEngine {
   private static generateSpatialArrangement(
     visualizations: VisualizationSpec[],
     strategy: LayoutStrategy,
-    constraints: LayoutConstraints
+    constraints: LayoutConstraints,
   ): SpatialArrangement {
-    
     // Create zones based on strategy and visualization importance
     const zones = this.createLayoutZones(visualizations, strategy, constraints);
-    
+
     // Establish spatial relationships
     const relationships = this.establishSpatialRelationships(zones, visualizations);
-    
+
     // Define proximity rules
     const proximityRules = this.defineProximityRules(strategy.type);
-    
+
     // Create alignment grid
     const alignmentGrid = this.createAlignmentGrid(strategy, constraints);
-    
+
     // Analyze space utilization
     const spaceUtilization = this.analyzeSpaceUtilization(zones, constraints);
 
@@ -842,7 +861,7 @@ export class DashboardLayoutEngine {
       relationships,
       proximityRules,
       alignmentGrid,
-      spaceUtilization
+      spaceUtilization,
     };
   }
 
@@ -852,21 +871,20 @@ export class DashboardLayoutEngine {
   private static designNarrativeFlow(
     visualizations: VisualizationSpec[],
     analysis: VisualizationAnalysis,
-    context: LayoutContext
+    context: LayoutContext,
   ): NarrativeFlow {
-    
     // Create story structure
     const storyStructure = this.createStoryStructure(visualizations, analysis, context);
-    
+
     // Design reading path
     const readingPath = this.designReadingPath(visualizations, storyStructure);
-    
+
     // Create information architecture
     const informationArchitecture = this.createInformationArchitecture(visualizations, analysis);
-    
+
     // Design transitions
     const transitionDesign = this.designTransitions(readingPath, storyStructure);
-    
+
     // Establish contextual connections
     const contextualConnections = this.establishContextualConnections(visualizations, analysis);
 
@@ -875,7 +893,7 @@ export class DashboardLayoutEngine {
       readingPath,
       informationArchitecture,
       transitionDesign,
-      contextualConnections
+      contextualConnections,
     };
   }
 
@@ -885,11 +903,11 @@ export class DashboardLayoutEngine {
   }
 
   private static calculateImportance(visualizations: VisualizationSpec[]): number[] {
-    return visualizations.map(v => v.importance);
+    return visualizations.map((v) => v.importance);
   }
 
   private static assessComplexity(visualizations: VisualizationSpec[]): number[] {
-    return visualizations.map(v => v.complexity);
+    return visualizations.map((v) => v.complexity);
   }
 
   private static assessInteractionPotential(visualizations: VisualizationSpec[]): number[] {
@@ -897,39 +915,42 @@ export class DashboardLayoutEngine {
   }
 
   private static calculateDiversity(visualizations: VisualizationSpec[]): number {
-    const types = new Set(visualizations.map(v => v.type));
+    const types = new Set(visualizations.map((v) => v.type));
     return types.size / visualizations.length;
   }
 
-  private static getLayoutPrinciples(type: string, analysis: VisualizationAnalysis): LayoutPrinciple[] {
+  private static getLayoutPrinciples(
+    type: string,
+    analysis: VisualizationAnalysis,
+  ): LayoutPrinciple[] {
     return [
       {
         principle: 'Visual Hierarchy',
         weight: 0.9,
         application: 'Primary visualizations receive prominent placement',
-        tradeoffs: ['Space utilization vs prominence']
-      }
+        tradeoffs: ['Space utilization vs prominence'],
+      },
     ];
   }
 
   private static generateLayoutConstraints(
     constraints: LayoutConstraints,
-    context: LayoutContext
+    context: LayoutContext,
   ): LayoutConstraint[] {
     return [
       {
         constraint: 'Minimum chart size',
         type: 'hard',
         value: constraints.minChartSize,
-        reasoning: 'Charts must be readable and functional'
-      }
+        reasoning: 'Charts must be readable and functional',
+      },
     ];
   }
 
   private static calculateFlexibility(
     type: string,
     analysis: VisualizationAnalysis,
-    constraints: LayoutConstraints
+    constraints: LayoutConstraints,
   ): number {
     // Grid layouts are more flexible, narrative layouts less so
     const baseFlexibility = type === 'grid' ? 80 : type === 'narrative' ? 40 : 60;
@@ -940,16 +961,16 @@ export class DashboardLayoutEngine {
   private static createLayoutZones(
     visualizations: VisualizationSpec[],
     strategy: LayoutStrategy,
-    constraints: LayoutConstraints
+    constraints: LayoutConstraints,
   ): LayoutZone[] {
     return visualizations.map((viz, index) => ({
       id: viz.id,
       purpose: index === 0 ? 'primary' : 'secondary',
       bounds: {
-        x: (index % 2) * constraints.maxWidth / 2,
-        y: Math.floor(index / 2) * constraints.maxHeight / Math.ceil(visualizations.length / 2),
+        x: ((index % 2) * constraints.maxWidth) / 2,
+        y: (Math.floor(index / 2) * constraints.maxHeight) / Math.ceil(visualizations.length / 2),
         width: constraints.maxWidth / 2,
-        height: constraints.maxHeight / Math.ceil(visualizations.length / 2)
+        height: constraints.maxHeight / Math.ceil(visualizations.length / 2),
       },
       visualWeight: viz.importance,
       attentionPriority: viz.importance,
@@ -959,17 +980,17 @@ export class DashboardLayoutEngine {
         borderStyle: 'none',
         padding: { top: 8, right: 8, bottom: 8, left: 8 },
         margin: { top: 4, right: 4, bottom: 4, left: 4 },
-        elevation: 0
-      }
+        elevation: 0,
+      },
     }));
   }
 
   private static establishSpatialRelationships(
     zones: LayoutZone[],
-    visualizations: VisualizationSpec[]
+    visualizations: VisualizationSpec[],
   ): SpatialRelationship[] {
     const relationships: SpatialRelationship[] = [];
-    
+
     for (let i = 0; i < zones.length; i++) {
       for (let j = i + 1; j < zones.length; j++) {
         relationships.push({
@@ -978,11 +999,11 @@ export class DashboardLayoutEngine {
           relationshipType: 'adjacent',
           strength: 0.5,
           visualIndicators: ['proximity'],
-          purpose: 'Spatial organization'
+          purpose: 'Spatial organization',
         });
       }
     }
-    
+
     return relationships;
   }
 
@@ -992,14 +1013,14 @@ export class DashboardLayoutEngine {
         rule: 'Related charts should be closer',
         distance: 16,
         applicableElements: ['all'],
-        reasoning: 'Gestalt principle of proximity enhances perceived relationships'
-      }
+        reasoning: 'Gestalt principle of proximity enhances perceived relationships',
+      },
     ];
   }
 
   private static createAlignmentGrid(
     strategy: LayoutStrategy,
-    constraints: LayoutConstraints
+    constraints: LayoutConstraints,
   ): AlignmentGrid {
     return {
       columns: 12,
@@ -1008,31 +1029,34 @@ export class DashboardLayoutEngine {
       gutterHeight: 16,
       baselineGrid: 8,
       snapToGrid: true,
-      gridType: 'modular'
+      gridType: 'modular',
     };
   }
 
-  private static analyzeSpaceUtilization(zones: LayoutZone[], constraints: LayoutConstraints): SpaceUtilization {
+  private static analyzeSpaceUtilization(
+    zones: LayoutZone[],
+    constraints: LayoutConstraints,
+  ): SpaceUtilization {
     const totalArea = constraints.maxWidth * constraints.maxHeight;
     const usedArea = zones.reduce((sum, zone) => sum + zone.bounds.width * zone.bounds.height, 0);
-    
+
     return {
       efficiency: (usedArea / totalArea) * 100,
       balance: 75, // Placeholder
       density: 60, // Placeholder
       breathingRoom: 40, // Placeholder
-      hotSpots: []
+      hotSpots: [],
     };
   }
 
   private static createStoryStructure(
     visualizations: VisualizationSpec[],
     analysis: VisualizationAnalysis,
-    context: LayoutContext
+    context: LayoutContext,
   ): StoryStructure {
     // Find the most important visualization as climax
     const climaxIndex = analysis.importance.indexOf(Math.max(...analysis.importance));
-    
+
     return {
       structure: 'linear',
       acts: [
@@ -1041,55 +1065,59 @@ export class DashboardLayoutEngine {
           purpose: 'Introduction',
           visualizations: [visualizations[0]?.id || ''],
           keyMessage: 'Initial data overview',
-          estimatedTime: 30
-        }
+          estimatedTime: 30,
+        },
       ],
       climax: visualizations[climaxIndex]?.id || '',
       resolution: visualizations[visualizations.length - 1]?.id || '',
-      theme: 'Data-driven insights'
+      theme: 'Data-driven insights',
     };
   }
 
   private static designReadingPath(
     visualizations: VisualizationSpec[],
-    storyStructure: StoryStructure
+    storyStructure: StoryStructure,
   ): ReadingPath {
     const primaryPath = visualizations.map((viz, index) => ({
       elementId: viz.id,
       order: index + 1,
       dwellTime: 15 + viz.complexity * 0.3,
       importance: viz.importance / 100,
-      connections: index < visualizations.length - 1 ? [visualizations[index + 1].id] : []
+      connections: index < visualizations.length - 1 ? [visualizations[index + 1].id] : [],
     }));
 
     return {
       primaryPath,
       alternativePaths: [],
-      entryPoints: [{
-        elementId: visualizations[0]?.id || '',
-        probability: 0.8,
-        designOptimization: ['prominent placement', 'visual weight']
-      }],
-      exitPoints: [{
-        elementId: visualizations[visualizations.length - 1]?.id || '',
-        purpose: 'conclusion',
-        callToAction: 'Explore additional details'
-      }],
-      decisionPoints: []
+      entryPoints: [
+        {
+          elementId: visualizations[0]?.id || '',
+          probability: 0.8,
+          designOptimization: ['prominent placement', 'visual weight'],
+        },
+      ],
+      exitPoints: [
+        {
+          elementId: visualizations[visualizations.length - 1]?.id || '',
+          purpose: 'conclusion',
+          callToAction: 'Explore additional details',
+        },
+      ],
+      decisionPoints: [],
     };
   }
 
   // Additional placeholder methods...
   private static createInformationArchitecture(
     visualizations: VisualizationSpec[],
-    analysis: VisualizationAnalysis
+    analysis: VisualizationAnalysis,
   ): InformationArchitecture {
     return {
       hierarchy: {
         levels: [],
         depth: 2,
         breadth: visualizations.length,
-        balance: 0.8
+        balance: 0.8,
       },
       categories: [],
       relationships: [],
@@ -1100,15 +1128,15 @@ export class DashboardLayoutEngine {
           persistence: true,
           animation: true,
           feedback: ['visual', 'haptic'],
-          defaultState: {}
-        }
-      }
+          defaultState: {},
+        },
+      },
     };
   }
 
   private static designTransitions(
     readingPath: ReadingPath,
-    storyStructure: StoryStructure
+    storyStructure: StoryStructure,
   ): TransitionDesign {
     return {
       transitions: [],
@@ -1116,39 +1144,39 @@ export class DashboardLayoutEngine {
       pacing: {
         rhythm: 'moderate',
         pausePoints: [],
-        acceleration: []
+        acceleration: [],
       },
-      emphasis: []
+      emphasis: [],
     };
   }
 
   private static establishContextualConnections(
     visualizations: VisualizationSpec[],
-    analysis: VisualizationAnalysis
+    analysis: VisualizationAnalysis,
   ): ContextualConnection[] {
     const connections: ContextualConnection[] = [];
-    
+
     // Analyze shared dimensions between visualizations
     for (let i = 0; i < visualizations.length - 1; i++) {
       for (let j = i + 1; j < visualizations.length; j++) {
         const viz1 = visualizations[i];
         const viz2 = visualizations[j];
-        
+
         // Find shared data dimensions
         const sharedDimensions = this.findSharedDimensions(viz1, viz2);
-        
+
         if (sharedDimensions.length > 0) {
           // Create contextual connection based on shared dimensions
           const connection = this.createDimensionConnection(viz1, viz2, sharedDimensions);
           connections.push(connection);
         }
-        
+
         // Check for complementary analysis types
         const complementaryConnection = this.checkComplementaryAnalysis(viz1, viz2);
         if (complementaryConnection) {
           connections.push(complementaryConnection);
         }
-        
+
         // Check for hierarchical relationships
         const hierarchicalConnection = this.checkHierarchicalRelationship(viz1, viz2);
         if (hierarchicalConnection) {
@@ -1156,21 +1184,21 @@ export class DashboardLayoutEngine {
         }
       }
     }
-    
+
     // Add temporal connections if applicable
     const temporalConnections = this.identifyTemporalConnections(visualizations);
     connections.push(...temporalConnections);
-    
+
     // Add narrative flow connections
     const narrativeConnections = this.establishNarrativeConnections(visualizations, analysis);
     connections.push(...narrativeConnections);
-    
+
     return connections;
   }
 
   private static establishPerceptualHierarchy(
     visualizations: VisualizationSpec[],
-    spatialArrangement: SpatialArrangement
+    spatialArrangement: SpatialArrangement,
   ): PerceptualHierarchy {
     return {
       visualLayers: [],
@@ -1178,7 +1206,7 @@ export class DashboardLayoutEngine {
         primaryFlow: [],
         secondaryFlows: [],
         attractors: [],
-        distractors: []
+        distractors: [],
       },
       focusManagement: {
         focusStates: [],
@@ -1186,8 +1214,8 @@ export class DashboardLayoutEngine {
         persistence: {
           maintainFocus: true,
           contextSwitching: 'smooth',
-          memoryAids: []
-        }
+          memoryAids: [],
+        },
       },
       contrastStrategy: {
         contrastPairs: [],
@@ -1195,20 +1223,20 @@ export class DashboardLayoutEngine {
           primaryEmphasis: '',
           secondaryEmphasis: [],
           techniques: [],
-          balance: 80
+          balance: 80,
         },
         hierarchy: {
           levels: [],
           consistency: 85,
-          predictability: 90
-        }
-      }
+          predictability: 90,
+        },
+      },
     };
   }
 
   private static designInteractions(
     visualizations: VisualizationSpec[],
-    analysis: VisualizationAnalysis
+    analysis: VisualizationAnalysis,
   ): InteractionDesign {
     return {
       interactionPatterns: [],
@@ -1218,14 +1246,14 @@ export class DashboardLayoutEngine {
         touchGestures: [],
         mouseGestures: [],
         keyboardShortcuts: [],
-        accessibility: []
-      }
+        accessibility: [],
+      },
     };
   }
 
   private static designResponsiveAdaptation(
     spatialArrangement: SpatialArrangement,
-    constraints: LayoutConstraints
+    constraints: LayoutConstraints,
   ): ResponsiveAdaptation {
     return {
       breakpoints: [
@@ -1233,19 +1261,19 @@ export class DashboardLayoutEngine {
           name: 'mobile',
           minWidth: 320,
           maxWidth: 768,
-          deviceType: 'mobile'
+          deviceType: 'mobile',
         },
         {
           name: 'tablet',
           minWidth: 768,
           maxWidth: 1024,
-          deviceType: 'tablet'
+          deviceType: 'tablet',
         },
         {
           name: 'desktop',
           minWidth: 1024,
-          deviceType: 'desktop'
-        }
+          deviceType: 'desktop',
+        },
       ],
       adaptationStrategies: [],
       prioritization: {
@@ -1253,15 +1281,15 @@ export class DashboardLayoutEngine {
         priority2: [],
         priority3: [],
         priority4: [],
-        collapsible: []
+        collapsible: [],
       },
-      fallbacks: []
+      fallbacks: [],
     };
   }
 
   private static optimizeCognitivLoad(
     spatialArrangement: SpatialArrangement,
-    narrativeFlow: NarrativeFlow
+    narrativeFlow: NarrativeFlow,
   ): CognitiveOptimization {
     return {
       cognitiveLoadAnalysis: {
@@ -1269,32 +1297,32 @@ export class DashboardLayoutEngine {
         intrinsicLoad: 40,
         extraneousLoad: 15,
         germaneLoad: 5,
-        recommendations: []
+        recommendations: [],
       },
       attentionManagement: {
         strategies: [],
         timing: {
           peakAttention: 8,
           attentionSpan: 120,
-          refreshTechniques: []
+          refreshTechniques: [],
         },
         sustainability: {
           techniques: [],
           varietyScore: 70,
-          engagementLevel: 75
-        }
+          engagementLevel: 75,
+        },
       },
       memorySupport: {
         shortTermSupport: [],
         longTermSupport: [],
         contextualCues: [],
-        repetitionStrategy: 'spaced'
+        repetitionStrategy: 'spaced',
       },
       decisionSupport: {
         decisionPoints: [],
         guidanceLevel: 'moderate',
-        errorPrevention: []
-      }
+        errorPrevention: [],
+      },
     };
   }
 
@@ -1304,61 +1332,63 @@ export class DashboardLayoutEngine {
     perceptualHierarchy: PerceptualHierarchy,
     interactionDesign: InteractionDesign,
     responsiveAdaptation: ResponsiveAdaptation,
-    cognitiveOptimization: CognitiveOptimization
+    cognitiveOptimization: CognitiveOptimization,
   ): LayoutMetrics {
     return {
       efficiency: {
         spaceUtilization: spatialArrangement.spaceUtilization.efficiency,
         informationDensity: spatialArrangement.spaceUtilization.density,
         navigationEfficiency: 80,
-        taskCompletion: 85
+        taskCompletion: 85,
       },
       usability: {
         learnability: 80,
         efficiency: 85,
         memorability: 75,
         errorRate: 10,
-        satisfaction: 80
+        satisfaction: 80,
       },
       aesthetics: {
         visualHarmony: 85,
         balance: spatialArrangement.spaceUtilization.balance,
         proportion: 80,
         rhythm: 75,
-        unity: 80
+        unity: 80,
       },
       accessibility: {
         wcagCompliance: 85,
         colorBlindSupport: 90,
         motorSupport: 85,
         cognitiveSupport: 80,
-        screenReaderSupport: 85
+        screenReaderSupport: 85,
       },
       performance: {
         renderTime: 500,
         interactionLatency: 16,
         memoryUsage: 50,
-        responsiveness: 90
+        responsiveness: 90,
       },
-      overallScore: 82
+      overallScore: 82,
     };
   }
 
   // Helper methods for contextual connections
-  
+
   private static findSharedDimensions(viz1: VisualizationSpec, viz2: VisualizationSpec): string[] {
     const dims1 = viz1.dataDimensions || [];
     const dims2 = viz2.dataDimensions || [];
-    
-    return dims1.filter(dim1 => dims2.some(dim2 => 
-      dim1.field === dim2.field || dim1.semanticType === dim2.semanticType
-    )).map(dim => dim.field);
+
+    return dims1
+      .filter((dim1) =>
+        dims2.some((dim2) => dim1.field === dim2.field || dim1.semanticType === dim2.semanticType),
+      )
+      .map((dim) => dim.field);
   }
-  
+
   private static createDimensionConnection(
-    viz1: VisualizationSpec, 
-    viz2: VisualizationSpec, 
-    sharedDimensions: string[]
+    viz1: VisualizationSpec,
+    viz2: VisualizationSpec,
+    sharedDimensions: string[],
   ): ContextualConnection {
     return {
       sourceVisualization: viz1.id,
@@ -1369,13 +1399,13 @@ export class DashboardLayoutEngine {
       implementation: {
         visualTechnique: 'coordinated_highlighting',
         interactionPattern: 'brush_and_link',
-        aestheticCues: ['consistent_color_encoding', 'aligned_axes']
+        aestheticCues: ['consistent_color_encoding', 'aligned_axes'],
       },
       semanticMeaning: `Visualizations share ${sharedDimensions.length} data dimension(s): ${sharedDimensions.join(', ')}`,
-      cognitiveSupport: 'Enables cross-visualization comparison and pattern recognition'
+      cognitiveSupport: 'Enables cross-visualization comparison and pattern recognition',
     };
   }
-  
+
   private static calculateConnectionStrength(sharedCount: number): number {
     // Strength based on number of shared dimensions
     if (sharedCount >= 3) return 90;
@@ -1383,19 +1413,24 @@ export class DashboardLayoutEngine {
     if (sharedCount === 1) return 60;
     return 30;
   }
-  
-  private static checkComplementaryAnalysis(viz1: VisualizationSpec, viz2: VisualizationSpec): ContextualConnection | null {
+
+  private static checkComplementaryAnalysis(
+    viz1: VisualizationSpec,
+    viz2: VisualizationSpec,
+  ): ContextualConnection | null {
     const complementaryPairs = [
       ['overview', 'detail'],
       ['trend', 'distribution'],
       ['correlation', 'composition'],
       ['temporal', 'categorical'],
-      ['quantitative', 'qualitative']
+      ['quantitative', 'qualitative'],
     ];
-    
+
     for (const [type1, type2] of complementaryPairs) {
-      if ((viz1.analysisType === type1 && viz2.analysisType === type2) ||
-          (viz1.analysisType === type2 && viz2.analysisType === type1)) {
+      if (
+        (viz1.analysisType === type1 && viz2.analysisType === type2) ||
+        (viz1.analysisType === type2 && viz2.analysisType === type1)
+      ) {
         return {
           sourceVisualization: viz1.id,
           targetVisualization: viz2.id,
@@ -1405,25 +1440,29 @@ export class DashboardLayoutEngine {
           implementation: {
             visualTechnique: 'contextual_placement',
             interactionPattern: 'detail_on_demand',
-            aestheticCues: ['visual_grouping', 'consistent_styling']
+            aestheticCues: ['visual_grouping', 'consistent_styling'],
           },
           semanticMeaning: `${type1} and ${type2} analysis provide complementary insights`,
-          cognitiveSupport: 'Supports comprehensive understanding through multiple perspectives'
+          cognitiveSupport: 'Supports comprehensive understanding through multiple perspectives',
         };
       }
     }
-    
+
     return null;
   }
-  
-  private static checkHierarchicalRelationship(viz1: VisualizationSpec, viz2: VisualizationSpec): ContextualConnection | null {
+
+  private static checkHierarchicalRelationship(
+    viz1: VisualizationSpec,
+    viz2: VisualizationSpec,
+  ): ContextualConnection | null {
     // Check if one visualization shows detail of another
     if (viz1.granularityLevel && viz2.granularityLevel) {
       const levelDiff = Math.abs(viz1.granularityLevel - viz2.granularityLevel);
-      
+
       if (levelDiff >= 2) {
-        const [parentViz, childViz] = viz1.granularityLevel > viz2.granularityLevel ? [viz1, viz2] : [viz2, viz1];
-        
+        const [parentViz, childViz] =
+          viz1.granularityLevel > viz2.granularityLevel ? [viz1, viz2] : [viz2, viz1];
+
         return {
           sourceVisualization: parentViz.id,
           targetVisualization: childViz.id,
@@ -1433,21 +1472,23 @@ export class DashboardLayoutEngine {
           implementation: {
             visualTechnique: 'nested_layout',
             interactionPattern: 'drill_down',
-            aestheticCues: ['size_hierarchy', 'containment_relationships']
+            aestheticCues: ['size_hierarchy', 'containment_relationships'],
           },
           semanticMeaning: 'Detail view of selected elements from overview',
-          cognitiveSupport: 'Enables progressive disclosure and focused exploration'
+          cognitiveSupport: 'Enables progressive disclosure and focused exploration',
         };
       }
     }
-    
+
     return null;
   }
-  
-  private static identifyTemporalConnections(visualizations: VisualizationSpec[]): ContextualConnection[] {
-    const temporalViz = visualizations.filter(viz => viz.hasTemporalDimension);
+
+  private static identifyTemporalConnections(
+    visualizations: VisualizationSpec[],
+  ): ContextualConnection[] {
+    const temporalViz = visualizations.filter((viz) => viz.hasTemporalDimension);
     const connections: ContextualConnection[] = [];
-    
+
     // Connect temporal visualizations for synchronized time navigation
     for (let i = 0; i < temporalViz.length - 1; i++) {
       for (let j = i + 1; j < temporalViz.length; j++) {
@@ -1460,26 +1501,28 @@ export class DashboardLayoutEngine {
           implementation: {
             visualTechnique: 'synchronized_time_axis',
             interactionPattern: 'coordinated_temporal_navigation',
-            aestheticCues: ['aligned_time_scales', 'synchronized_highlighting']
+            aestheticCues: ['aligned_time_scales', 'synchronized_highlighting'],
           },
           semanticMeaning: 'Coordinated exploration of temporal patterns',
-          cognitiveSupport: 'Enables temporal pattern comparison across multiple dimensions'
+          cognitiveSupport: 'Enables temporal pattern comparison across multiple dimensions',
         });
       }
     }
-    
+
     return connections;
   }
-  
+
   private static establishNarrativeConnections(
-    visualizations: VisualizationSpec[], 
-    analysis: VisualizationAnalysis
+    visualizations: VisualizationSpec[],
+    analysis: VisualizationAnalysis,
   ): ContextualConnection[] {
     const connections: ContextualConnection[] = [];
-    
+
     // Create narrative flow based on analysis structure
-    const sortedViz = [...visualizations].sort((a, b) => (a.narrativeOrder || 0) - (b.narrativeOrder || 0));
-    
+    const sortedViz = [...visualizations].sort(
+      (a, b) => (a.narrativeOrder || 0) - (b.narrativeOrder || 0),
+    );
+
     for (let i = 0; i < sortedViz.length - 1; i++) {
       connections.push({
         sourceVisualization: sortedViz[i].id,
@@ -1490,13 +1533,13 @@ export class DashboardLayoutEngine {
         implementation: {
           visualTechnique: 'directional_flow_indicators',
           interactionPattern: 'guided_navigation',
-          aestheticCues: ['flow_arrows', 'progressive_reveal', 'breadcrumb_trail']
+          aestheticCues: ['flow_arrows', 'progressive_reveal', 'breadcrumb_trail'],
         },
         semanticMeaning: `Step ${i + 1} to ${i + 2} in analytical narrative`,
-        cognitiveSupport: 'Provides clear analytical progression and reduces cognitive burden'
+        cognitiveSupport: 'Provides clear analytical progression and reduces cognitive burden',
       });
     }
-    
+
     return connections;
   }
 }

@@ -513,7 +513,7 @@ export class PatternValidationEngine {
           { pattern: /^\d+(\.\d+)?\s*m$/i, name: 'Meters (m)' },
           { pattern: /^\d+(\.\d+)?\s*ft$/i, name: 'Feet (ft)' },
           { pattern: /^\d+(\.\d+)?\s*in$/i, name: 'Inches (in)' },
-          { pattern: /^\d+'\d+"?$/i, name: "Feet'Inches\"" },
+          { pattern: /^\d+'\d+"?$/i, name: 'Feet\'Inches"' },
           { pattern: /^\d+(\.\d+)?$/, name: 'Numeric only (no unit)' },
         ]);
         if (lengthFormats) {
@@ -534,7 +534,8 @@ export class PatternValidationEngine {
         ]);
         if (currencyFormats) {
           currencyFormats.analysisType = 'unit_standardization';
-          currencyFormats.recommendedAction = 'Standardize currency format with clear currency symbols';
+          currencyFormats.recommendedAction =
+            'Standardize currency format with clear currency symbols';
           unitAnalysis.push(currencyFormats);
         }
       }

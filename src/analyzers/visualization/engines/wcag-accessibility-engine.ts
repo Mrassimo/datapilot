@@ -1,7 +1,7 @@
 /**
  * WCAG Accessibility Scoring Engine
  * Comprehensive accessibility assessment for data visualizations
- * 
+ *
  * Features:
  * - WCAG 2.1 compliance scoring (A, AA, AAA levels)
  * - Color accessibility analysis including contrast ratios
@@ -11,11 +11,7 @@
  * - Cognitive accessibility evaluation
  */
 
-import {
-  ChartType,
-  AccessibilityLevel,
-  ComplexityLevel,
-} from '../types';
+import { ChartType, AccessibilityLevel, ComplexityLevel } from '../types';
 import type {
   AccessibilityGuidance,
   WCAGCompliance,
@@ -93,7 +89,7 @@ export class WCAGAccessibilityEngine {
       status: 'not_applicable',
       description: 'Non-text Contrast: 3:1 contrast ratio for UI components and graphics',
     },
-    
+
     // Operable
     {
       id: '2.1.1',
@@ -119,7 +115,7 @@ export class WCAGAccessibilityEngine {
       status: 'not_applicable',
       description: 'Focus Visible: Keyboard focus indicator is visible',
     },
-    
+
     // Understandable
     {
       id: '3.1.1',
@@ -133,7 +129,7 @@ export class WCAGAccessibilityEngine {
       status: 'not_applicable',
       description: 'On Focus: No unexpected context changes on focus',
     },
-    
+
     // Robust
     {
       id: '4.1.2',
@@ -150,7 +146,7 @@ export class WCAGAccessibilityEngine {
     const compliance = this.evaluateWCAGCompliance(input);
     const score = this.calculateAccessibilityScore(input, compliance);
     const improvements = this.generateImprovements(input, compliance);
-    
+
     return {
       overallLevel: score.level,
       compliance,
@@ -172,7 +168,11 @@ export class WCAGAccessibilityEngine {
           checklist: this.generateManualTestChecklist(input.chartType),
         },
         userTesting: {
-          groups: ['Users with visual impairments', 'Users with motor impairments', 'Elderly users'],
+          groups: [
+            'Users with visual impairments',
+            'Users with motor impairments',
+            'Elderly users',
+          ],
           scenarios: this.generateUserTestScenarios(input.chartType),
           frequency: 'Before major releases',
         },
@@ -185,7 +185,7 @@ export class WCAGAccessibilityEngine {
    */
   static generateAccessibilityGuidance(
     chartType: ChartType,
-    input: Partial<WCAGAssessmentInput> = {}
+    input: Partial<WCAGAssessmentInput> = {},
   ): AccessibilityGuidance {
     const defaultInput: WCAGAssessmentInput = {
       chartType,
@@ -228,7 +228,7 @@ export class WCAGAccessibilityEngine {
    * Evaluate WCAG compliance across all criteria
    */
   private static evaluateWCAGCompliance(input: WCAGAssessmentInput): WCAGCompliance {
-    const criteria = this.WCAG_CRITERIA.map(criterion => ({
+    const criteria = this.WCAG_CRITERIA.map((criterion) => ({
       ...criterion,
       status: this.evaluateCriterion(criterion, input),
     }));
@@ -248,42 +248,42 @@ export class WCAGAccessibilityEngine {
    */
   private static evaluateCriterion(
     criterion: WCAGCriterion,
-    input: WCAGAssessmentInput
+    input: WCAGAssessmentInput,
   ): 'pass' | 'fail' | 'not_applicable' {
     switch (criterion.id) {
       case '1.1.1': // Non-text Content
         return input.content.hasAlternativeText ? 'pass' : 'fail';
-      
+
       case '1.4.3': // Contrast (Minimum)
         return this.evaluateMinimumContrast(input) ? 'pass' : 'fail';
-      
+
       case '1.4.6': // Contrast (Enhanced)
         return this.evaluateEnhancedContrast(input) ? 'pass' : 'fail';
-      
+
       case '1.4.11': // Non-text Contrast
         return this.evaluateNonTextContrast(input) ? 'pass' : 'fail';
-      
+
       case '2.1.1': // Keyboard
         return input.interactivity.hasKeyboardSupport ? 'pass' : 'fail';
-      
+
       case '2.1.2': // No Keyboard Trap
         return input.interactivity.hasKeyboardSupport ? 'pass' : 'not_applicable';
-      
+
       case '2.4.3': // Focus Order
         return input.interactivity.hasFocus ? 'pass' : 'fail';
-      
+
       case '2.4.7': // Focus Visible
         return input.interactivity.hasFocus ? 'pass' : 'fail';
-      
+
       case '3.1.1': // Language of Page
         return 'pass'; // Assume page language is properly set
-      
+
       case '3.2.1': // On Focus
         return 'pass'; // Data visualizations typically don't change context on focus
-      
+
       case '4.1.2': // Name, Role, Value
         return input.content.hasAriaLabels ? 'pass' : 'fail';
-      
+
       default:
         return 'not_applicable';
     }
@@ -294,7 +294,7 @@ export class WCAGAccessibilityEngine {
    */
   private static calculateAccessibilityScore(
     input: WCAGAssessmentInput,
-    compliance: WCAGCompliance
+    compliance: WCAGCompliance,
   ): AccessibilityScore {
     const breakdown = {
       perceivable: this.calculatePerceivableScore(input, compliance),
@@ -303,12 +303,11 @@ export class WCAGAccessibilityEngine {
       robust: this.calculateRobustScore(input, compliance),
     };
 
-    const overallScore = (
+    const overallScore =
       breakdown.perceivable * 0.4 +
       breakdown.operable * 0.3 +
       breakdown.understandable * 0.2 +
-      breakdown.robust * 0.1
-    );
+      breakdown.robust * 0.1;
 
     return {
       overallScore: Math.round(overallScore),
@@ -323,7 +322,7 @@ export class WCAGAccessibilityEngine {
    */
   private static calculatePerceivableScore(
     input: WCAGAssessmentInput,
-    compliance: WCAGCompliance
+    compliance: WCAGCompliance,
   ): number {
     let score = 0;
     let maxScore = 0;
@@ -356,7 +355,7 @@ export class WCAGAccessibilityEngine {
    */
   private static calculateOperableScore(
     input: WCAGAssessmentInput,
-    compliance: WCAGCompliance
+    compliance: WCAGCompliance,
   ): number {
     let score = 0;
     let maxScore = 0;
@@ -390,7 +389,7 @@ export class WCAGAccessibilityEngine {
    */
   private static calculateUnderstandableScore(
     input: WCAGAssessmentInput,
-    compliance: WCAGCompliance
+    compliance: WCAGCompliance,
   ): number {
     let score = 0;
     let maxScore = 0;
@@ -415,7 +414,7 @@ export class WCAGAccessibilityEngine {
    */
   private static calculateRobustScore(
     input: WCAGAssessmentInput,
-    compliance: WCAGCompliance
+    compliance: WCAGCompliance,
   ): number {
     let score = 0;
     let maxScore = 0;
@@ -435,7 +434,9 @@ export class WCAGAccessibilityEngine {
   /**
    * Assess color blindness support
    */
-  private static assessColorBlindnessSupport(colorScheme: WCAGAssessmentInput['colorScheme']): ColorBlindnessSupport {
+  private static assessColorBlindnessSupport(
+    colorScheme: WCAGAssessmentInput['colorScheme'],
+  ): ColorBlindnessSupport {
     const simulatedColors = {
       protanopia: this.simulateColorBlindness(colorScheme.colors, 'protanopia'),
       deuteranopia: this.simulateColorBlindness(colorScheme.colors, 'deuteranopia'),
@@ -466,9 +467,11 @@ export class WCAGAccessibilityEngine {
   /**
    * Assess cognitive accessibility support
    */
-  private static assessCognitiveAccessibility(input: WCAGAssessmentInput): CognitiveAccessibilitySupport {
+  private static assessCognitiveAccessibility(
+    input: WCAGAssessmentInput,
+  ): CognitiveAccessibilitySupport {
     const cognitiveLoad = this.calculateCognitiveLoad(input);
-    
+
     return {
       simplicityLevel: input.complexity,
       progressiveDisclosure: this.supportsProgressiveDisclosure(input.chartType),
@@ -482,7 +485,7 @@ export class WCAGAccessibilityEngine {
    */
   private static generateRecommendations(
     chartType: ChartType,
-    input: WCAGAssessmentInput
+    input: WCAGAssessmentInput,
   ): string[] {
     const recommendations: string[] = [];
 
@@ -524,22 +527,22 @@ export class WCAGAccessibilityEngine {
 
   private static evaluateMinimumContrast(input: WCAGAssessmentInput): boolean {
     const bgColor = input.colorScheme.backgroundColor || '#ffffff';
-    return input.colorScheme.colors.every(color => 
-      this.calculateContrastRatio(color, bgColor) >= 4.5
+    return input.colorScheme.colors.every(
+      (color) => this.calculateContrastRatio(color, bgColor) >= 4.5,
     );
   }
 
   private static evaluateEnhancedContrast(input: WCAGAssessmentInput): boolean {
     const bgColor = input.colorScheme.backgroundColor || '#ffffff';
-    return input.colorScheme.colors.every(color => 
-      this.calculateContrastRatio(color, bgColor) >= 7.0
+    return input.colorScheme.colors.every(
+      (color) => this.calculateContrastRatio(color, bgColor) >= 7.0,
     );
   }
 
   private static evaluateNonTextContrast(input: WCAGAssessmentInput): boolean {
     const bgColor = input.colorScheme.backgroundColor || '#ffffff';
-    return input.colorScheme.colors.every(color => 
-      this.calculateContrastRatio(color, bgColor) >= 3.0
+    return input.colorScheme.colors.every(
+      (color) => this.calculateContrastRatio(color, bgColor) >= 3.0,
     );
   }
 
@@ -569,17 +572,22 @@ export class WCAGAccessibilityEngine {
 
   private static hexToRgb(hex: string): { r: number; g: number; b: number } | null {
     const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-    return result ? {
-      r: parseInt(result[1], 16),
-      g: parseInt(result[2], 16),
-      b: parseInt(result[3], 16),
-    } : null;
+    return result
+      ? {
+          r: parseInt(result[1], 16),
+          g: parseInt(result[2], 16),
+          b: parseInt(result[3], 16),
+        }
+      : null;
   }
 
-  private static simulateColorBlindness(colors: string[], type: 'protanopia' | 'deuteranopia' | 'tritanopia'): string[] {
+  private static simulateColorBlindness(
+    colors: string[],
+    type: 'protanopia' | 'deuteranopia' | 'tritanopia',
+  ): string[] {
     // Simplified color blindness simulation
     // In a real implementation, this would use proper color transformation matrices
-    return colors.map(color => {
+    return colors.map((color) => {
       const rgb = this.hexToRgb(color);
       if (!rgb) return color;
 
@@ -609,7 +617,7 @@ export class WCAGAccessibilityEngine {
   }
 
   private static areColorsDistinguishableInGrayscale(colors: string[]): boolean {
-    const grayscaleColors = colors.map(color => {
+    const grayscaleColors = colors.map((color) => {
       const rgb = this.hexToRgb(color);
       if (!rgb) return color;
       const gray = Math.round(0.299 * rgb.r + 0.587 * rgb.g + 0.114 * rgb.b);
@@ -633,12 +641,12 @@ export class WCAGAccessibilityEngine {
 
   private static calculateContrastScore(input: WCAGAssessmentInput): number {
     const bgColor = input.colorScheme.backgroundColor || '#ffffff';
-    const contrastRatios = input.colorScheme.colors.map(color => 
-      this.calculateContrastRatio(color, bgColor)
+    const contrastRatios = input.colorScheme.colors.map((color) =>
+      this.calculateContrastRatio(color, bgColor),
     );
-    
+
     const minContrast = Math.min(...contrastRatios);
-    
+
     if (minContrast >= 7.0) return 1.0; // AAA
     if (minContrast >= 4.5) return 0.8; // AA
     if (minContrast >= 3.0) return 0.6; // A
@@ -648,7 +656,7 @@ export class WCAGAccessibilityEngine {
   private static calculateColorBlindScore(colorScheme: WCAGAssessmentInput['colorScheme']): number {
     const support = this.assessColorBlindnessSupport(colorScheme);
     let score = 0;
-    let maxScore = 4;
+    const maxScore = 4;
 
     if (support.protanopia) score += 1;
     if (support.deuteranopia) score += 1;
@@ -665,21 +673,13 @@ export class WCAGAccessibilityEngine {
 
   private static hasAlternativeEncoding(input: WCAGAssessmentInput): boolean {
     // Check if chart type typically supports alternative encodings
-    const supportedTypes = [
-      ChartType.SCATTER_PLOT,
-      ChartType.BAR_CHART,
-      ChartType.LINE_CHART,
-    ];
+    const supportedTypes = [ChartType.SCATTER_PLOT, ChartType.BAR_CHART, ChartType.LINE_CHART];
     return supportedTypes.includes(input.chartType);
   }
 
   private static hasBasicKeyboardSupport(chartType: ChartType): boolean {
     // Some chart types have inherent keyboard support
-    const basicSupportTypes = [
-      ChartType.BAR_CHART,
-      ChartType.PIE_CHART,
-      ChartType.LINE_CHART,
-    ];
+    const basicSupportTypes = [ChartType.BAR_CHART, ChartType.PIE_CHART, ChartType.LINE_CHART];
     return basicSupportTypes.includes(chartType);
   }
 
@@ -688,7 +688,7 @@ export class WCAGAccessibilityEngine {
     if (!input.interactivity.hasKeyboardSupport && !input.interactivity.hasTooltips) {
       return 1.0; // No interactive targets
     }
-    
+
     // Interactive charts need appropriate target sizes (44x44px minimum)
     const interactiveTypes = [ChartType.SCATTER_PLOT, ChartType.BAR_CHART];
     return interactiveTypes.includes(input.chartType) ? 0.8 : 0.6;
@@ -702,14 +702,14 @@ export class WCAGAccessibilityEngine {
 
   private static calculateContentClarityScore(input: WCAGAssessmentInput): number {
     let score = 0.5; // Base score
-    
+
     if (input.content.hasAlternativeText) score += 0.3;
     if (input.content.hasAriaLabels) score += 0.2;
-    
+
     // Text size factor
     if (input.content.textSize >= 14) score += 0.1;
     else if (input.content.textSize >= 12) score += 0.05;
-    
+
     return Math.min(1.0, score);
   }
 
@@ -721,19 +721,19 @@ export class WCAGAccessibilityEngine {
 
   private static calculateErrorPreventionScore(input: WCAGAssessmentInput): number {
     let score = 0.6; // Base score for data visualizations
-    
+
     if (input.interactivity.hasTooltips) score += 0.2; // Helps prevent misunderstanding
     if (input.content.hasDataTable) score += 0.2; // Alternative way to access data
-    
+
     return Math.min(1.0, score);
   }
 
   private static calculateATCompatibilityScore(input: WCAGAssessmentInput): number {
     let score = 0.3; // Base compatibility
-    
+
     if (input.content.hasAriaLabels) score += 0.4;
     if (input.content.hasDataTable) score += 0.3;
-    
+
     return Math.min(1.0, score);
   }
 
@@ -757,22 +757,30 @@ export class WCAGAccessibilityEngine {
 
   private static calculateCognitiveLoad(input: WCAGAssessmentInput): 'low' | 'moderate' | 'high' {
     let loadScore = 0;
-    
+
     // Complexity factor
     switch (input.complexity) {
-      case ComplexityLevel.SIMPLE: loadScore += 1; break;
-      case ComplexityLevel.MODERATE: loadScore += 2; break;
-      case ComplexityLevel.COMPLEX: loadScore += 3; break;
-      case ComplexityLevel.ADVANCED: loadScore += 4; break;
+      case ComplexityLevel.SIMPLE:
+        loadScore += 1;
+        break;
+      case ComplexityLevel.MODERATE:
+        loadScore += 2;
+        break;
+      case ComplexityLevel.COMPLEX:
+        loadScore += 3;
+        break;
+      case ComplexityLevel.ADVANCED:
+        loadScore += 4;
+        break;
     }
-    
+
     // Data size factor
     if (input.dataSize > 10000) loadScore += 2;
     else if (input.dataSize > 1000) loadScore += 1;
-    
+
     // Interactivity factor
     if (input.interactivity.hasZoom || input.interactivity.hasKeyboardSupport) loadScore += 1;
-    
+
     if (loadScore <= 2) return 'low';
     if (loadScore <= 4) return 'moderate';
     return 'high';
@@ -784,7 +792,7 @@ export class WCAGAccessibilityEngine {
       'Consistent visual hierarchy',
       'Meaningful color choices',
     ];
-    
+
     // Add chart-specific strategies
     switch (chartType) {
       case ChartType.PIE_CHART:
@@ -830,14 +838,14 @@ export class WCAGAccessibilityEngine {
   }
 
   private static determineComplianceLevel(criteria: WCAGCriterion[]): 'A' | 'AA' | 'AAA' {
-    const levelA = criteria.filter(c => c.level === 'A');
-    const levelAA = criteria.filter(c => c.level === 'AA');
-    const levelAAA = criteria.filter(c => c.level === 'AAA');
-    
-    const passA = levelA.every(c => c.status === 'pass' || c.status === 'not_applicable');
-    const passAA = levelAA.every(c => c.status === 'pass' || c.status === 'not_applicable');
-    const passAAA = levelAAA.every(c => c.status === 'pass' || c.status === 'not_applicable');
-    
+    const levelA = criteria.filter((c) => c.level === 'A');
+    const levelAA = criteria.filter((c) => c.level === 'AA');
+    const levelAAA = criteria.filter((c) => c.level === 'AAA');
+
+    const passA = levelA.every((c) => c.status === 'pass' || c.status === 'not_applicable');
+    const passAA = levelAA.every((c) => c.status === 'pass' || c.status === 'not_applicable');
+    const passAAA = levelAAA.every((c) => c.status === 'pass' || c.status === 'not_applicable');
+
     if (passA && passAA && passAAA) return 'AAA';
     if (passA && passAA) return 'AA';
     if (passA) return 'A';
@@ -846,11 +854,11 @@ export class WCAGAccessibilityEngine {
 
   private static identifyComplianceGaps(
     criteria: WCAGCriterion[],
-    input: WCAGAssessmentInput
+    input: WCAGAssessmentInput,
   ): ComplianceGap[] {
     return criteria
-      .filter(c => c.status === 'fail')
-      .map(c => ({
+      .filter((c) => c.status === 'fail')
+      .map((c) => ({
         criterion: c.id,
         issue: this.describeIssue(c.id, input),
         solution: this.describeSolution(c.id),
@@ -890,19 +898,23 @@ export class WCAGAccessibilityEngine {
 
   private static determinePriority(level: 'A' | 'AA' | 'AAA'): 'high' | 'medium' | 'low' {
     switch (level) {
-      case 'A': return 'high';
-      case 'AA': return 'medium';
-      case 'AAA': return 'low';
-      default: return 'medium';
+      case 'A':
+        return 'high';
+      case 'AA':
+        return 'medium';
+      case 'AAA':
+        return 'low';
+      default:
+        return 'medium';
     }
   }
 
   private static generateImprovements(
     input: WCAGAssessmentInput,
-    compliance: WCAGCompliance
+    compliance: WCAGCompliance,
   ): AccessibilityImprovement[] {
     const improvements: AccessibilityImprovement[] = [];
-    
+
     // Color accessibility improvements
     if (!this.evaluateMinimumContrast(input)) {
       improvements.push({
@@ -918,7 +930,7 @@ export class WCAGAccessibilityEngine {
         impact: 'high',
       });
     }
-    
+
     // Keyboard accessibility improvements
     if (!input.interactivity.hasKeyboardSupport) {
       improvements.push({
@@ -934,18 +946,18 @@ export class WCAGAccessibilityEngine {
         impact: 'high',
       });
     }
-    
+
     return improvements;
   }
 
   private static calculateTestCoverage(input: WCAGAssessmentInput): number {
     // Calculate how much of the accessibility can be tested automatically
     let automatedCoverage = 0.6; // Base coverage for color contrast, etc.
-    
+
     if (input.content.hasAriaLabels) automatedCoverage += 0.2;
     if (input.content.hasAlternativeText) automatedCoverage += 0.1;
     if (input.interactivity.hasKeyboardSupport) automatedCoverage += 0.1;
-    
+
     return Math.min(100, Math.round(automatedCoverage * 100));
   }
 
@@ -958,7 +970,7 @@ export class WCAGAccessibilityEngine {
       'Validate color information is not the only way to convey meaning',
       'Test with browser zoom up to 200%',
     ];
-    
+
     // Add chart-specific items
     switch (chartType) {
       case ChartType.SCATTER_PLOT:
@@ -976,7 +988,7 @@ export class WCAGAccessibilityEngine {
       'Compare different data points or categories',
       'Navigate the visualization using assistive technology',
     ];
-    
+
     switch (chartType) {
       case ChartType.BAR_CHART:
         return [...baseScenarios, 'Identify the highest and lowest values'];

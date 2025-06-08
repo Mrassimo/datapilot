@@ -17,6 +17,12 @@ import type {
   CategoricalBivariateAnalysis,
   Section3Warning,
   MultivariateAnalysis,
+  PCAAnalysis,
+  KMeansAnalysis,
+  MultivariateOutlierAnalysis,
+  MultivariateNormalityTests,
+  MultivariateRelationshipAnalysis,
+  EdaInsights,
 } from './types';
 import { EdaDataType } from './types';
 
@@ -458,29 +464,36 @@ ${analysisText}`;
     ];
 
     if (multivariate.summary.analysisLimitations.length > 0) {
-      sections.push(`**Analysis Limitations:** ${multivariate.summary.analysisLimitations.join('; ')}`);
+      sections.push(
+        `**Analysis Limitations:** ${multivariate.summary.analysisLimitations.join('; ')}`,
+      );
     }
 
-    return sections.filter(section => section.length > 0).join('\n\n');
+    return sections.filter((section) => section.length > 0).join('\n\n');
   }
 
-  private static formatPCAAnalysis(pca: any): string {
+  private static formatPCAAnalysis(pca: PCAAnalysis): string {
     if (!pca.isApplicable) {
       return `**3.4.A. Principal Component Analysis (PCA):**
 * Not applicable: ${pca.applicabilityReason}`;
     }
 
-    const varianceText = pca.varianceThresholds ? 
-      `* **Variance Explained:** ${pca.varianceThresholds.componentsFor85Percent} components explain 85% of variance, ${pca.varianceThresholds.componentsFor95Percent} explain 95%` :
-      '';
+    const varianceText = pca.varianceThresholds
+      ? `* **Variance Explained:** ${pca.varianceThresholds.componentsFor85Percent} components explain 85% of variance, ${pca.varianceThresholds.componentsFor95Percent} explain 95%`
+      : '';
 
-    const dominantVarsText = pca.dominantVariables?.length > 0 ?
-      `* **Most Influential Variables:** ${pca.dominantVariables.slice(0, 3).map((v: any) => `${v.variable} (loading: ${v.maxLoading.toFixed(3)})`).join(', ')}` :
-      '';
+    const dominantVarsText =
+      pca.dominantVariables?.length > 0
+        ? `* **Most Influential Variables:** ${pca.dominantVariables
+            .slice(0, 3)
+            .map((v) => `${v.variable} (loading: ${v.maxLoading.toFixed(3)})`)
+            .join(', ')}`
+        : '';
 
-    const recommendationText = pca.dimensionalityReduction?.recommended ?
-      `* **Recommendation:** ${pca.dimensionalityReduction.explanation}` :
-      `* **Recommendation:** ${pca.interpretation || 'PCA completed successfully'}`;
+    const recommendationText =
+      pca.dimensionalityRecommendations?.length > 0
+        ? `* **Recommendation:** ${pca.dimensionalityRecommendations.join('; ')}`
+        : `* **Recommendation:** PCA completed successfully`;
 
     return `**3.4.A. Principal Component Analysis (PCA):**
 ${varianceText}
@@ -488,31 +501,36 @@ ${dominantVarsText}
 ${recommendationText}`;
   }
 
-  private static formatClusteringAnalysis(clustering: any): string {
+  private static formatClusteringAnalysis(clustering: KMeansAnalysis): string {
     if (!clustering.isApplicable) {
       return `**3.4.B. Cluster Analysis:**
 * Not applicable: ${clustering.applicabilityReason}`;
     }
 
     const optimalText = `* **Optimal Clusters:** ${clustering.optimalClusters} clusters identified using elbow method`;
-    const qualityText = clustering.finalClustering?.validation?.silhouetteScore ?
-      `* **Cluster Quality:** Silhouette score = ${clustering.finalClustering.validation.silhouetteScore.toFixed(3)} (${clustering.finalClustering.validation.interpretation})` :
-      '';
+    const qualityText = clustering.finalClustering?.validation?.silhouetteScore
+      ? `* **Cluster Quality:** Silhouette score = ${clustering.finalClustering.validation.silhouetteScore.toFixed(3)} (${clustering.finalClustering.validation.interpretation})`
+      : '';
 
-    const profilesText = clustering.finalClustering?.clusterProfiles?.length > 0 ?
-      clustering.finalClustering.clusterProfiles.slice(0, 3).map((profile: any, i: number) => 
-        `    * **Cluster ${i + 1}:** ${profile.description} (${profile.size} observations)`
-      ).join('\n') :
-      '';
+    const profilesText =
+      clustering.finalClustering?.clusterProfiles?.length > 0
+        ? clustering.finalClustering.clusterProfiles
+            .slice(0, 3)
+            .map(
+              (profile, i: number) =>
+                `    * **Cluster ${i + 1}:** ${profile.description} (${profile.size} observations)`,
+            )
+            .join('\n')
+        : '';
 
     return `**3.4.B. Cluster Analysis:**
 ${optimalText}
 ${qualityText}
 ${profilesText ? `* **Cluster Profiles:**\n${profilesText}` : ''}
-* **Recommendation:** ${clustering.recommendation || 'Clustering analysis completed'}`;
+* **Recommendation:** ${clustering.recommendations?.join('; ') || 'Clustering analysis completed'}`;
   }
 
-  private static formatOutlierDetection(outliers: any): string {
+  private static formatOutlierDetection(outliers: MultivariateOutlierAnalysis): string {
     if (!outliers.isApplicable) {
       return `**3.4.C. Multivariate Outlier Detection:**
 * Not applicable: ${outliers.applicabilityReason}`;
@@ -520,18 +538,23 @@ ${profilesText ? `* **Cluster Profiles:**\n${profilesText}` : ''}
 
     const detectionText = `* **Method:** Mahalanobis distance with ${(outliers.threshold * 100).toFixed(1)}% significance level`;
     const countText = `* **Outliers Detected:** ${outliers.totalOutliers} observations (${outliers.outlierPercentage.toFixed(1)}% of dataset)`;
-    
-    const severityText = outliers.severityDistribution ?
-      `* **Severity Distribution:** ${outliers.severityDistribution.extreme} extreme, ${outliers.severityDistribution.moderate} moderate, ${outliers.severityDistribution.mild} mild` :
-      '';
 
-    const affectedVarsText = outliers.affectedVariables?.length > 0 ?
-      `* **Most Affected Variables:** ${outliers.affectedVariables.slice(0, 3).map((v: any) => `${v.variable} (${v.outliersCount} outliers)`).join(', ')}` :
-      '';
+    const severityText = outliers.severityDistribution
+      ? `* **Severity Distribution:** ${outliers.severityDistribution.extreme} extreme, ${outliers.severityDistribution.moderate} moderate, ${outliers.severityDistribution.mild} mild`
+      : '';
 
-    const recommendationsText = outliers.recommendations?.length > 0 ?
-      `* **Recommendations:** ${outliers.recommendations.slice(0, 2).join('; ')}` :
-      '';
+    const affectedVarsText =
+      outliers.affectedVariables?.length > 0
+        ? `* **Most Affected Variables:** ${outliers.affectedVariables
+            .slice(0, 3)
+            .map((v) => `${v.variable} (${v.outliersCount || 'N/A'} outliers)`)
+            .join(', ')}`
+        : '';
+
+    const recommendationsText =
+      outliers.recommendations?.length > 0
+        ? `* **Recommendations:** ${outliers.recommendations.slice(0, 2).join('; ')}`
+        : '';
 
     return `**3.4.C. Multivariate Outlier Detection:**
 ${detectionText}
@@ -541,29 +564,31 @@ ${affectedVarsText}
 ${recommendationsText}`;
   }
 
-  private static formatNormalityTests(normality: any): string {
-    if (!normality || !normality.overallAssessment) {
+  private static formatNormalityTests(normality: MultivariateNormalityTests): string {
+    if (!normality?.overallAssessment) {
       return `**3.4.D. Multivariate Normality Tests:**
 * Normality testing not performed`;
     }
 
     const overallText = `* **Overall Assessment:** ${normality.overallAssessment.isMultivariateNormal ? 'Multivariate normality not rejected' : 'Multivariate normality rejected'} (confidence: ${(normality.overallAssessment.confidence * 100).toFixed(1)}%)`;
-    
-    const mardiasText = normality.mardiasTest ?
-      `* **Mardia's Test:** ${normality.mardiasTest.interpretation}` :
-      '';
 
-    const roystonText = normality.roystonTest ?
-      `* **Royston's Test:** ${normality.roystonTest.interpretation}` :
-      '';
+    const mardiasText = normality.mardiasTest
+      ? `* **Mardia's Test:** ${normality.mardiasTest.interpretation}`
+      : '';
 
-    const violationsText = normality.overallAssessment.violations?.length > 0 ?
-      `* **Violations:** ${normality.overallAssessment.violations.join(', ')}` :
-      '';
+    const roystonText = normality.roystonTest
+      ? `* **Royston's Test:** ${normality.roystonTest.interpretation}`
+      : '';
 
-    const recommendationsText = normality.overallAssessment.recommendations?.length > 0 ?
-      `* **Recommendations:** ${normality.overallAssessment.recommendations.slice(0, 2).join('; ')}` :
-      '';
+    const violationsText =
+      normality.overallAssessment.violations?.length > 0
+        ? `* **Violations:** ${normality.overallAssessment.violations.join(', ')}`
+        : '';
+
+    const recommendationsText =
+      normality.overallAssessment.recommendations?.length > 0
+        ? `* **Recommendations:** ${normality.overallAssessment.recommendations.slice(0, 2).join('; ')}`
+        : '';
 
     return `**3.4.D. Multivariate Normality Tests:**
 ${overallText}
@@ -573,37 +598,44 @@ ${violationsText}
 ${recommendationsText}`;
   }
 
-  private static formatRelationshipAnalysis(relationships: any): string {
-    if (!relationships || (!relationships.variableInteractions?.length && !relationships.correlationStructure)) {
+  private static formatRelationshipAnalysis(
+    relationships: MultivariateRelationshipAnalysis,
+  ): string {
+    if (
+      !relationships ||
+      (!relationships.variableInteractions?.length && !relationships.correlationStructure)
+    ) {
       return `**3.4.E. Variable Relationship Analysis:**
 * No significant multivariate relationships detected`;
     }
 
-    const interactionsText = relationships.variableInteractions?.length > 0 ?
-      `* **Key Interactions:** ${relationships.variableInteractions.slice(0, 3).map((int: any) => `${int.variables.join(' ↔ ')} (${int.interactionType}, strength: ${int.strength.toFixed(3)})`).join('; ')}` :
-      '';
+    const interactionsText =
+      relationships.variableInteractions?.length > 0
+        ? `* **Key Interactions:** ${relationships.variableInteractions
+            .slice(0, 3)
+            .map(
+              (int) =>
+                `${int.variables.join(' ↔ ')} (${int.interactionType}, strength: ${int.strength.toFixed(3)})`,
+            )
+            .join('; ')}`
+        : '';
 
-    const correlationText = relationships.correlationStructure ?
-      (
-        relationships.correlationStructure.stronglyCorrelatedGroups?.length > 0 ?
-        `* **Correlated Groups:** ${relationships.correlationStructure.stronglyCorrelatedGroups.length} groups of highly correlated variables identified` :
-        ''
-      ) +
-      (
-        relationships.correlationStructure.redundantVariables?.length > 0 ?
-        `\n* **Redundant Variables:** ${relationships.correlationStructure.redundantVariables.length} variables with high correlation (r > 0.9)` :
-        ''
-      ) +
-      (
-        relationships.correlationStructure.independentVariables?.length > 0 ?
-        `\n* **Independent Variables:** ${relationships.correlationStructure.independentVariables.length} variables with low correlations` :
-        ''
-      ) :
-      '';
+    const correlationText = relationships.correlationStructure
+      ? (relationships.correlationStructure.stronglyCorrelatedGroups?.length > 0
+          ? `* **Correlated Groups:** ${relationships.correlationStructure.stronglyCorrelatedGroups.length} groups of highly correlated variables identified`
+          : '') +
+        (relationships.correlationStructure.redundantVariables?.length > 0
+          ? `\n* **Redundant Variables:** ${relationships.correlationStructure.redundantVariables.length} variables with high correlation (r > 0.9)`
+          : '') +
+        (relationships.correlationStructure.independentVariables?.length > 0
+          ? `\n* **Independent Variables:** ${relationships.correlationStructure.independentVariables.length} variables with low correlations`
+          : '')
+      : '';
 
-    const dimensionalityText = relationships.dimensionalityInsights?.dimensionalityReduction?.recommended ?
-      `* **Dimensionality:** Reduction recommended - ${relationships.dimensionalityInsights.effectiveDimensionality} effective dimensions detected` :
-      `* **Dimensionality:** ${relationships.dimensionalityInsights?.effectiveDimensionality || 'Full'} effective dimensions`;
+    const dimensionalityText = relationships.dimensionalityInsights?.dimensionalityReduction
+      ?.recommended
+      ? `* **Dimensionality:** Reduction recommended - ${relationships.dimensionalityInsights.effectiveDimensionality} effective dimensions detected`
+      : `* **Dimensionality:** ${relationships.dimensionalityInsights?.effectiveDimensionality || 'Full'} effective dimensions`;
 
     return `**3.4.E. Variable Relationship Analysis:**
 ${interactionsText}
@@ -611,7 +643,13 @@ ${correlationText}
 ${dimensionalityText}`;
   }
 
-  private static formatMultivariateInsights(insights: any): string {
+  private static formatMultivariateInsights(insights: {
+    keyFindings: string[];
+    dataQualityIssues: string[];
+    hypothesesGenerated: string[];
+    preprocessingRecommendations: string[];
+    analysisRecommendations: string[];
+  }): string {
     if (!insights || (!insights.keyFindings?.length && !insights.dataQualityIssues?.length)) {
       return '';
     }
@@ -620,26 +658,40 @@ ${dimensionalityText}`;
 
     if (insights.keyFindings?.length > 0) {
       sections.push(`**Key Multivariate Findings:**
-${insights.keyFindings.slice(0, 3).map((finding: string, i: number) => `    ${i + 1}. ${finding}`).join('\n')}`);
+${insights.keyFindings
+  .slice(0, 3)
+  .map((finding, i: number) => `    ${i + 1}. ${finding}`)
+  .join('\n')}`);
     }
 
     if (insights.dataQualityIssues?.length > 0) {
       sections.push(`**Data Quality Issues:**
-${insights.dataQualityIssues.slice(0, 2).map((issue: string) => `    * ${issue}`).join('\n')}`);
+${insights.dataQualityIssues
+  .slice(0, 2)
+  .map((issue) => `    * ${issue}`)
+  .join('\n')}`);
     }
 
     if (insights.preprocessingRecommendations?.length > 0) {
       sections.push(`**Preprocessing Recommendations:**
-${insights.preprocessingRecommendations.slice(0, 2).map((rec: string) => `    * ${rec}`).join('\n')}`);
+${insights.preprocessingRecommendations
+  .slice(0, 2)
+  .map((rec) => `    * ${rec}`)
+  .join('\n')}`);
     }
 
     if (insights.analysisRecommendations?.length > 0) {
       sections.push(`**Analysis Recommendations:**
-${insights.analysisRecommendations.slice(0, 2).map((rec: string) => `    * ${rec}`).join('\n')}`);
+${insights.analysisRecommendations
+  .slice(0, 2)
+  .map((rec) => `    * ${rec}`)
+  .join('\n')}`);
     }
 
-    return sections.length > 0 ? `**3.4.F. Multivariate Insights & Recommendations:**
-${sections.join('\n\n')}` : '';
+    return sections.length > 0
+      ? `**3.4.F. Multivariate Insights & Recommendations:**
+${sections.join('\n\n')}`
+      : '';
   }
 
   private static formatSpecificAnalysisModules(analyses: ColumnAnalysis[]): string {
@@ -685,7 +737,7 @@ ${sections.join('\n\n')}` : '';
     return sections.join('\n\n');
   }
 
-  private static formatEdaSummary(insights: any, warnings: Section3Warning[]): string {
+  private static formatEdaSummary(insights: EdaInsights, warnings: Section3Warning[]): string {
     const topFindings = insights?.topFindings || [];
     const qualityIssues = insights?.dataQualityIssues || [];
     const hypotheses = insights?.hypothesesGenerated || [];
@@ -698,17 +750,17 @@ ${sections.join('\n\n')}` : '';
 
     const qualityText =
       qualityIssues.length > 0
-        ? qualityIssues.map((issue: string) => `    * ${issue}`).join('\n')
+        ? qualityIssues.map((issue) => `    * ${issue}`).join('\n')
         : '    * No major data quality issues identified during EDA.';
 
     const hypothesesText =
       hypotheses.length > 0
-        ? hypotheses.map((hyp: string, i: number) => `    * H${i + 1}: ${hyp}`).join('\n')
+        ? hypotheses.map((hyp, i: number) => `    * H${i + 1}: ${hyp}`).join('\n')
         : '    * No specific hypotheses generated - consider domain knowledge for hypothesis formation.';
 
     const recommendationsText =
       recommendations.length > 0
-        ? recommendations.map((rec: string) => `    * ${rec}`).join('\n')
+        ? recommendations.map((rec) => `    * ${rec}`).join('\n')
         : '    * Standard preprocessing steps recommended based on detected data types.';
 
     const warningsText =
@@ -733,7 +785,19 @@ ${recommendationsText}
 ${warningsText}`;
   }
 
-  private static formatPerformanceMetrics(metrics: any, metadata: any): string {
+  private static formatPerformanceMetrics(
+    metrics: {
+      analysisTimeMs?: number;
+      rowsAnalyzed?: number;
+      memoryEfficiency?: string;
+    },
+    metadata?: {
+      analysisApproach?: string;
+      datasetSize?: number;
+      columnsAnalyzed?: number;
+      samplingApplied?: boolean;
+    },
+  ): string {
     if (!metrics) return '';
 
     return `
@@ -741,7 +805,7 @@ ${warningsText}`;
 ---
 
 **Analysis Performance Summary:**
-* **Processing Time:** ${metrics.analysisTimeMs}ms (${(metrics.analysisTimeMs / 1000).toFixed(2)} seconds)
+* **Processing Time:** ${metrics.analysisTimeMs || 0}ms (${((metrics.analysisTimeMs || 0) / 1000).toFixed(2)} seconds)
 * **Rows Analysed:** ${metrics.rowsAnalyzed?.toLocaleString() || 'Not available'}
 * **Memory Efficiency:** ${metrics.memoryEfficiency || 'Not measured'}
 * **Analysis Method:** ${metadata?.analysisApproach || 'Standard processing'}

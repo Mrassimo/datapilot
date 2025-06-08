@@ -168,7 +168,7 @@ export class ArgumentParser {
    * Create command handler that stores context for later execution
    */
   private createCommandHandler(commandName: string) {
-    return (file: string, options: any) => {
+    return (file: string, options: Record<string, unknown>) => {
       // Store the context for the main CLI to pick up
       (this.program as any)._lastContext = {
         command: commandName,
@@ -208,7 +208,7 @@ export class ArgumentParser {
   /**
    * Validate and normalize CLI options
    */
-  private validateOptions(rawOptions: any): CLIOptions {
+  private validateOptions(rawOptions: Record<string, unknown>): CLIOptions {
     const options: CLIOptions = {};
 
     // Output options
@@ -314,7 +314,7 @@ export class ArgumentParser {
   /**
    * Get the stored command context (used by main CLI)
    */
-  getLastContext(): any {
+  getLastContext(): CLIContext | null {
     const context = (this.program as any)._lastContext;
     if (context) {
       // Merge global options with command-specific options

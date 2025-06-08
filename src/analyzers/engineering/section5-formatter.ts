@@ -3,7 +3,23 @@
  * Formats engineering analysis results into comprehensive markdown reports
  */
 
-import type { Section5Result } from './types';
+import type { 
+  Section5Result,
+  Section5Metadata,
+  DataEngineeringAnalysis,
+  SchemaAnalysis,
+  CurrentSchemaProfile,
+  OptimizedSchemaRecommendation,
+  DataTypeConversion,
+  EncodingRecommendations,
+  NormalizationInsights,
+  StructuralIntegrityAnalysis,
+  TransformationPipelineRecommendations,
+  ScalabilityAssessment,
+  DataGovernanceConsiderations,
+  MLReadinessAssessment,
+  KnowledgeBaseOutput
+} from './types';
 
 export class Section5Formatter {
   /**
@@ -37,7 +53,7 @@ This section evaluates the dataset from a data engineering perspective, focusing
 ---`;
   }
 
-  private static formatExecutiveSummary(_analysis: any, metadata: any): string {
+  private static formatExecutiveSummary(_analysis: DataEngineeringAnalysis, metadata: Section5Metadata): string {
     return `## 5.1 Executive Summary
 
 **Analysis Overview:**
@@ -53,7 +69,7 @@ This section evaluates the dataset from a data engineering perspective, focusing
 - Scalability pathway identified for future growth`;
   }
 
-  private static formatSchemaAnalysis(schemaAnalysis: any): string {
+  private static formatSchemaAnalysis(schemaAnalysis: SchemaAnalysis): string {
     const sections = [
       '## 5.2 Schema Analysis & Optimization',
       '',
@@ -71,19 +87,30 @@ This section evaluates the dataset from a data engineering perspective, focusing
     ];
 
     if (schemaAnalysis.normalizationInsights.redundancyDetected.length > 0) {
-      sections.push('', '### 5.2.5 Normalization Insights', this.formatNormalizationInsights(schemaAnalysis.normalizationInsights));
+      sections.push(
+        '',
+        '### 5.2.5 Normalization Insights',
+        this.formatNormalizationInsights(schemaAnalysis.normalizationInsights),
+      );
     }
 
     return sections.join('\n');
   }
 
-  private static formatCurrentSchema(currentSchema: any): string {
+  private static formatCurrentSchema(currentSchema: CurrentSchemaProfile): string {
     if (!currentSchema.columns || currentSchema.columns.length === 0) {
       return 'No current schema information available.';
     }
 
-    const headers = ['Column Name', 'Detected Type', 'Semantic Type', 'Nullability (%)', 'Uniqueness (%)', 'Sample Values'];
-    const rows = currentSchema.columns.map((col: any) => [
+    const headers = [
+      'Column Name',
+      'Detected Type',
+      'Semantic Type',
+      'Nullability (%)',
+      'Uniqueness (%)',
+      'Sample Values',
+    ];
+    const rows = currentSchema.columns.map((col) => [
       col.originalName,
       col.detectedType,
       col.inferredSemanticType,
@@ -92,20 +119,28 @@ This section evaluates the dataset from a data engineering perspective, focusing
       col.sampleValues.slice(0, 2).join(', ') || 'N/A',
     ]);
 
-    return this.formatTable(headers, rows) + 
+    return (
+      this.formatTable(headers, rows) +
       `\n\n**Dataset Metrics:**
 - **Estimated Rows:** ${currentSchema.estimatedRowCount.toLocaleString()}
 - **Estimated Size:** ${(currentSchema.estimatedSizeBytes / (1024 * 1024)).toFixed(1)} MB
-- **Detected Encoding:** ${currentSchema.detectedEncoding}`;
+- **Detected Encoding:** ${currentSchema.detectedEncoding}`
+    );
   }
 
-  private static formatOptimizedSchema(optimizedSchema: any): string {
+  private static formatOptimizedSchema(optimizedSchema: OptimizedSchemaRecommendation): string {
     let output = `**Target System:** ${optimizedSchema.targetSystem}\n\n`;
 
     if (optimizedSchema.columns && optimizedSchema.columns.length > 0) {
       output += '**Optimized Column Definitions:**\n\n';
-      const headers = ['Original Name', 'Optimized Name', 'Recommended Type', 'Constraints', 'Reasoning'];
-      const rows = optimizedSchema.columns.map((col: any) => [
+      const headers = [
+        'Original Name',
+        'Optimized Name',
+        'Recommended Type',
+        'Constraints',
+        'Reasoning',
+      ];
+      const rows = optimizedSchema.columns.map((col) => [
         col.originalName,
         col.optimizedName,
         col.recommendedType,
@@ -116,7 +151,8 @@ This section evaluates the dataset from a data engineering perspective, focusing
     }
 
     if (optimizedSchema.ddlStatement) {
-      output += '\n\n**Generated DDL Statement:**\n\n```sql\n' + optimizedSchema.ddlStatement + '\n```';
+      output +=
+        '\n\n**Generated DDL Statement:**\n\n```sql\n' + optimizedSchema.ddlStatement + '\n```';
     }
 
     if (optimizedSchema.indexes && optimizedSchema.indexes.length > 0) {
@@ -131,13 +167,13 @@ This section evaluates the dataset from a data engineering perspective, focusing
     return output;
   }
 
-  private static formatDataTypeConversions(conversions: any[]): string {
+  private static formatDataTypeConversions(conversions: DataTypeConversion[]): string {
     if (!conversions || conversions.length === 0) {
       return 'No data type conversions required.';
     }
 
     let output = 'The following data type conversions are recommended:\n\n';
-    
+
     conversions.forEach((conversion, i) => {
       output += `**${i + 1}. ${conversion.columnName}** (${conversion.currentType} → ${conversion.recommendedType})\n`;
       output += `- **Conversion Logic:** \`${conversion.conversionLogic}\`\n`;
@@ -149,17 +185,19 @@ This section evaluates the dataset from a data engineering perspective, focusing
     return output;
   }
 
-  private static formatEncodingRecommendations(encoding: any): string {
+  private static formatEncodingRecommendations(encoding: EncodingRecommendations): string {
     return `**Current Encoding:** ${encoding.detectedEncoding}
 **Recommended Encoding:** ${encoding.recommendedEncoding}
 **Collation Recommendation:** ${encoding.collationRecommendation}
 
-${encoding.characterSetIssues.length > 0 ? 
-  `**Character Set Issues Detected:**\n${encoding.characterSetIssues.map((issue: string) => `- ${issue}`).join('\n')}` : 
-  '**No character set issues detected.**'}`;
+${
+  encoding.characterSetIssues.length > 0
+    ? `**Character Set Issues Detected:**\n${encoding.characterSetIssues.map((issue: string) => `- ${issue}`).join('\n')}`
+    : '**No character set issues detected.**'
+}`;
   }
 
-  private static formatNormalizationInsights(insights: any): string {
+  private static formatNormalizationInsights(insights: NormalizationInsights): string {
     let output = '';
 
     if (insights.redundancyDetected.length > 0) {
@@ -184,7 +222,7 @@ ${encoding.characterSetIssues.length > 0 ?
     return output || 'No normalization insights available.';
   }
 
-  private static formatStructuralIntegrity(integrity: any): string {
+  private static formatStructuralIntegrity(integrity: StructuralIntegrityAnalysis): string {
     const sections = [
       '## 5.3 Structural Integrity Analysis',
       '',
@@ -199,7 +237,11 @@ ${encoding.characterSetIssues.length > 0 ?
     ];
 
     if (integrity.orphanedRecords && integrity.orphanedRecords.length > 0) {
-      sections.push('', '### 5.3.4 Orphaned Records Analysis', this.formatOrphanedRecords(integrity.orphanedRecords));
+      sections.push(
+        '',
+        '### 5.3.4 Orphaned Records Analysis',
+        this.formatOrphanedRecords(integrity.orphanedRecords),
+      );
     }
 
     return sections.join('\n');
@@ -211,8 +253,15 @@ ${encoding.characterSetIssues.length > 0 ?
     }
 
     let output = '**Primary Key Candidate Analysis:**\n\n';
-    const headers = ['Column Name', 'Uniqueness', 'Completeness', 'Stability', 'Confidence', 'Reasoning'];
-    const rows = candidates.map((candidate: any) => [
+    const headers = [
+      'Column Name',
+      'Uniqueness',
+      'Completeness',
+      'Stability',
+      'Confidence',
+      'Reasoning',
+    ];
+    const rows = candidates.map((candidate) => [
       candidate.columnName,
       `${candidate.uniqueness.toFixed(1)}%`,
       `${candidate.completeness.toFixed(1)}%`,
@@ -238,7 +287,7 @@ ${encoding.characterSetIssues.length > 0 ?
     }
 
     let output = '**Inferred Foreign Key Relationships:**\n\n';
-    
+
     relationships.forEach((rel, i) => {
       output += `**${i + 1}. ${rel.columnName}**\n`;
       output += `- **References:** ${rel.referencedTable}.${rel.referencedColumn}\n`;
@@ -255,14 +304,17 @@ ${encoding.characterSetIssues.length > 0 ?
     return `**Overall Data Integrity Score:** ${score.score}/100 (${score.interpretation})
 
 **Contributing Factors:**
-${score.factors.map((factor: any) => 
-  `- **${factor.factor}** (${factor.impact}, weight: ${factor.weight}): ${factor.description}`
-).join('\n')}`;
+${score.factors
+  .map(
+    (factor: any) =>
+      `- **${factor.factor}** (${factor.impact}, weight: ${factor.weight}): ${factor.description}`,
+  )
+  .join('\n')}`;
   }
 
   private static formatOrphanedRecords(orphanedRecords: any[]): string {
     let output = '**Orphaned Records Detected:**\n\n';
-    
+
     orphanedRecords.forEach((record, i) => {
       output += `**${i + 1}. ${record.relationshipDescription}**\n`;
       output += `- **Orphaned Count:** ${record.orphanedCount} (${record.orphanedPercentage.toFixed(1)}%)\n`;
@@ -273,7 +325,7 @@ ${score.factors.map((factor: any) =>
     return output;
   }
 
-  private static formatTransformationPipeline(pipeline: any): string {
+  private static formatTransformationPipeline(pipeline: TransformationPipelineRecommendations): string {
     const sections = [
       '## 5.4 Data Transformation Pipeline',
       '',
@@ -291,15 +343,27 @@ ${score.factors.map((factor: any) =>
     ];
 
     if (pipeline.numericalTransformations.length > 0) {
-      sections.push('', '### 5.4.5 Numerical Transformations', this.formatNumericalTransformations(pipeline.numericalTransformations));
+      sections.push(
+        '',
+        '### 5.4.5 Numerical Transformations',
+        this.formatNumericalTransformations(pipeline.numericalTransformations),
+      );
     }
 
     if (pipeline.dateTimeFeatureEngineering.length > 0) {
-      sections.push('', '### 5.4.6 DateTime Feature Engineering', this.formatDateTimeEngineering(pipeline.dateTimeFeatureEngineering));
+      sections.push(
+        '',
+        '### 5.4.6 DateTime Feature Engineering',
+        this.formatDateTimeEngineering(pipeline.dateTimeFeatureEngineering),
+      );
     }
 
     if (pipeline.textProcessingPipeline.length > 0) {
-      sections.push('', '### 5.4.7 Text Processing Pipeline', this.formatTextProcessing(pipeline.textProcessingPipeline));
+      sections.push(
+        '',
+        '### 5.4.7 Text Processing Pipeline',
+        this.formatTextProcessing(pipeline.textProcessingPipeline),
+      );
     }
 
     return sections.join('\n');
@@ -311,7 +375,7 @@ ${score.factors.map((factor: any) =>
     }
 
     const headers = ['Original Name', 'Standardized Name', 'Convention', 'Reasoning'];
-    const rows = standardization.map((std: any) => [
+    const rows = standardization.map((std) => [
       std.originalName,
       std.standardizedName,
       std.namingConvention,
@@ -327,7 +391,7 @@ ${score.factors.map((factor: any) =>
     }
 
     let output = '**Missing Value Handling Strategies:**\n\n';
-    
+
     strategies.forEach((strategy, i) => {
       output += `**${i + 1}. ${strategy.columnName}** (${strategy.strategy.toUpperCase()})\n`;
       output += `- **Parameters:** ${JSON.stringify(strategy.parameters)}\n`;
@@ -345,7 +409,7 @@ ${score.factors.map((factor: any) =>
     }
 
     let output = '**Outlier Treatment Strategies:**\n\n';
-    
+
     treatments.forEach((treatment, i) => {
       output += `**${i + 1}. ${treatment.columnName}** (${treatment.treatmentMethod.toUpperCase()})\n`;
       output += `- **Detection Method:** ${treatment.detectionMethod}\n`;
@@ -364,7 +428,7 @@ ${score.factors.map((factor: any) =>
     }
 
     let output = '**Categorical Encoding Strategies:**\n\n';
-    
+
     encodings.forEach((encoding, i) => {
       output += `**${i + 1}. ${encoding.columnName}** (${encoding.encodingMethod.toUpperCase()})\n`;
       output += `- **Parameters:** ${JSON.stringify(encoding.parameters)}\n`;
@@ -381,7 +445,7 @@ ${score.factors.map((factor: any) =>
 
   private static formatNumericalTransformations(transformations: any[]): string {
     let output = '**Numerical Transformation Strategies:**\n\n';
-    
+
     transformations.forEach((transform, i) => {
       output += `**${i + 1}. ${transform.columnName}**\n`;
       output += `- **Transformations:**\n`;
@@ -397,7 +461,7 @@ ${score.factors.map((factor: any) =>
 
   private static formatDateTimeEngineering(engineering: any[]): string {
     let output = '**DateTime Feature Engineering Strategies:**\n\n';
-    
+
     engineering.forEach((eng, i) => {
       output += `**${i + 1}. ${eng.columnName}**\n`;
       output += `- **Extracted Features:**\n`;
@@ -418,7 +482,7 @@ ${score.factors.map((factor: any) =>
 
   private static formatTextProcessing(processing: any[]): string {
     let output = '**Text Processing Pipeline:**\n\n';
-    
+
     processing.forEach((proc, i) => {
       output += `**${i + 1}. ${proc.columnName}**\n`;
       output += `- **Cleaning Steps:**\n`;
@@ -436,7 +500,7 @@ ${score.factors.map((factor: any) =>
     return output;
   }
 
-  private static formatScalabilityAssessment(scalability: any): string {
+  private static formatScalabilityAssessment(scalability: ScalabilityAssessment): string {
     return `## 5.5 Scalability Assessment
 
 ### 5.5.1 Current Metrics
@@ -460,7 +524,7 @@ ${this.formatPerformanceOptimizations(scalability.performanceOptimizations)}`;
     }
 
     let output = '**Technology Recommendations:**\n\n';
-    
+
     recommendations.forEach((rec, i) => {
       output += `**${i + 1}. ${rec.technology}** (${rec.implementationComplexity} complexity)\n`;
       output += `- **Use Case:** ${rec.useCase}\n`;
@@ -477,7 +541,7 @@ ${this.formatPerformanceOptimizations(scalability.performanceOptimizations)}`;
     }
 
     let output = '**Performance Optimization Recommendations:**\n\n';
-    
+
     optimizations.forEach((opt, i) => {
       output += `**${i + 1}. ${opt.area}** (${opt.implementationEffort} effort)\n`;
       output += `- **Current Issue:** ${opt.currentIssue}\n`;
@@ -488,7 +552,7 @@ ${this.formatPerformanceOptimizations(scalability.performanceOptimizations)}`;
     return output;
   }
 
-  private static formatDataGovernance(governance: any): string {
+  private static formatDataGovernance(governance: DataGovernanceConsiderations): string {
     return `## 5.6 Data Governance Considerations
 
 ### 5.6.1 Data Sensitivity Classification
@@ -507,7 +571,7 @@ ${this.formatComplianceConsiderations(governance.complianceConsiderations)}`;
     }
 
     const headers = ['Column', 'Sensitivity Level', 'Category', 'Protection Recommendations'];
-    const rows = classifications.map((cls: any) => [
+    const rows = classifications.map((cls) => [
       cls.columnName,
       cls.sensitivityLevel.toUpperCase(),
       cls.dataCategory,
@@ -545,7 +609,7 @@ ${freshness.recommendations.map((rec: string) => `- ${rec}`).join('\n')}`;
     return output;
   }
 
-  private static formatMLReadiness(mlReadiness: any): string {
+  private static formatMLReadiness(mlReadiness: MLReadinessAssessment): string {
     return `## 5.7 Machine Learning Readiness Assessment
 
 ### 5.7.1 Overall ML Readiness Score: ${mlReadiness.overallScore}/100
@@ -598,8 +662,16 @@ ${this.formatModelingConsiderations(mlReadiness.modelingConsiderations)}`;
       return 'No feature preparation matrix available.';
     }
 
-    const headers = ['ML Feature Name', 'Original Column', 'Final Type', 'Key Issues', 'Engineering Steps', 'ML Feature Type'];
-    const rows = matrix.slice(0, 20).map((entry: any) => [  // Limit to first 20 for readability
+    const headers = [
+      'ML Feature Name',
+      'Original Column',
+      'Final Type',
+      'Key Issues',
+      'Engineering Steps',
+      'ML Feature Type',
+    ];
+    const rows = matrix.slice(0, 20).map((entry) => [
+      // Limit to first 20 for readability
       entry.featureName,
       entry.originalColumn,
       entry.finalDataType,
@@ -609,7 +681,7 @@ ${this.formatModelingConsiderations(mlReadiness.modelingConsiderations)}`;
     ]);
 
     let output = this.formatTable(headers, rows);
-    
+
     if (matrix.length > 20) {
       output += `\n\n*Note: Showing first 20 features. Total features: ${matrix.length}*`;
     }
@@ -633,7 +705,7 @@ ${this.formatModelingConsiderations(mlReadiness.modelingConsiderations)}`;
     return output;
   }
 
-  private static formatKnowledgeBase(knowledgeBase: any): string {
+  private static formatKnowledgeBase(knowledgeBase: KnowledgeBaseOutput): string {
     return `## 5.8 Knowledge Base Output
 
 ### 5.8.1 Dataset Profile Summary
@@ -661,17 +733,25 @@ ${this.formatKeyTransformationsSummary(knowledgeBase.keyTransformations)}`;
       return 'No schema recommendations available.';
     }
 
-    const headers = ['Original Column', 'Target Column', 'Recommended Type', 'Constraints', 'Key Transformations'];
-    const rows = recommendations.slice(0, 15).map((rec: any) => [
-      rec.columnNameOriginal,
-      rec.columnNameTarget,
-      rec.recommendedType,
-      rec.constraints.join(', ') || 'None',
-      rec.transformations.join(', ') || 'None',
-    ]);
+    const headers = [
+      'Original Column',
+      'Target Column',
+      'Recommended Type',
+      'Constraints',
+      'Key Transformations',
+    ];
+    const rows = recommendations
+      .slice(0, 15)
+      .map((rec) => [
+        rec.columnNameOriginal,
+        rec.columnNameTarget,
+        rec.recommendedType,
+        rec.constraints.join(', ') || 'None',
+        rec.transformations.join(', ') || 'None',
+      ]);
 
     let output = this.formatTable(headers, rows);
-    
+
     if (recommendations.length > 15) {
       output += `\n\n*Note: Showing first 15 recommendations. Total: ${recommendations.length}*`;
     }
@@ -700,7 +780,7 @@ ${this.formatKeyTransformationsSummary(knowledgeBase.keyTransformations)}`;
     }
 
     let output = '## ⚠️ Engineering Warnings\n\n';
-    
+
     const groupedWarnings = warnings.reduce((groups: any, warning: any) => {
       const category = warning.category;
       if (!groups[category]) groups[category] = [];
@@ -710,9 +790,16 @@ ${this.formatKeyTransformationsSummary(knowledgeBase.keyTransformations)}`;
 
     Object.entries(groupedWarnings).forEach(([category, categoryWarnings]: [string, any]) => {
       output += `### ${category.charAt(0).toUpperCase() + category.slice(1)} Warnings\n\n`;
-      
+
       categoryWarnings.forEach((warning: any) => {
-        const icon = warning.severity === 'critical' ? '🔴' : warning.severity === 'high' ? '🟠' : warning.severity === 'medium' ? '🟡' : '🔵';
+        const icon =
+          warning.severity === 'critical'
+            ? '🔴'
+            : warning.severity === 'high'
+              ? '🟠'
+              : warning.severity === 'medium'
+                ? '🟡'
+                : '🔵';
         output += `${icon} **${warning.severity.toUpperCase()}:** ${warning.message}\n`;
         output += `   - **Impact:** ${warning.impact}\n`;
         output += `   - **Suggestion:** ${warning.suggestion}\n\n`;
@@ -736,22 +823,20 @@ ${this.formatKeyTransformationsSummary(knowledgeBase.keyTransformations)}`;
   private static formatTable(headers: string[], rows: string[][]): string {
     if (!headers.length || !rows.length) return '';
 
-    const maxWidths = headers.map((header, i) => 
-      Math.max(header.length, ...rows.map(row => (row[i] || '').toString().length))
+    const maxWidths = headers.map((header, i) =>
+      Math.max(header.length, ...rows.map((row) => (row[i] || '').toString().length)),
     );
 
-    const headerRow = '| ' + headers.map((header, i) => 
-      header.padEnd(maxWidths[i])
-    ).join(' | ') + ' |';
+    const headerRow =
+      '| ' + headers.map((header, i) => header.padEnd(maxWidths[i])).join(' | ') + ' |';
 
-    const separatorRow = '| ' + maxWidths.map(width => 
-      '-'.repeat(width)
-    ).join(' | ') + ' |';
+    const separatorRow = '| ' + maxWidths.map((width) => '-'.repeat(width)).join(' | ') + ' |';
 
-    const dataRows = rows.map(row => 
-      '| ' + row.map((cell, i) => 
-        (cell || '').toString().padEnd(maxWidths[i])
-      ).join(' | ') + ' |'
+    const dataRows = rows.map(
+      (row) =>
+        '| ' +
+        row.map((cell, i) => (cell || '').toString().padEnd(maxWidths[i])).join(' | ') +
+        ' |',
     );
 
     return [headerRow, separatorRow, ...dataRows].join('\n');

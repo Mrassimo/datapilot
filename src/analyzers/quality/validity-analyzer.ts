@@ -299,10 +299,16 @@ export class ValidityAnalyzer {
     // Define compatibility rules - include CSV type conversion scenarios
     const compatibilityMap: Record<string, DataType[]> = {
       [DataType.NUMBER]: [DataType.INTEGER, DataType.FLOAT, DataType.STRING],
-      [DataType.INTEGER]: [DataType.NUMBER, DataType.FLOAT, DataType.STRING], 
+      [DataType.INTEGER]: [DataType.NUMBER, DataType.FLOAT, DataType.STRING],
       [DataType.FLOAT]: [DataType.NUMBER, DataType.INTEGER, DataType.STRING],
       // CSV files initially parse as STRING, so detecting proper types is good conformance
-      [DataType.STRING]: [DataType.NUMBER, DataType.INTEGER, DataType.FLOAT, DataType.DATE, DataType.BOOLEAN],
+      [DataType.STRING]: [
+        DataType.NUMBER,
+        DataType.INTEGER,
+        DataType.FLOAT,
+        DataType.DATE,
+        DataType.BOOLEAN,
+      ],
     };
 
     return compatibilityMap[expected]?.includes(actual) || false;

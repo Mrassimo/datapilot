@@ -131,6 +131,22 @@ export interface AccuracyAnalysis {
       recordCount: number;
     }>;
   };
+  patternValidation?: Array<{
+    pattern: string;
+    patternName: string;
+    violations: number;
+    violationCount: number;
+    description: string;
+    affectedColumns: string[];
+  }>;
+  businessRuleSummary?: {
+    totalRules: number;
+    passedRules: number;
+    failedRules: number;
+    violationRate: number;
+    totalViolations: number;
+    criticalViolations: number;
+  };
   score: DataQualityScore;
 }
 
@@ -196,11 +212,19 @@ export interface ConsistencyAnalysis {
   intraRecord: IntraRecordConsistency[];
   interRecord: InterRecordConsistency[];
   formatConsistency: FormatConsistency[];
+  patternSummary?: {
+    totalPatterns: number;
+    consistentPatterns: number;
+    inconsistentPatterns: number;
+    violationRate: number;
+    totalViolations: number;
+    problematicColumns: string[];
+  };
   score: DataQualityScore;
 }
 
 // 2.5 Timeliness Dimension
-export interface TimelinesAnalysis {
+export interface TimelinessAnalysis {
   dataFreshness: {
     latestTimestamp?: Date;
     datasetAge?: string;
@@ -516,7 +540,7 @@ export interface Section2QualityAudit {
   completeness: CompletenessAnalysis;
   accuracy: AccuracyAnalysis;
   consistency: ConsistencyAnalysis;
-  timeliness: TimelinesAnalysis;
+  timeliness: TimelinessAnalysis;
   uniqueness: UniquenessAnalysis;
   validity: ValidityAnalysis;
   integrity: IntegrityAnalysis;

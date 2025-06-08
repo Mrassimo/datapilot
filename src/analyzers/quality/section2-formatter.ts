@@ -3,7 +3,21 @@
  * Generates comprehensive Markdown report matching section2.md specification
  */
 
-import type { Section2QualityAudit } from './types.js';
+import type { 
+  Section2QualityAudit,
+  DataQualityCockpit,
+  CompletenessAnalysis,
+  AccuracyAnalysis,
+  ConsistencyAnalysis,
+  TimelinessAnalysis,
+  UniquenessAnalysis,
+  ValidityAnalysis,
+  IntegrityAnalysis,
+  ReasonablenessAnalysis,
+  PrecisionAnalysis,
+  RepresentationalAnalysis,
+  ProfilingInsights
+} from './types.js';
 
 export class Section2Formatter {
   public static formatReport(audit: Section2QualityAudit): string {
@@ -35,7 +49,7 @@ export class Section2Formatter {
 This section provides an exhaustive assessment of the dataset's reliability, structural soundness, and adherence to quality standards. Each dimension of data quality is examined in detail, offering insights from dataset-wide summaries down to granular column-specific checks.`;
   }
 
-  private static formatCockpit(cockpit: any): string {
+  private static formatCockpit(cockpit: DataQualityCockpit): string {
     const { compositeScore, dimensionScores, topStrengths, topWeaknesses, technicalDebt } = cockpit;
 
     return `**2.1. Overall Data Quality Cockpit:**
@@ -54,9 +68,9 @@ This section provides an exhaustive assessment of the dataset's reliability, str
         * Precision: ${dimensionScores.precision.score.toFixed(1)}/100 (${dimensionScores.precision.interpretation})
         * Representational: ${dimensionScores.representational.score.toFixed(1)}/100 (${dimensionScores.representational.interpretation})
     * **Top ${topStrengths.length} Data Quality Strengths:**
-${topStrengths.map((strength: any, i: number) => `        ${i + 1}. ${strength.description} (${strength.category}).`).join('\n')}
+${topStrengths.map((strength, i: number) => `        ${i + 1}. ${strength.description} (${strength.category}).`).join('\n')}
     * **Top ${topWeaknesses.length} Data Quality Weaknesses (Areas for Immediate Attention):**
-${topWeaknesses.map((weakness: any, i: number) => `        ${i + 1}. ${weakness.description} (Priority: ${weakness.priority}/10).`).join('\n')}
+${topWeaknesses.map((weakness, i: number) => `        ${i + 1}. ${weakness.description} (Priority: ${weakness.priority}/10).`).join('\n')}
     * **Estimated Technical Debt (Data Cleaning Effort):**
         * *Time Estimate:* ${technicalDebt.timeEstimate}.
         * *Complexity Level:* ${technicalDebt.complexityLevel}.
@@ -66,13 +80,13 @@ ${topWeaknesses.map((weakness: any, i: number) => `        ${i + 1}. ${weakness.
         * *Examples:* ${technicalDebt.automatedCleaningPotential.examples.join(', ')}.`;
   }
 
-  private static formatCompleteness(completeness: any): string {
+  private static formatCompleteness(completeness: CompletenessAnalysis): string {
     const { datasetLevel, columnLevel, missingDataMatrix, score } = completeness;
 
     const columnDetails = columnLevel
       .slice(0, 10)
       .map(
-        (col: any) =>
+        (col) =>
           `        * \`${col.columnName}\`:
             * Number of Missing Values: ${col.missingCount}.
             * Percentage of Missing Values: ${col.missingPercentage.toFixed(2)}%.
@@ -85,7 +99,7 @@ ${topWeaknesses.map((weakness: any, i: number) => `        ${i + 1}. ${weakness.
     const correlationDetails = missingDataMatrix.correlations
       .slice(0, 3)
       .map(
-        (corr: any) =>
+        (corr) =>
           `        * ${corr.description} (Correlation: ${corr.correlation.toFixed(3)}).`,
       )
       .join('\n');
@@ -106,12 +120,12 @@ ${missingDataMatrix.blockPatterns.map((pattern: string) => `        * ${pattern}
     * **Completeness Score:** ${score.score.toFixed(1)}/100 (${score.interpretation}) - ${score.details}.`;
   }
 
-  private static formatAccuracy(accuracy: any): string {
+  private static formatAccuracy(accuracy: AccuracyAnalysis): string {
     const crossFieldDetails =
       accuracy.crossFieldValidation
         ?.slice(0, 5)
         .map(
-          (rule: any) =>
+          (rule) =>
             `        * *Rule ${rule.ruleId}:* ${rule.description}. (Number of Violations: ${rule.violations}).`,
         )
         .join('\n') || '        * No cross-field rules configured.';
@@ -120,7 +134,7 @@ ${missingDataMatrix.blockPatterns.map((pattern: string) => `        * ${pattern}
       accuracy.patternValidation
         ?.slice(0, 5)
         .map(
-          (pattern: any) =>
+          (pattern) =>
             `        * *${pattern.patternName}:* ${pattern.description}. Violations: ${pattern.violationCount} across columns: ${pattern.affectedColumns.join(', ')}.`,
         )
         .join('\n') || '        * No pattern validation issues detected.';
@@ -142,12 +156,12 @@ ${businessRulesSummary}
     * **Accuracy Score:** ${accuracy.score.score.toFixed(1)}/100 (${accuracy.score.interpretation}).`;
   }
 
-  private static formatConsistency(consistency: any): string {
+  private static formatConsistency(consistency: ConsistencyAnalysis): string {
     const intraRecordDetails =
       consistency.intraRecord
         ?.slice(0, 5)
         .map(
-          (rule: any) =>
+          (rule) =>
             `        * *${rule.ruleDescription}:* ${rule.violatingRecords} violating records.`,
         )
         .join('\n') || '        * No intra-record consistency issues detected.';
@@ -156,7 +170,7 @@ ${businessRulesSummary}
       consistency.formatConsistency
         ?.slice(0, 5)
         .map(
-          (format: any) =>
+          (format) =>
             `        * *${format.columnName}* (${format.analysisType}): ${format.recommendedAction}. Inconsistency: ${format.consistency.inconsistencyPercentage}% of values.`,
         )
         .join('\n') || '        * No format consistency issues detected.';
@@ -177,21 +191,21 @@ ${patternSummary}
     * **Consistency Score (Rule-based and pattern detection):** ${consistency.score.score.toFixed(1)}/100 (${consistency.score.interpretation}).`;
   }
 
-  private static formatTimeliness(timeliness: any): string {
+  private static formatTimeliness(timeliness: TimelinessAnalysis): string {
     return `**2.5. Timeliness & Currency Dimension:**
     * **Data Freshness Indicators:** ${timeliness.score.details}
     * **Update Frequency Analysis:** Not applicable for single-snapshot data.
     * **Timeliness Score:** ${timeliness.score.score.toFixed(1)}/100 (${timeliness.score.interpretation}).`;
   }
 
-  private static formatUniqueness(uniqueness: any): string {
+  private static formatUniqueness(uniqueness: UniquenessAnalysis): string {
     const { exactDuplicates, keyUniqueness, columnUniqueness, semanticDuplicates, score } =
       uniqueness;
 
     const keyDetails = keyUniqueness
       .slice(0, 5)
       .map(
-        (key: any) =>
+        (key) =>
           `        * \`${key.columnName} ${key.isPrimaryKey ? '(Potential PK)' : ''}\`: ${key.duplicateCount} duplicate values found. Cardinality: ${key.cardinality}.`,
       )
       .join('\n');
@@ -199,7 +213,7 @@ ${patternSummary}
     const columnDetails = columnUniqueness
       .slice(0, 8)
       .map(
-        (col: any) =>
+        (col) =>
           `        * \`${col.columnName}\`: ${col.uniquePercentage.toFixed(1)}% unique values. ${col.duplicateCount} duplicates.${col.mostFrequentDuplicate ? ` Most frequent: "${col.mostFrequentDuplicate.value}" (${col.mostFrequentDuplicate.frequency} times).` : ''}`,
       )
       .join('\n');
@@ -218,7 +232,7 @@ ${columnDetails}
     * **Uniqueness Score:** ${score.score.toFixed(1)}/100 (${score.interpretation}) - ${score.details}.`;
   }
 
-  private static formatValidity(validity: any): string {
+  private static formatValidity(validity: ValidityAnalysis): string {
     const {
       typeConformance,
       rangeConformance,
@@ -231,7 +245,7 @@ ${columnDetails}
     const typeDetails = typeConformance
       .slice(0, 8)
       .map(
-        (type: any) =>
+        (type) =>
           `        * \`${type.columnName}\` (Expected: ${type.expectedType}, Detected: ${type.actualType}, Confidence: ${type.confidence}%):
             * Non-Conforming Values: ${type.nonConformingCount} (${type.conformancePercentage.toFixed(1)}% conformance).
             * Examples: ${
@@ -249,7 +263,7 @@ ${columnDetails}
         ? rangeConformance
             .slice(0, 5)
             .map(
-              (range: any) =>
+              (range) =>
                 `        * \`${range.columnName}\` (Range: ${range.expectedRange}): ${range.violationsCount} violations.`,
             )
             .join('\n')
@@ -260,7 +274,7 @@ ${columnDetails}
         ? patternConformance
             .slice(0, 5)
             .map(
-              (pattern: any) =>
+              (pattern) =>
                 `        * \`${pattern.columnName}\` (${pattern.expectedPattern}): ${pattern.violationsCount} violations.`,
             )
             .join('\n')
@@ -281,7 +295,7 @@ ${patternDetails}
     * **Validity Score:** ${score.score.toFixed(1)}/100 (${score.interpretation}) - ${score.details}.`;
   }
 
-  private static formatIntegrity(integrity: any): string {
+  private static formatIntegrity(integrity: IntegrityAnalysis): string {
     return `**2.8. Integrity Dimension (Relationships & Structural Soundness):**
     * **Potential Orphaned Record Detection:** ${integrity.score.details}
     * **Relationship Cardinality Conformance:** No relationships defined.
@@ -289,7 +303,7 @@ ${patternDetails}
     * **Integrity Score:** ${integrity.score.score.toFixed(1)}/100 (${integrity.score.interpretation}).`;
   }
 
-  private static formatReasonableness(reasonableness: any): string {
+  private static formatReasonableness(reasonableness: ReasonablenessAnalysis): string {
     return `**2.9. Reasonableness & Plausibility Dimension:**
     * **Value Plausibility Analysis:** ${reasonableness.score.details}
     * **Inter-Field Semantic Plausibility:** No semantic rules configured.
@@ -297,7 +311,7 @@ ${patternDetails}
     * **Plausibility Score:** ${reasonableness.score.score.toFixed(1)}/100 (${reasonableness.score.interpretation}).`;
   }
 
-  private static formatPrecision(precision: any): string {
+  private static formatPrecision(precision: PrecisionAnalysis): string {
     return `**2.10. Precision & Granularity Dimension:**
     * **Numeric Precision Analysis:** ${precision.score.details}
     * **Temporal Granularity:** To be implemented.
@@ -305,7 +319,7 @@ ${patternDetails}
     * **Precision Score:** ${precision.score.score.toFixed(1)}/100 (${precision.score.interpretation}).`;
   }
 
-  private static formatRepresentational(representational: any): string {
+  private static formatRepresentational(representational: RepresentationalAnalysis): string {
     return `**2.11. Representational Form & Interpretability:**
     * **Standardisation Analysis:** ${representational.score.details}
     * **Abbreviation & Code Standardisation:** To be implemented.
@@ -314,7 +328,7 @@ ${patternDetails}
     * **Interpretability Score:** ${representational.score.score.toFixed(1)}/100 (${representational.score.interpretation}).`;
   }
 
-  private static formatProfilingInsights(insights: any): string {
+  private static formatProfilingInsights(insights: ProfilingInsights): string {
     return `**2.13. Data Profiling Insights Directly Impacting Quality:**
     * **Value Length Analysis:** ${insights.valueLengthAnalysis.length} columns analysed.
     * **Character Set & Encoding Validation:** ${insights.characterSetAnalysis.length} columns analysed.

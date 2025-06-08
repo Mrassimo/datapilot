@@ -1,22 +1,37 @@
 /**
- * CSV Parser type definitions
+ * Enhanced CSV Parser type definitions with modern TypeScript patterns
  */
 
-export interface CSVParserOptions {
-  delimiter?: string;
-  quote?: string;
-  escape?: string;
-  encoding?: BufferEncoding;
-  hasHeader?: boolean;
-  lineEnding?: '\n' | '\r\n';
-  skipEmptyLines?: boolean;
-  maxRows?: number;
-  chunkSize?: number; // Size of chunks to process at once
-  detectTypes?: boolean;
-  trimFields?: boolean;
-  maxFieldSize?: number;
-  autoDetect?: boolean; // Enable auto-detection of settings
-  sampleSize?: number; // Number of bytes to sample for auto-detection
+// Enhanced CSV Parser Options with Discriminated Unions
+export type CSVParserMode = 'strict' | 'lenient' | 'recovery';
+
+export interface BaseCSVParserOptions {
+  readonly delimiter?: string;
+  readonly quote?: string;
+  readonly escape?: string;
+  readonly encoding?: BufferEncoding;
+  readonly hasHeader?: boolean;
+  readonly lineEnding?: '\n' | '\r\n';
+  readonly skipEmptyLines?: boolean;
+  readonly maxRows?: number;
+  readonly chunkSize?: number;
+  readonly detectTypes?: boolean;
+  readonly trimFields?: boolean;
+  readonly maxFieldSize?: number;
+  readonly autoDetect?: boolean;
+  readonly sampleSize?: number;
+}
+
+export type CSVParserOptions = BaseCSVParserOptions & (
+  | { mode: 'strict'; strictValidation: true; abortOnError: true }
+  | { mode: 'lenient'; strictValidation?: false; continueOnError?: true; maxErrors?: number }
+  | { mode: 'recovery'; strictValidation: false; attemptRecovery: true; recoveryStrategies: readonly RecoveryStrategy[] }
+);
+
+export interface RecoveryStrategy {
+  readonly type: 'skip-row' | 'substitute-value' | 'truncate-field' | 'interpolate';
+  readonly condition: (error: ParseError) => boolean;
+  readonly action: (row: string[], error: ParseError) => string[];
 }
 
 export interface DetectedCSVFormat {

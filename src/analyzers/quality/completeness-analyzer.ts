@@ -65,14 +65,40 @@ export class CompletenessAnalyzer {
     let missingCount = 0;
     let rowsWithMissing = 0;
 
+    // Debug: Log data structure for troubleshooting
+    console.debug(`Completeness Analysis Debug:`, {
+      rowCount: this.rowCount,
+      columnCount: this.columnCount,
+      dataLength: this.data.length,
+      firstRowSample: this.data[0]?.slice(0, 3),
+      dataStructureType: typeof this.data[0],
+    });
+
     // Count missing values and rows with missing data
     for (let rowIdx = 0; rowIdx < this.rowCount; rowIdx++) {
       let rowHasMissing = false;
+      const currentRow = this.data[rowIdx];
+
+      // Ensure we have a valid row
+      if (!currentRow || !Array.isArray(currentRow)) {
+        console.warn(`Invalid row structure at index ${rowIdx}:`, currentRow);
+        continue;
+      }
 
       for (let colIdx = 0; colIdx < this.columnCount; colIdx++) {
-        if (this.isMissing(this.data[rowIdx]?.[colIdx])) {
+        const cellValue = currentRow[colIdx];
+        if (this.isMissing(cellValue)) {
           missingCount++;
           rowHasMissing = true;
+
+          // Debug: Log first few missing values found
+          if (missingCount <= 5) {
+            console.debug(`Missing value found at [${rowIdx}, ${colIdx}]:`, {
+              value: cellValue,
+              type: typeof cellValue,
+              stringValue: String(cellValue),
+            });
+          }
         }
       }
 
@@ -517,10 +543,13 @@ export class CompletenessAnalyzer {
   }
 
   private isMissing(value: string | null | undefined): boolean {
+    // Handle null and undefined
     if (value === null || value === undefined) return true;
+
+    // Handle string values
     if (typeof value === 'string') {
       const trimmed = value.trim().toLowerCase();
-      return (
+      const isMissingValue =
         trimmed === '' ||
         trimmed === 'null' ||
         trimmed === 'na' ||
@@ -531,9 +560,17 @@ export class CompletenessAnalyzer {
         trimmed === 'none' ||
         trimmed === '--' ||
         trimmed === '?' ||
-        trimmed === '##missing##'
-      );
+        trimmed === '##missing##';
+
+      return isMissingValue;
     }
+
+    // Handle numeric values (should not be missing unless NaN)
+    if (typeof value === 'number') {
+      return isNaN(value);
+    }
+
+    // All other types are considered present
     return false;
   }
 }

@@ -26,13 +26,13 @@ export class ResidualAnalyzer {
   async generateResidualAnalysis(
     regressionTasks: ModelingTask[],
     algorithms: AlgorithmRecommendation[],
-    correlationPairs?: CorrelationPair[]
+    correlationPairs?: CorrelationPair[],
   ): Promise<ResidualAnalysis> {
     logger.info('Generating comprehensive residual analysis for regression models');
 
     const primaryTask = regressionTasks[0];
-    const linearAlgorithms = algorithms.filter(alg => 
-      alg.category === 'linear_models' || alg.algorithmName.includes('Regression')
+    const linearAlgorithms = algorithms.filter(
+      (alg) => alg.category === 'linear_models' || alg.algorithmName.includes('Regression'),
     );
 
     return {
@@ -42,7 +42,7 @@ export class ResidualAnalyzer {
       autocorrelationTests: this.generateAutocorrelationTests(),
       outlierAnalysis: this.generateOutlierAnalysis(),
       modelAssumptions: this.generateModelAssumptions(correlationPairs),
-      improvementSuggestions: this.generateImprovementSuggestions(primaryTask, linearAlgorithms)
+      improvementSuggestions: this.generateImprovementSuggestions(primaryTask, linearAlgorithms),
     };
   }
 
@@ -55,9 +55,11 @@ export class ResidualAnalyzer {
     // Residuals vs Fitted Values Plot
     diagnostics.push({
       plotType: 'residuals_vs_fitted',
-      description: 'Plots residuals (y - ŷ) against fitted values (ŷ) to assess linearity and homoscedasticity',
+      description:
+        'Plots residuals (y - ŷ) against fitted values (ŷ) to assess linearity and homoscedasticity',
       idealPattern: 'Random scatter of points around horizontal line at y=0 with constant variance',
-      observedPattern: 'Random scatter observed with slight increase in variance at higher fitted values',
+      observedPattern:
+        'Random scatter observed with slight increase in variance at higher fitted values',
       interpretation: `**What to Look For:**
 1. **Linearity:** Points should be randomly scattered around y=0 line
 2. **Homoscedasticity:** Constant spread of residuals across all fitted values
@@ -73,14 +75,15 @@ export class ResidualAnalyzer {
       recommendations: [
         'Monitor for any emerging patterns as more data becomes available',
         'Consider robust regression if outliers persist',
-        'Investigate points with extreme residuals for data quality issues'
-      ]
+        'Investigate points with extreme residuals for data quality issues',
+      ],
     });
 
     // Normal Q-Q Plot
     diagnostics.push({
       plotType: 'qq_plot',
-      description: 'Quantile-Quantile plot comparing residual distribution to theoretical normal distribution',
+      description:
+        'Quantile-Quantile plot comparing residual distribution to theoretical normal distribution',
       idealPattern: 'Points closely following diagonal line from bottom-left to top-right',
       observedPattern: 'Points generally follow diagonal with slight deviations at the tails',
       interpretation: `**Assessment Guide:**
@@ -100,14 +103,15 @@ export class ResidualAnalyzer {
       recommendations: [
         'Normality assumption appears reasonably satisfied',
         'Monitor tail behavior in larger datasets',
-        'Consider robust standard errors if mild non-normality persists'
-      ]
+        'Consider robust standard errors if mild non-normality persists',
+      ],
     });
 
     // Histogram of Residuals
     diagnostics.push({
       plotType: 'histogram',
-      description: 'Histogram of residuals to visually assess normality and identify distributional characteristics',
+      description:
+        'Histogram of residuals to visually assess normality and identify distributional characteristics',
       idealPattern: 'Bell-shaped (normal) distribution centered at zero',
       observedPattern: 'Approximately bell-shaped with slight right skew',
       interpretation: `**Visual Assessment Criteria:**
@@ -127,14 +131,15 @@ export class ResidualAnalyzer {
       recommendations: [
         'Distribution appears approximately normal',
         'Monitor skewness with larger sample sizes',
-        'Consider target variable transformation if skewness increases'
-      ]
+        'Consider target variable transformation if skewness increases',
+      ],
     });
 
     // Scale-Location Plot
     diagnostics.push({
       plotType: 'scale_location',
-      description: 'Plots square root of standardized residuals against fitted values to assess homoscedasticity',
+      description:
+        'Plots square root of standardized residuals against fitted values to assess homoscedasticity',
       idealPattern: 'Horizontal line with points randomly scattered around it',
       observedPattern: 'Generally horizontal with slight upward trend at higher fitted values',
       interpretation: `**Homoscedasticity Assessment:**
@@ -158,8 +163,8 @@ export class ResidualAnalyzer {
       recommendations: [
         'Slight heteroscedasticity detected - monitor with more data',
         'Consider robust standard errors for inference',
-        'Investigate log transformation if pattern persists'
-      ]
+        'Investigate log transformation if pattern persists',
+      ],
     });
 
     return diagnostics;
@@ -185,7 +190,8 @@ export class ResidualAnalyzer {
 **Decision Rule:** Reject H0 if p-value < 0.05 (assuming α = 0.05)
 
 **Statistical Power:** Shapiro-Wilk has good power for detecting non-normality, especially for small to moderate sample sizes (n < 2000)`,
-      conclusion: 'Fail to reject H0: Residuals appear to follow normal distribution (p = 0.234 > 0.05)'
+      conclusion:
+        'Fail to reject H0: Residuals appear to follow normal distribution (p = 0.234 > 0.05)',
     });
 
     // Jarque-Bera Test
@@ -203,7 +209,8 @@ export class ResidualAnalyzer {
 **Components:**
 - **Skewness component:** Measures asymmetry
 - **Kurtosis component:** Measures tail heaviness`,
-      conclusion: 'Fail to reject H0: Residuals show no significant departure from normality (p = 0.237 > 0.05)'
+      conclusion:
+        'Fail to reject H0: Residuals show no significant departure from normality (p = 0.237 > 0.05)',
     });
 
     // Kolmogorov-Smirnov Test
@@ -221,7 +228,8 @@ export class ResidualAnalyzer {
 **Considerations:**
 - Less powerful than Shapiro-Wilk for detecting non-normality
 - Better for large samples where Shapiro-Wilk may be too sensitive`,
-      conclusion: 'Fail to reject H0: No significant difference from normal distribution detected (p = 0.182 > 0.05)'
+      conclusion:
+        'Fail to reject H0: No significant difference from normal distribution detected (p = 0.182 > 0.05)',
     });
 
     return tests;
@@ -252,7 +260,8 @@ export class ResidualAnalyzer {
 4. Compare to critical value from χ²(k) distribution
 
 **Advantages:** Tests for heteroscedasticity related to any combination of predictors`,
-      conclusion: 'Marginal evidence of heteroscedasticity (p = 0.063). Monitor with additional data.'
+      conclusion:
+        'Marginal evidence of heteroscedasticity (p = 0.063). Monitor with additional data.',
     });
 
     // White Test
@@ -271,7 +280,7 @@ export class ResidualAnalyzer {
 - **Significant result:** Indicates some form of heteroscedasticity
 - **Non-significant:** Suggests homoscedasticity assumption is reasonable
 - **Sample size considerations:** Large samples may detect trivial heteroscedasticity`,
-      conclusion: 'No significant heteroscedasticity detected (p = 0.127 > 0.05)'
+      conclusion: 'No significant heteroscedasticity detected (p = 0.127 > 0.05)',
     });
 
     return tests;
@@ -306,7 +315,7 @@ export class ResidualAnalyzer {
   * dL ≤ DW ≤ dU: Inconclusive
 
 **Current Assessment:** DW = 1.987 indicates no significant first-order autocorrelation`,
-      conclusion: 'No evidence of first-order autocorrelation in residuals (DW ≈ 2.0)'
+      conclusion: 'No evidence of first-order autocorrelation in residuals (DW ≈ 2.0)',
     });
 
     // Ljung-Box Test
@@ -327,7 +336,7 @@ export class ResidualAnalyzer {
 - **Significant autocorrelation:** Violates independence assumption
 - **Consequences:** Biased standard errors, inefficient estimates
 - **Solutions:** AR/MA models, robust standard errors, GLS estimation`,
-      conclusion: 'No significant autocorrelation detected at multiple lags (p = 0.42 > 0.05)'
+      conclusion: 'No significant autocorrelation detected at multiple lags (p = 0.42 > 0.05)',
     });
 
     return tests;
@@ -344,26 +353,29 @@ export class ResidualAnalyzer {
           index: 23,
           type: 'residual',
           severity: 'moderate',
-          description: 'Large studentized residual (|t| > 2.5) indicating poor fit for this observation'
+          description:
+            'Large studentized residual (|t| > 2.5) indicating poor fit for this observation',
         },
         {
           index: 45,
           type: 'leverage',
           severity: 'mild',
-          description: 'High leverage point with unusual predictor values but reasonable residual'
+          description: 'High leverage point with unusual predictor values but reasonable residual',
         },
         {
           index: 78,
           type: 'influential',
           severity: 'moderate',
-          description: 'High Cooks distance (D > 0.5) indicating strong influence on regression coefficients'
+          description:
+            'High Cooks distance (D > 0.5) indicating strong influence on regression coefficients',
         },
         {
           index: 156,
           type: 'residual',
           severity: 'severe',
-          description: 'Extreme studentized residual (|t| > 3.0) suggesting potential data error or model inadequacy'
-        }
+          description:
+            'Extreme studentized residual (|t| > 3.0) suggesting potential data error or model inadequacy',
+        },
       ],
       influentialPoints: [
         {
@@ -371,23 +383,24 @@ export class ResidualAnalyzer {
           cooksDistance: 0.67,
           leverage: 0.34,
           studentizedResidual: -2.1,
-          impact: 'Moderate influence on slope coefficients, particularly for predictor X2'
+          impact: 'Moderate influence on slope coefficients, particularly for predictor X2',
         },
         {
           index: 156,
           cooksDistance: 0.23,
           leverage: 0.12,
           studentizedResidual: 3.4,
-          impact: 'Large residual but low leverage, likely data quality issue rather than influential point'
-        }
+          impact:
+            'Large residual but low leverage, likely data quality issue rather than influential point',
+        },
       ],
       recommendations: [
         'Investigate observation 156 for potential data entry errors',
         'Consider robust regression methods if influential points cannot be corrected',
         'Examine predictor patterns for high-leverage observations',
         'Document rationale for including/excluding flagged observations',
-        'Re-run analysis with and without influential points to assess stability'
-      ]
+        'Re-run analysis with and without influential points to assess stability',
+      ],
     };
   }
 
@@ -406,8 +419,8 @@ export class ResidualAnalyzer {
       remediation: [
         'Monitor for non-linear patterns as dataset grows',
         'Consider polynomial terms if curvature emerges',
-        'Explore interaction effects if domain knowledge suggests them'
-      ]
+        'Explore interaction effects if domain knowledge suggests them',
+      ],
     });
 
     // Independence
@@ -419,8 +432,8 @@ export class ResidualAnalyzer {
       remediation: [
         'Verify data collection process ensures independence',
         'Consider clustering effects if observations are grouped',
-        'Monitor for temporal patterns if data has time component'
-      ]
+        'Monitor for temporal patterns if data has time component',
+      ],
     });
 
     // Homoscedasticity
@@ -433,21 +446,22 @@ export class ResidualAnalyzer {
         'Use robust standard errors (Huber-White) for inference',
         'Consider log transformation of response variable',
         'Monitor pattern with larger sample size',
-        'Investigate weighted least squares if pattern persists'
-      ]
+        'Investigate weighted least squares if pattern persists',
+      ],
     });
 
     // Normality
     assumptions.push({
       assumption: 'Normality: Residuals are normally distributed',
       status: 'satisfied',
-      evidence: 'Multiple normality tests non-significant (Shapiro-Wilk p = 0.234, Jarque-Bera p = 0.237)',
+      evidence:
+        'Multiple normality tests non-significant (Shapiro-Wilk p = 0.234, Jarque-Bera p = 0.237)',
       impact: 'Confidence intervals and hypothesis tests are valid',
       remediation: [
         'Assumption well-satisfied, no action needed',
         'Continue monitoring with larger datasets',
-        'Consider robust methods if outliers increase'
-      ]
+        'Consider robust methods if outliers increase',
+      ],
     });
 
     // Multicollinearity with VIF calculation
@@ -457,7 +471,7 @@ export class ResidualAnalyzer {
       status: vifResults.status,
       evidence: vifResults.evidence,
       impact: vifResults.impact,
-      remediation: vifResults.remediation
+      remediation: vifResults.remediation,
     });
 
     return assumptions;
@@ -480,8 +494,8 @@ export class ResidualAnalyzer {
         remediation: [
           'Collect correlation data between predictors',
           'Monitor for unstable coefficient estimates',
-          'Consider ridge regression as precautionary measure'
-        ]
+          'Consider ridge regression as precautionary measure',
+        ],
       };
     }
 
@@ -490,23 +504,23 @@ export class ResidualAnalyzer {
     const variables = new Set<string>();
 
     // Initialize correlation matrix
-    correlationPairs.forEach(pair => {
+    correlationPairs.forEach((pair) => {
       variables.add(pair.variable1);
       variables.add(pair.variable2);
-      
+
       if (!correlationMap.has(pair.variable1)) {
         correlationMap.set(pair.variable1, new Map());
       }
       if (!correlationMap.has(pair.variable2)) {
         correlationMap.set(pair.variable2, new Map());
       }
-      
+
       correlationMap.get(pair.variable1)!.set(pair.variable2, pair.correlation);
       correlationMap.get(pair.variable2)!.set(pair.variable1, pair.correlation);
     });
 
     // Set diagonal to 1
-    variables.forEach(v => {
+    variables.forEach((v) => {
       if (!correlationMap.has(v)) {
         correlationMap.set(v, new Map());
       }
@@ -516,22 +530,22 @@ export class ResidualAnalyzer {
     // Calculate VIF for each variable
     const vifValues: { variable: string; vif: number }[] = [];
     const variableArray = Array.from(variables);
-    
-    variableArray.forEach(targetVar => {
+
+    variableArray.forEach((targetVar) => {
       // Get correlations of target variable with all others
       const targetCorrelations = correlationMap.get(targetVar);
       if (!targetCorrelations) return;
 
       // Calculate R-squared from regressing target on all other variables
       // Simplified calculation using correlation matrix
-      const otherVars = variableArray.filter(v => v !== targetVar);
+      const otherVars = variableArray.filter((v) => v !== targetVar);
       if (otherVars.length === 0) return;
 
       // Approximate R-squared using average squared correlation
       let sumSquaredCorr = 0;
       let count = 0;
-      
-      otherVars.forEach(v => {
+
+      otherVars.forEach((v) => {
         const corr = targetCorrelations.get(v);
         if (corr !== undefined) {
           sumSquaredCorr += corr * corr;
@@ -543,7 +557,7 @@ export class ResidualAnalyzer {
         // Approximate R-squared (simplified)
         const avgSquaredCorr = sumSquaredCorr / count;
         const rSquared = Math.min(0.99, avgSquaredCorr * 1.2); // Adjustment factor
-        
+
         // Calculate VIF = 1 / (1 - R²)
         const vif = 1 / (1 - rSquared);
         vifValues.push({ variable: targetVar, vif });
@@ -554,9 +568,9 @@ export class ResidualAnalyzer {
     vifValues.sort((a, b) => b.vif - a.vif);
 
     // Determine status and generate evidence
-    const maxVIF = Math.max(...vifValues.map(v => v.vif), 1);
-    const highVIFVars = vifValues.filter(v => v.vif > 5);
-    const moderateVIFVars = vifValues.filter(v => v.vif > 2.5 && v.vif <= 5);
+    const maxVIF = Math.max(...vifValues.map((v) => v.vif), 1);
+    const highVIFVars = vifValues.filter((v) => v.vif > 5);
+    const moderateVIFVars = vifValues.filter((v) => v.vif > 2.5 && v.vif <= 5);
 
     let status: 'satisfied' | 'questionable' | 'violated';
     let evidence: string;
@@ -565,33 +579,33 @@ export class ResidualAnalyzer {
 
     if (maxVIF > 10) {
       status = 'violated';
-      evidence = `Severe multicollinearity detected: ${highVIFVars.map(v => `${v.variable} (VIF=${v.vif.toFixed(1)})`).join(', ')}`;
+      evidence = `Severe multicollinearity detected: ${highVIFVars.map((v) => `${v.variable} (VIF=${v.vif.toFixed(1)})`).join(', ')}`;
       impact = 'Coefficient estimates are highly unstable and unreliable';
       remediation.push(
         'Remove or combine highly correlated predictors',
         'Use ridge regression or elastic net',
-        'Consider principal component regression'
+        'Consider principal component regression',
       );
     } else if (maxVIF > 5) {
       status = 'questionable';
-      evidence = `Moderate multicollinearity: ${highVIFVars.map(v => `${v.variable} (VIF=${v.vif.toFixed(1)})`).join(', ')}`;
+      evidence = `Moderate multicollinearity: ${highVIFVars.map((v) => `${v.variable} (VIF=${v.vif.toFixed(1)})`).join(', ')}`;
       impact = 'Some coefficient instability; interpretation should be cautious';
       remediation.push(
         'Monitor affected variables closely',
         'Consider removing redundant predictors',
-        'Use regularization methods if instability worsens'
+        'Use regularization methods if instability worsens',
       );
     } else {
       status = 'satisfied';
       evidence = `All VIF values < 5. Maximum VIF = ${maxVIF.toFixed(1)}`;
       if (moderateVIFVars.length > 0) {
-        evidence += `. Variables with VIF > 2.5: ${moderateVIFVars.map(v => v.variable).join(', ')}`;
+        evidence += `. Variables with VIF > 2.5: ${moderateVIFVars.map((v) => v.variable).join(', ')}`;
       }
       impact = 'Coefficient estimates are stable and interpretable';
       remediation.push(
         'Continue monitoring correlation structure',
         'No immediate action required',
-        'Consider VIF > 2.5 variables if model performance degrades'
+        'Consider VIF > 2.5 variables if model performance degrades',
       );
     }
 
@@ -601,13 +615,16 @@ export class ResidualAnalyzer {
   /**
    * Generate improvement suggestions
    */
-  private generateImprovementSuggestions(task: ModelingTask | undefined, algorithms: AlgorithmRecommendation[]): string[] {
+  private generateImprovementSuggestions(
+    task: ModelingTask | undefined,
+    algorithms: AlgorithmRecommendation[],
+  ): string[] {
     const suggestions: string[] = [];
 
     // General suggestions
     suggestions.push(
       'Residual analysis indicates model is performing reasonably well with minor areas for improvement',
-      'Continue monitoring diagnostic plots as dataset size increases'
+      'Continue monitoring diagnostic plots as dataset size increases',
     );
 
     // Heteroscedasticity suggestions
@@ -615,7 +632,7 @@ export class ResidualAnalyzer {
       '**Address Mild Heteroscedasticity:**',
       '- Implement robust standard errors for more reliable inference',
       '- Consider log transformation of target variable if business context allows',
-      '- Investigate weighted least squares if pattern becomes more pronounced'
+      '- Investigate weighted least squares if pattern becomes more pronounced',
     );
 
     // Outlier handling
@@ -623,7 +640,7 @@ export class ResidualAnalyzer {
       '**Outlier Management:**',
       '- Investigate flagged observations for data quality issues',
       '- Consider robust regression methods (Huber, M-estimators) if outliers persist',
-      '- Document and justify treatment of influential observations'
+      '- Document and justify treatment of influential observations',
     );
 
     // Model enhancement
@@ -632,7 +649,7 @@ export class ResidualAnalyzer {
         '**Model Enhancement Opportunities:**',
         '- Explore interaction terms between key predictors',
         '- Consider polynomial terms if domain knowledge suggests non-linear relationships',
-        '- Investigate regularized regression (Ridge/Lasso) to improve generalization'
+        '- Investigate regularized regression (Ridge/Lasso) to improve generalization',
       );
     }
 
@@ -641,7 +658,7 @@ export class ResidualAnalyzer {
       '**Advanced Diagnostic Considerations:**',
       '- Implement LOOCV (Leave-One-Out Cross-Validation) for model stability assessment',
       '- Consider DFBETAS analysis for detailed influence on individual coefficients',
-      '- Explore partial regression plots for deeper understanding of predictor relationships'
+      '- Explore partial regression plots for deeper understanding of predictor relationships',
     );
 
     return suggestions;
@@ -650,12 +667,18 @@ export class ResidualAnalyzer {
   // Helper methods
   private generateCurrentAssessment(plotType: string): string {
     const assessments = {
-      'residuals_vs_fitted': 'Generally good with random scatter, slight variance increase at higher values warrants monitoring',
-      'qq_plot': 'Residuals closely follow normal distribution with minor tail deviations typical of finite samples',
-      'histogram': 'Distribution is approximately normal with very slight right skew, well within acceptable range',
-      'scale_location': 'Mild heteroscedasticity detected - consider robust standard errors for inference'
+      residuals_vs_fitted:
+        'Generally good with random scatter, slight variance increase at higher values warrants monitoring',
+      qq_plot:
+        'Residuals closely follow normal distribution with minor tail deviations typical of finite samples',
+      histogram:
+        'Distribution is approximately normal with very slight right skew, well within acceptable range',
+      scale_location:
+        'Mild heteroscedasticity detected - consider robust standard errors for inference',
     };
-    
-    return assessments[plotType as keyof typeof assessments] || 'Assessment pending further analysis';
+
+    return (
+      assessments[plotType as keyof typeof assessments] || 'Assessment pending further analysis'
+    );
   }
 }

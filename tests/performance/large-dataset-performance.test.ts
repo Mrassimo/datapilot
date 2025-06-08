@@ -1,0 +1,441 @@
+import { writeFileSync, unlinkSync, mkdtempSync } from 'fs';
+import { join } from 'path';
+import { tmpdir } from 'os';
+
+describe('Large Dataset Performance Tests', () => {
+  let tempDir: string;
+  let tempFile: string;
+
+  beforeEach(() => {
+    tempDir = mkdtempSync(join(tmpdir(), 'datapilot-performance-test-'));
+    tempFile = join(tempDir, 'large-test.csv');
+  });
+
+  afterEach(() => {
+    try {
+      unlinkSync(tempFile);
+    } catch (e) {
+      // File might not exist
+    }
+  });
+
+  describe('Memory Efficiency', () => {
+    it('should handle 1000 rows with reasonable memory usage', async () => {
+      // Create 1000-row dataset
+      let csvData = 'id,name,age,salary,department,score1,score2,score3,category,status\n';
+      for (let i = 0; i < 1000; i++) {
+        csvData += `${i},User${i},${20 + (i % 50)},${30000 + (i * 10)},Dept${i % 5},${Math.random() * 100},${Math.random() * 100},${Math.random() * 100},Cat${i % 3},${['active', 'inactive'][i % 2]}\n`;
+      }
+      
+      writeFileSync(tempFile, csvData, 'utf8');
+      
+      const initialMemory = process.memoryUsage();
+      
+      const { Section3Analyzer } = await import('../../src/analyzers/eda');
+      const analyzer = new Section3Analyzer();
+      
+      const result = await analyzer.analyze(tempFile);
+      
+      const finalMemory = process.memoryUsage();
+      const memoryIncrease = finalMemory.heapUsed - initialMemory.heapUsed;
+      
+      // Memory increase should be reasonable (less than 50MB for 1000 rows)
+      expect(memoryIncrease).toBeLessThan(50 * 1024 * 1024);
+      expect(result.summary.totalRecords).toBe(1000);
+      expect(result.performanceMetrics.totalAnalysisTime).toBeLessThan(10000);
+    }, 15000);
+
+    it('should handle wide datasets efficiently', async () => {
+      // Create dataset with many columns
+      const numColumns = 50;
+      let csvData = Array.from({ length: numColumns }, (_, i) => `col${i}`).join(',') + '\n';
+      
+      for (let row = 0; row < 100; row++) {
+        const rowData = Array.from({ length: numColumns }, () => Math.random() * 1000);
+        csvData += rowData.join(',') + '\n';
+      }
+      
+      writeFileSync(tempFile, csvData, 'utf8');
+      
+      const { Section2Analyzer } = await import('../../src/analyzers/quality');
+      const analyzer = new Section2Analyzer();
+      
+      const startTime = Date.now();
+      const result = await analyzer.analyze(tempFile);
+      const endTime = Date.now();
+      
+      expect(endTime - startTime).toBeLessThan(8000); // Should complete in under 8 seconds
+      expect(result.summary.totalFieldsAnalyzed).toBe(numColumns);
+      expect(result.completenessAnalysis.fieldCompleteness).toHaveLength(numColumns);
+    }, 12000);
+
+    it('should handle streaming analysis for large datasets', async () => {
+      // Create larger dataset that would benefit from streaming
+      let csvData = 'timestamp,user_id,action,value\n';
+      const numRows = 2000;
+      
+      for (let i = 0; i < numRows; i++) {
+        const timestamp = new Date(2024, 0, 1 + (i % 365)).toISOString();
+        csvData += `${timestamp},user${i % 100},action${i % 10},${Math.random() * 1000}\n`;
+      }
+      
+      writeFileSync(tempFile, csvData, 'utf8');
+      
+      const { StreamingAnalyzer } = await import('../../src/analyzers/streaming');
+      const analyzer = new StreamingAnalyzer({
+        batchSize: 100,
+        enableMemoryOptimization: true
+      });
+      
+      const initialMemory = process.memoryUsage();
+      const result = await analyzer.analyze(tempFile);
+      const finalMemory = process.memoryUsage();
+      
+      const memoryIncrease = finalMemory.heapUsed - initialMemory.heapUsed;
+      
+      // Streaming should use less memory than loading everything
+      expect(memoryIncrease).toBeLessThan(30 * 1024 * 1024); // Less than 30MB
+      expect(result.summary.totalRecordsProcessed).toBe(numRows);
+      expect(result.streamingMetrics.batchesProcessed).toBeGreaterThan(1);
+    }, 20000);
+  });
+
+  describe('Processing Speed', () => {
+    it('should maintain fast analysis speed as data size increases', async () => {
+      const dataSizes = [100, 500, 1000];
+      const processingTimes: number[] = [];
+      
+      for (const size of dataSizes) {
+        // Create dataset of specified size
+        let csvData = 'id,value1,value2,category\n';
+        for (let i = 0; i < size; i++) {
+          csvData += `${i},${Math.random() * 100},${Math.random() * 200},${['A', 'B', 'C'][i % 3]}\n`;
+        }
+        
+        const testFile = join(tempDir, `test-${size}.csv`);
+        writeFileSync(testFile, csvData, 'utf8');
+        
+        try {
+          const { Section1Analyzer } = await import('../../src/analyzers/overview');
+          const analyzer = new Section1Analyzer({ enableFileHashing: false });
+          
+          const startTime = Date.now();
+          await analyzer.analyze(testFile);
+          const endTime = Date.now();
+          
+          processingTimes.push(endTime - startTime);
+        } finally {
+          unlinkSync(testFile);
+        }
+      }
+      
+      // Processing time should scale reasonably (not exponentially)
+      const timeRatio_500_100 = processingTimes[1] / processingTimes[0];
+      const timeRatio_1000_500 = processingTimes[2] / processingTimes[1];
+      
+      // Each doubling should not take more than 3x as long
+      expect(timeRatio_500_100).toBeLessThan(3);
+      expect(timeRatio_1000_500).toBeLessThan(3);
+      
+      // Even largest dataset should complete quickly
+      expect(processingTimes[2]).toBeLessThan(8000); // 8 seconds max
+    }, 30000);
+
+    it('should handle concurrent analysis efficiently', async () => {
+      // Create multiple datasets
+      const datasets: string[] = [];
+      for (let d = 0; d < 3; d++) {
+        let csvData = `id,data${d}\n`;
+        for (let i = 0; i < 200; i++) {
+          csvData += `${i},${Math.random() * 100}\n`;
+        }
+        
+        const file = join(tempDir, `concurrent-${d}.csv`);
+        writeFileSync(file, csvData, 'utf8');
+        datasets.push(file);
+      }
+      
+      try {
+        const { Section2Analyzer } = await import('../../src/analyzers/quality');
+        
+        const startTime = Date.now();
+        
+        // Run analyses concurrently
+        const promises = datasets.map(file => 
+          new Section2Analyzer().analyze(file)
+        );
+        
+        const results = await Promise.all(promises);
+        const endTime = Date.now();
+        
+        // Concurrent execution should be faster than sequential
+        const concurrentTime = endTime - startTime;
+        expect(concurrentTime).toBeLessThan(10000); // Should complete in under 10 seconds
+        
+        // All analyses should succeed
+        expect(results).toHaveLength(3);
+        results.forEach(result => {
+          expect(result.summary.totalRecordsAnalyzed).toBe(200);
+        });
+      } finally {
+        datasets.forEach(file => {
+          try {
+            unlinkSync(file);
+          } catch (e) {
+            // File might not exist
+          }
+        });
+      }
+    }, 15000);
+  });
+
+  describe('Scalability Limits', () => {
+    it('should handle maximum reasonable dataset size', async () => {
+      // Create a substantial dataset (5000 rows)
+      let csvData = 'id,timestamp,user_id,action,value,category,score\n';
+      for (let i = 0; i < 5000; i++) {
+        const timestamp = new Date(2024, 0, 1 + (i % 365)).toISOString();
+        csvData += `${i},${timestamp},user${i % 500},action${i % 20},${Math.random() * 1000},cat${i % 10},${Math.random() * 100}\n`;
+      }
+      
+      writeFileSync(tempFile, csvData, 'utf8');
+      
+      const { Section3Analyzer } = await import('../../src/analyzers/eda');
+      const analyzer = new Section3Analyzer({
+        maxRecordsForCorrelation: 2000, // Limit correlation analysis
+        enableOptimizations: true
+      });
+      
+      const startTime = Date.now();
+      const initialMemory = process.memoryUsage();
+      
+      const result = await analyzer.analyze(tempFile);
+      
+      const endTime = Date.now();
+      const finalMemory = process.memoryUsage();
+      
+      // Should complete in reasonable time
+      expect(endTime - startTime).toBeLessThan(30000); // 30 seconds max
+      
+      // Memory usage should be controlled
+      const memoryIncrease = finalMemory.heapUsed - initialMemory.heapUsed;
+      expect(memoryIncrease).toBeLessThan(100 * 1024 * 1024); // Less than 100MB
+      
+      // Results should be complete
+      expect(result.summary.totalRecords).toBe(5000);
+      expect(result.univariateAnalysis).toBeDefined();
+      expect(result.correlationAnalysis).toBeDefined();
+    }, 45000);
+
+    it('should gracefully handle memory pressure', async () => {
+      // Simulate memory pressure by creating a very wide dataset
+      const numColumns = 100;
+      let csvData = Array.from({ length: numColumns }, (_, i) => `feature_${i}`).join(',') + '\n';
+      
+      for (let row = 0; row < 500; row++) {
+        const rowData = Array.from({ length: numColumns }, () => Math.random() * 1000);
+        csvData += rowData.join(',') + '\n';
+      }
+      
+      writeFileSync(tempFile, csvData, 'utf8');
+      
+      const { Section5Analyzer } = await import('../../src/analyzers/engineering');
+      const analyzer = new Section5Analyzer({
+        maxRecordsForAnalysis: 300, // Limit to manage memory
+        enableAdvancedFeatures: false // Disable memory-intensive features
+      });
+      
+      const result = await analyzer.analyze(tempFile);
+      
+      // Should complete successfully with limitations
+      expect(result.summary.recordsAnalyzed).toBeLessThanOrEqual(300);
+      expect(result.warnings).toBeDefined();
+      
+      // Should still provide meaningful analysis
+      expect(result.schemaAnalysis).toBeDefined();
+      expect(result.mlReadinessAssessment).toBeDefined();
+    }, 25000);
+  });
+
+  describe('Resource Management', () => {
+    it('should properly manage file handles for large files', async () => {
+      // Create a large CSV file
+      let csvData = 'id,data1,data2,data3,data4,data5\n';
+      for (let i = 0; i < 3000; i++) {
+        csvData += `${i},${Math.random()},${Math.random()},${Math.random()},${Math.random()},${Math.random()}\n`;
+      }
+      
+      writeFileSync(tempFile, csvData, 'utf8');
+      
+      // Multiple sequential analyses should not leak file handles
+      const { Section1Analyzer } = await import('../../src/analyzers/overview');
+      
+      for (let i = 0; i < 5; i++) {
+        const analyzer = new Section1Analyzer({ enableFileHashing: false });
+        const result = await analyzer.analyze(tempFile);
+        
+        expect(result.overview.structuralDimensions.totalDataRows).toBe(3000);
+        
+        // Small delay to allow cleanup
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      
+      // If we get here without errors, file handles were managed properly
+      expect(true).toBe(true);
+    }, 20000);
+
+    it('should handle disk space efficiently during analysis', async () => {
+      // Create dataset that would generate substantial intermediate results
+      let csvData = 'id,text_field,numeric_field\n';
+      for (let i = 0; i < 1000; i++) {
+        const longText = 'This is a long text field that contains substantial content and could generate large intermediate results during processing. '.repeat(3);
+        csvData += `${i},"${longText}",${Math.random() * 1000000}\n`;
+      }
+      
+      writeFileSync(tempFile, csvData, 'utf8');
+      
+      const initialFileSize = require('fs').statSync(tempFile).size;
+      
+      const { Section2Analyzer } = await import('../../src/analyzers/quality');
+      const analyzer = new Section2Analyzer();
+      
+      const result = await analyzer.analyze(tempFile);
+      
+      // Analysis should complete without creating excessive temporary files
+      expect(result.summary.totalRecordsAnalyzed).toBe(1000);
+      expect(result.completenessAnalysis).toBeDefined();
+      
+      // Original file should be unchanged
+      const finalFileSize = require('fs').statSync(tempFile).size;
+      expect(finalFileSize).toBe(initialFileSize);
+    }, 15000);
+  });
+
+  describe('Performance Monitoring', () => {
+    it('should accurately track performance metrics', async () => {
+      let csvData = 'metric1,metric2,metric3\n';
+      for (let i = 0; i < 800; i++) {
+        csvData += `${Math.random() * 100},${Math.random() * 200},${Math.random() * 50}\n`;
+      }
+      
+      writeFileSync(tempFile, csvData, 'utf8');
+      
+      const { Section3Analyzer } = await import('../../src/analyzers/eda');
+      const analyzer = new Section3Analyzer();
+      
+      const startTime = Date.now();
+      const result = await analyzer.analyze(tempFile);
+      const endTime = Date.now();
+      
+      const actualTime = endTime - startTime;
+      const reportedTime = result.performanceMetrics.totalAnalysisTime;
+      
+      // Reported time should be close to actual time (within 10%)
+      expect(Math.abs(reportedTime - actualTime)).toBeLessThan(actualTime * 0.1);
+      
+      // Performance metrics should be comprehensive
+      expect(result.performanceMetrics.recordsProcessed).toBe(800);
+      expect(result.performanceMetrics.phases).toBeDefined();
+      expect(result.performanceMetrics.phases.length).toBeGreaterThan(0);
+      
+      // Should track memory usage
+      if (result.performanceMetrics.memoryUsage) {
+        expect(result.performanceMetrics.memoryUsage.peak).toBeGreaterThan(0);
+      }
+    }, 12000);
+
+    it('should provide performance recommendations for large datasets', async () => {
+      // Create a dataset that should trigger performance recommendations
+      let csvData = 'id';
+      for (let col = 1; col <= 30; col++) {
+        csvData += `,feature${col}`;
+      }
+      csvData += '\n';
+      
+      for (let row = 0; row < 1500; row++) {
+        csvData += `${row}`;
+        for (let col = 1; col <= 30; col++) {
+          csvData += `,${Math.random() * 1000}`;
+        }
+        csvData += '\n';
+      }
+      
+      writeFileSync(tempFile, csvData, 'utf8');
+      
+      const { Section5Analyzer } = await import('../../src/analyzers/engineering');
+      const analyzer = new Section5Analyzer();
+      
+      const result = await analyzer.analyze(tempFile);
+      
+      // Should provide performance recommendations
+      expect(result.performanceRecommendations).toBeDefined();
+      expect(result.performanceRecommendations.length).toBeGreaterThan(0);
+      
+      // Should recommend optimizations for large datasets
+      const perfRecs = result.performanceRecommendations;
+      expect(perfRecs.some(rec => 
+        rec.category === 'memory' || 
+        rec.category === 'processing' ||
+        rec.recommendation.includes('sampling')
+      )).toBe(true);
+    }, 25000);
+  });
+
+  describe('Edge Case Performance', () => {
+    it('should handle sparse datasets efficiently', async () => {
+      // Create sparse dataset (many missing values)
+      let csvData = 'id,sparse1,sparse2,sparse3,sparse4,sparse5\n';
+      for (let i = 0; i < 1000; i++) {
+        csvData += `${i}`;
+        for (let col = 1; col <= 5; col++) {
+          // 70% chance of missing value
+          csvData += Math.random() < 0.3 ? `,${Math.random() * 100}` : ',';
+        }
+        csvData += '\n';
+      }
+      
+      writeFileSync(tempFile, csvData, 'utf8');
+      
+      const { Section2Analyzer } = await import('../../src/analyzers/quality');
+      const analyzer = new Section2Analyzer();
+      
+      const startTime = Date.now();
+      const result = await analyzer.analyze(tempFile);
+      const endTime = Date.now();
+      
+      // Should handle sparsity efficiently
+      expect(endTime - startTime).toBeLessThan(8000);
+      expect(result.completenessAnalysis.overallCompletenessRate).toBeLessThan(0.5);
+      
+      // Should identify sparsity as a performance factor
+      expect(result.warnings.some(w => w.includes('sparse') || w.includes('missing'))).toBe(true);
+    }, 12000);
+
+    it('should handle datasets with extreme values efficiently', async () => {
+      let csvData = 'normal,extreme\n';
+      for (let i = 0; i < 1000; i++) {
+        const normal = Math.random() * 100;
+        const extreme = i % 100 === 0 ? Math.random() * 1e12 : Math.random() * 100; // Occasional extreme value
+        csvData += `${normal},${extreme}\n`;
+      }
+      
+      writeFileSync(tempFile, csvData, 'utf8');
+      
+      const { Section3Analyzer } = await import('../../src/analyzers/eda');
+      const analyzer = new Section3Analyzer();
+      
+      const startTime = Date.now();
+      const result = await analyzer.analyze(tempFile);
+      const endTime = Date.now();
+      
+      // Should handle extreme values without performance degradation
+      expect(endTime - startTime).toBeLessThan(8000);
+      expect(result.univariateAnalysis?.['extreme']).toBeDefined();
+      
+      // Should identify outliers efficiently
+      if (result.outlierAnalysis) {
+        expect(result.outlierAnalysis.detected.length).toBeGreaterThan(0);
+      }
+    }, 12000);
+  });
+});

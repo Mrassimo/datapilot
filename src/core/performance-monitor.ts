@@ -46,13 +46,13 @@ export class PerformanceMonitor {
   private adaptiveThresholds: Map<string, AdaptiveThreshold> = new Map();
   private monitoringInterval?: NodeJS.Timeout;
   private isMonitoring = false;
-  
+
   // Performance tracking
   private startTime: number = 0;
   private operationCount = 0;
   private rowsProcessed = 0;
   private errorsEncountered = 0;
-  
+
   // Adaptive configuration
   private autoAdaptEnabled = true;
   private adaptationHistory: Array<{
@@ -79,7 +79,7 @@ export class PerformanceMonitor {
    */
   private initializeAdaptiveThresholds(): void {
     const config = getConfig().getConfig();
-    
+
     const thresholds = [
       { name: 'maxRows', value: config.performance.maxRows },
       { name: 'chunkSize', value: config.performance.chunkSize },
@@ -111,7 +111,7 @@ export class PerformanceMonitor {
 
     this.isMonitoring = true;
     this.startTime = Date.now();
-    
+
     this.monitoringInterval = setInterval(() => {
       this.collectMetrics();
       this.analyzePerformance();
@@ -139,7 +139,7 @@ export class PerformanceMonitor {
   private collectMetrics(): void {
     const memUsage = process.memoryUsage();
     const cpuUsage = process.cpuUsage();
-    
+
     const metrics: PerformanceMetrics = {
       timestamp: Date.now(),
       memoryUsageMB: Math.round(memUsage.heapUsed / (1024 * 1024)),
@@ -158,7 +158,7 @@ export class PerformanceMonitor {
     }
 
     this.metrics.push(metrics);
-    
+
     // Keep only last 100 metrics
     if (this.metrics.length > 100) {
       this.metrics = this.metrics.slice(-100);
@@ -178,7 +178,8 @@ export class PerformanceMonitor {
     if (currentMetrics.memoryUsageMB > config.streaming.memoryThresholdMB * 0.9) {
       this.createAlert({
         type: 'memory',
-        severity: currentMetrics.memoryUsageMB > config.streaming.memoryThresholdMB ? 'critical' : 'high',
+        severity:
+          currentMetrics.memoryUsageMB > config.streaming.memoryThresholdMB ? 'critical' : 'high',
         message: `High memory usage: ${currentMetrics.memoryUsageMB}MB`,
         metrics: currentMetrics,
         recommendation: 'Consider reducing chunk size or enabling more aggressive memory cleanup',
@@ -189,9 +190,10 @@ export class PerformanceMonitor {
     // Throughput degradation alerts
     if (this.metrics.length >= 5) {
       const recentMetrics = this.metrics.slice(-5);
-      const avgThroughput = recentMetrics.reduce((sum, m) => sum + (m.throughput || 0), 0) / recentMetrics.length;
+      const avgThroughput =
+        recentMetrics.reduce((sum, m) => sum + (m.throughput || 0), 0) / recentMetrics.length;
       const firstThroughput = recentMetrics[0].throughput || 0;
-      
+
       if (firstThroughput > 0 && avgThroughput < firstThroughput * 0.5) {
         this.createAlert({
           type: 'throughput',
@@ -206,7 +208,8 @@ export class PerformanceMonitor {
 
     // Error rate monitoring
     const errorRate = this.operationCount > 0 ? this.errorsEncountered / this.operationCount : 0;
-    if (errorRate > 0.05) { // 5% error rate threshold
+    if (errorRate > 0.05) {
+      // 5% error rate threshold
       this.createAlert({
         type: 'error_rate',
         severity: errorRate > 0.2 ? 'critical' : 'high',
@@ -232,25 +235,41 @@ export class PerformanceMonitor {
     // Memory-based adaptations
     if (currentMetrics.memoryUsageMB > config.getStreamingConfig().memoryThresholdMB * 0.8) {
       // Reduce chunk size for memory efficiency
-      this.adaptThreshold('chunkSize', (current) => Math.max(1000, Math.floor(current * 0.8)), 
-        'High memory usage detected');
-      
+      this.adaptThreshold(
+        'chunkSize',
+        (current) => Math.max(1000, Math.floor(current * 0.8)),
+        'High memory usage detected',
+      );
+
       // Reduce correlation pairs
-      this.adaptThreshold('maxCorrelationPairs', (current) => Math.max(20, Math.floor(current * 0.8)), 
-        'Memory optimization');
+      this.adaptThreshold(
+        'maxCorrelationPairs',
+        (current) => Math.max(20, Math.floor(current * 0.8)),
+        'Memory optimization',
+      );
     } else if (currentMetrics.memoryUsageMB < config.getStreamingConfig().memoryThresholdMB * 0.3) {
       // Increase processing capacity when memory is available
-      this.adaptThreshold('chunkSize', (current) => Math.min(32768, Math.floor(current * 1.2)), 
-        'Low memory usage - increasing efficiency');
+      this.adaptThreshold(
+        'chunkSize',
+        (current) => Math.min(32768, Math.floor(current * 1.2)),
+        'Low memory usage - increasing efficiency',
+      );
     }
 
     // Throughput-based adaptations
-    if (currentMetrics.processingRate && currentMetrics.processingRate < 1000) { // Less than 1K rows/sec
-      this.adaptThreshold('significanceLevel', (current) => Math.min(0.1, current * 1.5), 
-        'Low throughput - relaxing statistical rigor');
-      
-      this.adaptThreshold('samplingThreshold', (current) => Math.max(1000, Math.floor(current * 0.7)), 
-        'Low throughput - increasing sampling');
+    if (currentMetrics.processingRate && currentMetrics.processingRate < 1000) {
+      // Less than 1K rows/sec
+      this.adaptThreshold(
+        'significanceLevel',
+        (current) => Math.min(0.1, current * 1.5),
+        'Low throughput - relaxing statistical rigor',
+      );
+
+      this.adaptThreshold(
+        'samplingThreshold',
+        (current) => Math.max(1000, Math.floor(current * 0.7)),
+        'Low throughput - increasing sampling',
+      );
     }
 
     // Apply adaptations to configuration
@@ -260,7 +279,11 @@ export class PerformanceMonitor {
   /**
    * Adapt a specific threshold
    */
-  private adaptThreshold(name: string, adaptFunction: (current: number) => number, reason: string): void {
+  private adaptThreshold(
+    name: string,
+    adaptFunction: (current: number) => number,
+    reason: string,
+  ): void {
     const threshold = this.adaptiveThresholds.get(name);
     if (!threshold) return;
 
@@ -338,7 +361,7 @@ export class PerformanceMonitor {
    */
   private createAlert(alert: PerformanceAlert): void {
     this.alerts.push(alert);
-    
+
     // Keep only last 50 alerts
     if (this.alerts.length > 50) {
       this.alerts = this.alerts.slice(-50);
@@ -386,7 +409,7 @@ export class PerformanceMonitor {
     const currentMetrics = this.metrics.length > 0 ? this.metrics[this.metrics.length - 1] : null;
     const recentAlerts = this.alerts.slice(-10);
     const adaptiveThresholds = Array.from(this.adaptiveThresholds.values());
-    
+
     return {
       currentMetrics,
       recentAlerts,
@@ -453,16 +476,19 @@ export function getPerformanceMonitor(): PerformanceMonitor {
 /**
  * Performance monitoring decorator for methods
  */
-export function monitorPerformance(target: any, propertyName: string, descriptor: PropertyDescriptor): void {
+export function monitorPerformance(
+  target: unknown,
+  propertyName: string,
+  descriptor: PropertyDescriptor,
+): void {
   const method = descriptor.value;
-  descriptor.value = function (...args: any[]) {
+  descriptor.value = function (...args: unknown[]): unknown {
     const monitor = getPerformanceMonitor();
-    const startTime = Date.now();
-    
+
     try {
       monitor.recordOperation('operation');
-      const result = method.apply(this, args);
-      
+      const result = method.apply(this, args) as unknown;
+
       // Handle async methods
       if (result && typeof result.then === 'function') {
         return result.catch((error: Error) => {
@@ -470,7 +496,7 @@ export function monitorPerformance(target: any, propertyName: string, descriptor
           throw error;
         });
       }
-      
+
       return result;
     } catch (error) {
       monitor.recordOperation('error');
@@ -494,11 +520,13 @@ export class ResourceDetector {
   } {
     const memUsage = process.memoryUsage();
     const totalMemoryMB = Math.round(memUsage.rss / (1024 * 1024));
-    const availableMemoryMB = Math.round((process.memoryUsage().heapTotal - process.memoryUsage().heapUsed) / (1024 * 1024));
-    
+    const availableMemoryMB = Math.round(
+      (process.memoryUsage().heapTotal - process.memoryUsage().heapUsed) / (1024 * 1024),
+    );
+
     // Estimate total system memory (rough approximation)
     const estimatedTotalMemoryMB = totalMemoryMB * 4; // Assuming process uses ~25% of system memory
-    
+
     let recommendedConfig: Partial<DataPilotConfig> = {};
 
     // Low memory system (< 1GB available)

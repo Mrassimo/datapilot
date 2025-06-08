@@ -1,6 +1,6 @@
 /**
  * Principal Component Analysis (PCA) Implementation
- * 
+ *
  * Features:
  * - Numerically stable eigenvalue decomposition using QR algorithm
  * - Automatic data standardization and centering
@@ -10,10 +10,7 @@
  * - Scree plot data generation
  */
 
-import type {
-  PCAAnalysis,
-  PrincipalComponent,
-} from '../eda/types';
+import type { PCAAnalysis, PrincipalComponent } from '../eda/types';
 
 /**
  * Mathematical utilities for PCA computation
@@ -23,7 +20,9 @@ class MatrixMath {
    * Create an identity matrix of size n x n
    */
   static identity(n: number): number[][] {
-    const matrix = Array(n).fill(0).map(() => Array(n).fill(0));
+    const matrix = Array(n)
+      .fill(0)
+      .map(() => Array(n).fill(0));
     for (let i = 0; i < n; i++) {
       matrix[i][i] = 1;
     }
@@ -36,8 +35,10 @@ class MatrixMath {
   static transpose(matrix: number[][]): number[][] {
     const rows = matrix.length;
     const cols = matrix[0].length;
-    const result = Array(cols).fill(0).map(() => Array(rows).fill(0));
-    
+    const result = Array(cols)
+      .fill(0)
+      .map(() => Array(rows).fill(0));
+
     for (let i = 0; i < rows; i++) {
       for (let j = 0; j < cols; j++) {
         result[j][i] = matrix[i][j];
@@ -53,13 +54,15 @@ class MatrixMath {
     const aRows = a.length;
     const aCols = a[0].length;
     const bCols = b[0].length;
-    
+
     if (aCols !== b.length) {
       throw new Error('Matrix dimensions incompatible for multiplication');
     }
 
-    const result = Array(aRows).fill(0).map(() => Array(bCols).fill(0));
-    
+    const result = Array(aRows)
+      .fill(0)
+      .map(() => Array(bCols).fill(0));
+
     for (let i = 0; i < aRows; i++) {
       for (let j = 0; j < bCols; j++) {
         let sum = 0;
@@ -91,9 +94,11 @@ class MatrixMath {
   static covarianceMatrix(data: number[][]): number[][] {
     const n = data.length; // observations
     const p = data[0].length; // variables
-    
-    const cov = Array(p).fill(0).map(() => Array(p).fill(0));
-    
+
+    const cov = Array(p)
+      .fill(0)
+      .map(() => Array(p).fill(0));
+
     for (let i = 0; i < p; i++) {
       for (let j = 0; j < p; j++) {
         let sum = 0;
@@ -103,7 +108,7 @@ class MatrixMath {
         cov[i][j] = sum / (n - 1);
       }
     }
-    
+
     return cov;
   }
 
@@ -113,19 +118,23 @@ class MatrixMath {
   static qrDecomposition(matrix: number[][]): { Q: number[][]; R: number[][] } {
     const m = matrix.length;
     const n = matrix[0].length;
-    
-    const Q = Array(m).fill(0).map(() => Array(n).fill(0));
-    const R = Array(n).fill(0).map(() => Array(n).fill(0));
-    
+
+    const Q = Array(m)
+      .fill(0)
+      .map(() => Array(n).fill(0));
+    const R = Array(n)
+      .fill(0)
+      .map(() => Array(n).fill(0));
+
     // Copy matrix to avoid modifying original
-    const A = matrix.map(row => [...row]);
-    
+    const A = matrix.map((row) => [...row]);
+
     for (let j = 0; j < n; j++) {
       // Compute the j-th column of Q
       for (let i = 0; i < m; i++) {
         Q[i][j] = A[i][j];
       }
-      
+
       // Orthogonalize against previous columns
       for (let k = 0; k < j; k++) {
         let dot = 0;
@@ -133,19 +142,19 @@ class MatrixMath {
           dot += Q[i][k] * A[i][j];
         }
         R[k][j] = dot;
-        
+
         for (let i = 0; i < m; i++) {
           Q[i][j] -= dot * Q[i][k];
         }
       }
-      
+
       // Normalize the column
       let norm = 0;
       for (let i = 0; i < m; i++) {
         norm += Q[i][j] * Q[i][j];
       }
       norm = Math.sqrt(norm);
-      
+
       if (norm > 1e-10) {
         R[j][j] = norm;
         for (let i = 0; i < m; i++) {
@@ -158,7 +167,7 @@ class MatrixMath {
         }
       }
     }
-    
+
     return { Q, R };
   }
 }
@@ -179,54 +188,52 @@ class EigenDecomposition {
     converged: boolean;
   } {
     const n = matrix.length;
-    
+
     // Make a copy to avoid modifying original
-    let A = matrix.map(row => [...row]);
+    let A = matrix.map((row) => [...row]);
     let V = MatrixMath.identity(n); // Accumulate eigenvectors
-    
+
     let converged = false;
     let iteration = 0;
-    
+
     while (iteration < this.MAX_ITERATIONS && !converged) {
       // Apply Wilkinson shift for better convergence
       const shift = this.wilkinsonShift(A);
-      
+
       // Subtract shift from diagonal
       for (let i = 0; i < n; i++) {
         A[i][i] -= shift;
       }
-      
+
       // QR decomposition
       const { Q, R } = MatrixMath.qrDecomposition(A);
-      
+
       // A = RQ + shift*I
       A = MatrixMath.multiply(R, Q);
       for (let i = 0; i < n; i++) {
         A[i][i] += shift;
       }
-      
+
       // Update eigenvectors
       V = MatrixMath.multiply(V, Q);
-      
+
       // Check convergence (off-diagonal elements should be small)
       converged = this.isConverged(A);
       iteration++;
     }
-    
+
     // Extract eigenvalues (diagonal elements)
     const eigenvalues = A.map((row, i) => row[i]);
-    
+
     // Sort eigenvalues and eigenvectors in descending order
     const indices = eigenvalues
       .map((val, idx) => ({ val, idx }))
       .sort((a, b) => b.val - a.val)
-      .map(item => item.idx);
-    
-    const sortedEigenvalues = indices.map(i => eigenvalues[i]);
-    const sortedEigenvectors = MatrixMath.transpose(V).map((_, i) => 
-      indices.map(j => V[i][j])
-    );
-    
+      .map((item) => item.idx);
+
+    const sortedEigenvalues = indices.map((i) => eigenvalues[i]);
+    const sortedEigenvectors = MatrixMath.transpose(V).map((_, i) => indices.map((j) => V[i][j]));
+
     return {
       eigenvalues: sortedEigenvalues,
       eigenvectors: sortedEigenvectors,
@@ -240,22 +247,22 @@ class EigenDecomposition {
   private static wilkinsonShift(matrix: number[][]): number {
     const n = matrix.length;
     if (n < 2) return 0;
-    
-    const a = matrix[n-2][n-2];
-    const b = matrix[n-2][n-1];
-    const c = matrix[n-1][n-2];
-    const d = matrix[n-1][n-1];
-    
+
+    const a = matrix[n - 2][n - 2];
+    const b = matrix[n - 2][n - 1];
+    const c = matrix[n - 1][n - 2];
+    const d = matrix[n - 1][n - 1];
+
     const trace = a + d;
     const det = a * d - b * c;
     const discriminant = trace * trace - 4 * det;
-    
+
     if (discriminant < 0) return d; // Complex eigenvalues
-    
+
     const sqrt_disc = Math.sqrt(discriminant);
     const lambda1 = (trace + sqrt_disc) / 2;
     const lambda2 = (trace - sqrt_disc) / 2;
-    
+
     // Choose eigenvalue closer to d
     return Math.abs(d - lambda1) < Math.abs(d - lambda2) ? lambda1 : lambda2;
   }
@@ -266,7 +273,7 @@ class EigenDecomposition {
   private static isConverged(matrix: number[][]): boolean {
     const n = matrix.length;
     let maxOffDiag = 0;
-    
+
     for (let i = 0; i < n; i++) {
       for (let j = 0; j < n; j++) {
         if (i !== j) {
@@ -274,7 +281,7 @@ class EigenDecomposition {
         }
       }
     }
-    
+
     return maxOffDiag < this.TOLERANCE;
   }
 }
@@ -289,18 +296,21 @@ class FeatureImportanceAnalyzer {
   static calculateFeatureImportance(
     components: Array<{ eigenvalue: number; loadings: Record<string, number> }>,
     variableNames: string[],
-    numComponents: number = 3
+    numComponents: number = 3,
   ): Array<{
     variable: string;
     importance: number;
     contributingComponents: Array<{ component: number; loading: number; weight: number }>;
     interpretation: string;
   }> {
-    const featureImportance: Record<string, {
-      totalImportance: number;
-      components: Array<{ component: number; loading: number; weight: number }>;
-    }> = {};
-    
+    const featureImportance: Record<
+      string,
+      {
+        totalImportance: number;
+        components: Array<{ component: number; loading: number; weight: number }>;
+      }
+    > = {};
+
     // Initialize feature importance tracking
     for (const variable of variableNames) {
       featureImportance[variable] = {
@@ -308,18 +318,18 @@ class FeatureImportanceAnalyzer {
         components: [],
       };
     }
-    
+
     // Calculate weighted importance across specified components
     const componentsToAnalyze = Math.min(numComponents, components.length);
-    
+
     for (let i = 0; i < componentsToAnalyze; i++) {
       const component = components[i];
       const eigenvalueWeight = component.eigenvalue; // Weight by explained variance
-      
+
       for (const variable of variableNames) {
         const loading = component.loadings[variable] || 0;
         const weightedImportance = Math.abs(loading) * eigenvalueWeight;
-        
+
         featureImportance[variable].totalImportance += weightedImportance;
         featureImportance[variable].components.push({
           component: i + 1,
@@ -328,27 +338,27 @@ class FeatureImportanceAnalyzer {
         });
       }
     }
-    
+
     // Normalize importance scores
     const maxImportance = Math.max(
-      ...Object.values(featureImportance).map(f => f.totalImportance)
+      ...Object.values(featureImportance).map((f) => f.totalImportance),
     );
-    
-    const results = variableNames.map(variable => {
+
+    const results = variableNames.map((variable) => {
       const feature = featureImportance[variable];
       const normalizedImportance = maxImportance > 0 ? feature.totalImportance / maxImportance : 0;
-      
+
       // Sort contributing components by weight
       const sortedComponents = feature.components
         .sort((a, b) => Math.abs(b.weight) - Math.abs(a.weight))
         .slice(0, 3); // Top 3 contributing components
-      
+
       const interpretation = this.interpretFeatureImportance(
         normalizedImportance,
         sortedComponents,
-        variable
+        variable,
       );
-      
+
       return {
         variable,
         importance: normalizedImportance,
@@ -356,10 +366,10 @@ class FeatureImportanceAnalyzer {
         interpretation,
       };
     });
-    
+
     return results.sort((a, b) => b.importance - a.importance);
   }
-  
+
   /**
    * Perform variable selection based on importance scores
    */
@@ -369,7 +379,7 @@ class FeatureImportanceAnalyzer {
       importance: number;
     }>,
     selectionMethod: 'top_k' | 'threshold' | 'elbow' = 'threshold',
-    parameter: number = 0.1
+    parameter: number = 0.1,
   ): {
     selectedVariables: string[];
     rejectedVariables: string[];
@@ -379,41 +389,41 @@ class FeatureImportanceAnalyzer {
   } {
     let selectedVariables: string[] = [];
     let rationale = '';
-    
+
     switch (selectionMethod) {
       case 'top_k':
         const k = Math.min(Math.floor(parameter), featureImportance.length);
-        selectedVariables = featureImportance.slice(0, k).map(f => f.variable);
+        selectedVariables = featureImportance.slice(0, k).map((f) => f.variable);
         rationale = `Selected top ${k} most important variables`;
         break;
-        
+
       case 'threshold':
         selectedVariables = featureImportance
-          .filter(f => f.importance >= parameter)
-          .map(f => f.variable);
+          .filter((f) => f.importance >= parameter)
+          .map((f) => f.variable);
         rationale = `Selected variables with importance >= ${parameter.toFixed(3)}`;
         break;
-        
+
       case 'elbow':
-        const elbowPoint = this.findElbowPoint(featureImportance.map(f => f.importance));
-        selectedVariables = featureImportance.slice(0, elbowPoint + 1).map(f => f.variable);
+        const elbowPoint = this.findElbowPoint(featureImportance.map((f) => f.importance));
+        selectedVariables = featureImportance.slice(0, elbowPoint + 1).map((f) => f.variable);
         rationale = `Selected variables up to elbow point (${elbowPoint + 1} variables)`;
         break;
     }
-    
+
     // Ensure at least one variable is selected
     if (selectedVariables.length === 0 && featureImportance.length > 0) {
       selectedVariables = [featureImportance[0].variable];
       rationale += ' (minimum: 1 variable)';
     }
-    
+
     const rejectedVariables = featureImportance
-      .map(f => f.variable)
-      .filter(v => !selectedVariables.includes(v));
-    
-    const selectionRatio = featureImportance.length > 0 ? 
-      selectedVariables.length / featureImportance.length : 0;
-    
+      .map((f) => f.variable)
+      .filter((v) => !selectedVariables.includes(v));
+
+    const selectionRatio =
+      featureImportance.length > 0 ? selectedVariables.length / featureImportance.length : 0;
+
     return {
       selectedVariables,
       rejectedVariables,
@@ -422,12 +432,12 @@ class FeatureImportanceAnalyzer {
       rationale,
     };
   }
-  
+
   // Helper methods
   private static interpretFeatureImportance(
     importance: number,
     components: Array<{ component: number; loading: number; weight: number }>,
-    variable: string
+    variable: string,
   ): string {
     let level: string;
     if (importance > 0.8) level = 'critical';
@@ -435,34 +445,34 @@ class FeatureImportanceAnalyzer {
     else if (importance > 0.4) level = 'moderate';
     else if (importance > 0.2) level = 'low';
     else level = 'minimal';
-    
+
     const topComponent = components[0];
     const direction = topComponent?.loading > 0 ? 'positively' : 'negatively';
-    
+
     return `${level} importance variable (${(importance * 100).toFixed(1)}%), contributes ${direction} to PC${topComponent?.component}`;
   }
-  
+
   private static findElbowPoint(values: number[]): number {
     if (values.length <= 2) return 0;
-    
+
     // Calculate second differences to find elbow
     const differences: number[] = [];
     for (let i = 1; i < values.length - 1; i++) {
       const secondDiff = values[i - 1] - 2 * values[i] + values[i + 1];
       differences.push(secondDiff);
     }
-    
+
     // Find maximum second difference (elbow point)
     let maxDiffIndex = 0;
     let maxDiff = differences[0];
-    
+
     for (let i = 1; i < differences.length; i++) {
       if (differences[i] > maxDiff) {
         maxDiff = differences[i];
         maxDiffIndex = i;
       }
     }
-    
+
     return maxDiffIndex + 1; // Adjust for offset
   }
 }
@@ -482,16 +492,13 @@ export class PCAAnalyzer {
     data: (string | number | null | undefined)[][],
     headers: string[],
     numericalColumnIndices: number[],
-    sampleSize: number
+    sampleSize: number,
   ): PCAAnalysis {
     const startTime = Date.now();
 
     try {
       // Check applicability
-      const applicabilityCheck = this.checkApplicability(
-        numericalColumnIndices,
-        sampleSize
-      );
+      const applicabilityCheck = this.checkApplicability(numericalColumnIndices, sampleSize);
 
       if (!applicabilityCheck.isApplicable) {
         return this.createNonApplicableResult(applicabilityCheck.reason);
@@ -499,67 +506,61 @@ export class PCAAnalyzer {
 
       // Extract and standardize numerical data
       const numericData = this.extractNumericData(data, numericalColumnIndices);
-      const variableNames = numericalColumnIndices.map(i => headers[i]);
-      
+      const variableNames = numericalColumnIndices.map((i) => headers[i]);
+
       const standardizedData = this.standardizeData(numericData);
-      
+
       // Compute covariance matrix
       const covarianceMatrix = MatrixMath.covarianceMatrix(standardizedData);
-      
+
       // Compute correlation matrix for interpretation
       const correlationMatrix = this.computeCorrelationMatrix(numericData);
-      
+
       // Eigenvalue decomposition
-      const { eigenvalues, eigenvectors, converged } = 
-        EigenDecomposition.compute(covarianceMatrix);
+      const { eigenvalues, eigenvectors, converged } = EigenDecomposition.compute(covarianceMatrix);
 
       if (!converged) {
-        return this.createNonApplicableResult(
-          'Eigenvalue decomposition failed to converge'
-        );
+        return this.createNonApplicableResult('Eigenvalue decomposition failed to converge');
       }
 
       // Calculate variance explained
       const totalVariance = eigenvalues.reduce((sum, val) => sum + Math.max(0, val), 0);
-      
+
       // Create principal components
       const components = this.createPrincipalComponents(
         eigenvalues,
         eigenvectors,
         variableNames,
-        totalVariance
+        totalVariance,
       );
 
       // Calculate variance thresholds
       const varianceThresholds = this.calculateVarianceThresholds(components);
 
       // Analyze dominant variables
-      const dominantVariables = this.analyzeDominantVariables(
-        components,
-        variableNames
-      );
+      const dominantVariables = this.analyzeDominantVariables(components, variableNames);
 
       // Calculate feature importance
       const featureImportance = FeatureImportanceAnalyzer.calculateFeatureImportance(
         components,
         variableNames,
-        Math.min(5, components.length)
+        Math.min(5, components.length),
       );
-      
+
       // Perform variable selection
       const variableSelection = FeatureImportanceAnalyzer.performVariableSelection(
         featureImportance,
         'threshold',
-        0.2
+        0.2,
       );
-      
+
       // Generate recommendations
       const recommendations = this.generateDimensionalityRecommendations(
         components,
         varianceThresholds,
         numericalColumnIndices.length,
         featureImportance,
-        variableSelection
+        variableSelection,
       );
 
       // Create scree plot data
@@ -594,7 +595,7 @@ export class PCAAnalyzer {
     } catch (error) {
       console.error('PCA analysis failed:', error);
       return this.createNonApplicableResult(
-        `PCA analysis failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+        `PCA analysis failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
       );
     }
   }
@@ -604,7 +605,7 @@ export class PCAAnalyzer {
    */
   private static checkApplicability(
     numericalColumnIndices: number[],
-    sampleSize: number
+    sampleSize: number,
   ): { isApplicable: boolean; reason: string } {
     if (numericalColumnIndices.length < this.MIN_VARIABLES) {
       return {
@@ -647,7 +648,7 @@ export class PCAAnalyzer {
    */
   private static extractNumericData(
     data: (string | number | null | undefined)[][],
-    numericalColumnIndices: number[]
+    numericalColumnIndices: number[],
   ): number[][] {
     const numericData: number[][] = [];
 
@@ -658,13 +659,13 @@ export class PCAAnalyzer {
       // Extract values from numerical columns only
       for (const colIndex of numericalColumnIndices) {
         const value = row[colIndex];
-        
+
         // Check bounds
         if (colIndex >= row.length) {
           hasAllValidValues = false;
           break;
         }
-        
+
         // Convert string numbers to actual numbers if needed
         let numericValue: number;
         if (typeof value === 'string' && value.trim() !== '') {
@@ -719,11 +720,12 @@ export class PCAAnalyzer {
     }
 
     // Standardize
-    const standardized = Array(n).fill(0).map(() => Array(p).fill(0));
+    const standardized = Array(n)
+      .fill(0)
+      .map(() => Array(p).fill(0));
     for (let i = 0; i < n; i++) {
       for (let j = 0; j < p; j++) {
-        standardized[i][j] = stds[j] > 1e-10 ? 
-          (data[i][j] - means[j]) / stds[j] : 0;
+        standardized[i][j] = stds[j] > 1e-10 ? (data[i][j] - means[j]) / stds[j] : 0;
       }
     }
 
@@ -745,7 +747,7 @@ export class PCAAnalyzer {
     eigenvalues: number[],
     eigenvectors: number[][],
     variableNames: string[],
-    totalVariance: number
+    totalVariance: number,
   ): PrincipalComponent[] {
     const components: PrincipalComponent[] = [];
     let cumulativeVariance = 0;
@@ -782,14 +784,14 @@ export class PCAAnalyzer {
    */
   private static interpretComponent(
     loadings: Record<string, number>,
-    componentNumber: number
+    componentNumber: number,
   ): string {
     const threshold = 0.4; // Significant loading threshold
-    
+
     const positiveLoadings = Object.entries(loadings)
       .filter(([_, value]) => value > threshold)
       .sort((a, b) => b[1] - a[1]);
-    
+
     const negativeLoadings = Object.entries(loadings)
       .filter(([_, value]) => value < -threshold)
       .sort((a, b) => a[1] - b[1]);
@@ -799,16 +801,16 @@ export class PCAAnalyzer {
     }
 
     let interpretation = `Component ${componentNumber}: `;
-    
+
     if (positiveLoadings.length > 0) {
       const variables = positiveLoadings.map(([name]) => name).slice(0, 3);
       interpretation += `Positively associated with ${variables.join(', ')}`;
-      
+
       if (negativeLoadings.length > 0) {
         interpretation += '; ';
       }
     }
-    
+
     if (negativeLoadings.length > 0) {
       const variables = negativeLoadings.map(([name]) => name).slice(0, 3);
       interpretation += `Negatively associated with ${variables.join(', ')}`;
@@ -827,7 +829,7 @@ export class PCAAnalyzer {
     componentsFor95Percent: number;
   } {
     const thresholds = [80, 85, 90, 95];
-    const results: any = {};
+    const results: Record<string, number> = {};
 
     for (const threshold of thresholds) {
       let count = 0;
@@ -840,7 +842,12 @@ export class PCAAnalyzer {
       results[`componentsFor${threshold}Percent`] = count;
     }
 
-    return results;
+    return results as {
+      componentsFor80Percent: number;
+      componentsFor85Percent: number;
+      componentsFor90Percent: number;
+      componentsFor95Percent: number;
+    };
   }
 
   /**
@@ -848,7 +855,7 @@ export class PCAAnalyzer {
    */
   private static analyzeDominantVariables(
     components: PrincipalComponent[],
-    variableNames: string[]
+    variableNames: string[],
   ): Array<{
     variable: string;
     dominantComponent: number;
@@ -874,9 +881,12 @@ export class PCAAnalyzer {
         }
       }
 
-      const interpretation = maxAbsLoading > 0.7 ? 'Strong association' :
-                            maxAbsLoading > 0.4 ? 'Moderate association' :
-                            'Weak association';
+      const interpretation =
+        maxAbsLoading > 0.7
+          ? 'Strong association'
+          : maxAbsLoading > 0.4
+            ? 'Moderate association'
+            : 'Weak association';
 
       dominantVars.push({
         variable,
@@ -894,10 +904,15 @@ export class PCAAnalyzer {
    */
   private static generateDimensionalityRecommendations(
     components: PrincipalComponent[],
-    thresholds: any,
+    thresholds: {
+      componentsFor80Percent: number;
+      componentsFor85Percent: number;
+      componentsFor90Percent: number;
+      componentsFor95Percent: number;
+    },
     originalDimensions: number,
     featureImportance?: Array<{ variable: string; importance: number }>,
-    variableSelection?: { selectedVariables: string[]; selectionRatio: number; rationale: string }
+    variableSelection?: { selectedVariables: string[]; selectionRatio: number; rationale: string },
   ): string[] {
     const recommendations: string[] = [];
 
@@ -909,21 +924,21 @@ export class PCAAnalyzer {
 
     if (reductionRatio85 > 0.5) {
       recommendations.push(
-        `Significant dimensionality reduction possible: ${reducedDims85} components retain 85% of variance (${(reductionRatio85 * 100).toFixed(1)}% reduction)`
+        `Significant dimensionality reduction possible: ${reducedDims85} components retain 85% of variance (${(reductionRatio85 * 100).toFixed(1)}% reduction)`,
       );
     }
 
     if (reductionRatio90 > 0.3) {
       recommendations.push(
-        `Moderate dimensionality reduction: ${reducedDims90} components retain 90% of variance`
+        `Moderate dimensionality reduction: ${reducedDims90} components retain 90% of variance`,
       );
     }
 
     // Check for Kaiser criterion (eigenvalue > 1)
-    const kaiserComponents = components.filter(c => c.eigenvalue > 1).length;
+    const kaiserComponents = components.filter((c) => c.eigenvalue > 1).length;
     if (kaiserComponents < originalDimensions) {
       recommendations.push(
-        `Kaiser criterion suggests ${kaiserComponents} meaningful components (eigenvalue > 1)`
+        `Kaiser criterion suggests ${kaiserComponents} meaningful components (eigenvalue > 1)`,
       );
     }
 
@@ -931,35 +946,37 @@ export class PCAAnalyzer {
     const elbowComponent = this.findScreeElbow(components);
     if (elbowComponent > 0 && elbowComponent < originalDimensions) {
       recommendations.push(
-        `Scree plot suggests ${elbowComponent} components based on elbow criterion`
+        `Scree plot suggests ${elbowComponent} components based on elbow criterion`,
       );
     }
 
     // Feature importance recommendations
     if (featureImportance && featureImportance.length > 0) {
-      const highImportanceVars = featureImportance.filter(f => f.importance > 0.8).length;
-      const lowImportanceVars = featureImportance.filter(f => f.importance < 0.2).length;
-      
+      const highImportanceVars = featureImportance.filter((f) => f.importance > 0.8).length;
+      const lowImportanceVars = featureImportance.filter((f) => f.importance < 0.2).length;
+
       if (highImportanceVars > 0 && lowImportanceVars > 0) {
         recommendations.push(
-          `${highImportanceVars} variables show high importance, ${lowImportanceVars} show low importance - consider feature selection`
+          `${highImportanceVars} variables show high importance, ${lowImportanceVars} show low importance - consider feature selection`,
         );
       }
     }
-    
+
     // Variable selection recommendations
     if (variableSelection) {
       if (variableSelection.selectionRatio < 0.7) {
         recommendations.push(
-          `Variable selection suggests using ${variableSelection.selectedVariables.length}/${originalDimensions} variables (${(variableSelection.selectionRatio * 100).toFixed(1)}% retention)`
+          `Variable selection suggests using ${variableSelection.selectedVariables.length}/${originalDimensions} variables (${(variableSelection.selectionRatio * 100).toFixed(1)}% retention)`,
         );
       }
-      
+
       recommendations.push(variableSelection.rationale);
     }
-    
+
     if (recommendations.length === 0) {
-      recommendations.push('No clear dimensionality reduction recommended based on standard criteria');
+      recommendations.push(
+        'No clear dimensionality reduction recommended based on standard criteria',
+      );
     }
 
     return recommendations;
@@ -971,12 +988,12 @@ export class PCAAnalyzer {
   private static findScreeElbow(components: PrincipalComponent[]): number {
     if (components.length < 3) return 0;
 
-    const eigenvalues = components.map(c => c.eigenvalue);
+    const eigenvalues = components.map((c) => c.eigenvalue);
     let maxSecondDerivative = 0;
     let elbowIndex = 0;
 
     for (let i = 1; i < eigenvalues.length - 1; i++) {
-      const secondDerivative = eigenvalues[i-1] - 2*eigenvalues[i] + eigenvalues[i+1];
+      const secondDerivative = eigenvalues[i - 1] - 2 * eigenvalues[i] + eigenvalues[i + 1];
       if (secondDerivative > maxSecondDerivative) {
         maxSecondDerivative = secondDerivative;
         elbowIndex = i;

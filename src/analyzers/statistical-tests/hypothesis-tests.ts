@@ -1,7 +1,7 @@
 /**
  * Hypothesis Testing Module
  * Implements proper statistical tests for DataPilot analysis
- * 
+ *
  * Features:
  * - ANOVA F-test for comparing group means
  * - Kruskal-Wallis test for non-parametric group comparison
@@ -40,10 +40,10 @@ export interface GroupData {
  * ANOVA (Analysis of Variance) F-test
  * Tests H₀: μ₁ = μ₂ = ... = μₖ (all group means are equal)
  * vs H₁: At least one mean differs
- * 
+ *
  * Algorithm:
  * 1. Calculate between-group variance (MSB)
- * 2. Calculate within-group variance (MSW)  
+ * 2. Calculate within-group variance (MSW)
  * 3. F = MSB/MSW ~ F(k-1, N-k)
  * 4. p-value from F-distribution
  */
@@ -58,16 +58,16 @@ export function anovaFTest(groups: GroupData[]): StatisticalTestResult {
   }
 
   // Calculate overall mean (weighted by group sizes)
-  const overallMean = groups.reduce((sum, group) => 
-    sum + group.mean * group.count, 0) / N;
+  const overallMean = groups.reduce((sum, group) => sum + group.mean * group.count, 0) / N;
 
   // Calculate Sum of Squares Between groups (SSB)
-  const ssb = groups.reduce((sum, group) => 
-    sum + group.count * Math.pow(group.mean - overallMean, 2), 0);
+  const ssb = groups.reduce(
+    (sum, group) => sum + group.count * Math.pow(group.mean - overallMean, 2),
+    0,
+  );
 
   // Calculate Sum of Squares Within groups (SSW)
-  const ssw = groups.reduce((sum, group) => 
-    sum + (group.count - 1) * group.variance, 0);
+  const ssw = groups.reduce((sum, group) => sum + (group.count - 1) * group.variance, 0);
 
   // Degrees of freedom
   const dfBetween = k - 1;
@@ -89,7 +89,7 @@ export function anovaFTest(groups: GroupData[]): StatisticalTestResult {
         effectSize: 0,
         interpretation: 'All observations are identical. No variance to test.',
         assumptions: getAnovaAssumptions(),
-        recommendations: ['Verify data collection and measurement procedures']
+        recommendations: ['Verify data collection and measurement procedures'],
       };
     } else {
       // Perfect separation (infinite F-statistic)
@@ -99,16 +99,20 @@ export function anovaFTest(groups: GroupData[]): StatisticalTestResult {
         pValue: 0.0,
         degreesOfFreedom: [dfBetween, dfWithin],
         effectSize: 1,
-        interpretation: 'Perfect group separation detected. Groups have identical within-group values but different means.',
+        interpretation:
+          'Perfect group separation detected. Groups have identical within-group values but different means.',
         assumptions: getAnovaAssumptions(),
-        recommendations: ['Extremely strong evidence against null hypothesis', 'Verify this is not due to data preprocessing artifacts']
+        recommendations: [
+          'Extremely strong evidence against null hypothesis',
+          'Verify this is not due to data preprocessing artifacts',
+        ],
       };
     }
   }
 
   // Calculate F-statistic
   const fStatistic = checkNumericalStability(msb / msw, 'F-statistic calculation');
-  
+
   // Calculate p-value (survival function for upper tail)
   const pValue = fccdf(fStatistic, dfBetween, dfWithin);
 
@@ -116,7 +120,13 @@ export function anovaFTest(groups: GroupData[]): StatisticalTestResult {
   const etaSquared = ssb / (ssb + ssw);
 
   // Interpretation
-  const interpretation = generateAnovaInterpretation(fStatistic, pValue, dfBetween, dfWithin, etaSquared);
+  const interpretation = generateAnovaInterpretation(
+    fStatistic,
+    pValue,
+    dfBetween,
+    dfWithin,
+    etaSquared,
+  );
 
   // Recommendations based on results
   const recommendations = generateAnovaRecommendations(pValue, etaSquared, groups);
@@ -129,7 +139,7 @@ export function anovaFTest(groups: GroupData[]): StatisticalTestResult {
     effectSize: Number(etaSquared.toFixed(4)),
     interpretation,
     assumptions: getAnovaAssumptions(),
-    recommendations
+    recommendations,
   };
 }
 
@@ -137,7 +147,7 @@ export function anovaFTest(groups: GroupData[]): StatisticalTestResult {
  * Kruskal-Wallis test (non-parametric alternative to ANOVA)
  * Tests H₀: All groups have the same distribution
  * vs H₁: At least one group has a different distribution
- * 
+ *
  * Algorithm:
  * 1. Pool all observations and rank them
  * 2. Calculate sum of ranks for each group
@@ -148,20 +158,20 @@ export function kruskalWallisTest(groups: GroupData[]): StatisticalTestResult {
   validateTestInputs(groups);
 
   // Check if we have raw values for all groups
-  const hasValues = groups.every(group => group.values && group.values.length === group.count);
-  
+  const hasValues = groups.every((group) => group.values && group.values.length === group.count);
+
   if (!hasValues) {
     // Fallback: Use approximation based on summary statistics
     return kruskalWallisApproximation(groups);
   }
 
   const k = groups.length;
-  
+
   // Pool all observations with group identifiers
-  const pooledData: Array<{value: number, group: number}> = [];
+  const pooledData: Array<{ value: number; group: number }> = [];
   groups.forEach((group, groupIndex) => {
-    group.values!.forEach(value => {
-      pooledData.push({value, group: groupIndex});
+    group.values!.forEach((value) => {
+      pooledData.push({ value, group: groupIndex });
     });
   });
 
@@ -169,10 +179,10 @@ export function kruskalWallisTest(groups: GroupData[]): StatisticalTestResult {
 
   // Sort by value and assign ranks
   pooledData.sort((a, b) => a.value - b.value);
-  
+
   // Handle ties by assigning average ranks
-  const ranks = assignRanksWithTies(pooledData.map(d => d.value));
-  
+  const ranks = assignRanksWithTies(pooledData.map((d) => d.value));
+
   // Calculate sum of ranks for each group
   const rankSums = new Array(k).fill(0);
   pooledData.forEach((item, index) => {
@@ -189,7 +199,7 @@ export function kruskalWallisTest(groups: GroupData[]): StatisticalTestResult {
   hStatistic = (12 / (N * (N + 1))) * hStatistic - 3 * (N + 1);
 
   // Adjustment for ties
-  const tieAdjustment = calculateTieAdjustment(pooledData.map(d => d.value));
+  const tieAdjustment = calculateTieAdjustment(pooledData.map((d) => d.value));
   if (tieAdjustment > 0) {
     hStatistic = hStatistic / (1 - tieAdjustment / (N * N * N - N));
   }
@@ -200,7 +210,12 @@ export function kruskalWallisTest(groups: GroupData[]): StatisticalTestResult {
   // Effect size (epsilon-squared)
   const epsilonSquared = (hStatistic - df) / (N - 1);
 
-  const interpretation = generateKruskalWallisInterpretation(hStatistic, pValue, df, epsilonSquared);
+  const interpretation = generateKruskalWallisInterpretation(
+    hStatistic,
+    pValue,
+    df,
+    epsilonSquared,
+  );
   const recommendations = generateKruskalWallisRecommendations(pValue, epsilonSquared, groups);
 
   return {
@@ -211,7 +226,7 @@ export function kruskalWallisTest(groups: GroupData[]): StatisticalTestResult {
     effectSize: Number(Math.max(0, epsilonSquared).toFixed(4)),
     interpretation,
     assumptions: getKruskalWallisAssumptions(),
-    recommendations
+    recommendations,
   };
 }
 
@@ -222,22 +237,21 @@ export function kruskalWallisTest(groups: GroupData[]): StatisticalTestResult {
 function kruskalWallisApproximation(groups: GroupData[]): StatisticalTestResult {
   // This is a simplified approximation based on means and variances
   // Not as accurate as the rank-based test, but better than nothing
-  
+
   const k = groups.length;
   const N = groups.reduce((sum, group) => sum + group.count, 0);
-  
+
   // Use a variance-weighted statistic as approximation
-  const overallMean = groups.reduce((sum, group) => 
-    sum + group.mean * group.count, 0) / N;
-  
+  const overallMean = groups.reduce((sum, group) => sum + group.mean * group.count, 0) / N;
+
   // Calculate a pseudo H-statistic based on standardized differences
   let hApprox = 0;
   for (const group of groups) {
-    const standardizedDiff = group.variance > 0 ? 
-      Math.pow(group.mean - overallMean, 2) / group.variance : 0;
+    const standardizedDiff =
+      group.variance > 0 ? Math.pow(group.mean - overallMean, 2) / group.variance : 0;
     hApprox += group.count * standardizedDiff;
   }
-  
+
   const df = k - 1;
   const pValue = chisqccdf(hApprox, df);
 
@@ -253,12 +267,15 @@ function kruskalWallisApproximation(groups: GroupData[]): StatisticalTestResult 
 - **H-statistic (approx):** ${hApprox.toFixed(4)}
 - **p-value:** ${pValue.toFixed(6)}
 - **Interpretation:** ${pValue < 0.05 ? 'Suggests' : 'Does not suggest'} significant differences between groups`,
-    assumptions: [...getKruskalWallisAssumptions(), 'Approximation assumes normally distributed residuals'],
+    assumptions: [
+      ...getKruskalWallisAssumptions(),
+      'Approximation assumes normally distributed residuals',
+    ],
     recommendations: [
       'Use with caution - approximation only',
       'Consider collecting raw values for exact Kruskal-Wallis test',
-      'Cross-validate with ANOVA F-test results'
-    ]
+      'Cross-validate with ANOVA F-test results',
+    ],
   };
 }
 
@@ -275,13 +292,13 @@ function assignRanksWithTies(values: number[]): number[] {
     while (j < values.length && values[j] === values[i]) {
       j++;
     }
-    
+
     // Assign average rank to tied values
     const avgRank = (i + j + 1) / 2; // +1 because ranks are 1-based
     for (let k = i; k < j; k++) {
       ranks[k] = avgRank;
     }
-    
+
     i = j;
   }
 
@@ -293,7 +310,7 @@ function assignRanksWithTies(values: number[]): number[] {
  */
 function calculateTieAdjustment(values: number[]): number {
   const tieGroups = new Map<number, number>();
-  
+
   for (const value of values) {
     tieGroups.set(value, (tieGroups.get(value) || 0) + 1);
   }
@@ -311,17 +328,32 @@ function calculateTieAdjustment(values: number[]): number {
 /**
  * Generate detailed ANOVA interpretation
  */
-function generateAnovaInterpretation(fStat: number, pValue: number, df1: number, df2: number, etaSquared: number): string {
-  const significance = pValue < 0.001 ? 'highly significant (p < 0.001)' :
-                      pValue < 0.01 ? 'very significant (p < 0.01)' :
-                      pValue < 0.05 ? 'significant (p < 0.05)' :
-                      pValue < 0.1 ? 'marginally significant (p < 0.1)' :
-                      'not significant (p ≥ 0.1)';
+function generateAnovaInterpretation(
+  fStat: number,
+  pValue: number,
+  df1: number,
+  df2: number,
+  etaSquared: number,
+): string {
+  const significance =
+    pValue < 0.001
+      ? 'highly significant (p < 0.001)'
+      : pValue < 0.01
+        ? 'very significant (p < 0.01)'
+        : pValue < 0.05
+          ? 'significant (p < 0.05)'
+          : pValue < 0.1
+            ? 'marginally significant (p < 0.1)'
+            : 'not significant (p ≥ 0.1)';
 
-  const effectInterpretation = etaSquared < 0.01 ? 'negligible' :
-                              etaSquared < 0.06 ? 'small' :
-                              etaSquared < 0.14 ? 'medium' :
-                              'large';
+  const effectInterpretation =
+    etaSquared < 0.01
+      ? 'negligible'
+      : etaSquared < 0.06
+        ? 'small'
+        : etaSquared < 0.14
+          ? 'medium'
+          : 'large';
 
   return `**ANOVA F-test Results:**
 - **Null Hypothesis (H₀):** All group means are equal
@@ -331,9 +363,11 @@ function generateAnovaInterpretation(fStat: number, pValue: number, df1: number,
 - **Effect Size (η²):** ${etaSquared.toFixed(4)} (${effectInterpretation} effect)
 
 **Statistical Decision:**
-${pValue < 0.05 ? 
-  `Reject H₀. There is ${significance.replace('significant', 'evidence')} that at least one group mean differs from the others.` :
-  `Fail to reject H₀. There is insufficient evidence to conclude that group means differ significantly.`}
+${
+  pValue < 0.05
+    ? `Reject H₀. There is ${significance.replace('significant', 'evidence')} that at least one group mean differs from the others.`
+    : `Fail to reject H₀. There is insufficient evidence to conclude that group means differ significantly.`
+}
 
 **Practical Interpretation:**
 - **Variance Explained:** ${(etaSquared * 100).toFixed(1)}% of the total variance is explained by group differences
@@ -343,17 +377,31 @@ ${pValue < 0.05 ?
 /**
  * Generate detailed Kruskal-Wallis interpretation
  */
-function generateKruskalWallisInterpretation(hStat: number, pValue: number, df: number, epsilonSquared: number): string {
-  const significance = pValue < 0.001 ? 'highly significant (p < 0.001)' :
-                      pValue < 0.01 ? 'very significant (p < 0.01)' :
-                      pValue < 0.05 ? 'significant (p < 0.05)' :
-                      pValue < 0.1 ? 'marginally significant (p < 0.1)' :
-                      'not significant (p ≥ 0.1)';
+function generateKruskalWallisInterpretation(
+  hStat: number,
+  pValue: number,
+  df: number,
+  epsilonSquared: number,
+): string {
+  const significance =
+    pValue < 0.001
+      ? 'highly significant (p < 0.001)'
+      : pValue < 0.01
+        ? 'very significant (p < 0.01)'
+        : pValue < 0.05
+          ? 'significant (p < 0.05)'
+          : pValue < 0.1
+            ? 'marginally significant (p < 0.1)'
+            : 'not significant (p ≥ 0.1)';
 
-  const effectInterpretation = epsilonSquared < 0.01 ? 'negligible' :
-                              epsilonSquared < 0.06 ? 'small' :
-                              epsilonSquared < 0.14 ? 'medium' :
-                              'large';
+  const effectInterpretation =
+    epsilonSquared < 0.01
+      ? 'negligible'
+      : epsilonSquared < 0.06
+        ? 'small'
+        : epsilonSquared < 0.14
+          ? 'medium'
+          : 'large';
 
   return `**Kruskal-Wallis Test Results:**
 - **Null Hypothesis (H₀):** All groups have the same distribution
@@ -363,9 +411,11 @@ function generateKruskalWallisInterpretation(hStat: number, pValue: number, df: 
 - **Effect Size (ε²):** ${epsilonSquared.toFixed(4)} (${effectInterpretation} effect)
 
 **Statistical Decision:**
-${pValue < 0.05 ? 
-  `Reject H₀. There is ${significance.replace('significant', 'evidence')} that at least one group has a different distribution.` :
-  `Fail to reject H₀. There is insufficient evidence to conclude that group distributions differ significantly.`}
+${
+  pValue < 0.05
+    ? `Reject H₀. There is ${significance.replace('significant', 'evidence')} that at least one group has a different distribution.`
+    : `Fail to reject H₀. There is insufficient evidence to conclude that group distributions differ significantly.`
+}
 
 **Advantages over ANOVA:**
 - **Non-parametric:** No assumption of normality required
@@ -381,7 +431,7 @@ function getAnovaAssumptions(): string[] {
     'Independence: Observations within and between groups are independent',
     'Normality: Residuals are approximately normally distributed',
     'Homoscedasticity: Equal variances across all groups (homogeneity of variance)',
-    'Interval/ratio data: Dependent variable is measured at interval or ratio level'
+    'Interval/ratio data: Dependent variable is measured at interval or ratio level',
   ];
 }
 
@@ -393,23 +443,31 @@ function getKruskalWallisAssumptions(): string[] {
     'Independence: Observations within and between groups are independent',
     'Ordinal data: Dependent variable is at least ordinal (rankable)',
     'Similar distributions: Groups have similar distribution shapes (for location comparison)',
-    'Adequate sample size: Each group should have at least 5 observations for χ² approximation'
+    'Adequate sample size: Each group should have at least 5 observations for χ² approximation',
   ];
 }
 
 /**
  * Generate ANOVA recommendations
  */
-function generateAnovaRecommendations(pValue: number, etaSquared: number, groups: GroupData[]): string[] {
+function generateAnovaRecommendations(
+  pValue: number,
+  etaSquared: number,
+  groups: GroupData[],
+): string[] {
   const recommendations: string[] = [];
 
   if (pValue < 0.05) {
-    recommendations.push('Significant result detected - consider post-hoc tests to identify which groups differ');
+    recommendations.push(
+      'Significant result detected - consider post-hoc tests to identify which groups differ',
+    );
     if (groups.length > 2) {
       recommendations.push('Use Tukey HSD, Bonferroni, or Scheffé tests for pairwise comparisons');
     }
   } else {
-    recommendations.push('No significant differences detected - groups appear to have similar means');
+    recommendations.push(
+      'No significant differences detected - groups appear to have similar means',
+    );
   }
 
   if (etaSquared < 0.01) {
@@ -419,12 +477,12 @@ function generateAnovaRecommendations(pValue: number, etaSquared: number, groups
   }
 
   // Check for potential assumption violations
-  const minGroupSize = Math.min(...groups.map(g => g.count));
+  const minGroupSize = Math.min(...groups.map((g) => g.count));
   if (minGroupSize < 10) {
     recommendations.push('Small group sizes detected - verify normality assumptions');
   }
 
-  const variances = groups.map(g => g.variance);
+  const variances = groups.map((g) => g.variance);
   const maxVar = Math.max(...variances);
   const minVar = Math.min(...variances);
   if (maxVar / minVar > 4) {
@@ -437,13 +495,21 @@ function generateAnovaRecommendations(pValue: number, etaSquared: number, groups
 /**
  * Generate Kruskal-Wallis recommendations
  */
-function generateKruskalWallisRecommendations(pValue: number, epsilonSquared: number, groups: GroupData[]): string[] {
+function generateKruskalWallisRecommendations(
+  pValue: number,
+  epsilonSquared: number,
+  groups: GroupData[],
+): string[] {
   const recommendations: string[] = [];
 
   if (pValue < 0.05) {
-    recommendations.push('Significant result detected - consider post-hoc tests (Dunn test) for pairwise comparisons');
+    recommendations.push(
+      'Significant result detected - consider post-hoc tests (Dunn test) for pairwise comparisons',
+    );
   } else {
-    recommendations.push('No significant differences detected - group distributions appear similar');
+    recommendations.push(
+      'No significant differences detected - group distributions appear similar',
+    );
   }
 
   if (epsilonSquared > 0 && epsilonSquared < 0.01) {
@@ -452,9 +518,11 @@ function generateKruskalWallisRecommendations(pValue: number, epsilonSquared: nu
     recommendations.push('Large effect size - differences are likely practically significant');
   }
 
-  const minGroupSize = Math.min(...groups.map(g => g.count));
+  const minGroupSize = Math.min(...groups.map((g) => g.count));
   if (minGroupSize < 5) {
-    recommendations.push('Small group sizes - χ² approximation may be inaccurate, consider exact test');
+    recommendations.push(
+      'Small group sizes - χ² approximation may be inaccurate, consider exact test',
+    );
   }
 
   recommendations.push('Non-parametric test - robust to outliers and non-normal distributions');
@@ -466,7 +534,7 @@ function generateKruskalWallisRecommendations(pValue: number, epsilonSquared: nu
  * Welch's t-test (unequal variances t-test)
  * Tests H₀: μ₁ = μ₂ (means are equal) vs H₁: μ₁ ≠ μ₂ (means differ)
  * Does not assume equal variances (unlike Student's t-test)
- * 
+ *
  * Algorithm:
  * 1. Calculate t-statistic: t = (x̄₁ - x̄₂) / √(s₁²/n₁ + s₂²/n₂)
  * 2. Calculate Welch-Satterthwaite degrees of freedom
@@ -474,7 +542,7 @@ function generateKruskalWallisRecommendations(pValue: number, epsilonSquared: nu
  */
 export function welchsTTest(group1: GroupData, group2: GroupData): StatisticalTestResult {
   if (!group1 || !group2) {
-    throw new Error('Welch\'s t-test requires exactly two groups');
+    throw new Error("Welch's t-test requires exactly two groups");
   }
 
   const n1 = group1.count;
@@ -485,7 +553,7 @@ export function welchsTTest(group1: GroupData, group2: GroupData): StatisticalTe
   const var2 = group2.variance;
 
   if (n1 < 2 || n2 < 2) {
-    throw new Error('Each group must have at least 2 observations for Welch\'s t-test');
+    throw new Error("Each group must have at least 2 observations for Welch's t-test");
   }
 
   // Standard errors
@@ -496,16 +564,17 @@ export function welchsTTest(group1: GroupData, group2: GroupData): StatisticalTe
   if (pooledSE === 0) {
     // No variance in either group
     return {
-      testName: 'Welch\'s t-test',
+      testName: "Welch's t-test",
       statistic: mean1 === mean2 ? 0 : Infinity,
       pValue: mean1 === mean2 ? 1.0 : 0.0,
       degreesOfFreedom: n1 + n2 - 2,
       effectSize: mean1 === mean2 ? 0 : Infinity,
-      interpretation: mean1 === mean2 ? 
-        'Groups have identical means and no variance' :
-        'Perfect separation - groups have different means with no variance',
+      interpretation:
+        mean1 === mean2
+          ? 'Groups have identical means and no variance'
+          : 'Perfect separation - groups have different means with no variance',
       assumptions: getWelchsAssumptions(),
-      recommendations: ['Verify data collection procedures']
+      recommendations: ['Verify data collection procedures'],
     };
   }
 
@@ -529,18 +598,25 @@ export function welchsTTest(group1: GroupData, group2: GroupData): StatisticalTe
   const pooledSD = Math.sqrt(((n1 - 1) * var1 + (n2 - 1) * var2) / (n1 + n2 - 2));
   const cohensD = pooledSD > 0 ? Math.abs(mean1 - mean2) / pooledSD : 0;
 
-  const interpretation = generateWelchsInterpretation(tStatistic, pValue, df, cohensD, group1.name, group2.name);
+  const interpretation = generateWelchsInterpretation(
+    tStatistic,
+    pValue,
+    df,
+    cohensD,
+    group1.name,
+    group2.name,
+  );
   const recommendations = generateWelchsRecommendations(pValue, cohensD, var1, var2, n1, n2);
 
   return {
-    testName: 'Welch\'s t-test',
+    testName: "Welch's t-test",
     statistic: Number(tStatistic.toFixed(6)),
     pValue: Number(pValue.toFixed(6)),
     degreesOfFreedom: Number(df.toFixed(2)),
     effectSize: Number(cohensD.toFixed(4)),
     interpretation,
     assumptions: getWelchsAssumptions(),
-    recommendations
+    recommendations,
   };
 }
 
@@ -565,12 +641,12 @@ export function mannWhitneyUTest(group1: GroupData, group2: GroupData): Statisti
 
   // Combine all values and rank them
   const combined = [
-    ...values1.map(v => ({ value: v, group: 1 })),
-    ...values2.map(v => ({ value: v, group: 2 }))
+    ...values1.map((v) => ({ value: v, group: 1 })),
+    ...values2.map((v) => ({ value: v, group: 2 })),
   ];
 
   combined.sort((a, b) => a.value - b.value);
-  const ranks = assignRanksWithTies(combined.map(item => item.value));
+  const ranks = assignRanksWithTies(combined.map((item) => item.value));
 
   // Calculate rank sums
   let R1 = 0; // Sum of ranks for group 1
@@ -590,18 +666,25 @@ export function mannWhitneyUTest(group1: GroupData, group2: GroupData): Statisti
   if (n1 >= 8 && n2 >= 8) {
     const meanU = (n1 * n2) / 2;
     const varU = (n1 * n2 * (N + 1)) / 12;
-    
+
     // Tie correction
-    const tieCorrection = calculateMannWhitneyTieCorrection(combined.map(item => item.value));
+    const tieCorrection = calculateMannWhitneyTieCorrection(combined.map((item) => item.value));
     const adjustedVarU = varU - tieCorrection;
-    
+
     const zStatistic = (U - meanU) / Math.sqrt(adjustedVarU);
     const pValue = 2 * (1 - standardNormalCdf(Math.abs(zStatistic)));
 
     // Effect size (r = Z / √N)
     const effectSize = Math.abs(zStatistic) / Math.sqrt(N);
 
-    const interpretation = generateMannWhitneyInterpretation(U, zStatistic, pValue, effectSize, group1.name, group2.name);
+    const interpretation = generateMannWhitneyInterpretation(
+      U,
+      zStatistic,
+      pValue,
+      effectSize,
+      group1.name,
+      group2.name,
+    );
     const recommendations = generateMannWhitneyRecommendations(pValue, effectSize, n1, n2);
 
     return {
@@ -612,7 +695,7 @@ export function mannWhitneyUTest(group1: GroupData, group2: GroupData): Statisti
       effectSize: Number(effectSize.toFixed(4)),
       interpretation,
       assumptions: getMannWhitneyAssumptions(),
-      recommendations
+      recommendations,
     };
   } else {
     // Small samples - return approximation
@@ -647,12 +730,12 @@ export function andersonDarlingTest(values: number[]): StatisticalTestResult {
       effectSize: 0,
       interpretation: 'All values are identical - perfect "normality" but no variance',
       assumptions: getAndersonDarlingAssumptions(),
-      recommendations: ['Verify data collection - constant values unusual in real data']
+      recommendations: ['Verify data collection - constant values unusual in real data'],
     };
   }
 
   // Standardize values
-  const standardized = sortedValues.map(val => (val - mean) / sd);
+  const standardized = sortedValues.map((val) => (val - mean) / sd);
 
   // Calculate Anderson-Darling statistic
   let adStatistic = 0;
@@ -660,18 +743,18 @@ export function andersonDarlingTest(values: number[]): StatisticalTestResult {
     const zi = standardized[i];
     const phiZi = standardNormalCdf(zi);
     const phiZnMinusI = standardNormalCdf(standardized[n - 1 - i]);
-    
+
     // Avoid log(0) and log(1)
     const term1 = phiZi > 0 && phiZi < 1 ? Math.log(phiZi) : 0;
     const term2 = phiZnMinusI > 0 && phiZnMinusI < 1 ? Math.log(1 - phiZnMinusI) : 0;
-    
+
     adStatistic += (2 * i + 1) * (term1 + term2);
   }
-  
+
   adStatistic = -n - adStatistic / n;
 
   // Adjust for sample size
-  const adjustedAD = adStatistic * (1 + 0.75/n + 2.25/(n*n));
+  const adjustedAD = adStatistic * (1 + 0.75 / n + 2.25 / (n * n));
 
   // Approximate p-value (simplified)
   let pValue: number;
@@ -700,7 +783,7 @@ export function andersonDarlingTest(values: number[]): StatisticalTestResult {
     effectSize: Number((adjustedAD / n).toFixed(4)), // Normalized statistic as effect size
     interpretation,
     assumptions: getAndersonDarlingAssumptions(),
-    recommendations
+    recommendations,
   };
 }
 
@@ -713,18 +796,18 @@ function standardNormalCdf(z: number): number {
 
 function erf(x: number): number {
   // Error function approximation
-  const a1 =  0.254829592;
+  const a1 = 0.254829592;
   const a2 = -0.284496736;
-  const a3 =  1.421413741;
+  const a3 = 1.421413741;
   const a4 = -1.453152027;
-  const a5 =  1.061405429;
-  const p  =  0.3275911;
+  const a5 = 1.061405429;
+  const p = 0.3275911;
 
   const sign = x >= 0 ? 1 : -1;
   x = Math.abs(x);
 
   const t = 1.0 / (1.0 + p * x);
-  const y = 1.0 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-x * x);
+  const y = 1.0 - ((((a5 * t + a4) * t + a3) * t + a2) * t + a1) * t * Math.exp(-x * x);
 
   return sign * y;
 }
@@ -734,7 +817,7 @@ function mannWhitneyApproximation(group1: GroupData, group2: GroupData): Statist
   const meanDiff = Math.abs(group1.mean - group2.mean);
   const pooledSD = Math.sqrt((group1.variance + group2.variance) / 2);
   const effectSize = pooledSD > 0 ? meanDiff / pooledSD : 0;
-  
+
   return {
     testName: 'Mann-Whitney U test (approximation)',
     statistic: effectSize,
@@ -742,8 +825,14 @@ function mannWhitneyApproximation(group1: GroupData, group2: GroupData): Statist
     degreesOfFreedom: 0,
     effectSize: Number(effectSize.toFixed(4)),
     interpretation: 'Approximation based on means and variances (raw values needed for exact test)',
-    assumptions: [...getMannWhitneyAssumptions(), 'Approximation only - collect raw values for exact test'],
-    recommendations: ['Use with extreme caution - approximation only', 'Collect raw values for proper Mann-Whitney test']
+    assumptions: [
+      ...getMannWhitneyAssumptions(),
+      'Approximation only - collect raw values for exact test',
+    ],
+    recommendations: [
+      'Use with extreme caution - approximation only',
+      'Collect raw values for proper Mann-Whitney test',
+    ],
   };
 }
 
@@ -768,8 +857,8 @@ function getWelchsAssumptions(): string[] {
   return [
     'Independence: Observations are independent within and between groups',
     'Normality: Data in each group approximately normally distributed',
-    'No assumption of equal variances (major advantage over Student\'s t-test)',
-    'Interval/ratio data: Dependent variable measured at interval or ratio level'
+    "No assumption of equal variances (major advantage over Student's t-test)",
+    'Interval/ratio data: Dependent variable measured at interval or ratio level',
   ];
 }
 
@@ -778,7 +867,7 @@ function getMannWhitneyAssumptions(): string[] {
     'Independence: Observations are independent within and between groups',
     'Ordinal data: Data can be meaningfully ranked',
     'Similar distribution shapes for location comparison',
-    'Random sampling from populations'
+    'Random sampling from populations',
   ];
 }
 
@@ -787,20 +876,29 @@ function getAndersonDarlingAssumptions(): string[] {
     'Independence: Observations are independent',
     'Data should be univariate and continuous',
     'Sample size should be at least 5 (preferably > 20 for reliable results)',
-    'Tests specifically for normal distribution'
+    'Tests specifically for normal distribution',
   ];
 }
 
-function generateWelchsInterpretation(tStat: number, pValue: number, df: number, cohensD: number, group1Name: string, group2Name: string): string {
-  const significance = pValue < 0.001 ? 'highly significant (p < 0.001)' :
-                      pValue < 0.01 ? 'very significant (p < 0.01)' :
-                      pValue < 0.05 ? 'significant (p < 0.05)' :
-                      'not significant (p ≥ 0.05)';
+function generateWelchsInterpretation(
+  tStat: number,
+  pValue: number,
+  df: number,
+  cohensD: number,
+  group1Name: string,
+  group2Name: string,
+): string {
+  const significance =
+    pValue < 0.001
+      ? 'highly significant (p < 0.001)'
+      : pValue < 0.01
+        ? 'very significant (p < 0.01)'
+        : pValue < 0.05
+          ? 'significant (p < 0.05)'
+          : 'not significant (p ≥ 0.05)';
 
-  const effectInterpretation = cohensD < 0.2 ? 'negligible' :
-                              cohensD < 0.5 ? 'small' :
-                              cohensD < 0.8 ? 'medium' :
-                              'large';
+  const effectInterpretation =
+    cohensD < 0.2 ? 'negligible' : cohensD < 0.5 ? 'small' : cohensD < 0.8 ? 'medium' : 'large';
 
   return `**Welch's t-test Results:**
 - **Null Hypothesis (H₀):** Group means are equal
@@ -810,21 +908,38 @@ function generateWelchsInterpretation(tStat: number, pValue: number, df: number,
 - **Effect Size (Cohen's d):** ${cohensD.toFixed(4)} (${effectInterpretation} effect)
 
 **Statistical Decision:**
-${pValue < 0.05 ? 
-  `Reject H₀. There is ${significance.replace('significant', 'evidence')} that ${group1Name} and ${group2Name} have different means.` :
-  `Fail to reject H₀. No significant difference detected between ${group1Name} and ${group2Name} means.`}`;
+${
+  pValue < 0.05
+    ? `Reject H₀. There is ${significance.replace('significant', 'evidence')} that ${group1Name} and ${group2Name} have different means.`
+    : `Fail to reject H₀. No significant difference detected between ${group1Name} and ${group2Name} means.`
+}`;
 }
 
-function generateMannWhitneyInterpretation(U: number, zStat: number, pValue: number, effectSize: number, group1Name: string, group2Name: string): string {
-  const significance = pValue < 0.001 ? 'highly significant (p < 0.001)' :
-                      pValue < 0.01 ? 'very significant (p < 0.01)' :
-                      pValue < 0.05 ? 'significant (p < 0.05)' :
-                      'not significant (p ≥ 0.05)';
+function generateMannWhitneyInterpretation(
+  U: number,
+  zStat: number,
+  pValue: number,
+  effectSize: number,
+  group1Name: string,
+  group2Name: string,
+): string {
+  const significance =
+    pValue < 0.001
+      ? 'highly significant (p < 0.001)'
+      : pValue < 0.01
+        ? 'very significant (p < 0.01)'
+        : pValue < 0.05
+          ? 'significant (p < 0.05)'
+          : 'not significant (p ≥ 0.05)';
 
-  const effectInterpretation = effectSize < 0.1 ? 'negligible' :
-                              effectSize < 0.3 ? 'small' :
-                              effectSize < 0.5 ? 'medium' :
-                              'large';
+  const effectInterpretation =
+    effectSize < 0.1
+      ? 'negligible'
+      : effectSize < 0.3
+        ? 'small'
+        : effectSize < 0.5
+          ? 'medium'
+          : 'large';
 
   return `**Mann-Whitney U Test Results:**
 - **Null Hypothesis (H₀):** Groups have same distribution
@@ -835,16 +950,22 @@ function generateMannWhitneyInterpretation(U: number, zStat: number, pValue: num
 - **Effect Size (r):** ${effectSize.toFixed(4)} (${effectInterpretation} effect)
 
 **Statistical Decision:**
-${pValue < 0.05 ? 
-  `Reject H₀. There is ${significance.replace('significant', 'evidence')} that ${group1Name} and ${group2Name} have different distributions.` :
-  `Fail to reject H₀. No significant difference detected between ${group1Name} and ${group2Name} distributions.`}`;
+${
+  pValue < 0.05
+    ? `Reject H₀. There is ${significance.replace('significant', 'evidence')} that ${group1Name} and ${group2Name} have different distributions.`
+    : `Fail to reject H₀. No significant difference detected between ${group1Name} and ${group2Name} distributions.`
+}`;
 }
 
 function generateAndersonDarlingInterpretation(adStat: number, pValue: number): string {
-  const significance = pValue < 0.001 ? 'highly significant (p < 0.001)' :
-                      pValue < 0.01 ? 'very significant (p < 0.01)' :
-                      pValue < 0.05 ? 'significant (p < 0.05)' :
-                      'not significant (p ≥ 0.05)';
+  const significance =
+    pValue < 0.001
+      ? 'highly significant (p < 0.001)'
+      : pValue < 0.01
+        ? 'very significant (p < 0.01)'
+        : pValue < 0.05
+          ? 'significant (p < 0.05)'
+          : 'not significant (p ≥ 0.05)';
 
   return `**Anderson-Darling Normality Test Results:**
 - **Null Hypothesis (H₀):** Data follows normal distribution
@@ -853,16 +974,25 @@ function generateAndersonDarlingInterpretation(adStat: number, pValue: number): 
 - **p-value:** ${pValue.toFixed(6)} (${significance})
 
 **Statistical Decision:**
-${pValue < 0.05 ? 
-  `Reject H₀. There is ${significance.replace('significant', 'evidence')} that the data does not follow a normal distribution.` :
-  `Fail to reject H₀. The data appears to be consistent with a normal distribution.`}
+${
+  pValue < 0.05
+    ? `Reject H₀. There is ${significance.replace('significant', 'evidence')} that the data does not follow a normal distribution.`
+    : `Fail to reject H₀. The data appears to be consistent with a normal distribution.`
+}
 
 **Interpretation:**
 - **Sensitive to tails:** More sensitive than Kolmogorov-Smirnov to deviations in distribution tails
 - **Distribution shape:** ${pValue < 0.05 ? 'Consider data transformation or non-parametric methods' : 'Normal distribution assumption reasonable'}`;
 }
 
-function generateWelchsRecommendations(pValue: number, cohensD: number, var1: number, var2: number, n1: number, n2: number): string[] {
+function generateWelchsRecommendations(
+  pValue: number,
+  cohensD: number,
+  var1: number,
+  var2: number,
+  n1: number,
+  n2: number,
+): string[] {
   const recommendations: string[] = [];
 
   if (pValue < 0.05) {
@@ -876,7 +1006,7 @@ function generateWelchsRecommendations(pValue: number, cohensD: number, var1: nu
 
   const varianceRatio = Math.max(var1, var2) / Math.min(var1, var2);
   if (varianceRatio > 2) {
-    recommendations.push('Unequal variances detected - Welch\'s t-test appropriately handles this');
+    recommendations.push("Unequal variances detected - Welch's t-test appropriately handles this");
   }
 
   if (Math.min(n1, n2) < 30) {
@@ -886,7 +1016,12 @@ function generateWelchsRecommendations(pValue: number, cohensD: number, var1: nu
   return recommendations;
 }
 
-function generateMannWhitneyRecommendations(pValue: number, effectSize: number, n1: number, n2: number): string[] {
+function generateMannWhitneyRecommendations(
+  pValue: number,
+  effectSize: number,
+  n1: number,
+  n2: number,
+): string[] {
   const recommendations: string[] = [];
 
   if (pValue < 0.05) {
@@ -904,7 +1039,7 @@ function generateMannWhitneyRecommendations(pValue: number, effectSize: number, 
   }
 
   recommendations.push('Non-parametric test - robust to outliers and non-normal distributions');
-  
+
   return recommendations;
 }
 
@@ -914,7 +1049,7 @@ function generateAndersonDarlingRecommendations(pValue: number, adStat: number):
   if (pValue < 0.05) {
     recommendations.push('Normality assumption violated - consider data transformation');
     recommendations.push('Alternative: Use non-parametric statistical methods');
-    
+
     if (adStat > 1) {
       recommendations.push('Strong evidence against normality - transformation highly recommended');
     }
@@ -922,7 +1057,9 @@ function generateAndersonDarlingRecommendations(pValue: number, adStat: number):
     recommendations.push('Normality assumption satisfied - parametric methods appropriate');
   }
 
-  recommendations.push('More powerful than Kolmogorov-Smirnov for detecting departures from normality');
+  recommendations.push(
+    'More powerful than Kolmogorov-Smirnov for detecting departures from normality',
+  );
   recommendations.push('Particularly sensitive to differences in distribution tails');
 
   return recommendations;

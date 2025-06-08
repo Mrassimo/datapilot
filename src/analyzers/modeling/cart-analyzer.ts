@@ -21,13 +21,13 @@ export class CARTAnalyzer {
    */
   async generateCARTAnalysis(
     tasks: ModelingTask[],
-    treeAlgorithms: AlgorithmRecommendation[]
+    treeAlgorithms: AlgorithmRecommendation[],
   ): Promise<CARTAnalysis> {
     logger.info('Generating CART (Decision Tree) analysis');
 
     const primaryTask = tasks[0]; // Focus on primary task
     const isRegression = primaryTask?.taskType === 'regression';
-    
+
     return {
       methodology: this.generateMethodologyDescription(isRegression),
       splittingCriterion: this.determineSplittingCriterion(isRegression),
@@ -35,7 +35,7 @@ export class CARTAnalyzer {
       pruningStrategy: this.generatePruningStrategy(isRegression),
       treeInterpretation: this.generateTreeInterpretation(primaryTask),
       featureImportance: this.generateFeatureImportanceGuidance(primaryTask),
-      visualizationRecommendations: this.generateVisualizationRecommendations(isRegression)
+      visualizationRecommendations: this.generateVisualizationRecommendations(isRegression),
     };
   }
 
@@ -45,7 +45,7 @@ export class CARTAnalyzer {
   private generateMethodologyDescription(isRegression: boolean): string {
     const taskType = isRegression ? 'regression' : 'classification';
     const criterion = isRegression ? 'variance reduction' : 'Gini impurity or information gain';
-    
+
     return `CART (Classification and Regression Trees) methodology for ${taskType}:
 
 **Core Algorithm:**
@@ -105,11 +105,13 @@ where pi is the proportion of samples belonging to class i
   /**
    * Determine optimal splitting criterion
    */
-  private determineSplittingCriterion(isRegression: boolean): 'gini' | 'entropy' | 'variance_reduction' {
+  private determineSplittingCriterion(
+    isRegression: boolean,
+  ): 'gini' | 'entropy' | 'variance_reduction' {
     if (isRegression) {
       return 'variance_reduction';
     }
-    
+
     // For classification, Gini is generally preferred for speed and performance
     return 'gini';
   }
@@ -119,7 +121,7 @@ where pi is the proportion of samples belonging to class i
    */
   private generateStoppingCriteria(task: ModelingTask | undefined): StoppingCriterion[] {
     const criteria: StoppingCriterion[] = [];
-    
+
     const featureCount = task?.inputFeatures.length || 5;
     const estimatedSampleSize = this.estimateSampleSize(task);
 
@@ -127,35 +129,40 @@ where pi is the proportion of samples belonging to class i
     criteria.push({
       criterion: 'max_depth',
       recommendedValue: this.recommendMaxDepth(featureCount, estimatedSampleSize),
-      reasoning: 'Limits tree complexity to prevent overfitting. Deeper trees capture more complexity but risk overfitting.'
+      reasoning:
+        'Limits tree complexity to prevent overfitting. Deeper trees capture more complexity but risk overfitting.',
     });
 
     // Minimum samples per split
     criteria.push({
       criterion: 'min_samples_split',
       recommendedValue: Math.max(2, Math.floor(estimatedSampleSize * 0.01)),
-      reasoning: 'Ensures each internal node has sufficient samples for reliable splits. Higher values prevent overfitting to noise.'
+      reasoning:
+        'Ensures each internal node has sufficient samples for reliable splits. Higher values prevent overfitting to noise.',
     });
 
     // Minimum samples per leaf
     criteria.push({
       criterion: 'min_samples_leaf',
       recommendedValue: Math.max(1, Math.floor(estimatedSampleSize * 0.005)),
-      reasoning: 'Guarantees each leaf has minimum samples for stable predictions. Prevents creation of leaves with very few samples.'
+      reasoning:
+        'Guarantees each leaf has minimum samples for stable predictions. Prevents creation of leaves with very few samples.',
     });
 
     // Minimum impurity decrease
     criteria.push({
       criterion: 'min_impurity_decrease',
       recommendedValue: 0.0,
-      reasoning: 'Can be used to require minimum improvement for splits. Set to 0.01-0.05 if overfitting is observed.'
+      reasoning:
+        'Can be used to require minimum improvement for splits. Set to 0.01-0.05 if overfitting is observed.',
     });
 
     // Maximum leaf nodes
     criteria.push({
       criterion: 'max_leaf_nodes',
       recommendedValue: null,
-      reasoning: 'Alternative to max_depth for controlling tree size. Consider using for very unbalanced trees.'
+      reasoning:
+        'Alternative to max_depth for controlling tree size. Consider using for very unbalanced trees.',
     });
 
     return criteria;
@@ -190,7 +197,7 @@ where pi is the proportion of samples belonging to class i
 **Implementation Notes:**
 - Use 5-fold cross-validation to estimate generalization error
 - Select α within one standard error of minimum (1-SE rule)
-- Monitor both training and validation performance during pruning`
+- Monitor both training and validation performance during pruning`,
     };
   }
 
@@ -200,13 +207,13 @@ where pi is the proportion of samples belonging to class i
   private generateTreeInterpretation(task: ModelingTask | undefined): TreeInterpretation {
     const estimatedDepth = this.estimateTreeDepth(task);
     const estimatedLeaves = Math.pow(2, Math.max(1, estimatedDepth - 1));
-    
+
     return {
       treeDepth: estimatedDepth,
       numberOfLeaves: estimatedLeaves,
       keyDecisionPaths: this.generateExampleDecisionPaths(task),
       businessRules: this.generateBusinessRules(task),
-      visualizationGuidance: this.generateVisualizationGuidance()
+      visualizationGuidance: this.generateVisualizationGuidance(),
     };
   }
 
@@ -215,10 +222,10 @@ where pi is the proportion of samples belonging to class i
    */
   private generateExampleDecisionPaths(task: ModelingTask | undefined): DecisionPath[] {
     if (!task) return [];
-    
+
     const paths: DecisionPath[] = [];
     const features = task.inputFeatures.slice(0, 3); // Use first 3 features for examples
-    
+
     // Example path 1: High-value outcome
     if (features.length >= 2) {
       paths.push({
@@ -226,11 +233,11 @@ where pi is the proportion of samples belonging to class i
         conditions: [
           `${features[0]} > threshold_1`,
           `${features[1]} <= threshold_2`,
-          ...(features[2] ? [`${features[2]} in [category_A, category_B]`] : [])
+          ...(features[2] ? [`${features[2]} in [category_A, category_B]`] : []),
         ],
         prediction: task.taskType === 'regression' ? 'High numerical value' : 'Positive class',
         supportingInstances: 120,
-        businessMeaning: `When ${features[0]} is high and ${features[1]} is moderate, the model predicts ${task.taskType === 'regression' ? 'above-average values' : 'positive outcomes'}`
+        businessMeaning: `When ${features[0]} is high and ${features[1]} is moderate, the model predicts ${task.taskType === 'regression' ? 'above-average values' : 'positive outcomes'}`,
       });
     }
 
@@ -238,12 +245,10 @@ where pi is the proportion of samples belonging to class i
     if (features.length >= 1) {
       paths.push({
         pathDescription: 'Path to low-value prediction',
-        conditions: [
-          `${features[0]} <= threshold_1`
-        ],
+        conditions: [`${features[0]} <= threshold_1`],
         prediction: task.taskType === 'regression' ? 'Low numerical value' : 'Negative class',
         supportingInstances: 80,
-        businessMeaning: `When ${features[0]} is low, the model typically predicts ${task.taskType === 'regression' ? 'below-average values' : 'negative outcomes'} regardless of other features`
+        businessMeaning: `When ${features[0]} is low, the model typically predicts ${task.taskType === 'regression' ? 'below-average values' : 'negative outcomes'} regardless of other features`,
       });
     }
 
@@ -255,33 +260,33 @@ where pi is the proportion of samples belonging to class i
    */
   private generateBusinessRules(task: ModelingTask | undefined): string[] {
     if (!task) return [];
-    
+
     const rules: string[] = [];
     const taskType = task.taskType;
     const targetVar = task.targetVariable || 'outcome';
-    
+
     // Generate example business rules
     rules.push(
       `IF-THEN Rule Translation: Decision trees naturally translate to business rules`,
       `Each path from root to leaf represents a complete business rule`,
       `Rules are mutually exclusive and collectively exhaustive`,
-      `Example structure: IF (condition1 AND condition2) THEN predict ${targetVar} = value`
+      `Example structure: IF (condition1 AND condition2) THEN predict ${targetVar} = value`,
     );
-    
+
     if (taskType === 'regression') {
       rules.push(
         `For regression: Each leaf provides a numerical prediction (mean of training samples in leaf)`,
         `Rules can be used for segmentation: "High ${targetVar} segment", "Low ${targetVar} segment"`,
-        `Confidence intervals can be calculated using standard deviation in each leaf`
+        `Confidence intervals can be calculated using standard deviation in each leaf`,
       );
     } else {
       rules.push(
         `For classification: Each leaf provides class prediction and probability estimates`,
         `Rules can include confidence levels based on class purity in leaves`,
-        `Probability estimates help with decision thresholds and uncertainty quantification`
+        `Probability estimates help with decision thresholds and uncertainty quantification`,
       );
     }
-    
+
     return rules;
   }
 
@@ -325,13 +330,13 @@ where pi is the proportion of samples belonging to class i
    */
   private generateFeatureImportanceGuidance(task: ModelingTask | undefined): FeatureImportance[] {
     if (!task) return [];
-    
+
     return task.inputFeatures.slice(0, 5).map((feature, index) => ({
       featureName: feature,
-      importance: (0.8 - index * 0.15), // Decreasing importance
+      importance: 0.8 - index * 0.15, // Decreasing importance
       rank: index + 1,
-      confidenceInterval: [(0.8 - index * 0.15) - 0.1, (0.8 - index * 0.15) + 0.1] as [number, number],
-      businessMeaning: `${feature} plays ${index === 0 ? 'a critical' : index < 3 ? 'an important' : 'a moderate'} role in determining ${task.targetVariable || 'outcomes'}`
+      confidenceInterval: [0.8 - index * 0.15 - 0.1, 0.8 - index * 0.15 + 0.1] as [number, number],
+      businessMeaning: `${feature} plays ${index === 0 ? 'a critical' : index < 3 ? 'an important' : 'a moderate'} role in determining ${task.targetVariable || 'outcomes'}`,
     }));
   }
 
@@ -343,15 +348,15 @@ where pi is the proportion of samples belonging to class i
       'Create tree structure diagram with node labels showing split conditions',
       'Generate feature importance bar chart ranked by Gini importance',
       'Produce scatter plot of actual vs predicted values with leaf node coloring',
-      'Create decision path examples showing top 5 most common prediction paths'
+      'Create decision path examples showing top 5 most common prediction paths',
     ];
-    
+
     if (isRegression) {
       return [
         ...common,
         'Plot residuals vs predicted values colored by leaf nodes to check for patterns',
         'Create leaf node boxplots showing target value distributions',
-        'Generate partial dependence plots for top 3 most important features'
+        'Generate partial dependence plots for top 3 most important features',
       ];
     } else {
       return [
@@ -359,7 +364,7 @@ where pi is the proportion of samples belonging to class i
         'Create confusion matrix with breakdown by major decision paths',
         'Generate ROC curves for each major leaf node (treat as separate classifiers)',
         'Plot class probability distributions for each leaf node',
-        'Create decision boundary visualization for top 2 features (if applicable)'
+        'Create decision boundary visualization for top 2 features (if applicable)',
       ];
     }
   }

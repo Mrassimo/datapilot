@@ -6,7 +6,8 @@
 import { createReadStream } from 'fs';
 import { Transform } from 'stream';
 import { pipeline } from 'stream/promises';
-import { logger, LogContext } from '../../utils/logger';
+import type { LogContext } from '../../utils/logger';
+import { logger } from '../../utils/logger';
 import { CSVParser } from '../../parsers/csv-parser';
 import type { ParsedRow } from '../../parsers/types';
 import { getConfig } from '../../core/config';
@@ -21,7 +22,7 @@ import {
 } from './streaming-univariate-analyzer';
 import { StreamingBivariateAnalyzer, type ColumnPair } from './streaming-bivariate-analyzer';
 import { MultivariateOrchestrator } from '../multivariate/multivariate-orchestrator';
-import { EnhancedTypeDetector } from './enhanced-type-detector';
+import { EnhancedTypeDetector, type TypeDetectionResult } from './enhanced-type-detector';
 import type {
   Section3Result,
   Section3EdaAnalysis,
@@ -69,9 +70,9 @@ export class StreamingAnalyzer {
   private detectedTypes: EdaDataType[] = [];
   private semanticTypes: SemanticType[] = [];
   private warnings: Section3Warning[] = [];
-  private typeDetectionResults: any[] = []; // Store enhanced detection results (limited)
+  private typeDetectionResults: TypeDetectionResult[] = []; // Store enhanced detection results (limited)
   private hasHeaders: boolean = false; // Track if CSV has headers
-  
+
   // Data collection for multivariate analysis (when enabled)
   private collectedData: (string | number | null | undefined)[][] = [];
   private maxCollectedRows: number;
@@ -81,7 +82,7 @@ export class StreamingAnalyzer {
     const streamingConfig = configManager.getStreamingConfig();
     const analysisConfig = configManager.getAnalysisConfig();
     const statisticalConfig = configManager.getStatisticalConfig();
-    
+
     this.config = {
       // Default streaming config from configuration manager
       chunkSize: streamingConfig.adaptiveChunkSizing.minChunkSize,
@@ -93,8 +94,8 @@ export class StreamingAnalyzer {
       enabledAnalyses: analysisConfig.enabledAnalyses,
       significanceLevel: statisticalConfig.significanceLevel,
       maxCorrelationPairs: analysisConfig.maxCorrelationPairs,
-      outlierMethods: analysisConfig.outlierMethods as ("iqr" | "zscore" | "modified_zscore")[],
-      normalityTests: analysisConfig.normalityTests as ("shapiro" | "jarque_bera" | "ks_test")[],
+      outlierMethods: analysisConfig.outlierMethods as ('iqr' | 'zscore' | 'modified_zscore')[],
+      normalityTests: analysisConfig.normalityTests as ('shapiro' | 'jarque_bera' | 'ks_test')[],
       maxCategoricalLevels: analysisConfig.maxCategoricalLevels,
       enableMultivariate: analysisConfig.enableMultivariate,
       samplingThreshold: analysisConfig.samplingThreshold,
@@ -131,9 +132,9 @@ export class StreamingAnalyzer {
       section: 'eda',
       analyzer: 'StreamingAnalyzer',
       filePath,
-      operation: 'analyzeFile'
+      operation: 'analyzeFile',
     };
-    
+
     logger.info('Starting streaming analysis of file', context);
     this.state.startTime = Date.now();
 
@@ -297,7 +298,7 @@ export class StreamingAnalyzer {
 
       // Process for bivariate analysis
       this.bivariateAnalyzer.processRow(row.data, this.detectedTypes);
-      
+
       // Collect data for multivariate analysis (if enabled and within limit)
       if (this.config.enableMultivariate && this.collectedData.length < this.maxCollectedRows) {
         this.collectedData.push([...row.data]); // Store a copy of the row data
@@ -310,7 +311,7 @@ export class StreamingAnalyzer {
     // Update progress periodically based on configuration
     const configManager = getConfig();
     const perfConfig = configManager.getPerformanceConfig();
-    
+
     if (this.state.chunksProcessed % perfConfig.performanceMonitoringInterval === 0) {
       const progress = Math.min(90, (this.state.rowsProcessed / this.config.maxRowsAnalyzed) * 90);
       this.reportProgress(
@@ -333,7 +334,7 @@ export class StreamingAnalyzer {
     const configManager = getConfig();
     const perfConfig = configManager.getPerformanceConfig();
     const streamingConfig = configManager.getStreamingConfig();
-    
+
     // Clear type detection results after initial setup
     if (this.state.chunksProcessed > perfConfig.performanceMonitoringInterval) {
       this.typeDetectionResults = [];
@@ -345,14 +346,17 @@ export class StreamingAnalyzer {
         analyzer.clearMemory();
       }
     }
-    
+
     // If under extreme memory pressure and we have sufficient data for multivariate analysis,
     // limit the collected data to prevent memory issues
-    const emergencyThreshold = this.config.memoryThresholdMB * streamingConfig.memoryManagement.emergencyThresholdMultiplier;
+    const emergencyThreshold =
+      this.config.memoryThresholdMB * streamingConfig.memoryManagement.emergencyThresholdMultiplier;
     const minMultivariateRows = Math.min(1000, perfConfig.maxCollectedRowsMultivariate / 2);
-    
-    if (this.state.currentMemoryMB > emergencyThreshold && 
-        this.collectedData.length > minMultivariateRows) {
+
+    if (
+      this.state.currentMemoryMB > emergencyThreshold &&
+      this.collectedData.length > minMultivariateRows
+    ) {
       // Keep only the minimum required rows for multivariate analysis
       this.collectedData = this.collectedData.slice(0, minMultivariateRows);
     }
@@ -378,8 +382,10 @@ export class StreamingAnalyzer {
       if (this.state.currentMemoryMB > this.config.memoryThresholdMB) {
         // Reduce chunk size to use less memory based on configuration
         this.state.currentChunkSize = Math.max(
-          streamingConfig.adaptiveChunkSizing.minChunkSize, 
-          Math.floor(this.state.currentChunkSize * streamingConfig.adaptiveChunkSizing.reductionFactor)
+          streamingConfig.adaptiveChunkSizing.minChunkSize,
+          Math.floor(
+            this.state.currentChunkSize * streamingConfig.adaptiveChunkSizing.reductionFactor,
+          ),
         );
 
         // Clear type detection results to free memory
@@ -392,21 +398,25 @@ export class StreamingAnalyzer {
       } else if (this.state.currentMemoryMB < this.config.memoryThresholdMB * 0.3) {
         // Increase chunk size for better performance
         this.state.currentChunkSize = Math.min(
-          streamingConfig.adaptiveChunkSizing.maxChunkSize, 
-          Math.floor(this.state.currentChunkSize * streamingConfig.adaptiveChunkSizing.expansionFactor)
+          streamingConfig.adaptiveChunkSizing.maxChunkSize,
+          Math.floor(
+            this.state.currentChunkSize * streamingConfig.adaptiveChunkSizing.expansionFactor,
+          ),
         );
       }
     }
 
     // Emergency brake if memory gets too high
-    const emergencyThreshold = this.config.memoryThresholdMB * streamingConfig.memoryManagement.emergencyThresholdMultiplier;
+    const emergencyThreshold =
+      this.config.memoryThresholdMB * streamingConfig.memoryManagement.emergencyThresholdMultiplier;
     if (this.state.currentMemoryMB > emergencyThreshold) {
       this.warnings.push({
         category: 'performance',
         severity: 'high',
         message: `High memory usage detected (${this.state.currentMemoryMB}MB). Consider reducing maxRowsAnalyzed in configuration.`,
         impact: 'Analysis may slow down or fail',
-        suggestion: 'Reduce dataset size, increase available memory, or adjust memory thresholds in configuration',
+        suggestion:
+          'Reduce dataset size, increase available memory, or adjust memory thresholds in configuration',
       });
 
       // Aggressive memory cleanup
@@ -431,11 +441,15 @@ export class StreamingAnalyzer {
         univariateAnalysis.push(result);
         this.warnings.push(...analyzer.getWarnings());
       } catch (error) {
-        logger.error(`Error finalizing analysis for column ${columnName}:`, {
-          section: 'eda',
-          analyzer: 'StreamingAnalyzer',
-          operation: 'finalizeColumnAnalysis'
-        }, error);
+        logger.error(
+          `Error finalizing analysis for column ${columnName}:`,
+          {
+            section: 'eda',
+            analyzer: 'StreamingAnalyzer',
+            operation: 'finalizeColumnAnalysis',
+          },
+          error,
+        );
         this.warnings.push({
           category: 'error',
           severity: 'high',
@@ -465,15 +479,19 @@ export class StreamingAnalyzer {
           this.collectedData || [],
           this.headers,
           this.detectedTypes,
-          this.state.rowsProcessed
+          this.state.rowsProcessed,
         );
         logger.info('Multivariate analysis completed successfully');
       } catch (error) {
-        logger.warn('Multivariate analysis failed:', {
-          section: 'eda',
-          analyzer: 'StreamingAnalyzer',
-          operation: 'multivariateAnalysis'
-        }, error);
+        logger.warn(
+          'Multivariate analysis failed:',
+          {
+            section: 'eda',
+            analyzer: 'StreamingAnalyzer',
+            operation: 'multivariateAnalysis',
+          },
+          error,
+        );
         // Fallback to minimal analysis
         multivariateAnalysis = await MultivariateOrchestrator.analyze([], [], [], 0);
       }
@@ -713,9 +731,12 @@ export class StreamingAnalyzer {
   /**
    * Handle analysis errors with graceful degradation
    */
-  private async handleAnalysisError(error: unknown, logContext: LogContext): Promise<Section3Result> {
+  private async handleAnalysisError(
+    error: unknown,
+    logContext: LogContext,
+  ): Promise<Section3Result> {
     logger.errorWithStack(error instanceof Error ? error : new Error(String(error)), logContext);
-    
+
     if (error instanceof DataPilotError) {
       // Check if we can provide a degraded result
       if (error.recoverable && this.state.rowsProcessed > 0) {
@@ -724,14 +745,14 @@ export class StreamingAnalyzer {
           message: `Analysis completed with errors: ${error.message}`,
           severity: 'high',
           impact: 'Partial results available',
-          suggestion: 'Check data quality or review error logs'
+          suggestion: 'Check data quality or review error logs',
         });
-        
+
         logger.warn('Returning partial results due to recoverable error', logContext);
         return await this.createDegradedResult(error);
       }
     }
-    
+
     // Re-throw non-recoverable errors
     throw error;
   }
@@ -747,31 +768,25 @@ export class StreamingAnalyzer {
       edaAnalysis: {
         univariateAnalysis: [],
         bivariateAnalysis: {
-          correlationMatrix: {
-            matrix: [],
-            columnNames: this.headers,
-            significantPairs: []
+          numericalVsNumerical: {
+            totalPairsAnalyzed: 0,
+            correlationPairs: [],
+            strongestPositiveCorrelation: null,
+            strongestNegativeCorrelation: null,
+            strongCorrelations: [],
+            scatterPlotInsights: [],
+            regressionInsights: [],
           },
-          strongCorrelations: [],
-          significantAssociations: [],
-          crossTabulations: [],
-          numericVsNumeric: [],
-          numericVsCategorical: [],
+          numericalVsCategorical: [],
           categoricalVsCategorical: [],
-          insights: {
-            keyFindings: [`Analysis failed: ${error.message}`],
-            strongestCorrelations: [],
-            interestingPatterns: [],
-            recommendations: []
-          }
         },
         multivariateAnalysis: emptyMultivariateAnalysis,
         crossVariableInsights: {
           topFindings: [`Analysis interrupted: ${error.message}`],
           dataQualityIssues: ['Incomplete analysis due to processing error'],
           hypothesesGenerated: [],
-          preprocessingRecommendations: []
-        }
+          preprocessingRecommendations: [],
+        },
       },
       warnings: [
         ...this.warnings,
@@ -780,22 +795,81 @@ export class StreamingAnalyzer {
           message: 'Analysis completed with reduced functionality due to errors',
           severity: 'high',
           impact: 'No analysis results available',
-          suggestion: 'Check error logs and retry with different configuration'
-        }
+          suggestion: 'Check error logs and retry with different configuration',
+        },
       ],
       performanceMetrics: {
         analysisTimeMs: Date.now() - this.state.startTime,
         peakMemoryMB: this.state.peakMemoryMB,
         rowsAnalyzed: this.state.rowsProcessed,
-        chunksProcessed: this.state.chunksProcessed
+        chunksProcessed: this.state.chunksProcessed,
       },
       metadata: {
         analysisApproach: 'StreamingAnalyzer (degraded)',
         datasetSize: this.state.rowsProcessed,
         columnsAnalyzed: this.headers.length,
-        samplingApplied: false
-      }
+        samplingApplied: false,
+      },
     };
+  }
+
+  /**
+   * Check if multivariate data should be collected
+   */
+  private shouldCollectMultivariateData(): boolean {
+    return this.collectedData.length < this.maxCollectedRows &&
+           this.state.currentMemoryMB < (this.config.memoryThresholdMB * 0.8);
+  }
+
+  /**
+   * Collect data for multivariate analysis with memory-efficient approach
+   */
+  private collectMultivariateData(rowData: readonly (string | number | null | undefined)[]): void {
+    // Use a more memory-efficient approach by sampling if needed
+    const shouldSample = this.collectedData.length > (this.maxCollectedRows * 0.8);
+    if (!shouldSample || Math.random() < 0.1) {
+      (this.collectedData as any).push(Object.freeze([...rowData]));
+    }
+  }
+
+  /**
+   * Handle memory pressure for multivariate data collection
+   */
+  private handleMultivariateMemoryPressure(
+    streamingConfig: any,
+    perfConfig: any
+  ): void {
+    const emergencyThreshold =
+      this.config.memoryThresholdMB * streamingConfig.memoryManagement.emergencyThresholdMultiplier;
+    const minMultivariateRows = Math.min(1000, perfConfig.maxCollectedRowsMultivariate / 2);
+
+    if (
+      this.state.currentMemoryMB > emergencyThreshold &&
+      this.collectedData.length > minMultivariateRows
+    ) {
+      // Keep only the minimum required rows for multivariate analysis
+      (this.collectedData as any) = this.collectedData.slice(0, minMultivariateRows);
+    }
+  }
+
+  /**
+   * Perform multivariate analysis with enhanced type safety
+   */
+  private async performMultivariateAnalysis(): Promise<MultivariateAnalysis> {
+    const dataArray = this.collectedData.map(row => [...row]);
+    return await MultivariateOrchestrator.analyze(
+      dataArray,
+      this.headers,
+      this.detectedTypes,
+      this.state.rowsProcessed,
+    );
+  }
+
+  /**
+   * Create minimal multivariate analysis when disabled or insufficient data
+   */
+  private async createMinimalMultivariateAnalysis(): Promise<MultivariateAnalysis> {
+    return await MultivariateOrchestrator.analyze([], [], [], 0);
   }
 
   /**
@@ -811,9 +885,9 @@ export class StreamingAnalyzer {
           {
             action: 'Check data format',
             description: 'Ensure the CSV file has proper column headers',
-            severity: ErrorSeverity.HIGH
-          }
-        ]
+            severity: ErrorSeverity.HIGH,
+          },
+        ],
       );
     }
 
@@ -826,9 +900,9 @@ export class StreamingAnalyzer {
           {
             action: 'Re-run type detection',
             description: 'Retry the analysis to fix type detection',
-            severity: ErrorSeverity.MEDIUM
-          }
-        ]
+            severity: ErrorSeverity.MEDIUM,
+          },
+        ],
       );
     }
   }

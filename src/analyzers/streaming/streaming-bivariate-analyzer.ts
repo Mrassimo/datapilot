@@ -3,9 +3,15 @@
  * Processes pair relationships incrementally using online algorithms
  */
 
-import { OnlineCovariance, OnlineStatistics, ReservoirSampler, BoundedFrequencyCounter } from './online-statistics';
+import {
+  OnlineCovariance,
+  OnlineStatistics,
+  ReservoirSampler,
+  BoundedFrequencyCounter,
+} from './online-statistics';
 import { ChiSquaredTest, CorrelationSignificanceTest } from './statistical-tests';
-import { anovaFTest, kruskalWallisTest, GroupData } from '../statistical-tests/hypothesis-tests';
+import type { GroupData, StatisticalTestResult } from '../statistical-tests/hypothesis-tests';
+import { anovaFTest, kruskalWallisTest } from '../statistical-tests/hypothesis-tests';
 import type {
   BivariateAnalysis,
   NumericalBivariateAnalysis,
@@ -247,7 +253,7 @@ export class StreamingBivariateAnalyzer {
           // Extract statistics from the OnlineStatistics object
           const mean = stats.getMean();
           const stdDev = stats.getStandardDeviation();
-          
+
           // Use statistical approximations for quartiles (OnlineStatistics doesn't have getQuantile)
           const q1 = mean - 0.675 * stdDev; // Approximation for Q1 in normal distribution
           const median = mean; // Use mean as median approximation for streaming data
@@ -257,7 +263,7 @@ export class StreamingBivariateAnalyzer {
             category,
             count,
             mean: Number(mean.toFixed(4)),
-            median: Number(median.toFixed(4)), 
+            median: Number(median.toFixed(4)),
             standardDeviation: Number(stdDev.toFixed(4)),
             quartile1st: Number(q1.toFixed(4)),
             quartile3rd: Number(q3.toFixed(4)),
@@ -356,10 +362,13 @@ export class StreamingBivariateAnalyzer {
   /**
    * Generate real statistical tests using proper ANOVA F-test and Kruskal-Wallis test
    */
-  private generateRealStatisticalTests(pairKey: string, groupComparisons: GroupComparison[]): NumericalCategoricalTests {
+  private generateRealStatisticalTests(
+    pairKey: string,
+    groupComparisons: GroupComparison[],
+  ): NumericalCategoricalTests {
     try {
       // Convert group comparisons to GroupData format for statistical tests
-      const groupData: GroupData[] = groupComparisons.map(group => ({
+      const groupData: GroupData[] = groupComparisons.map((group) => ({
         name: group.category,
         count: group.count,
         mean: group.mean,
@@ -385,7 +394,7 @@ export class StreamingBivariateAnalyzer {
 
       // Perform ANOVA F-test
       const anovaResult = anovaFTest(groupData);
-      
+
       // Perform Kruskal-Wallis test
       const kwResult = kruskalWallisTest(groupData);
 
@@ -439,15 +448,20 @@ export class StreamingBivariateAnalyzer {
   /**
    * Format ANOVA result interpretation for compact display
    */
-  private formatAnovaInterpretation(result: any): string {
-    const significance = result.pValue < 0.001 ? 'highly significant (p < 0.001)' :
-                        result.pValue < 0.01 ? 'very significant (p < 0.01)' :
-                        result.pValue < 0.05 ? 'significant (p < 0.05)' :
-                        'not significant (p ≥ 0.05)';
-    
-    const conclusion = result.pValue < 0.05 ? 
-      'Group means differ significantly' : 
-      'No significant difference between group means';
+  private formatAnovaInterpretation(result: StatisticalTestResult): string {
+    const significance =
+      result.pValue < 0.001
+        ? 'highly significant (p < 0.001)'
+        : result.pValue < 0.01
+          ? 'very significant (p < 0.01)'
+          : result.pValue < 0.05
+            ? 'significant (p < 0.05)'
+            : 'not significant (p ≥ 0.05)';
+
+    const conclusion =
+      result.pValue < 0.05
+        ? 'Group means differ significantly'
+        : 'No significant difference between group means';
 
     return `F(${Array.isArray(result.degreesOfFreedom) ? result.degreesOfFreedom.join(',') : result.degreesOfFreedom}) = ${result.statistic.toFixed(3)}, p = ${result.pValue.toFixed(4)} (${significance}). ${conclusion}.`;
   }
@@ -455,15 +469,20 @@ export class StreamingBivariateAnalyzer {
   /**
    * Format Kruskal-Wallis result interpretation for compact display
    */
-  private formatKruskalWallisInterpretation(result: any): string {
-    const significance = result.pValue < 0.001 ? 'highly significant (p < 0.001)' :
-                        result.pValue < 0.01 ? 'very significant (p < 0.01)' :
-                        result.pValue < 0.05 ? 'significant (p < 0.05)' :
-                        'not significant (p ≥ 0.05)';
-    
-    const conclusion = result.pValue < 0.05 ? 
-      'Group distributions differ significantly' : 
-      'No significant difference between group distributions';
+  private formatKruskalWallisInterpretation(result: StatisticalTestResult): string {
+    const significance =
+      result.pValue < 0.001
+        ? 'highly significant (p < 0.001)'
+        : result.pValue < 0.01
+          ? 'very significant (p < 0.01)'
+          : result.pValue < 0.05
+            ? 'significant (p < 0.05)'
+            : 'not significant (p ≥ 0.05)';
+
+    const conclusion =
+      result.pValue < 0.05
+        ? 'Group distributions differ significantly'
+        : 'No significant difference between group distributions';
 
     return `H = ${result.statistic.toFixed(3)}, df = ${result.degreesOfFreedom}, p = ${result.pValue.toFixed(4)} (${significance}). ${conclusion}.`;
   }

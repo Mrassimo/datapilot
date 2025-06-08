@@ -1,6 +1,6 @@
 /**
  * Performance-Optimized Visualization Pipeline
- * 
+ *
  * Advanced engine that optimizes visualization performance based on:
  * - Data size and complexity analysis
  * - Memory usage estimation and optimization
@@ -140,7 +140,6 @@ export interface LoadingStage {
  * Performance Optimization Engine
  */
 export class PerformanceOptimizer {
-  
   /**
    * Analyze data characteristics and generate performance profile
    */
@@ -148,15 +147,24 @@ export class PerformanceOptimizer {
     rowCount: number,
     columnCount: number,
     chartType: string,
-    interactionComplexity: number = 1
+    interactionComplexity: number = 1,
   ): PerformanceProfile {
     const dataSize = this.categorizeDataSize(rowCount, columnCount);
-    const complexity = this.assessComplexity(rowCount, columnCount, chartType, interactionComplexity);
+    const complexity = this.assessComplexity(
+      rowCount,
+      columnCount,
+      chartType,
+      interactionComplexity,
+    );
     const memoryEstimate = this.estimateMemoryUsage(dataSize, complexity, chartType);
     const renderingStrategy = this.selectRenderingStrategy(dataSize, complexity, chartType);
     const optimizations = this.generateOptimizationRecommendations(dataSize, complexity, chartType);
     const adaptiveStrategies = this.designAdaptiveStrategies(dataSize, complexity);
-    const performanceMetrics = this.calculatePerformanceMetrics(dataSize, complexity, renderingStrategy);
+    const performanceMetrics = this.calculatePerformanceMetrics(
+      dataSize,
+      complexity,
+      renderingStrategy,
+    );
 
     return {
       dataSize,
@@ -165,7 +173,7 @@ export class PerformanceOptimizer {
       renderingStrategy,
       optimizationRecommendations: optimizations,
       adaptiveStrategies,
-      performanceMetrics
+      performanceMetrics,
     };
   }
 
@@ -176,7 +184,7 @@ export class PerformanceOptimizer {
     rowCount: number,
     columnCount: number,
     chartType: string,
-    preserveStatistics: boolean = true
+    preserveStatistics: boolean = true,
   ): SamplingConfiguration {
     if (rowCount <= 1000) {
       return {
@@ -185,7 +193,7 @@ export class PerformanceOptimizer {
         preserveOutliers: true,
         maintainDistribution: true,
         reasoning: 'Small dataset - no sampling required',
-        quality: 'high'
+        quality: 'high',
       };
     }
 
@@ -229,7 +237,7 @@ export class PerformanceOptimizer {
       preserveOutliers: preserveStatistics,
       maintainDistribution: preserveStatistics,
       reasoning: `${technique} sampling selected for ${rowCount} rows to balance performance and quality`,
-      quality
+      quality,
     };
   }
 
@@ -239,7 +247,7 @@ export class PerformanceOptimizer {
   static designAggregationStrategy(
     dataSize: DataSizeCategory,
     chartType: string,
-    targetPoints: number = 1000
+    targetPoints: number = 1000,
   ): AggregationStrategy {
     const reductionNeeded = dataSize.totalDataPoints / targetPoints;
 
@@ -249,7 +257,7 @@ export class PerformanceOptimizer {
         parameters: { factor: 1 },
         dataReduction: 0,
         informationRetention: 100,
-        visualFidelity: 100
+        visualFidelity: 100,
       };
     }
 
@@ -275,14 +283,14 @@ export class PerformanceOptimizer {
       visualFidelity = 85;
     }
 
-    const dataReduction = Math.min(95, (1 - 1/reductionNeeded) * 100);
+    const dataReduction = Math.min(95, (1 - 1 / reductionNeeded) * 100);
 
     return {
       method,
       parameters: this.generateAggregationParameters(method, reductionNeeded, chartType),
       dataReduction,
       informationRetention,
-      visualFidelity
+      visualFidelity,
     };
   }
 
@@ -292,7 +300,7 @@ export class PerformanceOptimizer {
   static createProgressiveLoadingPlan(
     dataSize: DataSizeCategory,
     complexity: ComplexityLevel,
-    chartType: string
+    chartType: string,
   ): ProgressiveLoadingPlan {
     const stages: LoadingStage[] = [];
 
@@ -304,7 +312,7 @@ export class PerformanceOptimizer {
         dataVolume: 100,
         estimatedTime: 500,
         visualElements: ['all chart elements', 'full interactivity'],
-        fallbackOptions: ['static image fallback']
+        fallbackOptions: ['static image fallback'],
       });
     } else {
       // Progressive loading for larger datasets
@@ -314,7 +322,7 @@ export class PerformanceOptimizer {
         dataVolume: 10,
         estimatedTime: 200,
         visualElements: ['axes', 'basic layout', 'sample points'],
-        fallbackOptions: ['loading indicator', 'skeleton chart']
+        fallbackOptions: ['loading indicator', 'skeleton chart'],
       });
 
       stages.push({
@@ -323,7 +331,7 @@ export class PerformanceOptimizer {
         dataVolume: 50,
         estimatedTime: 800,
         visualElements: ['aggregated data', 'basic interactions'],
-        fallbackOptions: ['static aggregated view']
+        fallbackOptions: ['static aggregated view'],
       });
 
       if (complexity.level === 'complex' || complexity.level === 'extreme') {
@@ -333,7 +341,7 @@ export class PerformanceOptimizer {
           dataVolume: 100,
           estimatedTime: 2000,
           visualElements: ['full dataset', 'advanced interactions', 'annotations'],
-          fallbackOptions: ['zoom-to-detail', 'on-demand loading']
+          fallbackOptions: ['zoom-to-detail', 'on-demand loading'],
         });
       }
     }
@@ -342,7 +350,7 @@ export class PerformanceOptimizer {
       stages,
       initialDisplay: 'Basic chart structure with loading indicator',
       progressIndicators: ['Progress bar', 'Loading animation', 'Data count'],
-      userExperience: this.describeUserExperience(stages, complexity)
+      userExperience: this.describeUserExperience(stages, complexity),
     };
   }
 
@@ -350,7 +358,7 @@ export class PerformanceOptimizer {
 
   private static categorizeDataSize(rowCount: number, columnCount: number): DataSizeCategory {
     const totalDataPoints = rowCount * columnCount;
-    
+
     let category: 'tiny' | 'small' | 'medium' | 'large' | 'huge' | 'massive';
     let characterization: string;
     let scalingChallenges: string[];
@@ -374,11 +382,19 @@ export class PerformanceOptimizer {
     } else if (totalDataPoints < 10000000) {
       category = 'huge';
       characterization = 'Huge dataset requiring advanced optimization and aggregation';
-      scalingChallenges = ['Aggressive sampling', 'Streaming data', 'Client-side processing limits'];
+      scalingChallenges = [
+        'Aggressive sampling',
+        'Streaming data',
+        'Client-side processing limits',
+      ];
     } else {
       category = 'massive';
       characterization = 'Massive dataset requiring specialized big data visualization techniques';
-      scalingChallenges = ['Server-side aggregation', 'Streaming protocols', 'Progressive enhancement'];
+      scalingChallenges = [
+        'Server-side aggregation',
+        'Streaming protocols',
+        'Progressive enhancement',
+      ];
     }
 
     return {
@@ -387,7 +403,7 @@ export class PerformanceOptimizer {
       columnCount,
       totalDataPoints,
       characterization,
-      scalingChallenges
+      scalingChallenges,
     };
   }
 
@@ -395,7 +411,7 @@ export class PerformanceOptimizer {
     rowCount: number,
     columnCount: number,
     chartType: string,
-    interactionComplexity: number
+    interactionComplexity: number,
   ): ComplexityLevel {
     const factors: ComplexityFactor[] = [];
     let computationalLoad = 1;
@@ -407,7 +423,7 @@ export class PerformanceOptimizer {
         factor: 'Large dataset',
         impact: 'high',
         description: `${rowCount} rows require optimization`,
-        mitigation: 'Sampling, aggregation, progressive loading'
+        mitigation: 'Sampling, aggregation, progressive loading',
       });
       computationalLoad *= 2;
       renderingLoad *= 1.5;
@@ -419,7 +435,7 @@ export class PerformanceOptimizer {
         factor: 'Complex chart type',
         impact: 'medium',
         description: 'Density/contour charts require advanced calculations',
-        mitigation: 'Pre-computed binning, WebGL acceleration'
+        mitigation: 'Pre-computed binning, WebGL acceleration',
       });
       computationalLoad *= 1.5;
       renderingLoad *= 1.3;
@@ -431,7 +447,7 @@ export class PerformanceOptimizer {
         factor: 'High dimensionality',
         impact: 'medium',
         description: `${columnCount} columns create encoding complexity`,
-        mitigation: 'Dimensionality reduction, progressive disclosure'
+        mitigation: 'Dimensionality reduction, progressive disclosure',
       });
       computationalLoad *= 1.2;
     }
@@ -442,7 +458,7 @@ export class PerformanceOptimizer {
         factor: 'Complex interactions',
         impact: 'medium',
         description: 'Multiple interaction types increase complexity',
-        mitigation: 'Debounced events, efficient event handling'
+        mitigation: 'Debounced events, efficient event handling',
       });
       renderingLoad *= 1.4;
     }
@@ -460,14 +476,14 @@ export class PerformanceOptimizer {
       factors,
       computationalLoad,
       renderingLoad,
-      interactionComplexity
+      interactionComplexity,
     };
   }
 
   private static estimateMemoryUsage(
     dataSize: DataSizeCategory,
     complexity: ComplexityLevel,
-    chartType: string
+    chartType: string,
   ): MemoryEstimate {
     // Base data memory (8 bytes per number, assuming mixed data types)
     const baseDataMemory = (dataSize.totalDataPoints * 6) / (1024 * 1024); // MB
@@ -495,16 +511,16 @@ export class PerformanceOptimizer {
         canvasMemory: renderingMemory * 0.3,
         dataStructures: baseDataMemory * 0.8,
         caching: Math.min(20, totalEstimate * 0.1),
-        buffers: renderingMemory * 0.2
+        buffers: renderingMemory * 0.2,
       },
-      optimizationPotential: Math.min(80, Math.max(10, totalEstimate * 0.3))
+      optimizationPotential: Math.min(80, Math.max(10, totalEstimate * 0.3)),
     };
   }
 
   private static selectRenderingStrategy(
     dataSize: DataSizeCategory,
     complexity: ComplexityLevel,
-    chartType: string
+    chartType: string,
   ): RenderingStrategy {
     let technique: 'svg' | 'canvas' | 'webgl' | 'hybrid';
     let reasoning: string;
@@ -540,14 +556,14 @@ export class PerformanceOptimizer {
       reasoning,
       expectedPerformance,
       limitations,
-      optimizations
+      optimizations,
     };
   }
 
   private static generateRenderingOptimizations(
     technique: string,
     dataSize: DataSizeCategory,
-    complexity: ComplexityLevel
+    complexity: ComplexityLevel,
   ): RenderingOptimization[] {
     const optimizations: RenderingOptimization[] = [];
 
@@ -557,7 +573,7 @@ export class PerformanceOptimizer {
         description: 'Reduce visual complexity at different zoom levels',
         impact: 'high',
         implementation: 'Progressive simplification based on viewport scale',
-        tradeoffs: ['Complexity in implementation', 'Visual detail at distance']
+        tradeoffs: ['Complexity in implementation', 'Visual detail at distance'],
       });
     }
 
@@ -567,7 +583,7 @@ export class PerformanceOptimizer {
         description: 'Only render elements visible in current viewport',
         impact: 'high',
         implementation: 'Spatial indexing with efficient visibility testing',
-        tradeoffs: ['Additional spatial calculations', 'Memory for spatial index']
+        tradeoffs: ['Additional spatial calculations', 'Memory for spatial index'],
       });
     }
 
@@ -577,7 +593,7 @@ export class PerformanceOptimizer {
         description: 'Throttle expensive interaction calculations',
         impact: 'medium',
         implementation: 'RequestAnimationFrame-based event handling',
-        tradeoffs: ['Slight interaction latency', 'More complex event logic']
+        tradeoffs: ['Slight interaction latency', 'More complex event logic'],
       });
     }
 
@@ -587,7 +603,7 @@ export class PerformanceOptimizer {
   private static generateOptimizationRecommendations(
     dataSize: DataSizeCategory,
     complexity: ComplexityLevel,
-    chartType: string
+    chartType: string,
   ): OptimizationRecommendation[] {
     const recommendations: OptimizationRecommendation[] = [];
 
@@ -600,7 +616,7 @@ export class PerformanceOptimizer {
         description: 'Reduce dataset size while preserving statistical properties',
         expectedImprovement: '70-90% performance improvement',
         implementationComplexity: 'moderate',
-        codeExample: 'const sampled = stratifiedSample(data, 5000, preserveOutliers: true);'
+        codeExample: 'const sampled = stratifiedSample(data, 5000, preserveOutliers: true);',
       });
     }
 
@@ -612,7 +628,7 @@ export class PerformanceOptimizer {
         technique: 'Progressive Enhancement',
         description: 'Load visualization in stages for better perceived performance',
         expectedImprovement: '50-80% faster initial load',
-        implementationComplexity: 'complex'
+        implementationComplexity: 'complex',
       });
     }
 
@@ -624,7 +640,7 @@ export class PerformanceOptimizer {
         technique: 'Data Streaming',
         description: 'Process data in chunks to avoid memory spikes',
         expectedImprovement: '60% reduction in peak memory usage',
-        implementationComplexity: 'complex'
+        implementationComplexity: 'complex',
       });
     }
 
@@ -633,7 +649,7 @@ export class PerformanceOptimizer {
 
   private static designAdaptiveStrategies(
     dataSize: DataSizeCategory,
-    complexity: ComplexityLevel
+    complexity: ComplexityLevel,
   ): AdaptiveStrategy[] {
     const strategies: AdaptiveStrategy[] = [];
 
@@ -643,7 +659,7 @@ export class PerformanceOptimizer {
         trigger: 'Zoom level changes or performance degradation detected',
         implementation: 'Automatically adjust point density based on viewport scale',
         fallbackOptions: ['Fixed low detail', 'Progressive loading', 'Static overview'],
-        performanceGain: 60
+        performanceGain: 60,
       });
     }
 
@@ -653,7 +669,7 @@ export class PerformanceOptimizer {
         trigger: 'Frame rate drops below 30fps for 2 seconds',
         implementation: 'Progressively disable expensive features (animations, smooth transitions)',
         fallbackOptions: ['Static visualization', 'Simplified interactions', 'Pre-rendered images'],
-        performanceGain: 40
+        performanceGain: 40,
       });
     }
 
@@ -663,32 +679,44 @@ export class PerformanceOptimizer {
   private static calculatePerformanceMetrics(
     dataSize: DataSizeCategory,
     complexity: ComplexityLevel,
-    renderingStrategy: RenderingStrategy
+    renderingStrategy: RenderingStrategy,
   ): PerformanceMetrics {
     // Empirical formulas based on data size and complexity
     const baseRenderTime = Math.log10(dataSize.totalDataPoints) * 100;
     const complexityMultiplier = Math.pow(complexity.computationalLoad, 0.8);
-    
+
     let renderingMultiplier = 1;
     switch (renderingStrategy.technique) {
-      case 'svg': renderingMultiplier = 1.5; break;
-      case 'canvas': renderingMultiplier = 1.0; break;
-      case 'webgl': renderingMultiplier = 0.3; break;
-      case 'hybrid': renderingMultiplier = 0.8; break;
+      case 'svg':
+        renderingMultiplier = 1.5;
+        break;
+      case 'canvas':
+        renderingMultiplier = 1.0;
+        break;
+      case 'webgl':
+        renderingMultiplier = 0.3;
+        break;
+      case 'hybrid':
+        renderingMultiplier = 0.8;
+        break;
     }
 
     const estimatedRenderTime = baseRenderTime * complexityMultiplier * renderingMultiplier;
     const estimatedMemoryPeak = Math.max(10, dataSize.totalDataPoints * 0.001);
     const userInteractionLatency = Math.min(500, estimatedRenderTime * 0.1);
     const timeToFirstPaint = estimatedRenderTime * 0.6;
-    
+
     let frameRate = 60;
     if (complexity.level === 'extreme') frameRate = 30;
     else if (complexity.level === 'complex') frameRate = 45;
-    
-    const scalabilityScore = Math.max(0, Math.min(100, 
-      100 - (dataSize.totalDataPoints / 1000000) * 50 - complexity.computationalLoad * 10
-    ));
+
+    const scalabilityScore = Math.max(
+      0,
+      Math.min(
+        100,
+        100 - (dataSize.totalDataPoints / 1000000) * 50 - complexity.computationalLoad * 10,
+      ),
+    );
 
     return {
       estimatedRenderTime,
@@ -696,39 +724,39 @@ export class PerformanceOptimizer {
       userInteractionLatency,
       timeToFirstPaint,
       frameRate,
-      scalabilityScore
+      scalabilityScore,
     };
   }
 
   private static generateAggregationParameters(
     method: string,
     reductionFactor: number,
-    chartType: string
+    chartType: string,
   ): Record<string, any> {
     switch (method) {
       case 'binning':
         return {
           binCount: Math.min(100, Math.max(10, Math.sqrt(reductionFactor) * 10)),
           adaptive: true,
-          preserveOutliers: true
+          preserveOutliers: true,
         };
       case 'clustering':
         return {
           clusters: Math.min(1000, Math.max(50, 1000 / Math.sqrt(reductionFactor))),
           algorithm: 'kmeans',
-          preserveShape: true
+          preserveShape: true,
         };
       case 'downsampling':
         return {
           factor: Math.ceil(reductionFactor),
           method: 'systematic',
-          preserveEdges: true
+          preserveEdges: true,
         };
       case 'summarization':
         return {
           windowSize: Math.ceil(reductionFactor),
           aggregation: 'mean',
-          preservePeaks: true
+          preservePeaks: true,
         };
       default:
         // Default aggregation for unknown methods
@@ -737,12 +765,15 @@ export class PerformanceOptimizer {
           method: 'adaptive',
           fallbackStrategy: 'statistical_sampling',
           preserveDistribution: true,
-          qualityThreshold: 0.85
+          qualityThreshold: 0.85,
         };
     }
   }
 
-  private static describeUserExperience(stages: LoadingStage[], complexity: ComplexityLevel): string {
+  private static describeUserExperience(
+    stages: LoadingStage[],
+    complexity: ComplexityLevel,
+  ): string {
     if (stages.length === 1) {
       return 'Instant visualization load with full functionality immediately available';
     } else if (stages.length === 2) {

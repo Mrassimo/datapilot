@@ -52,7 +52,7 @@ This section provides intelligent chart recommendations and visualization strate
     const accessibilityBadge = this.getAccessibilityBadge(strategy.accessibility);
     const performanceBadge = this.getPerformanceBadge(strategy.performance);
 
-    const objectivesList = strategy.primaryObjectives
+    const objectivesList = (strategy.primaryObjectives || [])
       .map((objective) => `    * ${objective}`)
       .join('\n');
 
@@ -111,13 +111,13 @@ ${objectivesList}
 * **Outliers:** ${outlierBadge} ${profile.distribution.outliers.count} outliers (${profile.distribution.outliers.percentage}%) - ${outlierImpact} impact`;
     }
 
-    const recommendationsText = profile.recommendations
+    const recommendationsText = (profile.recommendations || [])
       .map((rec, index) => this.formatChartRecommendation(rec, index + 1))
       .join('\n\n');
 
     const warningsText =
-      profile.warnings.length > 0
-        ? `\n**⚠️ Visualization Warnings:**\n${profile.warnings.map((w) => `* **${w.severity.toUpperCase()}:** ${w.message} - ${w.recommendation}`).join('\n')}`
+      (profile.warnings || []).length > 0
+        ? `\n**⚠️ Visualization Warnings:**\n${(profile.warnings || []).map((w) => `* **${w.severity.toUpperCase()}:** ${w.message} - ${w.recommendation}`).join('\n')}`
         : '';
 
     return `---

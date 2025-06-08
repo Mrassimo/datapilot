@@ -62,7 +62,7 @@ export class Section2Analyzer {
     this.config = this.mergeConfig(input.config);
     this.onProgress = input.onProgress;
     this.section3Result = input.section3Result;
-    
+
     // Pre-build column index maps for O(1) lookups
     this.buildColumnIndexMaps();
   }
@@ -74,20 +74,20 @@ export class Section2Analyzer {
     // Build column name to index mapping
     this.headers.forEach((header, index) => {
       this.columnIndexMap.set(header.toLowerCase(), index);
-      
+
       const lowerHeader = header.toLowerCase();
       const columnType = this.columnTypes[index];
-      
+
       // Cache entity identifier columns
       if (this.isEntityIdentifierColumn(lowerHeader)) {
         this.entityColumnCache.add(index);
       }
-      
+
       // Cache date columns
       if (this.isDateColumn(lowerHeader)) {
         this.dateColumnCache.add(index);
       }
-      
+
       // Cache numeric columns
       if (this.isNumericColumn(columnType)) {
         this.numericColumnCache.add(index);
@@ -96,16 +96,27 @@ export class Section2Analyzer {
   }
 
   private isEntityIdentifierColumn(headerLower: string): boolean {
-    return headerLower.includes('customer') || headerLower.includes('client') || 
-           headerLower.includes('person') || headerLower.includes('user') ||
-           headerLower.includes('product') || headerLower.includes('item') || 
-           headerLower.includes('sku') || headerLower.includes('part') ||
-           headerLower.includes('company') || headerLower.includes('organization') || 
-           headerLower.includes('vendor') || headerLower.includes('supplier') ||
-           headerLower.includes('location') || headerLower.includes('address') || 
-           headerLower.includes('city') || headerLower.includes('region') ||
-           (headerLower.includes('id') && !headerLower.includes('_id_')) || 
-           headerLower.includes('identifier') || headerLower === 'key';
+    return (
+      headerLower.includes('customer') ||
+      headerLower.includes('client') ||
+      headerLower.includes('person') ||
+      headerLower.includes('user') ||
+      headerLower.includes('product') ||
+      headerLower.includes('item') ||
+      headerLower.includes('sku') ||
+      headerLower.includes('part') ||
+      headerLower.includes('company') ||
+      headerLower.includes('organization') ||
+      headerLower.includes('vendor') ||
+      headerLower.includes('supplier') ||
+      headerLower.includes('location') ||
+      headerLower.includes('address') ||
+      headerLower.includes('city') ||
+      headerLower.includes('region') ||
+      (headerLower.includes('id') && !headerLower.includes('_id_')) ||
+      headerLower.includes('identifier') ||
+      headerLower === 'key'
+    );
   }
 
   private isDateColumn(headerLower: string): boolean {
@@ -320,11 +331,18 @@ export class Section2Analyzer {
         problematicColumns: patternSummary.mostProblematicColumns,
       },
       statisticalConsistency: {
-        correlationStability: statisticalInsights.multicollinearity?.severity === 'none' ? 'stable' : 'unstable',
-        normalityConsistency: statisticalInsights.normality?.violatedVariables === 0 ? 'consistent' : 'inconsistent',
-        outliersImpact: statisticalInsights.outliers?.percentage || 0 < 5 ? 'minimal' : 'significant',
+        correlationStability:
+          statisticalInsights.multicollinearity?.severity === 'none' ? 'stable' : 'unstable',
+        normalityConsistency:
+          statisticalInsights.normality?.violatedVariables === 0 ? 'consistent' : 'inconsistent',
+        outliersImpact:
+          statisticalInsights.outliers?.percentage || 0 < 5 ? 'minimal' : 'significant',
       },
-      score: this.calculateEnhancedConsistencyScore(businessRuleResults, patternResults, statisticalInsights),
+      score: this.calculateEnhancedConsistencyScore(
+        businessRuleResults,
+        patternResults,
+        statisticalInsights,
+      ),
     };
 
     // Add warnings for high violation counts
@@ -385,13 +403,19 @@ export class Section2Analyzer {
   }
 
   private calculateConsistencyScore(businessRuleResults: any, patternResults: any): any {
-    return this.calculateEnhancedConsistencyScore(businessRuleResults, patternResults, { hasStatisticalTests: false });
+    return this.calculateEnhancedConsistencyScore(businessRuleResults, patternResults, {
+      hasStatisticalTests: false,
+    });
   }
 
   /**
    * Enhanced consistency scoring with statistical insights
    */
-  private calculateEnhancedConsistencyScore(businessRuleResults: any, patternResults: any, statisticalInsights: any): any {
+  private calculateEnhancedConsistencyScore(
+    businessRuleResults: any,
+    patternResults: any,
+    statisticalInsights: any,
+  ): any {
     const totalFormatIssues = patternResults.formatConsistency?.length || 0;
     const intraRecordIssues = businessRuleResults.intraRecordConsistency?.length || 0;
 
@@ -448,13 +472,17 @@ export class Section2Analyzer {
         const outlierPercentage = statisticalInsights.outliers.percentage;
         if (outlierPercentage > 10) {
           score -= 12;
-          details.push(`High outlier rate (${outlierPercentage.toFixed(1)}%) affects consistency (-12)`);
+          details.push(
+            `High outlier rate (${outlierPercentage.toFixed(1)}%) affects consistency (-12)`,
+          );
         } else if (outlierPercentage > 5) {
           score -= 6;
           details.push(`Moderate outlier rate (${outlierPercentage.toFixed(1)}%) (-6)`);
         } else {
           score += 2;
-          details.push(`Low outlier rate (${outlierPercentage.toFixed(1)}%) supports consistency (+2)`);
+          details.push(
+            `Low outlier rate (${outlierPercentage.toFixed(1)}%) supports consistency (+2)`,
+          );
         }
       }
     }
@@ -535,11 +563,11 @@ export class Section2Analyzer {
    */
   private createEnhancedIntegrity() {
     const statisticalInsights = this.extractStatisticalInsights();
-    
+
     let baseScore = 85;
     const issues: string[] = [];
     const strengths: string[] = [];
-    
+
     // Factor in statistical test results
     if (statisticalInsights.hasStatisticalTests) {
       // Multicollinearity affects data integrity
@@ -555,21 +583,25 @@ export class Section2Analyzer {
           strengths.push('No significant multicollinearity detected');
         }
       }
-      
+
       // Outlier analysis affects integrity
       if (statisticalInsights.outliers) {
         const outlierPercentage = statisticalInsights.outliers.percentage;
         if (outlierPercentage > 10) {
           baseScore -= 15;
-          issues.push(`High outlier rate (${outlierPercentage.toFixed(1)}%) may indicate data quality issues`);
+          issues.push(
+            `High outlier rate (${outlierPercentage.toFixed(1)}%) may indicate data quality issues`,
+          );
         } else if (outlierPercentage > 5) {
           baseScore -= 8;
           issues.push(`Moderate outlier rate (${outlierPercentage.toFixed(1)}%) detected`);
         } else {
-          strengths.push(`Low outlier rate (${outlierPercentage.toFixed(1)}%) indicates good data integrity`);
+          strengths.push(
+            `Low outlier rate (${outlierPercentage.toFixed(1)}%) indicates good data integrity`,
+          );
         }
       }
-      
+
       // Normality assumption violations
       if (statisticalInsights.normality) {
         const violatedVars = statisticalInsights.normality.violatedVariables;
@@ -581,29 +613,32 @@ export class Section2Analyzer {
           strengths.push('Variables satisfy normality assumptions');
         }
       }
-      
+
       // Clustering structure indicates natural data groupings (positive for integrity)
       if (statisticalInsights.clustering?.hasNaturalClusters) {
         baseScore += 5;
-        strengths.push(`Natural data clustering structure detected (${statisticalInsights.clustering.optimalClusters} clusters)`);
+        strengths.push(
+          `Natural data clustering structure detected (${statisticalInsights.clustering.optimalClusters} clusters)`,
+        );
       }
     }
-    
+
     baseScore = Math.max(0, Math.min(100, Math.round(baseScore)));
-    
+
     let interpretation: 'Excellent' | 'Good' | 'Fair' | 'Needs Improvement' | 'Poor';
     if (baseScore >= 95) interpretation = 'Excellent';
     else if (baseScore >= 85) interpretation = 'Good';
     else if (baseScore >= 70) interpretation = 'Fair';
     else if (baseScore >= 50) interpretation = 'Needs Improvement';
     else interpretation = 'Poor';
-    
-    const details = issues.length > 0 ? 
-      `Statistical analysis reveals: ${issues.join('; ')}` :
-      strengths.length > 0 ? 
-        `Statistical analysis confirms: ${strengths.join('; ')}` :
-        'Enhanced integrity analysis with statistical validation';
-    
+
+    const details =
+      issues.length > 0
+        ? `Statistical analysis reveals: ${issues.join('; ')}`
+        : strengths.length > 0
+          ? `Statistical analysis confirms: ${strengths.join('; ')}`
+          : 'Enhanced integrity analysis with statistical validation';
+
     return {
       orphanedRecords: [],
       cardinalityViolations: [],
@@ -649,41 +684,47 @@ export class Section2Analyzer {
     if (!this.section3Result?.edaAnalysis?.multivariateAnalysis) {
       return { hasStatisticalTests: false };
     }
-    
+
     const multivariateAnalysis = this.section3Result.edaAnalysis.multivariateAnalysis;
     const insights: any = { hasStatisticalTests: true };
-    
+
     try {
       // Extract multicollinearity insights from correlation analysis
-      const correlationPairs = this.section3Result.edaAnalysis.bivariateAnalysis?.numericalVsNumerical?.correlationPairs || [];
+      const correlationPairs =
+        this.section3Result.edaAnalysis.bivariateAnalysis?.numericalVsNumerical?.correlationPairs ||
+        [];
       if (correlationPairs.length > 0) {
-        const highCorrelations = correlationPairs.filter(pair => Math.abs(pair.correlation) > 0.8);
-        const veryHighCorrelations = correlationPairs.filter(pair => Math.abs(pair.correlation) > 0.95);
-        
+        const highCorrelations = correlationPairs.filter(
+          (pair) => Math.abs(pair.correlation) > 0.8,
+        );
+        const veryHighCorrelations = correlationPairs.filter(
+          (pair) => Math.abs(pair.correlation) > 0.95,
+        );
+
         let severity: 'none' | 'moderate' | 'severe' = 'none';
         const affectedVariables: string[] = [];
-        
+
         if (veryHighCorrelations.length > 0) {
           severity = 'severe';
-          veryHighCorrelations.forEach(pair => {
+          veryHighCorrelations.forEach((pair) => {
             if (!affectedVariables.includes(pair.variable1)) affectedVariables.push(pair.variable1);
             if (!affectedVariables.includes(pair.variable2)) affectedVariables.push(pair.variable2);
           });
         } else if (highCorrelations.length > 0) {
           severity = 'moderate';
-          highCorrelations.forEach(pair => {
+          highCorrelations.forEach((pair) => {
             if (!affectedVariables.includes(pair.variable1)) affectedVariables.push(pair.variable1);
             if (!affectedVariables.includes(pair.variable2)) affectedVariables.push(pair.variable2);
           });
         }
-        
+
         insights.multicollinearity = {
           severity,
           affectedVariables,
-          maxVIF: Math.max(...correlationPairs.map(p => 1 / (1 - p.correlation * p.correlation))),
+          maxVIF: Math.max(...correlationPairs.map((p) => 1 / (1 - p.correlation * p.correlation))),
         };
       }
-      
+
       // Extract outlier insights
       const outlierAnalysis = multivariateAnalysis.outlierDetection;
       if (outlierAnalysis?.isApplicable) {
@@ -693,7 +734,7 @@ export class Section2Analyzer {
           method: outlierAnalysis.method,
         };
       }
-      
+
       // Extract normality insights
       const normalityTests = multivariateAnalysis.normalityTests;
       if (normalityTests) {
@@ -703,7 +744,7 @@ export class Section2Analyzer {
           totalTested: 1, // Simplified - multivariate normality
         };
       }
-      
+
       // Extract clustering insights
       const clusteringAnalysis = multivariateAnalysis.clusteringAnalysis;
       if (clusteringAnalysis?.isApplicable) {
@@ -713,11 +754,10 @@ export class Section2Analyzer {
           qualityScore: clusteringAnalysis.finalClustering.validation.silhouetteScore,
         };
       }
-      
     } catch (error) {
       console.warn('Error extracting statistical insights for quality scoring:', error);
     }
-    
+
     return insights;
   }
 
@@ -857,7 +897,7 @@ export class Section2Analyzer {
     const configManager = getConfig();
     const qualityConfig = configManager.getQualityConfig();
     const thresholds = qualityConfig.qualityThresholds;
-    
+
     if (score >= thresholds.excellent) return 'Excellent';
     if (score >= thresholds.good) return 'Good';
     if (score >= thresholds.fair) return 'Fair';
@@ -1026,19 +1066,20 @@ export class Section2Analyzer {
     if (externalRefs.countryCodesList) {
       const countryColumns = this.headers
         .map((header, index) => ({ header, index }))
-        .filter(({ header }) => 
-          /country|nation|ctry|cntry/i.test(header) || 
-          header.toLowerCase().includes('country_code') ||
-          header.toLowerCase() === 'cc'
+        .filter(
+          ({ header }) =>
+            /country|nation|ctry|cntry/i.test(header) ||
+            header.toLowerCase().includes('country_code') ||
+            header.toLowerCase() === 'cc',
         );
 
       countryColumns.forEach(({ header, index }) => {
         const violations = this.validateAgainstReferenceList(
-          index, 
-          externalRefs.countryCodesList!, 
-          'Country Code Standard'
+          index,
+          externalRefs.countryCodesList!,
+          'Country Code Standard',
         );
-        
+
         if (violations.violationsFound > 0) {
           conformityChecks.push({
             columnName: header,
@@ -1055,19 +1096,20 @@ export class Section2Analyzer {
     if (externalRefs.currencyCodesList) {
       const currencyColumns = this.headers
         .map((header, index) => ({ header, index }))
-        .filter(({ header }) => 
-          /currency|curr|money/i.test(header) ||
-          header.toLowerCase().includes('currency_code') ||
-          header.toLowerCase() === 'ccy'
+        .filter(
+          ({ header }) =>
+            /currency|curr|money/i.test(header) ||
+            header.toLowerCase().includes('currency_code') ||
+            header.toLowerCase() === 'ccy',
         );
 
       currencyColumns.forEach(({ header, index }) => {
         const violations = this.validateAgainstReferenceList(
-          index, 
-          externalRefs.currencyCodesList!, 
-          'Currency Code Standard'
+          index,
+          externalRefs.currencyCodesList!,
+          'Currency Code Standard',
         );
-        
+
         if (violations.violationsFound > 0) {
           conformityChecks.push({
             columnName: header,
@@ -1084,17 +1126,15 @@ export class Section2Analyzer {
     if (externalRefs.productMasterList) {
       const productColumns = this.headers
         .map((header, index) => ({ header, index }))
-        .filter(({ header }) => 
-          /product|item|sku|part/i.test(header)
-        );
+        .filter(({ header }) => /product|item|sku|part/i.test(header));
 
       productColumns.forEach(({ header, index }) => {
         const violations = this.validateAgainstReferenceList(
-          index, 
-          externalRefs.productMasterList!, 
-          'Product Master List'
+          index,
+          externalRefs.productMasterList!,
+          'Product Master List',
         );
-        
+
         if (violations.violationsFound > 0) {
           conformityChecks.push({
             columnName: header,
@@ -1113,18 +1153,22 @@ export class Section2Analyzer {
   /**
    * Validates column values against a reference list (Optimized O(n))
    */
-  private validateAgainstReferenceList(columnIndex: number, referenceList: string[], standardName: string) {
+  private validateAgainstReferenceList(
+    columnIndex: number,
+    referenceList: string[],
+    standardName: string,
+  ) {
     const configManager = getConfig();
     const qualityConfig = configManager.getQualityConfig();
-    
-    const referenceSet = new Set(referenceList.map(ref => ref.toLowerCase().trim()));
+
+    const referenceSet = new Set(referenceList.map((ref) => ref.toLowerCase().trim()));
     const violations: string[] = [];
     let violationsFound = 0;
-    
+
     // Use configurable sample size for performance
     const sampleSize = Math.min(qualityConfig.externalValidation.maxSampleSize, this.data.length);
     const maxExamples = qualityConfig.externalValidation.maxExampleViolations;
-    
+
     // Single pass through the data
     for (let rowIndex = 0; rowIndex < sampleSize; rowIndex++) {
       const value = this.data[rowIndex][columnIndex];
@@ -1138,7 +1182,7 @@ export class Section2Analyzer {
         }
       }
     }
-    
+
     return {
       violationsFound,
       examples: violations,
@@ -1158,7 +1202,7 @@ export class Section2Analyzer {
     }
 
     const outlierAnalysis = this.section3Result.edaAnalysis.multivariateAnalysis.outlierDetection;
-    
+
     if (!outlierAnalysis.isApplicable) {
       return {
         percentageErrornousOutliers: 0,
@@ -1169,15 +1213,19 @@ export class Section2Analyzer {
     // Calculate erroneous outlier percentage based on business context
     const totalOutliers = outlierAnalysis.totalOutliers;
     const outlierPercentage = outlierAnalysis.outlierPercentage;
-    
+
     // Heuristic: assume outliers in certain contexts are more likely to be errors
     let errorLikelihood = 0.3; // Base 30% likelihood of outliers being errors
-    
+
     // Increase likelihood for specific column types
     const numericColumns = this.headers
-      .map((header, index) => ({ header: header.toLowerCase(), index, type: this.columnTypes[index] }))
+      .map((header, index) => ({
+        header: header.toLowerCase(),
+        index,
+        type: this.columnTypes[index],
+      }))
       .filter(({ type }) => type === 'number' || type === 'integer' || type === 'float');
-    
+
     // Check for error-prone contexts
     let contextualErrorLikelihood = 0;
     numericColumns.forEach(({ header }) => {
@@ -1191,13 +1239,16 @@ export class Section2Analyzer {
         contextualErrorLikelihood += 0.1; // 10% increase for quantity fields
       }
     });
-    
-    errorLikelihood = Math.min(0.8, errorLikelihood + contextualErrorLikelihood / numericColumns.length);
-    
+
+    errorLikelihood = Math.min(
+      0.8,
+      errorLikelihood + contextualErrorLikelihood / numericColumns.length,
+    );
+
     const percentageErrornousOutliers = outlierPercentage * errorLikelihood;
-    
+
     let description = `Estimated ${percentageErrornousOutliers.toFixed(2)}% of data may contain outlier-related errors`;
-    
+
     if (percentageErrornousOutliers > 10) {
       description += ' - High outlier error rate suggests data quality issues';
     } else if (percentageErrornousOutliers > 5) {
@@ -1205,7 +1256,7 @@ export class Section2Analyzer {
     } else {
       description += ' - Low outlier error rate indicates good data quality';
     }
-    
+
     return {
       percentageErrornousOutliers,
       description,
@@ -1224,31 +1275,33 @@ export class Section2Analyzer {
    */
   private performEntityResolution(): any[] {
     const entityResolutionResults: any[] = [];
-    
+
     // Use cached entity columns for O(1) lookup
     const entityColumns = this.getEntityColumnsFromCache();
-    
+
     if (entityColumns.length === 0) {
-      return [{
-        entityType: 'Generic Records',
-        inconsistentEntities: 0,
-        examples: [],
-        analysis: 'No clear entity identifier columns found for resolution analysis',
-      }];
+      return [
+        {
+          entityType: 'Generic Records',
+          inconsistentEntities: 0,
+          examples: [],
+          analysis: 'No clear entity identifier columns found for resolution analysis',
+        },
+      ];
     }
-    
+
     // Limit entity columns to prevent excessive computation
     const maxEntityColumns = 3; // Configurable limit
     const limitedEntityColumns = entityColumns.slice(0, maxEntityColumns);
-    
+
     // Perform entity resolution for each identified entity type
-    limitedEntityColumns.forEach(entityCol => {
+    limitedEntityColumns.forEach((entityCol) => {
       const resolution = this.resolveEntitiesForColumnOptimized(entityCol);
       if (resolution.inconsistentEntities > 0) {
         entityResolutionResults.push(resolution);
       }
     });
-    
+
     return entityResolutionResults;
   }
 
@@ -1257,36 +1310,52 @@ export class Section2Analyzer {
    */
   private getEntityColumnsFromCache(): Array<{ name: string; index: number; entityType: string }> {
     const entityColumns: Array<{ name: string; index: number; entityType: string }> = [];
-    
+
     // Use pre-computed cache instead of scanning all headers
-    this.entityColumnCache.forEach(index => {
+    this.entityColumnCache.forEach((index) => {
       const header = this.headers[index];
       const lowerHeader = header.toLowerCase();
-      
+
       let entityType = 'Generic Entity';
-      
+
       // Determine entity type (optimized with early returns)
-      if (lowerHeader.includes('customer') || lowerHeader.includes('client') || 
-          lowerHeader.includes('person') || lowerHeader.includes('user')) {
+      if (
+        lowerHeader.includes('customer') ||
+        lowerHeader.includes('client') ||
+        lowerHeader.includes('person') ||
+        lowerHeader.includes('user')
+      ) {
         entityType = 'Customer/Person';
-      } else if (lowerHeader.includes('product') || lowerHeader.includes('item') || 
-          lowerHeader.includes('sku') || lowerHeader.includes('part')) {
+      } else if (
+        lowerHeader.includes('product') ||
+        lowerHeader.includes('item') ||
+        lowerHeader.includes('sku') ||
+        lowerHeader.includes('part')
+      ) {
         entityType = 'Product';
-      } else if (lowerHeader.includes('company') || lowerHeader.includes('organization') || 
-          lowerHeader.includes('vendor') || lowerHeader.includes('supplier')) {
+      } else if (
+        lowerHeader.includes('company') ||
+        lowerHeader.includes('organization') ||
+        lowerHeader.includes('vendor') ||
+        lowerHeader.includes('supplier')
+      ) {
         entityType = 'Organization';
-      } else if (lowerHeader.includes('location') || lowerHeader.includes('address') || 
-          lowerHeader.includes('city') || lowerHeader.includes('region')) {
+      } else if (
+        lowerHeader.includes('location') ||
+        lowerHeader.includes('address') ||
+        lowerHeader.includes('city') ||
+        lowerHeader.includes('region')
+      ) {
         entityType = 'Location';
       }
-      
+
       entityColumns.push({
         name: header,
         index,
-        entityType
+        entityType,
       });
     });
-    
+
     return entityColumns;
   }
 
@@ -1300,25 +1369,35 @@ export class Section2Analyzer {
   /**
    * Performs entity resolution for a specific column (Optimized O(n))
    */
-  private resolveEntitiesForColumnOptimized(entityCol: { name: string; index: number; entityType: string }): any {
+  private resolveEntitiesForColumnOptimized(entityCol: {
+    name: string;
+    index: number;
+    entityType: string;
+  }): any {
     const configManager = getConfig();
     const qualityConfig = configManager.getQualityConfig();
-    
-    const entityValueMap = new Map<string, {
-      firstOccurrence: { rowIndex: number; data: Record<string, any> };
-      conflictCount: number;
-      conflictingFields: Set<string>;
-      totalOccurrences: number;
-    }>();
-    
+
+    const entityValueMap = new Map<
+      string,
+      {
+        firstOccurrence: { rowIndex: number; data: Record<string, any> };
+        conflictCount: number;
+        conflictingFields: Set<string>;
+        totalOccurrences: number;
+      }
+    >();
+
     // Single pass through data to build entity map and detect conflicts
-    const maxSampleSize = Math.min(this.data.length, qualityConfig.externalValidation.maxSampleSize);
-    
+    const maxSampleSize = Math.min(
+      this.data.length,
+      qualityConfig.externalValidation.maxSampleSize,
+    );
+
     for (let rowIndex = 0; rowIndex < maxSampleSize; rowIndex++) {
       const entityValue = this.data[rowIndex][entityCol.index];
       if (entityValue && typeof entityValue === 'string') {
         const normalizedEntity = entityValue.trim().toLowerCase();
-        
+
         if (!entityValueMap.has(normalizedEntity)) {
           // First occurrence - store as baseline
           const associatedData: Record<string, any> = {};
@@ -1327,7 +1406,7 @@ export class Section2Analyzer {
               associatedData[this.headers[colIndex]] = this.data[rowIndex][colIndex];
             }
           }
-          
+
           entityValueMap.set(normalizedEntity, {
             firstOccurrence: { rowIndex, data: associatedData },
             conflictCount: 0,
@@ -1338,14 +1417,16 @@ export class Section2Analyzer {
           // Subsequent occurrence - check for conflicts
           const entityInfo = entityValueMap.get(normalizedEntity)!;
           entityInfo.totalOccurrences++;
-          
+
           // Compare with first occurrence (O(m) where m is number of columns)
           for (let colIndex = 0; colIndex < this.headers.length; colIndex++) {
             if (colIndex !== entityCol.index) {
               const header = this.headers[colIndex];
               const currentValue = this.normalizeValueForComparison(this.data[rowIndex][colIndex]);
-              const firstValue = this.normalizeValueForComparison(entityInfo.firstOccurrence.data[header]);
-              
+              const firstValue = this.normalizeValueForComparison(
+                entityInfo.firstOccurrence.data[header],
+              );
+
               if (currentValue !== null && firstValue !== null && currentValue !== firstValue) {
                 entityInfo.conflictCount++;
                 entityInfo.conflictingFields.add(header);
@@ -1355,11 +1436,11 @@ export class Section2Analyzer {
         }
       }
     }
-    
+
     // Count entities with conflicts
     let inconsistentEntitiesCount = 0;
     const examples: any[] = [];
-    
+
     entityValueMap.forEach((entityInfo, entityId) => {
       if (entityInfo.conflictCount > 0 && entityInfo.totalOccurrences > 1) {
         inconsistentEntitiesCount++;
@@ -1373,7 +1454,7 @@ export class Section2Analyzer {
         }
       }
     });
-    
+
     return {
       entityType: entityCol.entityType,
       inconsistentEntities: inconsistentEntitiesCount,
@@ -1385,30 +1466,36 @@ export class Section2Analyzer {
   /**
    * Legacy method for compatibility (redirects to optimized version)
    */
-  private resolveEntitiesForColumn(entityCol: { name: string; index: number; entityType: string }): any {
+  private resolveEntitiesForColumn(entityCol: {
+    name: string;
+    index: number;
+    entityType: string;
+  }): any {
     return this.resolveEntitiesForColumnOptimized(entityCol);
   }
 
   /**
    * Detects conflicts in entity data across multiple records
    */
-  private detectEntityConflicts(records: Array<{ rowIndex: number; associatedData: Record<string, any> }>): any[] {
+  private detectEntityConflicts(
+    records: Array<{ rowIndex: number; associatedData: Record<string, any> }>,
+  ): any[] {
     const conflicts: any[] = [];
     const firstRecord = records[0];
-    
+
     // Compare each subsequent record with the first one
     for (let i = 1; i < records.length; i++) {
       const currentRecord = records[i];
-      
-      Object.keys(firstRecord.associatedData).forEach(column => {
+
+      Object.keys(firstRecord.associatedData).forEach((column) => {
         const value1 = this.normalizeValueForComparison(firstRecord.associatedData[column]);
         const value2 = this.normalizeValueForComparison(currentRecord.associatedData[column]);
-        
+
         // Only flag as conflict if both values are non-null and different
         if (value1 !== null && value2 !== null && value1 !== value2) {
           // Check if this conflict already exists
-          const existingConflict = conflicts.find(c => c.column === column);
-          
+          const existingConflict = conflicts.find((c) => c.column === column);
+
           if (existingConflict) {
             if (!existingConflict.values.includes(value2)) {
               existingConflict.values.push(value2);
@@ -1426,7 +1513,7 @@ export class Section2Analyzer {
         }
       });
     }
-    
+
     return conflicts;
   }
 
@@ -1435,15 +1522,21 @@ export class Section2Analyzer {
    */
   private normalizeValueForComparison(value: any): string | null {
     if (value === null || value === undefined) return null;
-    
+
     const strValue = String(value).trim().toLowerCase();
-    
+
     // Treat empty strings, 'null', 'na', etc. as null
-    if (strValue === '' || strValue === 'null' || strValue === 'na' || 
-        strValue === 'n/a' || strValue === 'none' || strValue === 'unknown') {
+    if (
+      strValue === '' ||
+      strValue === 'null' ||
+      strValue === 'na' ||
+      strValue === 'n/a' ||
+      strValue === 'none' ||
+      strValue === 'unknown'
+    ) {
       return null;
     }
-    
+
     return strValue;
   }
 
@@ -1452,7 +1545,7 @@ export class Section2Analyzer {
    */
   private findDateColumns(): Array<{ name: string; index: number }> {
     const dateColumns: Array<{ name: string; index: number }> = [];
-    this.dateColumnCache.forEach(index => {
+    this.dateColumnCache.forEach((index) => {
       dateColumns.push({ name: this.headers[index], index });
     });
     return dateColumns;

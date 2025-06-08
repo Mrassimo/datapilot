@@ -305,7 +305,7 @@ export enum ErrorSeverity {
   LOW = 'low',
   MEDIUM = 'medium',
   HIGH = 'high',
-  CRITICAL = 'critical'
+  CRITICAL = 'critical',
 }
 
 export enum ErrorCategory {
@@ -316,7 +316,7 @@ export enum ErrorCategory {
   IO = 'io',
   CONFIGURATION = 'configuration',
   NETWORK = 'network',
-  PERMISSION = 'permission'
+  PERMISSION = 'permission',
 }
 
 export interface ErrorContext {
@@ -330,6 +330,10 @@ export interface ErrorContext {
   memoryUsage?: number;
   timeElapsed?: number;
   retryCount?: number;
+  option?: string;
+  options?: string;
+  rowCount?: number;
+  value?: unknown;
 }
 
 export interface ErrorRecoveryStrategy {
@@ -370,7 +374,7 @@ export class DataPilotError extends Error {
     message: string,
     code: string,
     context?: ErrorContext,
-    suggestions?: ActionableSuggestion[]
+    suggestions?: ActionableSuggestion[],
   ): DataPilotError {
     return new DataPilotError(
       message,
@@ -379,7 +383,7 @@ export class DataPilotError extends Error {
       ErrorCategory.PARSING,
       context,
       suggestions,
-      true
+      true,
     );
   }
 
@@ -390,7 +394,7 @@ export class DataPilotError extends Error {
     message: string,
     code: string,
     context?: ErrorContext,
-    suggestions?: ActionableSuggestion[]
+    suggestions?: ActionableSuggestion[],
   ): DataPilotError {
     return new DataPilotError(
       message,
@@ -399,7 +403,7 @@ export class DataPilotError extends Error {
       ErrorCategory.MEMORY,
       context,
       suggestions,
-      true
+      true,
     );
   }
 
@@ -410,7 +414,7 @@ export class DataPilotError extends Error {
     message: string,
     code: string,
     context?: ErrorContext,
-    suggestions?: ActionableSuggestion[]
+    suggestions?: ActionableSuggestion[],
   ): DataPilotError {
     return new DataPilotError(
       message,
@@ -419,7 +423,7 @@ export class DataPilotError extends Error {
       ErrorCategory.VALIDATION,
       context,
       suggestions,
-      false
+      false,
     );
   }
 
@@ -430,7 +434,7 @@ export class DataPilotError extends Error {
     message: string,
     code: string,
     context?: ErrorContext,
-    suggestions?: ActionableSuggestion[]
+    suggestions?: ActionableSuggestion[],
   ): DataPilotError {
     return new DataPilotError(
       message,
@@ -439,7 +443,7 @@ export class DataPilotError extends Error {
       ErrorCategory.ANALYSIS,
       context,
       suggestions,
-      true
+      true,
     );
   }
 
@@ -448,7 +452,7 @@ export class DataPilotError extends Error {
    */
   getFormattedMessage(): string {
     let message = `[${this.category.toUpperCase()}:${this.code}] ${this.message}`;
-    
+
     if (this.context) {
       const contextParts = [];
       if (this.context.filePath) contextParts.push(`File: ${this.context.filePath}`);
@@ -456,12 +460,12 @@ export class DataPilotError extends Error {
       if (this.context.analyzer) contextParts.push(`Analyzer: ${this.context.analyzer}`);
       if (this.context.rowIndex !== undefined) contextParts.push(`Row: ${this.context.rowIndex}`);
       if (this.context.columnName) contextParts.push(`Column: ${this.context.columnName}`);
-      
+
       if (contextParts.length > 0) {
         message += ` (${contextParts.join(', ')})`;
       }
     }
-    
+
     return message;
   }
 
@@ -472,8 +476,8 @@ export class DataPilotError extends Error {
     if (!this.suggestions || this.suggestions.length === 0) {
       return [];
     }
-    
-    return this.suggestions.map(suggestion => {
+
+    return this.suggestions.map((suggestion) => {
       let text = `• ${suggestion.action}: ${suggestion.description}`;
       if (suggestion.command) {
         text += ` (Run: ${suggestion.command})`;

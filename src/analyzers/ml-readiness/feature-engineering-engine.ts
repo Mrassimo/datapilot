@@ -1,21 +1,19 @@
 /**
  * Feature Engineering Automation Engine
  * Phase 4: Advanced Analytics Integration
- * 
+ *
  * Transforms raw data insights into ML-ready feature recommendations
  */
 
-import { 
+import type { NumericalColumnAnalysis, BivariateAnalysis, BaseColumnProfile } from '../eda/types';
+import {
   ColumnAnalysis,
-  NumericalColumnAnalysis,
   CategoricalColumnAnalysis,
   DateTimeAnalysis,
   BooleanAnalysis,
   TextColumnAnalysis,
-  BivariateAnalysis,
-  BaseColumnProfile,
   EdaDataType,
-  SemanticType
+  SemanticType,
 } from '../eda/types';
 
 // Type aliases for compatibility
@@ -29,6 +27,11 @@ type UnivariateAnalysis = NumericalColumnAnalysis & {
   count: number;
   min?: number;
   max?: number;
+  skewness?: number;
+  kurtosis?: number;
+  variance?: number;
+  missingCount?: number;
+  topValues?: Array<{ value: any; frequency: number; percentage: number }>;
   quartiles?: {
     q1: number;
     q3: number;
@@ -40,8 +43,9 @@ type UnivariateAnalysis = NumericalColumnAnalysis & {
 type BivariateResult = {
   column1: string;
   column2: string;
+  correlation?: number;
   correlationType?: string;
-  correlation?: {
+  correlationDetails?: {
     pearson: number;
   };
 };
@@ -116,7 +120,7 @@ export class FeatureEngineeringEngine {
     univariateResults: Map<string, UnivariateAnalysis>,
     bivariateResults: BivariateResult[],
     pcaResults?: any, // From multivariate analysis
-    targetColumn?: string
+    targetColumn?: string,
   ): FeatureEngineeringResults {
     const engineeredFeatures: FeatureEngineeringRecommendation[] = [];
     const scalingStrategies: Record<string, ScalingStrategy> = {};
@@ -126,7 +130,7 @@ export class FeatureEngineeringEngine {
     const bestPractices: string[] = [];
 
     // Analyze each column for feature engineering opportunities
-    columns.forEach(column => {
+    columns.forEach((column) => {
       const univariate = univariateResults.get(column.name);
       if (!univariate) return;
 
@@ -139,7 +143,11 @@ export class FeatureEngineeringEngine {
 
         // Detect polynomial features for non-linear relationships
         if (targetColumn) {
-          const targetCorrelation = this.findTargetCorrelation(column.name, targetColumn, bivariateResults);
+          const targetCorrelation = this.findTargetCorrelation(
+            column.name,
+            targetColumn,
+            bivariateResults,
+          );
           if (targetCorrelation && Math.abs(targetCorrelation) < 0.3) {
             engineeredFeatures.push(this.createPolynomialFeatures(column, univariate));
           }
@@ -157,9 +165,9 @@ export class FeatureEngineeringEngine {
       // Categorical feature engineering
       if (column.dataType === 'string' || column.semanticType === 'categorical') {
         categoricalEncodings[column.name] = this.determineCategoricalEncoding(
-          column, 
+          column,
           univariate,
-          targetColumn
+          targetColumn,
         );
 
         // High cardinality handling
@@ -182,7 +190,7 @@ export class FeatureEngineeringEngine {
       columns,
       univariateResults,
       bivariateResults,
-      pcaResults
+      pcaResults,
     );
 
     // Calculate ML readiness score
@@ -191,16 +199,11 @@ export class FeatureEngineeringEngine {
       engineeredFeatures,
       scalingStrategies,
       categoricalEncodings,
-      featureSelection
+      featureSelection,
     );
 
     // Add warnings and best practices
-    this.addWarningsAndBestPractices(
-      columns,
-      engineeredFeatures,
-      warnings,
-      bestPractices
-    );
+    this.addWarningsAndBestPractices(columns, engineeredFeatures, warnings, bestPractices);
 
     return {
       engineeredFeatures,
@@ -213,23 +216,23 @@ export class FeatureEngineeringEngine {
       estimatedFeatureCount: this.estimateFeatureCount(
         columns,
         engineeredFeatures,
-        categoricalEncodings
+        categoricalEncodings,
       ),
       warnings,
-      bestPractices
+      bestPractices,
     };
   }
 
   private static createSkewnessTransform(
     column: ColumnMetadata,
-    univariate: UnivariateAnalysis
+    univariate: UnivariateAnalysis,
   ): FeatureEngineeringRecommendation {
     const skewness = univariate.skewness || 0;
     const hasZeros = (univariate.min || 0) <= 0;
-    
+
     let method = 'log1p';
     let codeSnippet = `df['${column.name}_log'] = np.log1p(df['${column.name}'])`;
-    
+
     if (hasZeros || univariate.min! < 0) {
       method = 'box-cox';
       codeSnippet = `from scipy.stats import boxcox\ndf['${column.name}_boxcox'], lambda_param = boxcox(df['${column.name}'] + abs(df['${column.name}'].min()) + 1)`;
@@ -247,19 +250,19 @@ export class FeatureEngineeringEngine {
       implementation: {
         method,
         parameters: { skewness },
-        codeSnippet
+        codeSnippet,
       },
       expectedImpact: {
         informationGain: 0.7,
         complexityIncrease: 0.3,
-        interpretability: 0.6
-      }
+        interpretability: 0.6,
+      },
     };
   }
 
   private static createPolynomialFeatures(
     column: ColumnMetadata,
-    univariate: UnivariateAnalysis
+    univariate: UnivariateAnalysis,
   ): FeatureEngineeringRecommendation {
     return {
       featureName: `${column.name}_squared`,
@@ -270,22 +273,22 @@ export class FeatureEngineeringEngine {
       implementation: {
         method: 'polynomial_degree_2',
         parameters: { degree: 2 },
-        codeSnippet: `df['${column.name}_squared'] = df['${column.name}'] ** 2`
+        codeSnippet: `df['${column.name}_squared'] = df['${column.name}'] ** 2`,
       },
       expectedImpact: {
         informationGain: 0.6,
         complexityIncrease: 0.2,
-        interpretability: 0.8
-      }
+        interpretability: 0.8,
+      },
     };
   }
 
   private static createBinningTransform(
     column: ColumnMetadata,
-    univariate: UnivariateAnalysis
+    univariate: UnivariateAnalysis,
   ): FeatureEngineeringRecommendation {
     const bins = this.determineBinCount(univariate);
-    
+
     return {
       featureName: `${column.name}_binned`,
       originalColumn: column.name,
@@ -295,20 +298,20 @@ export class FeatureEngineeringEngine {
       implementation: {
         method: 'quantile_binning',
         parameters: { bins },
-        codeSnippet: `df['${column.name}_binned'] = pd.qcut(df['${column.name}'], q=${bins}, labels=False, duplicates='drop')`
+        codeSnippet: `df['${column.name}_binned'] = pd.qcut(df['${column.name}'], q=${bins}, labels=False, duplicates='drop')`,
       },
       expectedImpact: {
         informationGain: 0.5,
         complexityIncrease: 0.4,
-        interpretability: 0.9
-      }
+        interpretability: 0.9,
+      },
     };
   }
 
   private static determineScalingStrategy(univariate: UnivariateAnalysis): ScalingStrategy {
     const hasOutliers = this.detectOutliers(univariate);
     const distribution = this.detectDistribution(univariate);
-    
+
     if (hasOutliers) {
       return {
         method: 'robust',
@@ -316,97 +319,88 @@ export class FeatureEngineeringEngine {
         parameters: { with_centering: true, with_scaling: true },
         warningsAndCaveats: [
           'RobustScaler uses median and IQR, less sensitive to outliers',
-          'May not fully normalize extreme outliers'
-        ]
+          'May not fully normalize extreme outliers',
+        ],
       };
     }
-    
+
     if (distribution === 'normal' || distribution === 'approximately_normal') {
       return {
         method: 'standard',
         reasoning: 'StandardScaler recommended for normally distributed data',
         parameters: { with_mean: true, with_std: true },
-        warningsAndCaveats: [
-          'Assumes data is normally distributed',
-          'Sensitive to outliers'
-        ]
+        warningsAndCaveats: ['Assumes data is normally distributed', 'Sensitive to outliers'],
       };
     }
-    
+
     if (distribution === 'uniform') {
       return {
         method: 'minmax',
         reasoning: 'MinMaxScaler suitable for uniformly distributed data',
         parameters: { feature_range: [0, 1] },
-        warningsAndCaveats: [
-          'Bounded to specified range',
-          'Very sensitive to outliers'
-        ]
+        warningsAndCaveats: ['Bounded to specified range', 'Very sensitive to outliers'],
       };
     }
-    
+
     return {
       method: 'quantile',
       reasoning: 'Quantile transformation for unknown or complex distributions',
       parameters: { n_quantiles: 1000, output_distribution: 'uniform' },
-      warningsAndCaveats: [
-        'Non-linear transformation',
-        'May distort linear relationships'
-      ]
+      warningsAndCaveats: ['Non-linear transformation', 'May distort linear relationships'],
     };
   }
 
   private static determineCategoricalEncoding(
     column: ColumnMetadata,
     univariate: UnivariateAnalysis,
-    targetColumn?: string
+    targetColumn?: string,
   ): CategoricalEncodingStrategy {
     const cardinality = univariate.uniqueCount;
-    
+
     if (cardinality === 2) {
       return {
         method: 'binary',
         reasoning: 'Binary encoding for two-category variable',
-        parameters: { positive_label: univariate.topValues?.[0]?.value }
+        parameters: { positive_label: univariate.topValues?.[0]?.value },
       };
     }
-    
+
     if (cardinality <= 10) {
       return {
         method: 'onehot',
         reasoning: 'One-hot encoding suitable for low cardinality',
-        parameters: { drop_first: true, handle_unknown: 'ignore' }
+        parameters: { drop_first: true, handle_unknown: 'ignore' },
       };
     }
-    
+
     if (cardinality <= 50 && targetColumn) {
       return {
         method: 'target',
         reasoning: 'Target encoding for medium cardinality with known target',
         parameters: { smoothing: 1.0 },
-        highCardinalityHandling: 'Use cross-validation to prevent overfitting'
+        highCardinalityHandling: 'Use cross-validation to prevent overfitting',
       };
     }
-    
+
     if (cardinality > 50) {
       return {
         method: 'embedding',
         reasoning: 'Embedding recommended for high cardinality categorical',
         parameters: { embedding_dim: Math.min(50, Math.ceil(cardinality / 2)) },
-        highCardinalityHandling: 'Consider frequency-based filtering or grouping rare categories'
+        highCardinalityHandling: 'Consider frequency-based filtering or grouping rare categories',
       };
     }
-    
+
     return {
       method: 'ordinal',
       reasoning: 'Ordinal encoding as fallback for unknown structure',
-      parameters: { handle_unknown: 'use_encoded_value', unknown_value: -1 }
+      parameters: { handle_unknown: 'use_encoded_value', unknown_value: -1 },
     };
   }
 
   private static createCardinalityReduction(
     column: ColumnMetadata,
-    univariate: UnivariateAnalysis
+    univariate: UnivariateAnalysis,
   ): FeatureEngineeringRecommendation {
     return {
       featureName: `${column.name}_grouped`,
@@ -416,36 +410,38 @@ export class FeatureEngineeringEngine {
       reasoning: `High cardinality (${univariate.uniqueCount} unique values) requires reduction for effective modeling`,
       implementation: {
         method: 'frequency_based_grouping',
-        parameters: { 
+        parameters: {
           min_frequency: 0.01,
-          other_category: 'Other'
+          other_category: 'Other',
         },
         codeSnippet: `# Group rare categories
 value_counts = df['${column.name}'].value_counts()
 rare_categories = value_counts[value_counts < len(df) * 0.01].index
-df['${column.name}_grouped'] = df['${column.name}'].replace(rare_categories, 'Other')`
+df['${column.name}_grouped'] = df['${column.name}'].replace(rare_categories, 'Other')`,
       },
       expectedImpact: {
         informationGain: 0.4,
         complexityIncrease: -0.3,
-        interpretability: 0.7
-      }
+        interpretability: 0.7,
+      },
     };
   }
 
-  private static createDateTimeFeatures(column: ColumnMetadata): FeatureEngineeringRecommendation[] {
+  private static createDateTimeFeatures(
+    column: ColumnMetadata,
+  ): FeatureEngineeringRecommendation[] {
     const features: FeatureEngineeringRecommendation[] = [];
-    
+
     const timeComponents = [
       { name: 'year', extract: 'dt.year', priority: 'medium' as const },
       { name: 'month', extract: 'dt.month', priority: 'high' as const },
       { name: 'day', extract: 'dt.day', priority: 'medium' as const },
       { name: 'dayofweek', extract: 'dt.dayofweek', priority: 'high' as const },
       { name: 'hour', extract: 'dt.hour', priority: 'high' as const },
-      { name: 'quarter', extract: 'dt.quarter', priority: 'medium' as const }
+      { name: 'quarter', extract: 'dt.quarter', priority: 'medium' as const },
     ];
-    
-    timeComponents.forEach(component => {
+
+    timeComponents.forEach((component) => {
       features.push({
         featureName: `${column.name}_${component.name}`,
         originalColumn: column.name,
@@ -455,16 +451,16 @@ df['${column.name}_grouped'] = df['${column.name}'].replace(rare_categories, 'Ot
         implementation: {
           method: `extract_${component.name}`,
           parameters: {},
-          codeSnippet: `df['${column.name}_${component.name}'] = pd.to_datetime(df['${column.name}']).${component.extract}`
+          codeSnippet: `df['${column.name}_${component.name}'] = pd.to_datetime(df['${column.name}']).${component.extract}`,
         },
         expectedImpact: {
           informationGain: 0.6,
           complexityIncrease: 0.1,
-          interpretability: 0.9
-        }
+          interpretability: 0.9,
+        },
       });
     });
-    
+
     // Add cyclical encoding for month and hour
     features.push({
       featureName: `${column.name}_month_sin`,
@@ -476,39 +472,41 @@ df['${column.name}_grouped'] = df['${column.name}'].replace(rare_categories, 'Ot
         method: 'sine_cosine_encoding',
         parameters: { period: 12 },
         codeSnippet: `df['${column.name}_month_sin'] = np.sin(2 * np.pi * df['${column.name}_month'] / 12)
-df['${column.name}_month_cos'] = np.cos(2 * np.pi * df['${column.name}_month'] / 12)`
+df['${column.name}_month_cos'] = np.cos(2 * np.pi * df['${column.name}_month'] / 12)`,
       },
       expectedImpact: {
         informationGain: 0.5,
         complexityIncrease: 0.2,
-        interpretability: 0.6
-      }
+        interpretability: 0.6,
+      },
     });
-    
+
     return features;
   }
 
   private static detectFeatureInteractions(
     bivariateResults: BivariateResult[],
-    pcaResults?: any
+    pcaResults?: any,
   ): FeatureInteraction[] {
     const interactions: FeatureInteraction[] = [];
-    
+
     // Find strongly correlated pairs for ratio features
-    bivariateResults.forEach(result => {
-      if (result.correlationType === 'numerical_numerical' && 
-          result.correlation && 
-          Math.abs(result.correlation.pearson) > 0.7) {
+    bivariateResults.forEach((result) => {
+      if (
+        result.correlationType === 'numerical_numerical' &&
+        result.correlation &&
+        Math.abs(typeof result.correlation === 'number' ? result.correlation : result.correlationDetails?.pearson || 0) > 0.7
+      ) {
         interactions.push({
           features: [result.column1, result.column2],
           interactionType: 'ratio',
-          statisticalSignificance: Math.abs(result.correlation.pearson),
+          statisticalSignificance: Math.abs(typeof result.correlation === 'number' ? result.correlation : result.correlationDetails?.pearson || 0),
           reasoning: 'Strong correlation suggests ratio might capture relationship',
-          implementation: `df['${result.column1}_${result.column2}_ratio'] = df['${result.column1}'] / (df['${result.column2}'] + 1e-8)`
+          implementation: `df['${result.column1}_${result.column2}_ratio'] = df['${result.column1}'] / (df['${result.column2}'] + 1e-8)`,
         });
       }
     });
-    
+
     // Use PCA results to identify multiplicative interactions
     if (pcaResults?.components) {
       const topComponents = pcaResults.components.slice(0, 3);
@@ -516,68 +514,68 @@ df['${column.name}_month_cos'] = np.cos(2 * np.pi * df['${column.name}_month'] /
         const topFeatures = component.loadings
           .sort((a: any, b: any) => Math.abs(b.value) - Math.abs(a.value))
           .slice(0, 2);
-        
+
         if (topFeatures.length === 2) {
           interactions.push({
             features: topFeatures.map((f: any) => f.feature),
             interactionType: 'multiplicative',
             statisticalSignificance: component.explainedVariance,
             reasoning: `Features load highly on PC${idx + 1}, suggesting interaction`,
-            implementation: `df['${topFeatures[0].feature}_x_${topFeatures[1].feature}'] = df['${topFeatures[0].feature}'] * df['${topFeatures[1].feature}']`
+            implementation: `df['${topFeatures[0].feature}_x_${topFeatures[1].feature}'] = df['${topFeatures[0].feature}'] * df['${topFeatures[1].feature}']`,
           });
         }
       });
     }
-    
+
     return interactions;
   }
 
   private static performFeatureSelection(
     columns: ColumnMetadata[],
     univariateResults: Map<string, UnivariateAnalysis>,
-    bivariateResults: BivariateAnalysis[],
-    pcaResults?: any
+    bivariateResults: BivariateResult[],
+    pcaResults?: any,
   ): FeatureSelectionResults {
     const featureScores: Record<string, number> = {};
     const selectedFeatures: string[] = [];
     const eliminatedFeatures: string[] = [];
-    
+
     // Score features based on multiple criteria
-    columns.forEach(column => {
+    columns.forEach((column) => {
       let score = 0;
       const univariate = univariateResults.get(column.name);
-      
+
       if (!univariate) return;
-      
+
       // Variance-based scoring
       if (univariate.variance && univariate.variance > 0) {
         score += 0.3;
       }
-      
+
       // Uniqueness scoring
       const uniquenessRatio = univariate.uniqueCount / univariate.count;
       if (uniquenessRatio > 0.01 && uniquenessRatio < 0.95) {
         score += 0.2;
       }
-      
+
       // Missing value penalty
-      const missingRatio = univariate.missingCount / univariate.count;
+      const missingRatio = (univariate.missingCount || 0) / univariate.count;
       score -= missingRatio * 0.5;
-      
+
       // Correlation bonus (if correlated with other features)
       const correlations = bivariateResults.filter(
-        r => r.column1 === column.name || r.column2 === column.name
+        (r) => r.column1 === column.name || r.column2 === column.name,
       );
       const maxCorrelation = Math.max(
-        ...correlations.map(c => Math.abs(c.correlation?.pearson || 0))
+        ...correlations.map((c) => Math.abs(typeof c.correlation === 'number' ? c.correlation : c.correlationDetails?.pearson || 0)),
       );
       if (maxCorrelation > 0.3 && maxCorrelation < 0.95) {
         score += 0.3;
       }
-      
+
       featureScores[column.name] = Math.max(0, Math.min(1, score));
     });
-    
+
     // Select features above threshold
     const threshold = 0.4;
     Object.entries(featureScores).forEach(([feature, score]) => {
@@ -587,13 +585,14 @@ df['${column.name}_month_cos'] = np.cos(2 * np.pi * df['${column.name}_month'] /
         eliminatedFeatures.push(feature);
       }
     });
-    
+
     return {
       selectedFeatures,
       eliminatedFeatures,
       featureImportanceScores: featureScores,
       selectionMethod: 'multi_criteria_scoring',
-      reasoning: 'Features selected based on variance, uniqueness, missing values, and correlation patterns'
+      reasoning:
+        'Features selected based on variance, uniqueness, missing values, and correlation patterns',
     };
   }
 
@@ -602,55 +601,54 @@ df['${column.name}_month_cos'] = np.cos(2 * np.pi * df['${column.name}_month'] /
     engineeredFeatures: FeatureEngineeringRecommendation[],
     scalingStrategies: Record<string, ScalingStrategy>,
     categoricalEncodings: Record<string, CategoricalEncodingStrategy>,
-    featureSelection: FeatureSelectionResults
+    featureSelection: FeatureSelectionResults,
   ): number {
     let score = 0;
     const weights = {
       dataQuality: 0.3,
       featureEngineering: 0.25,
       preprocessing: 0.25,
-      featureSelection: 0.2
+      featureSelection: 0.2,
     };
-    
+
     // Data quality score
-    const selectedColumns = columns.filter(c => 
-      featureSelection.selectedFeatures.includes(c.name)
+    const selectedColumns = columns.filter((c) =>
+      featureSelection.selectedFeatures.includes(c.name),
     );
-    const avgMissingRatio = selectedColumns.reduce((sum, col) => {
-      const univariate = col as any; // Would need proper typing
-      return sum + (univariate.missingCount || 0) / (univariate.count || 1);
-    }, 0) / selectedColumns.length;
+    const avgMissingRatio =
+      selectedColumns.reduce((sum, col) => {
+        const univariate = col as any; // Would need proper typing
+        return sum + (univariate.missingCount || 0) / (univariate.count || 1);
+      }, 0) / selectedColumns.length;
     const dataQualityScore = 1 - avgMissingRatio;
-    
+
     // Feature engineering score
     const featureEngineeringScore = Math.min(1, engineeredFeatures.length / 10);
-    
+
     // Preprocessing score
-    const preprocessingScore = (
-      Object.keys(scalingStrategies).length + 
-      Object.keys(categoricalEncodings).length
-    ) / columns.length;
-    
+    const preprocessingScore =
+      (Object.keys(scalingStrategies).length + Object.keys(categoricalEncodings).length) /
+      columns.length;
+
     // Feature selection score
     const featureSelectionScore = featureSelection.selectedFeatures.length > 0 ? 0.8 : 0;
-    
-    score = (
+
+    score =
       weights.dataQuality * dataQualityScore +
       weights.featureEngineering * featureEngineeringScore +
       weights.preprocessing * preprocessingScore +
-      weights.featureSelection * featureSelectionScore
-    );
-    
+      weights.featureSelection * featureSelectionScore;
+
     return Math.round(score * 100);
   }
 
   private static assessImplementationComplexity(
-    engineeredFeatures: FeatureEngineeringRecommendation[]
+    engineeredFeatures: FeatureEngineeringRecommendation[],
   ): 'low' | 'medium' | 'high' {
-    const complexTransforms = engineeredFeatures.filter(f => 
-      ['polynomial', 'embedding', 'target', 'custom'].includes(f.transformationType)
+    const complexTransforms = engineeredFeatures.filter((f) =>
+      ['polynomial', 'embedding', 'target', 'custom'].includes(f.transformationType),
     ).length;
-    
+
     if (complexTransforms === 0) return 'low';
     if (complexTransforms <= 3) return 'medium';
     return 'high';
@@ -659,24 +657,24 @@ df['${column.name}_month_cos'] = np.cos(2 * np.pi * df['${column.name}_month'] /
   private static estimateFeatureCount(
     columns: ColumnMetadata[],
     engineeredFeatures: FeatureEngineeringRecommendation[],
-    categoricalEncodings: Record<string, CategoricalEncodingStrategy>
+    categoricalEncodings: Record<string, CategoricalEncodingStrategy>,
   ): number {
     let count = columns.length;
-    
+
     // Add engineered features
     count += engineeredFeatures.length;
-    
+
     // Add one-hot encoded features
     Object.entries(categoricalEncodings).forEach(([col, encoding]) => {
       if (encoding.method === 'onehot') {
-        const column = columns.find(c => c.name === col);
+        const column = columns.find((c) => c.name === col);
         if (column) {
           // Estimate cardinality from metadata
           count += 10; // Conservative estimate
         }
       }
     });
-    
+
     return count;
   }
 
@@ -684,22 +682,24 @@ df['${column.name}_month_cos'] = np.cos(2 * np.pi * df['${column.name}_month'] /
     columns: ColumnMetadata[],
     engineeredFeatures: FeatureEngineeringRecommendation[],
     warnings: string[],
-    bestPractices: string[]
+    bestPractices: string[],
   ): void {
     // Check for multicollinearity risk
-    const polynomialFeatures = engineeredFeatures.filter(f => 
-      f.transformationType === 'polynomial'
+    const polynomialFeatures = engineeredFeatures.filter(
+      (f) => f.transformationType === 'polynomial',
     );
     if (polynomialFeatures.length > 3) {
       warnings.push('Multiple polynomial features may introduce multicollinearity');
     }
-    
+
     // Check for high dimensionality
     const estimatedFeatures = this.estimateFeatureCount(columns, engineeredFeatures, {});
     if (estimatedFeatures > 100) {
-      warnings.push(`High feature count (${estimatedFeatures}) may require dimensionality reduction`);
+      warnings.push(
+        `High feature count (${estimatedFeatures}) may require dimensionality reduction`,
+      );
     }
-    
+
     // Best practices
     bestPractices.push('Always split data before fitting transformers to prevent leakage');
     bestPractices.push('Use cross-validation for target encoding to avoid overfitting');
@@ -712,19 +712,21 @@ df['${column.name}_month_cos'] = np.cos(2 * np.pi * df['${column.name}_month'] /
   private static findTargetCorrelation(
     column: string,
     target: string,
-    bivariateResults: BivariateResult[]
+    bivariateResults: BivariateResult[],
   ): number | null {
     const result = bivariateResults.find(
-      r => (r.column1 === column && r.column2 === target) ||
-           (r.column1 === target && r.column2 === column)
+      (r) =>
+        (r.column1 === column && r.column2 === target) ||
+        (r.column1 === target && r.column2 === column),
     );
-    return result?.correlation?.pearson || null;
+    return result ? (typeof result.correlation === 'number' ? result.correlation : result.correlationDetails?.pearson || null) : null;
   }
 
   private static shouldBinVariable(univariate: UnivariateAnalysis): boolean {
     // Bin if distribution is highly skewed or has specific patterns
-    return (Math.abs(univariate.skewness || 0) > 2) || 
-           (univariate.kurtosis && univariate.kurtosis > 5);
+    return (
+      Math.abs(univariate.skewness || 0) > 2 || ((univariate.kurtosis || 0) > 5)
+    );
   }
 
   private static detectOutliers(univariate: UnivariateAnalysis): boolean {
@@ -732,13 +734,13 @@ df['${column.name}_month_cos'] = np.cos(2 * np.pi * df['${column.name}_month'] /
     const iqr = univariate.quartiles.q3 - univariate.quartiles.q1;
     const lowerBound = univariate.quartiles.q1 - 1.5 * iqr;
     const upperBound = univariate.quartiles.q3 + 1.5 * iqr;
-    return (univariate.min! < lowerBound) || (univariate.max! > upperBound);
+    return univariate.min! < lowerBound || univariate.max! > upperBound;
   }
 
   private static detectDistribution(univariate: UnivariateAnalysis): string {
     const skewness = Math.abs(univariate.skewness || 0);
     const kurtosis = univariate.kurtosis || 0;
-    
+
     if (skewness < 0.5 && Math.abs(kurtosis - 3) < 0.5) {
       return 'normal';
     } else if (skewness < 1 && Math.abs(kurtosis - 3) < 2) {
@@ -752,7 +754,7 @@ df['${column.name}_month_cos'] = np.cos(2 * np.pi * df['${column.name}_month'] /
   private static determineBinCount(univariate: UnivariateAnalysis): number {
     const uniqueValues = univariate.uniqueCount;
     const totalValues = univariate.count;
-    
+
     if (uniqueValues < 10) return uniqueValues;
     if (totalValues < 100) return 5;
     if (totalValues < 1000) return 10;

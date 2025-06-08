@@ -21,6 +21,7 @@ export interface LogContext {
   timestamp?: Date;
   memoryUsage?: number;
   errorCode?: string;
+  error?: string;
 }
 
 export interface LogEntry {
@@ -59,9 +60,9 @@ export class Logger {
       timestamp: new Date(),
       args,
     };
-    
+
     this.addToHistory(entry);
-    
+
     if (this.level >= LogLevel.ERROR) {
       const contextStr = this.formatContext(context);
       console.error(`❌ ERROR: ${message}${contextStr}`, ...args);
@@ -76,9 +77,9 @@ export class Logger {
       timestamp: new Date(),
       args,
     };
-    
+
     this.addToHistory(entry);
-    
+
     if (this.level >= LogLevel.WARN) {
       const contextStr = this.formatContext(context);
       console.warn(`⚠️  WARN: ${message}${contextStr}`, ...args);
@@ -93,9 +94,9 @@ export class Logger {
       timestamp: new Date(),
       args,
     };
-    
+
     this.addToHistory(entry);
-    
+
     if (this.level >= LogLevel.INFO) {
       const contextStr = this.formatContext(context);
       console.log(`ℹ️  INFO: ${message}${contextStr}`, ...args);
@@ -110,9 +111,9 @@ export class Logger {
       timestamp: new Date(),
       args,
     };
-    
+
     this.addToHistory(entry);
-    
+
     if (this.level >= LogLevel.DEBUG) {
       const contextStr = this.formatContext(context);
       console.log(`🐛 DEBUG: ${message}${contextStr}`, ...args);
@@ -141,9 +142,9 @@ export class Logger {
       timestamp: new Date(),
       args,
     };
-    
+
     this.addToHistory(entry);
-    
+
     if (this.level >= LogLevel.TRACE) {
       const contextStr = this.formatContext(context);
       console.log(`🔍 TRACE: ${message}${contextStr}`, ...args);
@@ -159,7 +160,7 @@ export class Logger {
       operation,
       timestamp: new Date(),
     };
-    
+
     if (duration > 5000) {
       this.warn(`Slow operation: ${operation} took ${duration}ms`, perfContext);
     } else if (duration > 1000) {
@@ -178,10 +179,10 @@ export class Logger {
       ...context,
       memoryUsage: memUsage.heapUsed,
     };
-    
+
     const heapMB = Math.round(memUsage.heapUsed / 1024 / 1024);
     const rssMode = Math.round(memUsage.rss / 1024 / 1024);
-    
+
     if (heapMB > 512) {
       this.warn(`High memory usage: ${heapMB}MB heap, ${rssMode}MB RSS`, memContext);
     } else {
@@ -197,9 +198,9 @@ export class Logger {
       ...context,
       errorCode: error.name,
     };
-    
+
     this.error(error.message, errorContext);
-    
+
     if (this.level >= LogLevel.DEBUG && error.stack) {
       console.error('Stack trace:');
       console.error(error.stack);
@@ -211,15 +212,15 @@ export class Logger {
    */
   getRecentLogs(level?: LogLevel, limit?: number): LogEntry[] {
     let filtered = this.logHistory;
-    
+
     if (level !== undefined) {
-      filtered = filtered.filter(entry => entry.level <= level);
+      filtered = filtered.filter((entry) => entry.level <= level);
     }
-    
+
     if (limit) {
       filtered = filtered.slice(-limit);
     }
-    
+
     return filtered;
   }
 
@@ -227,10 +228,10 @@ export class Logger {
    * Get error summary for debugging
    */
   getErrorSummary(): { errorCount: number; warningCount: number; recentErrors: LogEntry[] } {
-    const errors = this.logHistory.filter(entry => entry.level === LogLevel.ERROR);
-    const warnings = this.logHistory.filter(entry => entry.level === LogLevel.WARN);
+    const errors = this.logHistory.filter((entry) => entry.level === LogLevel.ERROR);
+    const warnings = this.logHistory.filter((entry) => entry.level === LogLevel.WARN);
     const recentErrors = errors.slice(-10);
-    
+
     return {
       errorCount: errors.length,
       warningCount: warnings.length,
@@ -268,9 +269,9 @@ export class Logger {
 
   private formatContext(context?: LogContext): string {
     if (!context) return '';
-    
+
     const parts: string[] = [];
-    
+
     if (context.section) parts.push(`section:${context.section}`);
     if (context.analyzer) parts.push(`analyzer:${context.analyzer}`);
     if (context.operation) parts.push(`op:${context.operation}`);
@@ -284,15 +285,15 @@ export class Logger {
       const memMB = Math.round(context.memoryUsage / 1024 / 1024);
       parts.push(`mem:${memMB}MB`);
     }
-    
+
     return parts.length > 0 ? ` [${parts.join(', ')}]` : '';
   }
 
   private addToHistory(entry: LogEntry): void {
     if (!this.enableHistory) return;
-    
+
     this.logHistory.push(entry);
-    
+
     // Trim history if it gets too large
     if (this.logHistory.length > this.maxHistorySize) {
       this.logHistory = this.logHistory.slice(-Math.floor(this.maxHistorySize * 0.8));
@@ -313,7 +314,7 @@ export class LogUtils {
     section?: string,
     analyzer?: string,
     filePath?: string,
-    operation?: string
+    operation?: string,
   ): LogContext {
     return {
       section,
@@ -344,13 +345,19 @@ export class LogUtils {
   /**
    * Create a scoped logger that automatically includes context
    */
-  static createScopedLogger(context: LogContext) {
+  static createScopedLogger(context: LogContext): {
+    error: (message: string, ...args: unknown[]) => void;
+    warn: (message: string, ...args: unknown[]) => void;
+    info: (message: string, ...args: unknown[]) => void;
+    debug: (message: string, ...args: unknown[]) => void;
+    trace: (message: string, ...args: unknown[]) => void;
+  } {
     return {
-      error: (message: string, ...args: unknown[]) => logger.error(message, context, ...args),
-      warn: (message: string, ...args: unknown[]) => logger.warn(message, context, ...args),
-      info: (message: string, ...args: unknown[]) => logger.info(message, context, ...args),
-      debug: (message: string, ...args: unknown[]) => logger.debug(message, context, ...args),
-      trace: (message: string, ...args: unknown[]) => logger.trace(message, context, ...args),
+      error: (message: string, ...args: unknown[]): void => logger.error(message, context, ...args),
+      warn: (message: string, ...args: unknown[]): void => logger.warn(message, context, ...args),
+      info: (message: string, ...args: unknown[]): void => logger.info(message, context, ...args),
+      debug: (message: string, ...args: unknown[]): void => logger.debug(message, context, ...args),
+      trace: (message: string, ...args: unknown[]): void => logger.trace(message, context, ...args),
     };
   }
 }

@@ -3,7 +3,21 @@
  * Formats modeling analysis results into comprehensive markdown reports
  */
 
-import type { Section6Result } from './types';
+import type { 
+  Section6Result,
+  Section6Metadata,
+  ModelingAnalysis,
+  ModelingTask,
+  AlgorithmRecommendation,
+  CARTAnalysis,
+  ResidualAnalysis,
+  ModelingWorkflow,
+  EvaluationFramework,
+  InterpretationGuidance,
+  EthicsAnalysis,
+  ImplementationRoadmap,
+  Section6Warning
+} from './types';
 
 export class Section6Formatter {
   /**
@@ -17,8 +31,12 @@ export class Section6Formatter {
       this.formatExecutiveSummary(modelingAnalysis, metadata),
       this.formatIdentifiedTasks(modelingAnalysis.identifiedTasks),
       this.formatAlgorithmRecommendations(modelingAnalysis.algorithmRecommendations),
-      ...(modelingAnalysis.cartAnalysis ? [this.formatCARTAnalysis(modelingAnalysis.cartAnalysis)] : []),
-      ...(modelingAnalysis.residualAnalysis ? [this.formatResidualAnalysis(modelingAnalysis.residualAnalysis)] : []),
+      ...(modelingAnalysis.cartAnalysis
+        ? [this.formatCARTAnalysis(modelingAnalysis.cartAnalysis)]
+        : []),
+      ...(modelingAnalysis.residualAnalysis
+        ? [this.formatResidualAnalysis(modelingAnalysis.residualAnalysis)]
+        : []),
       this.formatWorkflowGuidance(modelingAnalysis.workflowGuidance),
       this.formatEvaluationFramework(modelingAnalysis.evaluationFramework),
       this.formatInterpretationGuidance(modelingAnalysis.interpretationGuidance),
@@ -39,7 +57,7 @@ This section leverages insights from Data Quality (Section 2), EDA (Section 3), 
 ---`;
   }
 
-  private static formatExecutiveSummary(analysis: any, metadata: any): string {
+  private static formatExecutiveSummary(analysis: ModelingAnalysis, metadata: Section6Metadata): string {
     return `## 6.1 Executive Summary
 
 **Analysis Overview:**
@@ -60,23 +78,25 @@ This section leverages insights from Data Quality (Section 2), EDA (Section 3), 
 - Risk mitigation strategies identified for ethical AI deployment`;
   }
 
-  private static formatIdentifiedTasks(tasks: any[]): string {
+  private static formatIdentifiedTasks(tasks: ModelingTask[]): string {
     if (!tasks || tasks.length === 0) {
       return '## 6.2 Modeling Task Analysis\n\nNo suitable modeling tasks identified based on current data characteristics.';
     }
 
     let output = '## 6.2 Potential Modeling Tasks & Objectives\n\n';
-    
+
     output += '### 6.2.1 Task Summary\n\n';
-    output += '| Task Type | Target Variable | Business Objective | Feasibility Score | Confidence Level |\n';
-    output += '|-----------|-----------------|--------------------|--------------------|------------------|\n';
-    
-    tasks.forEach(task => {
+    output +=
+      '| Task Type | Target Variable | Business Objective | Feasibility Score | Confidence Level |\n';
+    output +=
+      '|-----------|-----------------|--------------------|--------------------|------------------|\n';
+
+    tasks.forEach((task) => {
       output += `| ${this.formatTaskType(task.taskType)} | ${task.targetVariable || 'N/A'} | ${this.truncateText(task.businessObjective, 50)} | ${task.feasibilityScore}% | ${this.capitalizeFirst(task.confidenceLevel)} |\n`;
     });
 
     output += '\n### 6.2.2 Detailed Task Analysis\n\n';
-    
+
     tasks.forEach((task, index) => {
       output += `**${index + 1}. ${this.formatTaskType(task.taskType)}**\n\n`;
       output += `- **Target Variable:** ${task.targetVariable || 'None (unsupervised)'}\n`;
@@ -86,7 +106,7 @@ This section leverages insights from Data Quality (Section 2), EDA (Section 3), 
       output += `- **Technical Objective:** ${task.technicalObjective}\n`;
       output += `- **Feasibility Score:** ${task.feasibilityScore}% (${this.interpretFeasibilityScore(task.feasibilityScore)})\n`;
       output += `- **Estimated Complexity:** ${this.capitalizeFirst(task.estimatedComplexity)}\n\n`;
-      
+
       if (task.justification && task.justification.length > 0) {
         output += `**Justification:**\n`;
         task.justification.forEach((reason: string) => {
@@ -94,7 +114,7 @@ This section leverages insights from Data Quality (Section 2), EDA (Section 3), 
         });
         output += '\n';
       }
-      
+
       if (task.potentialChallenges && task.potentialChallenges.length > 0) {
         output += `**Potential Challenges:**\n`;
         task.potentialChallenges.forEach((challenge: string) => {
@@ -102,7 +122,7 @@ This section leverages insights from Data Quality (Section 2), EDA (Section 3), 
         });
         output += '\n';
       }
-      
+
       if (task.successMetrics && task.successMetrics.length > 0) {
         output += `**Success Metrics:** ${task.successMetrics.join(', ')}\n\n`;
       }
@@ -111,30 +131,32 @@ This section leverages insights from Data Quality (Section 2), EDA (Section 3), 
     return output;
   }
 
-  private static formatAlgorithmRecommendations(algorithms: any[]): string {
+  private static formatAlgorithmRecommendations(algorithms: AlgorithmRecommendation[]): string {
     if (!algorithms || algorithms.length === 0) {
       return '## 6.3 Algorithm Recommendations\n\nNo algorithm recommendations generated.';
     }
 
     let output = '## 6.3 Algorithm Recommendations & Selection Guidance\n\n';
-    
+
     output += '### 6.3.1 Recommendation Summary\n\n';
-    output += '| Algorithm | Category | Suitability Score | Complexity | Interpretability | Key Strengths |\n';
-    output += '|-----------|----------|-------------------|------------|------------------|---------------|\n';
-    
-    algorithms.slice(0, 10).forEach(alg => {
+    output +=
+      '| Algorithm | Category | Suitability Score | Complexity | Interpretability | Key Strengths |\n';
+    output +=
+      '|-----------|----------|-------------------|------------|------------------|---------------|\n';
+
+    algorithms.slice(0, 10).forEach((alg) => {
       output += `| ${alg.algorithmName} | ${this.formatCategory(alg.category)} | ${alg.suitabilityScore}% | ${this.capitalizeFirst(alg.complexity)} | ${this.capitalizeFirst(alg.interpretability)} | ${alg.strengths.slice(0, 2).join(', ')} |\n`;
     });
 
     output += '\n### 6.3.2 Detailed Algorithm Analysis\n\n';
-    
+
     algorithms.slice(0, 5).forEach((alg, index) => {
       output += `**${index + 1}. ${alg.algorithmName}**\n\n`;
       output += `- **Category:** ${this.formatCategory(alg.category)}\n`;
       output += `- **Suitability Score:** ${alg.suitabilityScore}% (${this.interpretSuitabilityScore(alg.suitabilityScore)})\n`;
       output += `- **Complexity:** ${this.capitalizeFirst(alg.complexity)}\n`;
       output += `- **Interpretability:** ${this.capitalizeFirst(alg.interpretability)}\n\n`;
-      
+
       if (alg.strengths && alg.strengths.length > 0) {
         output += `**Strengths:**\n`;
         alg.strengths.forEach((strength: string) => {
@@ -142,7 +164,7 @@ This section leverages insights from Data Quality (Section 2), EDA (Section 3), 
         });
         output += '\n';
       }
-      
+
       if (alg.weaknesses && alg.weaknesses.length > 0) {
         output += `**Limitations:**\n`;
         alg.weaknesses.forEach((weakness: string) => {
@@ -150,19 +172,19 @@ This section leverages insights from Data Quality (Section 2), EDA (Section 3), 
         });
         output += '\n';
       }
-      
+
       if (alg.hyperparameters && alg.hyperparameters.length > 0) {
         output += `**Key Hyperparameters:**\n`;
-        alg.hyperparameters.slice(0, 3).forEach((hp: any) => {
+        alg.hyperparameters.slice(0, 3).forEach((hp) => {
           output += `- **${hp.parameterName}:** ${hp.description} (${hp.importance} importance)\n`;
         });
         output += '\n';
       }
-      
+
       if (alg.implementationFrameworks && alg.implementationFrameworks.length > 0) {
         output += `**Implementation Frameworks:** ${alg.implementationFrameworks.slice(0, 3).join(', ')}\n\n`;
       }
-      
+
       if (alg.reasoningNotes && alg.reasoningNotes.length > 0) {
         output += `**Recommendation Reasoning:**\n`;
         alg.reasoningNotes.forEach((note: string) => {
@@ -175,24 +197,24 @@ This section leverages insights from Data Quality (Section 2), EDA (Section 3), 
     return output;
   }
 
-  private static formatCARTAnalysis(cartAnalysis: any): string {
+  private static formatCARTAnalysis(cartAnalysis: CARTAnalysis): string {
     let output = '## 6.4 CART (Decision Tree) Methodology Deep Dive\n\n';
-    
+
     output += '### 6.4.1 CART Methodology Overview\n\n';
     output += `${cartAnalysis.methodology}\n\n`;
-    
+
     output += '### 6.4.2 Splitting Criterion\n\n';
     output += `**Selected Criterion:** ${this.capitalizeFirst(cartAnalysis.splittingCriterion)}\n\n`;
-    
+
     output += '### 6.4.3 Stopping Criteria Recommendations\n\n';
     if (cartAnalysis.stoppingCriteria && cartAnalysis.stoppingCriteria.length > 0) {
-      cartAnalysis.stoppingCriteria.forEach((criterion: any) => {
+      cartAnalysis.stoppingCriteria.forEach((criterion) => {
         output += `**${criterion.criterion}**\n`;
         output += `- **Recommended Value:** ${criterion.recommendedValue}\n`;
         output += `- **Reasoning:** ${criterion.reasoning}\n\n`;
       });
     }
-    
+
     output += '### 6.4.4 Pruning Strategy\n\n';
     if (cartAnalysis.pruningStrategy) {
       output += `**Method:** ${this.capitalizeFirst(cartAnalysis.pruningStrategy.method)}\n`;
@@ -200,24 +222,24 @@ This section leverages insights from Data Quality (Section 2), EDA (Section 3), 
       output += `**Complexity Parameter:** ${cartAnalysis.pruningStrategy.complexityParameter}\n\n`;
       output += `**Reasoning:**\n${cartAnalysis.pruningStrategy.reasoning}\n\n`;
     }
-    
+
     output += '### 6.4.5 Tree Interpretation Guidance\n\n';
     if (cartAnalysis.treeInterpretation) {
       const interp = cartAnalysis.treeInterpretation;
       output += `**Expected Tree Characteristics:**\n`;
       output += `- **Estimated Depth:** ${interp.treeDepth} levels\n`;
       output += `- **Estimated Leaves:** ${interp.numberOfLeaves} terminal nodes\n\n`;
-      
+
       if (interp.keyDecisionPaths && interp.keyDecisionPaths.length > 0) {
         output += `**Example Decision Paths:**\n\n`;
-        interp.keyDecisionPaths.forEach((path: any, index: number) => {
+        interp.keyDecisionPaths.forEach((path, index: number) => {
           output += `${index + 1}. **${path.pathDescription}**\n`;
           output += `   - **Conditions:** ${path.conditions.join(' AND ')}\n`;
           output += `   - **Prediction:** ${path.prediction}\n`;
           output += `   - **Business Meaning:** ${path.businessMeaning}\n\n`;
         });
       }
-      
+
       if (interp.businessRules && interp.businessRules.length > 0) {
         output += `**Business Rule Translation:**\n`;
         interp.businessRules.forEach((rule: string) => {
@@ -226,23 +248,26 @@ This section leverages insights from Data Quality (Section 2), EDA (Section 3), 
         output += '\n';
       }
     }
-    
+
     output += '### 6.4.6 Visualization Recommendations\n\n';
-    if (cartAnalysis.visualizationRecommendations && cartAnalysis.visualizationRecommendations.length > 0) {
+    if (
+      cartAnalysis.visualizationRecommendations &&
+      cartAnalysis.visualizationRecommendations.length > 0
+    ) {
       cartAnalysis.visualizationRecommendations.forEach((rec: string, index: number) => {
         output += `${index + 1}. ${rec}\n`;
       });
     }
-    
+
     return output;
   }
 
-  private static formatResidualAnalysis(residualAnalysis: any): string {
+  private static formatResidualAnalysis(residualAnalysis: ResidualAnalysis): string {
     let output = '## 6.5 Regression Residual Analysis Deep Dive\n\n';
-    
+
     output += '### 6.5.1 Residual Diagnostic Plots\n\n';
     if (residualAnalysis.residualDiagnostics && residualAnalysis.residualDiagnostics.length > 0) {
-      residualAnalysis.residualDiagnostics.forEach((diagnostic: any) => {
+      residualAnalysis.residualDiagnostics.forEach((diagnostic) => {
         output += `**${this.formatPlotType(diagnostic.plotType)}**\n\n`;
         output += `${diagnostic.interpretation}\n\n`;
         if (diagnostic.actionRequired) {
@@ -250,22 +275,25 @@ This section leverages insights from Data Quality (Section 2), EDA (Section 3), 
         }
       });
     }
-    
+
     output += '### 6.5.2 Statistical Tests for Assumptions\n\n';
-    
+
     // Normality tests
     if (residualAnalysis.normalityTests && residualAnalysis.normalityTests.length > 0) {
       output += '**Normality Tests:**\n\n';
-      residualAnalysis.normalityTests.forEach((test: any) => {
+      residualAnalysis.normalityTests.forEach((test) => {
         output += `**${this.formatTestName(test.testName)}**\n`;
         output += `- **Test Statistic:** ${test.statistic}\n`;
         output += `- **P-value:** ${test.pValue}\n`;
         output += `- **Conclusion:** ${test.conclusion}\n\n`;
       });
     }
-    
+
     // Heteroscedasticity tests
-    if (residualAnalysis.heteroscedasticityTests && residualAnalysis.heteroscedasticityTests.length > 0) {
+    if (
+      residualAnalysis.heteroscedasticityTests &&
+      residualAnalysis.heteroscedasticityTests.length > 0
+    ) {
       output += '**Heteroscedasticity Tests:**\n\n';
       residualAnalysis.heteroscedasticityTests.forEach((test: any) => {
         output += `**${this.formatTestName(test.testName)}**\n`;
@@ -274,7 +302,7 @@ This section leverages insights from Data Quality (Section 2), EDA (Section 3), 
         output += `- **Conclusion:** ${test.conclusion}\n\n`;
       });
     }
-    
+
     // Autocorrelation tests
     if (residualAnalysis.autocorrelationTests && residualAnalysis.autocorrelationTests.length > 0) {
       output += '**Autocorrelation Tests:**\n\n';
@@ -285,11 +313,12 @@ This section leverages insights from Data Quality (Section 2), EDA (Section 3), 
         output += `- **Conclusion:** ${test.conclusion}\n\n`;
       });
     }
-    
+
     output += '### 6.5.3 Model Assumptions Assessment\n\n';
     if (residualAnalysis.modelAssumptions && residualAnalysis.modelAssumptions.length > 0) {
       residualAnalysis.modelAssumptions.forEach((assumption: any) => {
-        const statusIcon = assumption.status === 'satisfied' ? '✅' : assumption.status === 'violated' ? '❌' : '⚠️';
+        const statusIcon =
+          assumption.status === 'satisfied' ? '✅' : assumption.status === 'violated' ? '❌' : '⚠️';
         output += `${statusIcon} **${assumption.assumption}**\n`;
         output += `- **Status:** ${this.capitalizeFirst(assumption.status)}\n`;
         output += `- **Evidence:** ${assumption.evidence}\n`;
@@ -300,20 +329,23 @@ This section leverages insights from Data Quality (Section 2), EDA (Section 3), 
         output += '\n';
       });
     }
-    
+
     output += '### 6.5.4 Improvement Recommendations\n\n';
-    if (residualAnalysis.improvementSuggestions && residualAnalysis.improvementSuggestions.length > 0) {
+    if (
+      residualAnalysis.improvementSuggestions &&
+      residualAnalysis.improvementSuggestions.length > 0
+    ) {
       residualAnalysis.improvementSuggestions.forEach((suggestion: string) => {
         output += `- ${suggestion}\n`;
       });
     }
-    
+
     return output;
   }
 
   private static formatWorkflowGuidance(workflow: any): string {
     let output = '## 6.6 Modeling Workflow & Best Practices\n\n';
-    
+
     output += '### 6.6.1 Step-by-Step Implementation Guide\n\n';
     if (workflow.workflowSteps && workflow.workflowSteps.length > 0) {
       workflow.workflowSteps.forEach((step: any) => {
@@ -322,7 +354,7 @@ This section leverages insights from Data Quality (Section 2), EDA (Section 3), 
         output += `- **Estimated Time:** ${step.estimatedTime}\n`;
         output += `- **Difficulty:** ${this.capitalizeFirst(step.difficulty)}\n`;
         output += `- **Tools:** ${step.tools.join(', ')}\n\n`;
-        
+
         if (step.considerations && step.considerations.length > 0) {
           output += `**Key Considerations:**\n`;
           step.considerations.forEach((consideration: string) => {
@@ -330,7 +362,7 @@ This section leverages insights from Data Quality (Section 2), EDA (Section 3), 
           });
           output += '\n';
         }
-        
+
         if (step.commonPitfalls && step.commonPitfalls.length > 0) {
           output += `**Common Pitfalls to Avoid:**\n`;
           step.commonPitfalls.forEach((pitfall: string) => {
@@ -340,7 +372,7 @@ This section leverages insights from Data Quality (Section 2), EDA (Section 3), 
         }
       });
     }
-    
+
     output += '### 6.6.2 Best Practices Summary\n\n';
     if (workflow.bestPractices && workflow.bestPractices.length > 0) {
       const practicesByCategory = workflow.bestPractices.reduce((groups: any, practice: any) => {
@@ -349,7 +381,7 @@ This section leverages insights from Data Quality (Section 2), EDA (Section 3), 
         groups[category].push(practice);
         return groups;
       }, {});
-      
+
       Object.entries(practicesByCategory).forEach(([category, practices]: [string, any]) => {
         output += `**${category}:**\n`;
         practices.forEach((practice: any) => {
@@ -359,7 +391,7 @@ This section leverages insights from Data Quality (Section 2), EDA (Section 3), 
         output += '\n';
       });
     }
-    
+
     return output;
   }
 
@@ -373,15 +405,25 @@ This section leverages insights from Data Quality (Section 2), EDA (Section 3), 
 
   private static formatEthicsAnalysis(ethics: any): string {
     let output = '## 6.9 Ethical AI & Bias Analysis\n\n';
-    
+
     if (ethics.biasAssessment) {
       output += '### 6.9.1 Bias Risk Assessment\n\n';
       output += `**Overall Risk Level:** ${this.capitalizeFirst(ethics.biasAssessment.overallRiskLevel)}\n\n`;
-      
-      if (ethics.biasAssessment.potentialBiasSources && ethics.biasAssessment.potentialBiasSources.length > 0) {
+
+      if (
+        ethics.biasAssessment.potentialBiasSources &&
+        ethics.biasAssessment.potentialBiasSources.length > 0
+      ) {
         output += '**Identified Bias Sources:**\n\n';
         ethics.biasAssessment.potentialBiasSources.forEach((source: any, index: number) => {
-          const riskIcon = source.riskLevel === 'critical' ? '🔴' : source.riskLevel === 'high' ? '🟠' : source.riskLevel === 'medium' ? '🟡' : '🟢';
+          const riskIcon =
+            source.riskLevel === 'critical'
+              ? '🔴'
+              : source.riskLevel === 'high'
+                ? '🟠'
+                : source.riskLevel === 'medium'
+                  ? '🟡'
+                  : '🟢';
           output += `${index + 1}. ${riskIcon} **${this.capitalizeFirst(source.sourceType)} Bias** (${this.capitalizeFirst(source.riskLevel)} Risk)\n`;
           output += `   - **Description:** ${source.description}\n`;
           if (source.evidence && source.evidence.length > 0) {
@@ -390,8 +432,11 @@ This section leverages insights from Data Quality (Section 2), EDA (Section 3), 
           output += '\n';
         });
       }
-      
-      if (ethics.biasAssessment.sensitiveAttributes && ethics.biasAssessment.sensitiveAttributes.length > 0) {
+
+      if (
+        ethics.biasAssessment.sensitiveAttributes &&
+        ethics.biasAssessment.sensitiveAttributes.length > 0
+      ) {
         output += '**Sensitive Attributes Identified:**\n\n';
         ethics.biasAssessment.sensitiveAttributes.forEach((attr: any) => {
           output += `- **${attr.attributeName}:** ${attr.riskAssessment}\n`;
@@ -399,7 +444,7 @@ This section leverages insights from Data Quality (Section 2), EDA (Section 3), 
         output += '\n';
       }
     }
-    
+
     if (ethics.fairnessMetrics && ethics.fairnessMetrics.length > 0) {
       output += '### 6.9.2 Fairness Metrics\n\n';
       ethics.fairnessMetrics.forEach((metric: any) => {
@@ -409,26 +454,34 @@ This section leverages insights from Data Quality (Section 2), EDA (Section 3), 
         output += `- **Interpretation:** ${metric.interpretation}\n\n`;
       });
     }
-    
+
     if (ethics.ethicalConsiderations && ethics.ethicalConsiderations.length > 0) {
       output += '### 6.9.3 Ethical Considerations\n\n';
-      const considerationsByDomain = ethics.ethicalConsiderations.reduce((groups: any, consideration: any) => {
-        const domain = consideration.domain;
-        if (!groups[domain]) groups[domain] = [];
-        groups[domain].push(consideration);
-        return groups;
-      }, {});
-      
+      const considerationsByDomain = ethics.ethicalConsiderations.reduce(
+        (groups: any, consideration: any) => {
+          const domain = consideration.domain;
+          if (!groups[domain]) groups[domain] = [];
+          groups[domain].push(consideration);
+          return groups;
+        },
+        {},
+      );
+
       Object.entries(considerationsByDomain).forEach(([domain, considerations]: [string, any]) => {
         output += `**${this.capitalizeFirst(domain)}:**\n`;
         considerations.forEach((consideration: any) => {
-          const riskIcon = consideration.riskLevel === 'high' ? '🟠' : consideration.riskLevel === 'medium' ? '🟡' : '🟢';
+          const riskIcon =
+            consideration.riskLevel === 'high'
+              ? '🟠'
+              : consideration.riskLevel === 'medium'
+                ? '🟡'
+                : '🟢';
           output += `${riskIcon} ${consideration.consideration}\n`;
         });
         output += '\n';
       });
     }
-    
+
     if (ethics.riskMitigation && ethics.riskMitigation.length > 0) {
       output += '### 6.9.4 Risk Mitigation Strategies\n\n';
       ethics.riskMitigation.forEach((mitigation: any, index: number) => {
@@ -438,15 +491,15 @@ This section leverages insights from Data Quality (Section 2), EDA (Section 3), 
         output += `- **Effectiveness:** ${mitigation.effectiveness}\n\n`;
       });
     }
-    
+
     return output;
   }
 
   private static formatImplementationRoadmap(roadmap: any): string {
     let output = '## 6.10 Implementation Roadmap\n\n';
-    
+
     output += `**Estimated Timeline:** ${roadmap.estimatedTimeline}\n\n`;
-    
+
     if (roadmap.phases && roadmap.phases.length > 0) {
       output += '### 6.10.1 Implementation Phases\n\n';
       roadmap.phases.forEach((phase: any) => {
@@ -458,7 +511,7 @@ This section leverages insights from Data Quality (Section 2), EDA (Section 3), 
         output += '\n';
       });
     }
-    
+
     return output;
   }
 
@@ -468,7 +521,7 @@ This section leverages insights from Data Quality (Section 2), EDA (Section 3), 
     }
 
     let output = '## ⚠️ Modeling Warnings & Considerations\n\n';
-    
+
     const groupedWarnings = warnings.reduce((groups: any, warning: any) => {
       const category = warning.category;
       if (!groups[category]) groups[category] = [];
@@ -478,9 +531,16 @@ This section leverages insights from Data Quality (Section 2), EDA (Section 3), 
 
     Object.entries(groupedWarnings).forEach(([category, categoryWarnings]: [string, any]) => {
       output += `### ${this.capitalizeFirst(category)} Warnings\n\n`;
-      
+
       categoryWarnings.forEach((warning: any) => {
-        const icon = warning.severity === 'critical' ? '🔴' : warning.severity === 'high' ? '🟠' : warning.severity === 'medium' ? '🟡' : '🔵';
+        const icon =
+          warning.severity === 'critical'
+            ? '🔴'
+            : warning.severity === 'high'
+              ? '🟠'
+              : warning.severity === 'medium'
+                ? '🟡'
+                : '🔵';
         output += `${icon} **${warning.severity.toUpperCase()}:** ${warning.message}\n`;
         output += `   - **Impact:** ${warning.impact}\n`;
         output += `   - **Suggestion:** ${warning.suggestion}\n\n`;
@@ -511,12 +571,12 @@ This section leverages insights from Data Quality (Section 2), EDA (Section 3), 
 
   private static formatPlotType(plotType: string): string {
     const formatted = plotType.replace(/_/g, ' ');
-    return formatted.replace(/\b\w/g, l => l.toUpperCase());
+    return formatted.replace(/\b\w/g, (l) => l.toUpperCase());
   }
 
   private static formatTestName(testName: string): string {
     const formatted = testName.replace(/_/g, '-');
-    return formatted.replace(/\b\w/g, l => l.toUpperCase());
+    return formatted.replace(/\b\w/g, (l) => l.toUpperCase());
   }
 
   private static truncateText(text: string, maxLength: number): string {

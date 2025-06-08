@@ -1,13 +1,13 @@
 /**
  * Multivariate Analysis Orchestrator
- * 
+ *
  * Coordinates and integrates all multivariate analyses:
  * - Principal Component Analysis (PCA)
  * - K-means Clustering
  * - Multivariate Outlier Detection
  * - Multivariate Normality Testing
  * - Relationship Analysis
- * 
+ *
  * Provides comprehensive insights and recommendations
  * based on the combined results of all analyses.
  */
@@ -16,6 +16,9 @@ import type {
   MultivariateAnalysis,
   MultivariateNormalityTests,
   MultivariateRelationshipAnalysis,
+  PCAAnalysis,
+  KMeansAnalysis,
+  MultivariateOutlierAnalysis,
 } from '../eda/types';
 import { EdaDataType } from '../eda/types';
 import { PCAAnalyzer } from './pca-analyzer';
@@ -29,14 +32,11 @@ class MultivariateNormalityTester {
   /**
    * Perform multivariate normality tests
    */
-  static performTests(
-    data: number[][],
-    variableNames: string[]
-  ): MultivariateNormalityTests {
+  static performTests(data: number[][], variableNames: string[]): MultivariateNormalityTests {
     try {
       // Simplified Mardia's test implementation
       const mardiasTest = this.mardiasMultivariateNormalityTest(data);
-      
+
       // Simplified Royston's test (approximation)
       const roystonTest = this.roystonMultivariateNormalityTest(data);
 
@@ -50,7 +50,7 @@ class MultivariateNormalityTester {
       };
     } catch (error) {
       return this.createFailedNormalityResult(
-        `Normality testing failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+        `Normality testing failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
       );
     }
   }
@@ -71,30 +71,30 @@ class MultivariateNormalityTester {
     // Calculate sample mean and covariance
     const mean = this.calculateMean(data);
     const covariance = this.calculateCovariance(data, mean);
-    
+
     try {
       const covInverse = this.invertMatrix(covariance);
-      
+
       // Calculate multivariate skewness (b1p)
       let skewnessSum = 0;
       for (let i = 0; i < n; i++) {
         for (let j = 0; j < n; j++) {
           const diff_i = data[i].map((val, k) => val - mean[k]);
           const diff_j = data[j].map((val, k) => val - mean[k]);
-          
+
           const mahal_ij = this.quadraticForm(diff_i, covInverse);
           const mahal_ji = this.quadraticForm(diff_j, covInverse);
           const cross_term = this.bilinearForm(diff_i, diff_j, covInverse);
-          
+
           skewnessSum += Math.pow(cross_term, 3);
         }
       }
-      
+
       const b1p = skewnessSum / (n * n);
-      const skewnessStatistic = n * b1p / 6;
-      
+      const skewnessStatistic = (n * b1p) / 6;
+
       // Approximate p-value for skewness (chi-squared with p(p+1)(p+2)/6 df)
-      const skewnessDf = p * (p + 1) * (p + 2) / 6;
+      const skewnessDf = (p * (p + 1) * (p + 2)) / 6;
       const skewnessPValue = this.chiSquaredPValue(skewnessStatistic, skewnessDf);
 
       // Calculate multivariate kurtosis (b2p)
@@ -104,11 +104,11 @@ class MultivariateNormalityTester {
         const mahal = this.quadraticForm(diff, covInverse);
         kurtosisSum += mahal * mahal;
       }
-      
+
       const b2p = kurtosisSum / n;
       const expectedKurtosis = p * (p + 2);
-      const kurtosisStatistic = (b2p - expectedKurtosis) / Math.sqrt(8 * p * (p + 2) / n);
-      
+      const kurtosisStatistic = (b2p - expectedKurtosis) / Math.sqrt((8 * p * (p + 2)) / n);
+
       // Approximate p-value for kurtosis (standard normal)
       const kurtosisPValue = 2 * (1 - this.standardNormalCdf(Math.abs(kurtosisStatistic)));
 
@@ -150,9 +150,9 @@ class MultivariateNormalityTester {
       let validTests = 0;
 
       for (let j = 0; j < p; j++) {
-        const column = data.map(row => row[j]);
+        const column = data.map((row) => row[j]);
         const w = this.approximateShapiroWilk(column);
-        
+
         if (w > 0) {
           sumW += w;
           validTests++;
@@ -165,13 +165,14 @@ class MultivariateNormalityTester {
 
       const avgW = sumW / validTests;
       const statistic = -Math.log(1 - avgW) * p;
-      
+
       // Approximate p-value
       const pValue = this.chiSquaredPValue(statistic, p);
-      
-      const interpretation = pValue < 0.05 ? 
-        'Multivariate normality rejected (p < 0.05)' :
-        'Multivariate normality not rejected (p >= 0.05)';
+
+      const interpretation =
+        pValue < 0.05
+          ? 'Multivariate normality rejected (p < 0.05)'
+          : 'Multivariate normality not rejected (p >= 0.05)';
 
       return {
         statistic,
@@ -191,8 +192,18 @@ class MultivariateNormalityTester {
    * Assess overall multivariate normality
    */
   private static assessOverallNormality(
-    mardiasTest: any,
-    roystonTest: any
+    mardiasTest: {
+      skewnessStatistic: number;
+      kurtosisStatistic: number;
+      skewnessPValue: number;
+      kurtosisPValue: number;
+      interpretation: string;
+    },
+    roystonTest: {
+      statistic: number;
+      pValue: number;
+      interpretation: string;
+    },
   ): {
     isMultivariateNormal: boolean;
     confidence: number;
@@ -206,35 +217,42 @@ class MultivariateNormalityTester {
     if (mardiasTest.skewnessPValue < 0.05) {
       violations.push('Multivariate skewness detected');
     }
-    
+
     if (mardiasTest.kurtosisPValue < 0.05) {
       violations.push('Multivariate kurtosis detected');
     }
-    
+
     if (roystonTest.pValue < 0.05) {
       violations.push('Overall normality rejected');
     }
 
     // Determine overall assessment
     const isNormal = violations.length === 0;
-    const confidence = isNormal ? 
-      Math.min(mardiasTest.skewnessPValue, mardiasTest.kurtosisPValue, roystonTest.pValue) :
-      1 - Math.max(1 - mardiasTest.skewnessPValue, 1 - mardiasTest.kurtosisPValue, 1 - roystonTest.pValue);
+    const confidence = isNormal
+      ? Math.min(mardiasTest.skewnessPValue, mardiasTest.kurtosisPValue, roystonTest.pValue)
+      : 1 -
+        Math.max(
+          1 - mardiasTest.skewnessPValue,
+          1 - mardiasTest.kurtosisPValue,
+          1 - roystonTest.pValue,
+        );
 
     // Generate recommendations
     if (!isNormal) {
       recommendations.push('Consider data transformations (log, Box-Cox) to improve normality');
       recommendations.push('Use non-parametric or robust statistical methods');
-      
+
       if (violations.includes('Multivariate skewness detected')) {
         recommendations.push('Address skewness through variable transformation');
       }
-      
+
       if (violations.includes('Multivariate kurtosis detected')) {
         recommendations.push('Consider outlier removal or robust estimation methods');
       }
     } else {
-      recommendations.push('Multivariate normal assumption satisfied - parametric methods appropriate');
+      recommendations.push(
+        'Multivariate normal assumption satisfied - parametric methods appropriate',
+      );
     }
 
     return {
@@ -264,7 +282,9 @@ class MultivariateNormalityTester {
   private static calculateCovariance(data: number[][], mean: number[]): number[][] {
     const n = data.length;
     const p = data[0].length;
-    const cov = Array(p).fill(0).map(() => Array(p).fill(0));
+    const cov = Array(p)
+      .fill(0)
+      .map(() => Array(p).fill(0));
 
     for (let i = 0; i < p; i++) {
       for (let j = 0; j < p; j++) {
@@ -282,9 +302,12 @@ class MultivariateNormalityTester {
   private static invertMatrix(matrix: number[][]): number[][] {
     // Simplified matrix inversion - use LU decomposition for robustness
     const n = matrix.length;
-    const augmented = matrix.map((row, i) => 
-      [...row, ...Array(n).fill(0).map((_, j) => i === j ? 1 : 0)]
-    );
+    const augmented = matrix.map((row, i) => [
+      ...row,
+      ...Array(n)
+        .fill(0)
+        .map((_, j) => (i === j ? 1 : 0)),
+    ]);
 
     // Gaussian elimination with partial pivoting
     for (let i = 0; i < n; i++) {
@@ -295,7 +318,7 @@ class MultivariateNormalityTester {
           maxRow = k;
         }
       }
-      
+
       [augmented[i], augmented[maxRow]] = [augmented[maxRow], augmented[i]];
 
       // Make diagonal element 1
@@ -303,7 +326,7 @@ class MultivariateNormalityTester {
       if (Math.abs(pivot) < 1e-10) {
         throw new Error('Matrix is singular');
       }
-      
+
       for (let j = 0; j < 2 * n; j++) {
         augmented[i][j] /= pivot;
       }
@@ -319,32 +342,32 @@ class MultivariateNormalityTester {
       }
     }
 
-    return augmented.map(row => row.slice(n));
+    return augmented.map((row) => row.slice(n));
   }
 
   private static quadraticForm(vector: number[], matrix: number[][]): number {
     let result = 0;
     const n = vector.length;
-    
+
     for (let i = 0; i < n; i++) {
       for (let j = 0; j < n; j++) {
         result += vector[i] * matrix[i][j] * vector[j];
       }
     }
-    
+
     return result;
   }
 
   private static bilinearForm(vec1: number[], vec2: number[], matrix: number[][]): number {
     let result = 0;
     const n = vec1.length;
-    
+
     for (let i = 0; i < n; i++) {
       for (let j = 0; j < n; j++) {
         result += vec1[i] * matrix[i][j] * vec2[j];
       }
     }
-    
+
     return result;
   }
 
@@ -355,27 +378,33 @@ class MultivariateNormalityTester {
 
     const sorted = [...data].sort((a, b) => a - b);
     const mean = data.reduce((sum, val) => sum + val, 0) / n;
-    
+
     // Calculate sample variance
     const variance = data.reduce((sum, val) => sum + (val - mean) ** 2, 0) / (n - 1);
-    
+
     // Approximate W statistic using range-based estimator
     const range = sorted[n - 1] - sorted[0];
     const expectedRange = variance > 0 ? range / Math.sqrt(variance) : 0;
-    
+
     // Normalize to [0, 1] range
-    return Math.max(0, Math.min(1, 1 - Math.abs(expectedRange - Math.sqrt(2 * Math.log(n))) / Math.sqrt(2 * Math.log(n))));
+    return Math.max(
+      0,
+      Math.min(
+        1,
+        1 - Math.abs(expectedRange - Math.sqrt(2 * Math.log(n))) / Math.sqrt(2 * Math.log(n)),
+      ),
+    );
   }
 
   private static chiSquaredPValue(x: number, df: number): number {
     // Simplified chi-squared p-value approximation
     if (x <= 0) return 1;
     if (df <= 0) return 0;
-    
+
     // Use Wilson-Hilferty transformation for approximation
     const h = 2 / (9 * df);
-    const z = (Math.pow(x / df, 1/3) - 1 + h) / Math.sqrt(h);
-    
+    const z = (Math.pow(x / df, 1 / 3) - 1 + h) / Math.sqrt(h);
+
     return 1 - this.standardNormalCdf(z);
   }
 
@@ -386,18 +415,18 @@ class MultivariateNormalityTester {
 
   private static erf(x: number): number {
     // Approximation of error function
-    const a1 =  0.254829592;
+    const a1 = 0.254829592;
     const a2 = -0.284496736;
-    const a3 =  1.421413741;
+    const a3 = 1.421413741;
     const a4 = -1.453152027;
-    const a5 =  1.061405429;
-    const p  =  0.3275911;
+    const a5 = 1.061405429;
+    const p = 0.3275911;
 
     const sign = x >= 0 ? 1 : -1;
     x = Math.abs(x);
 
     const t = 1.0 / (1.0 + p * x);
-    const y = 1.0 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-x * x);
+    const y = 1.0 - ((((a5 * t + a4) * t + a3) * t + a2) * t + a1) * t * Math.exp(-x * x);
 
     return sign * y;
   }
@@ -405,7 +434,7 @@ class MultivariateNormalityTester {
   private static interpretMardiasTest(skewnessPValue: number, kurtosisPValue: number): string {
     const skewnessResult = skewnessPValue < 0.05 ? 'rejected' : 'not rejected';
     const kurtosisResult = kurtosisPValue < 0.05 ? 'rejected' : 'not rejected';
-    
+
     if (skewnessPValue < 0.05 && kurtosisPValue < 0.05) {
       return 'Multivariate normality rejected due to both skewness and kurtosis';
     } else if (skewnessPValue < 0.05) {
@@ -451,25 +480,16 @@ class RelationshipAnalyzer {
   static analyzeRelationships(
     data: number[][],
     variableNames: string[],
-    correlationMatrix: number[][]
+    correlationMatrix: number[][],
   ): MultivariateRelationshipAnalysis {
     // Analyze variable interactions
-    const variableInteractions = this.analyzeVariableInteractions(
-      correlationMatrix,
-      variableNames
-    );
+    const variableInteractions = this.analyzeVariableInteractions(correlationMatrix, variableNames);
 
     // Analyze correlation structure
-    const correlationStructure = this.analyzeCorrelationStructure(
-      correlationMatrix,
-      variableNames
-    );
+    const correlationStructure = this.analyzeCorrelationStructure(correlationMatrix, variableNames);
 
     // Analyze dimensionality
-    const dimensionalityInsights = this.analyzeDimensionality(
-      correlationMatrix,
-      data.length
-    );
+    const dimensionalityInsights = this.analyzeDimensionality(correlationMatrix, data.length);
 
     return {
       variableInteractions,
@@ -480,7 +500,7 @@ class RelationshipAnalyzer {
 
   private static analyzeVariableInteractions(
     correlationMatrix: number[][],
-    variableNames: string[]
+    variableNames: string[],
   ): MultivariateRelationshipAnalysis['variableInteractions'] {
     const interactions: MultivariateRelationshipAnalysis['variableInteractions'] = [];
     const n = variableNames.length;
@@ -490,11 +510,11 @@ class RelationshipAnalyzer {
       for (let j = i + 1; j < n; j++) {
         const correlation = correlationMatrix[i][j];
         const absCorr = Math.abs(correlation);
-        
+
         if (absCorr > 0.3) {
           const interactionType = this.determineInteractionType(correlation);
           const significance = this.calculateSignificance(absCorr);
-          
+
           interactions.push({
             variables: [variableNames[i], variableNames[j]],
             interactionType,
@@ -504,7 +524,7 @@ class RelationshipAnalyzer {
               variableNames[i],
               variableNames[j],
               correlation,
-              interactionType
+              interactionType,
             ),
           });
         }
@@ -512,24 +532,23 @@ class RelationshipAnalyzer {
     }
 
     // Sort by strength
-    return interactions
-      .sort((a, b) => b.strength - a.strength)
-      .slice(0, 10); // Top 10 interactions
+    return interactions.sort((a, b) => b.strength - a.strength).slice(0, 10); // Top 10 interactions
   }
 
   private static analyzeCorrelationStructure(
     correlationMatrix: number[][],
-    variableNames: string[]
+    variableNames: string[],
   ): MultivariateRelationshipAnalysis['correlationStructure'] {
     const n = variableNames.length;
-    
+
     // Find strongly correlated groups
-    const stronglyCorrelatedGroups: MultivariateRelationshipAnalysis['correlationStructure']['stronglyCorrelatedGroups'] = [];
+    const stronglyCorrelatedGroups: MultivariateRelationshipAnalysis['correlationStructure']['stronglyCorrelatedGroups'] =
+      [];
     const processed = new Set<number>();
 
     for (let i = 0; i < n; i++) {
       if (processed.has(i)) continue;
-      
+
       const group = [i];
       for (let j = i + 1; j < n; j++) {
         if (Math.abs(correlationMatrix[i][j]) > 0.7) {
@@ -537,18 +556,18 @@ class RelationshipAnalyzer {
           processed.add(j);
         }
       }
-      
+
       if (group.length > 1) {
-        const groupVars = group.map(idx => variableNames[idx]);
+        const groupVars = group.map((idx) => variableNames[idx]);
         const avgCorrelation = this.calculateAverageCorrelation(group, correlationMatrix);
-        
+
         stronglyCorrelatedGroups.push({
           variables: groupVars,
           avgCorrelation,
           description: `Highly correlated group (avg r = ${avgCorrelation.toFixed(3)})`,
         });
-        
-        group.forEach(idx => processed.add(idx));
+
+        group.forEach((idx) => processed.add(idx));
       }
     }
 
@@ -561,14 +580,15 @@ class RelationshipAnalyzer {
           maxCorrelation = Math.max(maxCorrelation, Math.abs(correlationMatrix[i][j]));
         }
       }
-      
+
       if (maxCorrelation < 0.3) {
         independentVariables.push(variableNames[i]);
       }
     }
 
     // Find redundant variables
-    const redundantVariables: MultivariateRelationshipAnalysis['correlationStructure']['redundantVariables'] = [];
+    const redundantVariables: MultivariateRelationshipAnalysis['correlationStructure']['redundantVariables'] =
+      [];
     for (let i = 0; i < n; i++) {
       for (let j = i + 1; j < n; j++) {
         const correlation = Math.abs(correlationMatrix[i][j]);
@@ -591,25 +611,23 @@ class RelationshipAnalyzer {
 
   private static analyzeDimensionality(
     correlationMatrix: number[][],
-    sampleSize: number
+    sampleSize: number,
   ): MultivariateRelationshipAnalysis['dimensionalityInsights'] {
     const n = correlationMatrix.length;
-    
+
     // Estimate effective dimensionality based on correlation structure
     const eigenvalues = this.approximateEigenvalues(correlationMatrix);
-    const effectiveDimensionality = eigenvalues.filter(val => val > 1).length;
-    
+    const effectiveDimensionality = eigenvalues.filter((val) => val > 1).length;
+
     // Estimate intrinsic dimensionality using correlation rank
-    const maxCorrelations = correlationMatrix.map(row => 
-      Math.max(...row.map(Math.abs))
-    );
+    const maxCorrelations = correlationMatrix.map((row) => Math.max(...row.map(Math.abs)));
     const avgMaxCorrelation = maxCorrelations.reduce((sum, val) => sum + val, 0) / n;
     const intrinsicDimensionality = Math.max(1, Math.floor(n * (1 - avgMaxCorrelation)));
 
     // Determine if dimensionality reduction is recommended
     const redundancyRatio = (n - effectiveDimensionality) / n;
     const recommended = redundancyRatio > 0.3;
-    
+
     const methods: string[] = [];
     if (recommended) {
       methods.push('Principal Component Analysis (PCA)');
@@ -621,8 +639,9 @@ class RelationshipAnalyzer {
       }
     }
 
-    const expectedVarianceRetention = recommended ? 
-      Math.min(0.95, 0.7 + redundancyRatio * 0.25) : 1.0;
+    const expectedVarianceRetention = recommended
+      ? Math.min(0.95, 0.7 + redundancyRatio * 0.25)
+      : 1.0;
 
     return {
       effectiveDimensionality,
@@ -636,10 +655,12 @@ class RelationshipAnalyzer {
   }
 
   // Helper methods
-  private static determineInteractionType(correlation: number): 'linear' | 'non_linear' | 'threshold' | 'synergistic' {
+  private static determineInteractionType(
+    correlation: number,
+  ): 'linear' | 'non_linear' | 'threshold' | 'synergistic' {
     // Simplified classification based on correlation strength
     const absCorr = Math.abs(correlation);
-    
+
     if (absCorr > 0.8) {
       return 'linear';
     } else if (absCorr > 0.5) {
@@ -658,26 +679,29 @@ class RelationshipAnalyzer {
     var1: string,
     var2: string,
     correlation: number,
-    type: string
+    type: string,
   ): string {
     const direction = correlation > 0 ? 'positive' : 'negative';
-    const strength = Math.abs(correlation) > 0.7 ? 'strong' : 
-                    Math.abs(correlation) > 0.5 ? 'moderate' : 'weak';
-    
+    const strength =
+      Math.abs(correlation) > 0.7 ? 'strong' : Math.abs(correlation) > 0.5 ? 'moderate' : 'weak';
+
     return `${strength} ${direction} ${type} relationship between ${var1} and ${var2}`;
   }
 
-  private static calculateAverageCorrelation(indices: number[], correlationMatrix: number[][]): number {
+  private static calculateAverageCorrelation(
+    indices: number[],
+    correlationMatrix: number[][],
+  ): number {
     let sum = 0;
     let count = 0;
-    
+
     for (let i = 0; i < indices.length; i++) {
       for (let j = i + 1; j < indices.length; j++) {
         sum += Math.abs(correlationMatrix[indices[i]][indices[j]]);
         count++;
       }
     }
-    
+
     return count > 0 ? sum / count : 0;
   }
 
@@ -686,11 +710,11 @@ class RelationshipAnalyzer {
     const n = matrix.length;
     const trace = matrix.reduce((sum, row, i) => sum + row[i], 0);
     const avgEigenvalue = trace / n;
-    
+
     // Generate approximate eigenvalues (simplified)
     const eigenvalues = Array(n).fill(avgEigenvalue);
     eigenvalues[0] *= 2; // First eigenvalue typically larger
-    
+
     return eigenvalues.sort((a, b) => b - a);
   }
 }
@@ -709,20 +733,17 @@ export class MultivariateOrchestrator {
     data: (string | number | null | undefined)[][],
     headers: string[],
     columnTypes: string[],
-    sampleSize: number
+    sampleSize: number,
   ): Promise<MultivariateAnalysis> {
     const startTime = Date.now();
 
     try {
       // Identify numerical columns
       const numericalColumnIndices = this.identifyNumericalColumns(columnTypes);
-      const variableNames = numericalColumnIndices.map(i => headers[i]);
+      const variableNames = numericalColumnIndices.map((i) => headers[i]);
 
       // Check overall applicability
-      const applicabilityAssessment = this.assessApplicability(
-        numericalColumnIndices,
-        sampleSize
-      );
+      const applicabilityAssessment = this.assessApplicability(numericalColumnIndices, sampleSize);
 
       if (!applicabilityAssessment.applicable) {
         const analysisTime = Date.now() - startTime;
@@ -734,18 +755,18 @@ export class MultivariateOrchestrator {
       console.log('DEBUG: Numerical column indices:', numericalColumnIndices);
       console.log('DEBUG: Headers:', headers);
       console.log('DEBUG: Column types:', columnTypes);
-      
+
       const numericData = this.extractNumericData(data, numericalColumnIndices);
       console.log('DEBUG: Extracted numeric data length:', numericData.length);
-      
+
       if (!numericData || numericData.length === 0) {
         const analysisTime = Date.now() - startTime;
         return this.createNonApplicableResult(
           'No valid numerical data found for multivariate analysis',
-          analysisTime
+          analysisTime,
         );
       }
-      
+
       const correlationMatrix = this.calculateCorrelationMatrix(numericData);
 
       // Perform individual analyses
@@ -754,13 +775,19 @@ export class MultivariateOrchestrator {
         clusteringAnalysis,
         outlierAnalysis,
         normalityTests,
-        relationshipAnalysis
+        relationshipAnalysis,
       ] = await Promise.all([
         Promise.resolve(PCAAnalyzer.analyze(data, headers, numericalColumnIndices, sampleSize)),
-        Promise.resolve(ClusteringAnalyzer.analyze(data, headers, numericalColumnIndices, sampleSize)),
-        Promise.resolve(MultivariateOutlierAnalyzer.analyze(data, headers, numericalColumnIndices, sampleSize)),
+        Promise.resolve(
+          ClusteringAnalyzer.analyze(data, headers, numericalColumnIndices, sampleSize),
+        ),
+        Promise.resolve(
+          MultivariateOutlierAnalyzer.analyze(data, headers, numericalColumnIndices, sampleSize),
+        ),
         Promise.resolve(MultivariateNormalityTester.performTests(numericData, variableNames)),
-        Promise.resolve(RelationshipAnalyzer.analyzeRelationships(numericData, variableNames, correlationMatrix)),
+        Promise.resolve(
+          RelationshipAnalyzer.analyzeRelationships(numericData, variableNames, correlationMatrix),
+        ),
       ]);
 
       // Generate comprehensive insights
@@ -769,7 +796,7 @@ export class MultivariateOrchestrator {
         clusteringAnalysis,
         outlierAnalysis,
         normalityTests,
-        relationshipAnalysis
+        relationshipAnalysis,
       );
 
       const analysisTime = Date.now() - startTime;
@@ -785,7 +812,7 @@ export class MultivariateOrchestrator {
             numericalColumnIndices.length,
             sampleSize,
             pcaAnalysis,
-            clusteringAnalysis
+            clusteringAnalysis,
           ),
         },
         principalComponentAnalysis: pcaAnalysis,
@@ -799,42 +826,48 @@ export class MultivariateOrchestrator {
           memoryUsage: this.estimateMemoryUsage(sampleSize, numericalColumnIndices.length),
           computationalComplexity: this.assessComputationalComplexity(
             numericalColumnIndices.length,
-            sampleSize
+            sampleSize,
           ),
           algorithmsUsed: [
             'Principal Component Analysis (QR eigendecomposition)',
-            'K-means clustering (Lloyd\'s algorithm with k-means++)',
+            "K-means clustering (Lloyd's algorithm with k-means++)",
             'Mahalanobis distance outlier detection',
-            'Mardia\'s multivariate normality test',
+            "Mardia's multivariate normality test",
             'Correlation structure analysis',
           ],
         },
-        
+
         // Backward compatibility
         keyPatterns: insights.keyFindings.slice(0, 3),
-        pcaOverview: pcaAnalysis.isApplicable ? {
-          componentsFor85PercentVariance: pcaAnalysis.varianceThresholds.componentsFor85Percent,
-          dominantVariables: pcaAnalysis.dominantVariables.slice(0, 3).map(v => v.variable),
-        } : undefined,
-        clusterAnalysis: clusteringAnalysis.isApplicable ? {
-          optimalClusters: clusteringAnalysis.optimalClusters,
-          clusterProfiles: clusteringAnalysis.finalClustering.clusterProfiles.map(profile => ({
-            clusterName: profile.clusterName,
-            description: profile.description,
-            keyCharacteristics: profile.centroid,
-          })),
-        } : undefined,
+        pcaOverview: pcaAnalysis.isApplicable
+          ? {
+              componentsFor85PercentVariance: pcaAnalysis.varianceThresholds.componentsFor85Percent,
+              dominantVariables: pcaAnalysis.dominantVariables.slice(0, 3).map((v) => v.variable),
+            }
+          : undefined,
+        clusterAnalysis: clusteringAnalysis.isApplicable
+          ? {
+              optimalClusters: clusteringAnalysis.optimalClusters,
+              clusterProfiles: clusteringAnalysis.finalClustering.clusterProfiles.map(
+                (profile) => ({
+                  clusterName: profile.clusterName,
+                  description: profile.description,
+                  keyCharacteristics: profile.centroid,
+                }),
+              ),
+            }
+          : undefined,
         interactionTerms: relationshipAnalysis.variableInteractions
           .slice(0, 5)
-          .map(interaction => interaction.variables.join(' × ')),
+          .map((interaction) => interaction.variables.join(' × ')),
       };
     } catch (error) {
       console.error('Multivariate analysis failed:', error);
       const analysisTime = Date.now() - startTime;
-      
+
       return this.createNonApplicableResult(
         `Analysis failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        analysisTime
+        analysisTime,
       );
     }
   }
@@ -843,10 +876,7 @@ export class MultivariateOrchestrator {
    * Identify numerical columns from column types
    */
   private static identifyNumericalColumns(columnTypes: string[]): number[] {
-    const numericalTypes = [
-      EdaDataType.NUMERICAL_FLOAT,
-      EdaDataType.NUMERICAL_INTEGER,
-    ];
+    const numericalTypes = [EdaDataType.NUMERICAL_FLOAT, EdaDataType.NUMERICAL_INTEGER];
 
     return columnTypes
       .map((type, index) => ({ type, index }))
@@ -859,7 +889,7 @@ export class MultivariateOrchestrator {
    */
   private static assessApplicability(
     numericalColumnIndices: number[],
-    sampleSize: number
+    sampleSize: number,
   ): { applicable: boolean; reason: string } {
     if (numericalColumnIndices.length < this.MIN_VARIABLES) {
       return {
@@ -896,13 +926,17 @@ export class MultivariateOrchestrator {
    */
   private static extractNumericData(
     data: (string | number | null | undefined)[][],
-    numericalColumnIndices: number[]
+    numericalColumnIndices: number[],
   ): number[][] {
     const numericData: number[][] = [];
-    
-    console.log('DEBUG: Attempting to extract data for', numericalColumnIndices.length, 'numerical columns');
+
+    console.log(
+      'DEBUG: Attempting to extract data for',
+      numericalColumnIndices.length,
+      'numerical columns',
+    );
     console.log('DEBUG: Numerical column indices:', numericalColumnIndices);
-    
+
     let totalRows = 0;
     let validRows = 0;
     let rowsWithMissingValues = 0;
@@ -916,14 +950,14 @@ export class MultivariateOrchestrator {
       // Extract values from numerical columns only
       for (const colIndex of numericalColumnIndices) {
         const value = row[colIndex];
-        
+
         // Check bounds
         if (colIndex >= row.length) {
           console.log('DEBUG: Column index', colIndex, 'out of bounds for row length', row.length);
           hasAllValidValues = false;
           break;
         }
-        
+
         // Convert string numbers to actual numbers if needed
         let numericValue: number;
         if (typeof value === 'string' && value.trim() !== '') {
@@ -958,7 +992,12 @@ export class MultivariateOrchestrator {
     console.log('  - Total rows processed:', totalRows);
     console.log('  - Rows with missing values in numerical columns:', rowsWithMissingValues);
     console.log('  - Valid complete rows extracted:', validRows);
-    console.log('  - Final extracted data dimensions:', numericData.length, 'x', numericData.length > 0 ? numericData[0].length : 0);
+    console.log(
+      '  - Final extracted data dimensions:',
+      numericData.length,
+      'x',
+      numericData.length > 0 ? numericData[0].length : 0,
+    );
 
     if (numericData.length > 0) {
       console.log('DEBUG: Sample extracted row:', numericData[0].slice(0, 3), '...');
@@ -974,7 +1013,7 @@ export class MultivariateOrchestrator {
     if (!data || data.length === 0 || !data[0] || data[0].length === 0) {
       return [[]]; // Return empty correlation matrix for invalid data
     }
-    
+
     const n = data.length;
     const p = data[0].length;
 
@@ -988,8 +1027,10 @@ export class MultivariateOrchestrator {
     }
 
     // Calculate correlation matrix
-    const correlations = Array(p).fill(0).map(() => Array(p).fill(0));
-    
+    const correlations = Array(p)
+      .fill(0)
+      .map(() => Array(p).fill(0));
+
     for (let i = 0; i < p; i++) {
       for (let j = 0; j < p; j++) {
         if (i === j) {
@@ -1020,11 +1061,11 @@ export class MultivariateOrchestrator {
    * Generate comprehensive insights from all analyses
    */
   private static generateComprehensiveInsights(
-    pcaAnalysis: any,
-    clusteringAnalysis: any,
-    outlierAnalysis: any,
-    normalityTests: any,
-    relationshipAnalysis: any
+    pcaAnalysis: PCAAnalysis,
+    clusteringAnalysis: KMeansAnalysis,
+    outlierAnalysis: MultivariateOutlierAnalysis,
+    normalityTests: MultivariateNormalityTests,
+    relationshipAnalysis: MultivariateRelationshipAnalysis,
   ): MultivariateAnalysis['insights'] {
     const keyFindings: string[] = [];
     const dataQualityIssues: string[] = [];
@@ -1036,9 +1077,11 @@ export class MultivariateOrchestrator {
     if (pcaAnalysis.isApplicable) {
       const varianceExplained = pcaAnalysis.varianceThresholds.componentsFor85Percent;
       keyFindings.push(`${varianceExplained} principal components explain 85% of variance`);
-      
+
       if (varianceExplained < pcaAnalysis.componentsAnalyzed / 2) {
-        hypothesesGenerated.push('Strong dimensionality reduction potential suggests underlying structure');
+        hypothesesGenerated.push(
+          'Strong dimensionality reduction potential suggests underlying structure',
+        );
         analysisRecommendations.push('Consider using PCA for feature reduction in modeling');
       }
     }
@@ -1047,9 +1090,11 @@ export class MultivariateOrchestrator {
     if (clusteringAnalysis.isApplicable) {
       const optimalK = clusteringAnalysis.optimalClusters;
       const silhouette = clusteringAnalysis.finalClustering.validation.silhouetteScore;
-      
-      keyFindings.push(`${optimalK} natural clusters identified (silhouette: ${silhouette.toFixed(3)})`);
-      
+
+      keyFindings.push(
+        `${optimalK} natural clusters identified (silhouette: ${silhouette.toFixed(3)})`,
+      );
+
       if (silhouette > 0.5) {
         hypothesesGenerated.push('Strong clustering structure suggests distinct data segments');
         analysisRecommendations.push('Cluster-based analysis may reveal meaningful subgroups');
@@ -1059,11 +1104,15 @@ export class MultivariateOrchestrator {
     // Outlier insights
     if (outlierAnalysis.isApplicable) {
       const outlierPercentage = outlierAnalysis.outlierPercentage;
-      keyFindings.push(`${outlierAnalysis.totalOutliers} multivariate outliers detected (${outlierPercentage.toFixed(1)}%)`);
-      
+      keyFindings.push(
+        `${outlierAnalysis.totalOutliers} multivariate outliers detected (${outlierPercentage.toFixed(1)}%)`,
+      );
+
       if (outlierPercentage > 5) {
         dataQualityIssues.push('High multivariate outlier rate may indicate data quality issues');
-        preprocessingRecommendations.push('Investigate and potentially remove or transform outliers');
+        preprocessingRecommendations.push(
+          'Investigate and potentially remove or transform outliers',
+        );
       }
     }
 
@@ -1075,12 +1124,12 @@ export class MultivariateOrchestrator {
 
     // Relationship insights
     const strongRelationships = relationshipAnalysis.variableInteractions.filter(
-      (interaction: any) => interaction.strength > 0.7
+      (interaction) => interaction.strength > 0.7,
     ).length;
-    
+
     if (strongRelationships > 0) {
       keyFindings.push(`${strongRelationships} strong variable relationships identified`);
-      
+
       if (relationshipAnalysis.correlationStructure.redundantVariables.length > 0) {
         dataQualityIssues.push('Redundant variables detected');
         preprocessingRecommendations.push('Consider removing highly correlated variables');
@@ -1089,7 +1138,9 @@ export class MultivariateOrchestrator {
 
     // Dimensionality insights
     if (relationshipAnalysis.dimensionalityInsights.dimensionalityReduction.recommended) {
-      analysisRecommendations.push('Dimensionality reduction recommended based on correlation structure');
+      analysisRecommendations.push(
+        'Dimensionality reduction recommended based on correlation structure',
+      );
     }
 
     return {
@@ -1107,8 +1158,8 @@ export class MultivariateOrchestrator {
   private static identifyLimitations(
     numVariables: number,
     sampleSize: number,
-    pcaAnalysis: any,
-    clusteringAnalysis: any
+    pcaAnalysis: PCAAnalysis,
+    clusteringAnalysis: KMeansAnalysis,
   ): string[] {
     const limitations: string[] = [];
 
@@ -1138,9 +1189,9 @@ export class MultivariateOrchestrator {
     const baseMemory = sampleSize * numVariables * 8; // 8 bytes per number
     const matrixMemory = numVariables * numVariables * 8; // Covariance matrix
     const totalBytes = baseMemory + matrixMemory * 3; // Multiple matrices
-    
+
     const totalMB = totalBytes / (1024 * 1024);
-    
+
     if (totalMB < 1) {
       return `< 1MB`;
     } else if (totalMB < 100) {
@@ -1155,7 +1206,7 @@ export class MultivariateOrchestrator {
    */
   private static assessComputationalComplexity(numVariables: number, sampleSize: number): string {
     const complexity = numVariables * numVariables * sampleSize;
-    
+
     if (complexity < 1e6) {
       return 'Low';
     } else if (complexity < 1e8) {
@@ -1168,7 +1219,10 @@ export class MultivariateOrchestrator {
   /**
    * Create non-applicable result
    */
-  private static createNonApplicableResult(reason: string, analysisTime: number): MultivariateAnalysis {
+  private static createNonApplicableResult(
+    reason: string,
+    analysisTime: number,
+  ): MultivariateAnalysis {
     return {
       summary: {
         analysisPerformed: false,

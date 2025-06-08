@@ -5,7 +5,7 @@
 
 import { EdaDataType, SemanticType } from '../eda/types';
 
-interface TypeDetectionResult {
+export interface TypeDetectionResult {
   dataType: EdaDataType;
   semanticType: SemanticType;
   confidence: number; // 0-1
@@ -569,17 +569,23 @@ export class EnhancedTypeDetector {
 
   private static inferNumericalSemanticType(columnName: string): SemanticType {
     const name = columnName.toLowerCase();
-    
+
     // Add negative checks to avoid misclassification
     if (name.includes('percent') || name.includes('rate') || name.includes('%')) {
       return SemanticType.PERCENTAGE;
     }
-    
+
     // More specific age detection to avoid words like "percentage", "average", "usage"
-    if (name.includes('age') && !name.includes('percent') && !name.includes('average') && !name.includes('usage') && !name.includes('damage')) {
+    if (
+      name.includes('age') &&
+      !name.includes('percent') &&
+      !name.includes('average') &&
+      !name.includes('usage') &&
+      !name.includes('damage')
+    ) {
       return SemanticType.AGE;
     }
-    
+
     if (name.includes('id')) return SemanticType.IDENTIFIER;
     if (name.includes('count') || name.includes('quantity')) return SemanticType.COUNT;
     if (name.includes('rating') || name.includes('score')) return SemanticType.RATING;

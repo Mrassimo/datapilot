@@ -23,7 +23,7 @@ export class CSVParser {
   constructor(options: Partial<CSVParserOptions> = {}) {
     const configManager = getConfig();
     const perfConfig = configManager.getPerformanceConfig();
-    
+
     this.options = {
       delimiter: ',',
       quote: '"',
@@ -94,7 +94,7 @@ export class CSVParser {
 
           const configManager = getConfig();
           const perfConfig = configManager.getPerformanceConfig();
-          
+
           if (memUsage.heapUsed > perfConfig.memoryThresholdBytes) {
             throw new DataPilotError(
               'Memory limit reached, file too large for in-memory parsing',
@@ -111,7 +111,7 @@ export class CSVParser {
         if (pipelineError instanceof DataPilotError) {
           throw pipelineError;
         }
-        
+
         throw DataPilotError.parsing(
           `Pipeline processing failed: ${pipelineError instanceof Error ? pipelineError.message : 'Unknown error'}`,
           'PIPELINE_ERROR',
@@ -120,29 +120,30 @@ export class CSVParser {
             {
               action: 'Check file format',
               description: 'Verify the CSV format is valid',
-              severity: ErrorSeverity.HIGH
+              severity: ErrorSeverity.HIGH,
             },
             {
               action: 'Try different options',
               description: 'Experiment with different delimiter or quote settings',
               severity: ErrorSeverity.MEDIUM,
-              command: '--delimiter ";" --quote "\""'
-            }
-          ]
+              command: '--delimiter ";" --quote "\""',
+            },
+          ],
         );
       }
 
       this.stats.endTime = Date.now();
-      
+
       // Validate results
       if (rows.length === 0) {
         throw ErrorUtils.handleInsufficientData(
-          0, 1,
+          0,
+          1,
           { filePath, operationName: 'parseFile' },
-          [] // Empty array as fallback
+          [], // Empty array as fallback
         );
       }
-      
+
       return rows;
     } catch (error) {
       if (error instanceof DataPilotError && error.code === 'MEMORY_LIMIT') {
@@ -155,7 +156,7 @@ export class CSVParser {
         'PARSE_FAILED',
         ErrorSeverity.HIGH,
         ErrorCategory.PARSING,
-        { filePath }
+        { filePath },
       );
     }
   }
@@ -200,7 +201,7 @@ export class CSVParser {
       if (error instanceof DataPilotError) {
         throw error;
       }
-      
+
       throw DataPilotError.parsing(
         `Streaming pipeline failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
         'STREAMING_PIPELINE_ERROR',
@@ -210,14 +211,14 @@ export class CSVParser {
             action: 'Reduce batch size',
             description: 'Try processing with smaller chunks',
             severity: ErrorSeverity.MEDIUM,
-            command: '--chunkSize 1000'
+            command: '--chunkSize 1000',
           },
           {
             action: 'Check system resources',
             description: 'Ensure sufficient memory and disk space',
-            severity: ErrorSeverity.HIGH
-          }
-        ]
+            severity: ErrorSeverity.HIGH,
+          },
+        ],
       );
     }
 
@@ -277,7 +278,7 @@ export class CSVParser {
     try {
       const fileStats = statSync(filePath);
       const sampleSize = Math.min(this.options.sampleSize, fileStats.size);
-      
+
       if (sampleSize === 0) {
         logger.warn('Cannot detect format from empty file, using defaults');
         return;
@@ -300,15 +301,15 @@ export class CSVParser {
             {
               action: 'Check file permissions',
               description: 'Ensure the file is readable',
-              severity: ErrorSeverity.HIGH
+              severity: ErrorSeverity.HIGH,
             },
             {
               action: 'Specify format manually',
               description: 'Skip auto-detection and specify format options',
               severity: ErrorSeverity.MEDIUM,
-              command: '--delimiter "," --encoding utf8 --no-auto-detect'
-            }
-          ]
+              command: '--delimiter "," --encoding utf8 --no-auto-detect',
+            },
+          ],
         );
       }
 
@@ -318,7 +319,7 @@ export class CSVParser {
       }
 
       const sampleBuffer = Buffer.concat(chunks);
-      
+
       try {
         const detected = CSVDetector.detect(sampleBuffer);
 
@@ -328,8 +329,10 @@ export class CSVParser {
         this.options.quote = detected.quote;
         this.options.lineEnding = detected.lineEnding;
         this.options.hasHeader = detected.hasHeader;
-        
-        logger.debug(`Auto-detected format: delimiter='${detected.delimiter}', encoding='${detected.encoding}', quote='${detected.quote}'`);
+
+        logger.debug(
+          `Auto-detected format: delimiter='${detected.delimiter}', encoding='${detected.encoding}', quote='${detected.quote}'`,
+        );
       } catch (detectionError) {
         throw DataPilotError.parsing(
           `Format detection failed: ${detectionError instanceof Error ? detectionError.message : 'Unknown error'}`,
@@ -340,25 +343,25 @@ export class CSVParser {
               action: 'Use manual settings',
               description: 'Specify delimiter, encoding, and quote characters manually',
               severity: ErrorSeverity.MEDIUM,
-              command: '--delimiter "," --encoding utf8 --quote "\\""'
+              command: '--delimiter "," --encoding utf8 --quote "\\""',
             },
             {
               action: 'Check file format',
               description: 'Verify the file is a valid CSV with consistent formatting',
-              severity: ErrorSeverity.HIGH
-            }
-          ]
+              severity: ErrorSeverity.HIGH,
+            },
+          ],
         );
       }
     } catch (error) {
       if (error instanceof DataPilotError) {
         throw error;
       }
-      
+
       throw DataPilotError.parsing(
         `Detection process failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
         'DETECTION_PROCESS_ERROR',
-        { filePath }
+        { filePath },
       );
     }
   }
@@ -518,19 +521,19 @@ export class CSVParser {
         }
 
         // Check for excessively long fields
-        const hasOversizedField = rawRow.some(field => 
-          typeof field === 'string' && field.length > this.options.maxFieldSize
+        const hasOversizedField = rawRow.some(
+          (field) => typeof field === 'string' && field.length > this.options.maxFieldSize,
         );
-        
+
         if (hasOversizedField) {
           logger.warn(`Row ${i} contains oversized field(s), truncating`);
           // Truncate oversized fields
-          const truncatedRow = rawRow.map(field => 
+          const truncatedRow = rawRow.map((field) =>
             typeof field === 'string' && field.length > this.options.maxFieldSize
               ? field.substring(0, this.options.maxFieldSize) + '...'
-              : field
+              : field,
           );
-          
+
           const row: ParsedRow = {
             index: this.stats.rowsProcessed + processedRows.length,
             data: truncatedRow,
@@ -545,8 +548,10 @@ export class CSVParser {
         }
       } catch (error) {
         errorRows++;
-        logger.debug(`Error processing row ${i}: ${error instanceof Error ? error.message : 'Unknown error'}`);
-        
+        logger.debug(
+          `Error processing row ${i}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        );
+
         // If too many errors, warn the user
         if (errorRows > 10 && errorRows / (i + 1) > 0.1) {
           logger.warn(`High error rate in row processing: ${errorRows} errors in ${i + 1} rows`);
@@ -557,7 +562,7 @@ export class CSVParser {
     if (skippedRows > 0) {
       logger.debug(`Skipped ${skippedRows} empty rows`);
     }
-    
+
     if (errorRows > 0) {
       logger.warn(`Encountered ${errorRows} invalid rows during processing`);
     }
@@ -573,7 +578,7 @@ export class CSVParser {
       if (!Array.isArray(row)) {
         return true; // Treat invalid data as empty
       }
-      
+
       return row.every((field) => {
         if (typeof field !== 'string') {
           return false; // Non-string fields are considered non-empty
@@ -581,7 +586,9 @@ export class CSVParser {
         return field.trim().length === 0;
       });
     } catch (error) {
-      logger.debug(`Error checking if row is empty: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      logger.debug(
+        `Error checking if row is empty: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
       return true; // Treat errors as empty to skip problematic rows
     }
   }

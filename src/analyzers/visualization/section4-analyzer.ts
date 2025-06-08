@@ -1,6 +1,6 @@
 /**
  * Section 4: Advanced Visualization Intelligence Analyzer
- * 
+ *
  * Ultra-sophisticated visualization recommendation engine featuring:
  * - Statistical-driven chart selection with data distribution analysis
  * - Performance-optimized visualization pipeline with adaptive algorithms
@@ -8,7 +8,7 @@
  * - Sophisticated dashboard layout using perceptual principles
  * - Domain-aware visualization intelligence with context detection
  * - Aesthetic optimization engine for data-driven design decisions
- * 
+ *
  * This represents the "calculator on steroids" approach to visualization intelligence,
  * combining statistical rigor with sophisticated design principles.
  */
@@ -105,88 +105,109 @@ export class Section4Analyzer {
 
     try {
       // Extract data characteristics for engine processing
-      const dataCharacteristics = Section4Analyzer.extractDataCharacteristics(section1Result, section3Result);
-      const columnNames = section1Result.overview.structuralDimensions.columnInventory?.map(col => col.name) || [];
-      
+      const dataCharacteristics = Section4Analyzer.extractDataCharacteristics(
+        section1Result,
+        section3Result,
+      );
+      const columnNames =
+        section1Result.overview.structuralDimensions.columnInventory?.map((col) => col.name) || [];
+
       // Use Domain-Aware Intelligence to understand context
       const domainContext = DomainAwareIntelligence.analyzeDomainContext(
         columnNames,
-        dataCharacteristics
+        dataCharacteristics,
       );
-      
-      logger.info(`Domain detected: ${domainContext.primaryDomain.domain} (confidence: ${domainContext.confidence.toFixed(2)})`);
-      
+
+      logger.info(
+        `Domain detected: ${domainContext.primaryDomain.domain} (confidence: ${domainContext.confidence.toFixed(2)})`,
+      );
+
       // Generate aesthetic profile for beautiful, accessible visualizations
       // TODO: Fix AestheticOptimizer.generateAestheticProfile array access bug
       const aestheticProfile = {
-        colorSystem: { primaryPalette: { primary: [{ hex: '#1f77b4' }], neutral: [{ hex: '#cccccc' }] } },
+        colorSystem: {
+          primaryPalette: {
+            primary: [{ hex: '#1f77b4' }],
+            neutral: [{ hex: '#cccccc' }],
+          },
+          dataVisualizationPalette: {
+            categorical: ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd'],
+            numerical: ['#1f77b4', '#aec7e8', '#ffbb78'],
+            diverging: ['#d62728', '#ffffff', '#1f77b4'],
+          },
+        },
         typographySystem: {},
         visualComposition: {},
         emotionalDesign: {},
         accessibility: {},
         brandIntegration: {},
         responsiveAesthetics: {},
-        qualityMetrics: {}
+        qualityMetrics: {},
       };
-      
+
       // Use Statistical Chart Selector for intelligent recommendations
-      const univariateRecommendations = Section4Analyzer.generateSophisticatedUnivariateRecommendations(
+      const univariateRecommendations = this.generateSophisticatedUnivariateRecommendations(
         section1Result,
         section3Result,
         domainContext,
-        aestheticProfile
+        aestheticProfile,
       );
 
       // Generate bivariate recommendations with sophisticated analysis
-      const bivariateRecommendations = Section4Analyzer.generateSophisticatedBivariateRecommendations(
+      const bivariateRecommendations = this.generateSophisticatedBivariateRecommendations(
         section3Result,
         domainContext,
-        aestheticProfile
+        aestheticProfile,
       );
 
       // Generate multivariate recommendations using advanced techniques
-      const multivariateRecommendations = Section4Analyzer.generateSophisticatedMultivariateRecommendations(
-        section3Result,
-        domainContext
-      );
+      const multivariateRecommendations =
+        Section4Analyzer.generateSophisticatedMultivariateRecommendations(
+          section3Result,
+          domainContext,
+        );
 
       // Create sophisticated dashboard layout using perceptual principles
-      const dashboardRecommendations = Section4Analyzer.generateSophisticatedDashboardRecommendations(
-        univariateRecommendations,
-        bivariateRecommendations,
-        domainContext,
-        aestheticProfile
-      );
+      const dashboardRecommendations =
+        Section4Analyzer.generateSophisticatedDashboardRecommendations(
+          univariateRecommendations,
+          bivariateRecommendations,
+          domainContext,
+          aestheticProfile,
+        );
 
       // Generate enhanced technical guidance
       const technicalGuidance = Section4Analyzer.generateEnhancedTechnicalGuidance(
         univariateRecommendations,
         bivariateRecommendations,
         domainContext,
-        aestheticProfile
+        aestheticProfile,
       );
 
       // Comprehensive accessibility assessment
       const accessibilityAssessment = Section4Analyzer.assessEnhancedAccessibility(
         univariateRecommendations,
         bivariateRecommendations,
-        aestheticProfile
+        aestheticProfile,
       );
-      
+
       // Generate overall visualization strategy based on domain insights
       const strategy = Section4Analyzer.generateDomainAwareStrategy(
-        section1Result, 
-        section3Result, 
-        domainContext
+        section1Result,
+        section3Result,
+        domainContext,
       );
 
       const analysisTime = Date.now() - startTime;
       const totalRecommendations =
         univariateRecommendations.reduce(
-          (sum, profile) => sum + profile.recommendations.length,
+          (sum, profile) => sum + (profile.recommendations?.length || 0),
           0,
         ) +
-        bivariateRecommendations.reduce((sum, profile) => sum + profile.recommendations.length, 0);
+        bivariateRecommendations.reduce(
+          (sum, profile) => sum + (profile.recommendations?.length || 0),
+          0,
+        );
 
       const visualizationAnalysis: VisualizationAnalysis = {
         strategy,
@@ -199,7 +220,9 @@ export class Section4Analyzer {
       };
 
       logger.info(`Section 4 sophisticated analysis completed in ${analysisTime}ms`);
-      logger.info(`Domain: ${domainContext.primaryDomain.domain}, Engines: 6 sophisticated engines used`);
+      logger.info(
+        `Domain: ${domainContext.primaryDomain.domain}, Engines: 6 sophisticated engines used`,
+      );
 
       return {
         visualizationAnalysis,
@@ -207,17 +230,18 @@ export class Section4Analyzer {
         performanceMetrics: {
           analysisTimeMs: analysisTime,
           recommendationsGenerated: totalRecommendations,
-          chartTypesConsidered: Section4Analyzer.getUniqueChartTypes(
+          chartTypesConsidered: this.getUniqueChartTypes(
             univariateRecommendations,
             bivariateRecommendations,
           ).length,
-          accessibilityChecks: Section4Analyzer.countAccessibilityChecks(),
+          accessibilityChecks: this.countAccessibilityChecks(),
         },
         metadata: {
-          analysisApproach: 'Ultra-sophisticated visualization intelligence with 6 specialized engines',
-          totalColumns: univariateRecommendations.length,
-          bivariateRelationships: bivariateRecommendations.length,
-          recommendationConfidence: Section4Analyzer.calculateOverallConfidence(
+          analysisApproach:
+            'Ultra-sophisticated visualization intelligence with 6 specialized engines',
+          totalColumns: univariateRecommendations.length || 0,
+          bivariateRelationships: bivariateRecommendations.length || 0,
+          recommendationConfidence: this.calculateOverallConfidence(
             univariateRecommendations,
             bivariateRecommendations,
           ),
@@ -234,10 +258,14 @@ export class Section4Analyzer {
    */
   private getDomainAudience(domainContext: any): string {
     switch (domainContext.primaryDomain?.domain) {
-      case 'education': return 'educators and students';
-      case 'healthcare': return 'medical professionals';
-      case 'finance': return 'financial analysts';
-      default: return 'general audience';
+      case 'education':
+        return 'educators and students';
+      case 'healthcare':
+        return 'medical professionals';
+      case 'finance':
+        return 'financial analysts';
+      default:
+        return 'general audience';
     }
   }
 
@@ -247,10 +275,14 @@ export class Section4Analyzer {
   private determineComplexityFromDomain(domainContext: any): ComplexityLevel {
     const domain = domainContext.primaryDomain?.domain;
     switch (domain) {
-      case 'education': return ComplexityLevel.MODERATE;
-      case 'healthcare': return ComplexityLevel.COMPLEX;
-      case 'finance': return ComplexityLevel.COMPLEX;
-      default: return ComplexityLevel.MODERATE;
+      case 'education':
+        return ComplexityLevel.MODERATE;
+      case 'healthcare':
+        return ComplexityLevel.COMPLEX;
+      case 'finance':
+        return ComplexityLevel.COMPLEX;
+      default:
+        return ComplexityLevel.MODERATE;
     }
   }
 
@@ -260,10 +292,14 @@ export class Section4Analyzer {
   private determineInteractivityFromDomain(domainContext: any): InteractivityLevel {
     const domain = domainContext.primaryDomain?.domain;
     switch (domain) {
-      case 'education': return InteractivityLevel.INTERACTIVE;
-      case 'healthcare': return InteractivityLevel.BASIC;
-      case 'finance': return InteractivityLevel.HIGHLY_INTERACTIVE;
-      default: return InteractivityLevel.INTERACTIVE;
+      case 'education':
+        return InteractivityLevel.INTERACTIVE;
+      case 'healthcare':
+        return InteractivityLevel.BASIC;
+      case 'finance':
+        return InteractivityLevel.HIGHLY_INTERACTIVE;
+      default:
+        return InteractivityLevel.INTERACTIVE;
     }
   }
 
@@ -280,37 +316,45 @@ export class Section4Analyzer {
   /**
    * Extract data characteristics for sophisticated engine processing
    */
-  private extractDataCharacteristics(section1Result: Section1Result, section3Result: Section3Result): any {
+  private extractDataCharacteristics(
+    section1Result: Section1Result,
+    section3Result: Section3Result,
+  ): any {
     const structural = section1Result.overview.structuralDimensions;
     // Extract quality metrics from Section 3 if available, or use defaults
     const qualityProfile = {
       completeness: 0.9,
       consistency: 0.85,
       validity: 0.9,
-      uniqueness: 0.95
+      uniqueness: 0.95,
     };
-    
+
     return {
       totalRows: structural.totalDataRows || 0,
       totalColumns: structural.totalColumns || 0,
-      categoricalColumns: section3Result.edaAnalysis?.univariateAnalysis?.filter(
-        col => col.detectedDataType === EdaDataType.CATEGORICAL
-      ).length || 0,
-      numericalColumns: section3Result.edaAnalysis?.univariateAnalysis?.filter(
-        col => Section4Analyzer.isNumericalType(col.detectedDataType)
-      ).length || 0,
-      temporalColumns: section3Result.edaAnalysis?.univariateAnalysis?.filter(
-        col => col.detectedDataType === EdaDataType.DATE_TIME
-      ).length || 0,
+      categoricalColumns:
+        section3Result.edaAnalysis?.univariateAnalysis?.filter(
+          (col) => col.detectedDataType === EdaDataType.CATEGORICAL,
+        ).length || 0,
+      numericalColumns:
+        section3Result.edaAnalysis?.univariateAnalysis?.filter((col) =>
+          Section4Analyzer.isNumericalType(col.detectedDataType),
+        ).length || 0,
+      temporalColumns:
+        section3Result.edaAnalysis?.univariateAnalysis?.filter(
+          (col) => col.detectedDataType === EdaDataType.DATE_TIME,
+        ).length || 0,
       hasHierarchy: false, // Could be detected from data patterns
       hasNegativeValues: false, // Could be detected from numeric analysis
       maxUniqueValues: Math.max(
-        ...section3Result.edaAnalysis?.univariateAnalysis?.map(col => col.uniqueValues || 0) || [0]
+        ...(section3Result.edaAnalysis?.univariateAnalysis?.map((col) => col.uniqueValues || 0) || [
+          0,
+        ]),
       ),
       completenessScore: qualityProfile.completeness || 0,
       consistencyScore: qualityProfile.consistency || 0,
       validityScore: qualityProfile.validity || 0,
-      uniquenessScore: qualityProfile.uniqueness || 0
+      uniquenessScore: qualityProfile.uniqueness || 0,
     };
   }
 
@@ -320,15 +364,18 @@ export class Section4Analyzer {
   private generateDomainAwareStrategy(
     section1Result: Section1Result,
     section3Result: Section3Result,
-    domainContext: any
+    domainContext: any,
   ): VisualizationStrategy {
-    const approach = domainContext.visualizationStrategy?.primaryApproach?.approach || 
+    const approach =
+      domainContext.visualizationStrategy?.primaryApproach?.approach ||
       'Data-driven chart selection with domain intelligence and aesthetic optimization';
-    
+
     const primaryObjectives = domainContext.visualizationStrategy?.primaryApproach?.suitableFor || [
-      'performance analysis', 'factor identification', 'relationship exploration'
+      'performance analysis',
+      'factor identification',
+      'relationship exploration',
     ];
-    
+
     return {
       approach,
       primaryObjectives,
@@ -336,7 +383,9 @@ export class Section4Analyzer {
       complexity: this.determineComplexityFromDomain(domainContext),
       interactivity: Section4Analyzer.determineInteractivityFromDomain(domainContext),
       accessibility: this.config.accessibilityLevel,
-      performance: Section4Analyzer.determinePerformanceFromData(Section4Analyzer.extractDataCharacteristics(section1Result, {} as any)),
+      performance: Section4Analyzer.determinePerformanceFromData(
+        Section4Analyzer.extractDataCharacteristics(section1Result, {} as any),
+      ),
     };
   }
 
@@ -347,7 +396,7 @@ export class Section4Analyzer {
     section1Result: Section1Result,
     section3Result: Section3Result,
     domainContext: any,
-    aestheticProfile: any
+    aestheticProfile: any,
   ): ColumnVisualizationProfile[] {
     const profiles: ColumnVisualizationProfile[] = [];
 
@@ -364,9 +413,9 @@ export class Section4Analyzer {
 
     for (const columnAnalysis of section3Result.edaAnalysis.univariateAnalysis) {
       const profile = Section4Analyzer.createSophisticatedColumnProfile(
-        columnAnalysis, 
-        domainContext, 
-        aestheticProfile
+        columnAnalysis,
+        domainContext,
+        aestheticProfile,
       );
       profiles.push(profile);
     }
@@ -380,7 +429,7 @@ export class Section4Analyzer {
   private generateSophisticatedBivariateRecommendations(
     section3Result: Section3Result,
     domainContext: any,
-    aestheticProfile: any
+    aestheticProfile: any,
   ): BivariateVisualizationProfile[] {
     const profiles: BivariateVisualizationProfile[] = [];
 
@@ -390,20 +439,20 @@ export class Section4Analyzer {
     }
 
     // Extract correlations with domain awareness
-    const correlations = Section4Analyzer.extractCorrelations(section3Result);
-    
+    const correlations = this.extractCorrelations(section3Result);
+
     // Apply domain-specific filtering and enhancement
     const enhancedCorrelations = correlations
-      .filter(corr => Section4Analyzer.isDomainRelevantCorrelation(corr, domainContext))
-      .map(corr => Section4Analyzer.enhanceCorrelationWithDomainKnowledge(corr, domainContext));
+      .filter((corr) => Section4Analyzer.isDomainRelevantCorrelation(corr, domainContext))
+      .map((corr) => Section4Analyzer.enhanceCorrelationWithDomainKnowledge(corr, domainContext));
 
     // Generate sophisticated recommendations
     for (const correlation of enhancedCorrelations) {
       const profile = Section4Analyzer.createSophisticatedBivariateProfile(
-        correlation, 
-        section3Result, 
-        domainContext, 
-        aestheticProfile
+        correlation,
+        section3Result,
+        domainContext,
+        aestheticProfile,
       );
       if (profile) {
         profiles.push(profile);
@@ -418,7 +467,7 @@ export class Section4Analyzer {
    */
   private generateSophisticatedMultivariateRecommendations(
     section3Result: Section3Result,
-    domainContext: any
+    domainContext: any,
   ): MultivariateRecommendation[] {
     const recommendations: MultivariateRecommendation[] = [];
 
@@ -443,11 +492,13 @@ export class Section4Analyzer {
       if (numericalColumns.length >= 3) {
         const baseRecommendation = {
           variables: numericalColumns.slice(0, 6).map((col) => col.columnName),
-          purpose: 'Identify key factors influencing academic performance using sophisticated factor analysis',
+          purpose:
+            'Identify key factors influencing academic performance using sophisticated factor analysis',
           chartType: ChartType.PARALLEL_COORDINATES,
           complexity: ComplexityLevel.MODERATE,
           prerequisites: ['Performance variable identification', 'Factor importance ranking'],
-          implementation: 'Interactive parallel coordinates with domain-specific factor highlighting and educational benchmarks',
+          implementation:
+            'Interactive parallel coordinates with domain-specific factor highlighting and educational benchmarks',
           alternatives: [ChartType.RADAR_CHART, ChartType.CORRELATION_MATRIX],
         };
 
@@ -461,16 +512,18 @@ export class Section4Analyzer {
 
         recommendations.push(baseRecommendation);
       }
-      
+
       // Academic intervention analysis
       if (numericalColumns.length >= 4) {
         const correlationRecommendation = {
           variables: numericalColumns.map((col) => col.columnName),
-          purpose: 'Comprehensive academic intervention impact analysis with performance correlation matrix',
+          purpose:
+            'Comprehensive academic intervention impact analysis with performance correlation matrix',
           chartType: ChartType.CORRELATION_MATRIX,
           complexity: ComplexityLevel.SIMPLE,
           prerequisites: ['Educational domain context', 'Performance outcome identification'],
-          implementation: 'Educational correlation heatmap with significance indicators and intervention recommendations',
+          implementation:
+            'Educational correlation heatmap with significance indicators and intervention recommendations',
           alternatives: [ChartType.SCATTERPLOT_MATRIX],
         };
 
@@ -487,7 +540,9 @@ export class Section4Analyzer {
       // Add cluster-specific visualizations for education domain
       if (clusteringInsights.hasNaturalClusters && numericalColumns.length >= 2) {
         recommendations.push({
-          variables: clusteringInsights.dominantVariables || numericalColumns.slice(0, 3).map(col => col.columnName),
+          variables:
+            clusteringInsights.dominantVariables ||
+            numericalColumns.slice(0, 3).map((col) => col.columnName),
           purpose: `Visualize ${clusteringInsights.optimalClusters} distinct student performance clusters for targeted intervention strategies`,
           chartType: ChartType.SCATTER_PLOT,
           complexity: ComplexityLevel.SIMPLE,
@@ -505,7 +560,8 @@ export class Section4Analyzer {
           chartType: ChartType.PARALLEL_COORDINATES,
           complexity: ComplexityLevel.MODERATE,
           prerequisites: ['Data normalization', 'Outlier treatment'],
-          implementation: 'Advanced parallel coordinates with brushing, linking, and pattern highlighting',
+          implementation:
+            'Advanced parallel coordinates with brushing, linking, and pattern highlighting',
           alternatives: [ChartType.RADAR_CHART, ChartType.SCATTERPLOT_MATRIX],
         };
 
@@ -522,7 +578,9 @@ export class Section4Analyzer {
       // Add cluster-specific visualization for any domain when clusters exist
       if (clusteringInsights.hasNaturalClusters && numericalColumns.length >= 2) {
         recommendations.push({
-          variables: clusteringInsights.dominantVariables || numericalColumns.slice(0, 3).map(col => col.columnName),
+          variables:
+            clusteringInsights.dominantVariables ||
+            numericalColumns.slice(0, 3).map((col) => col.columnName),
           purpose: `Explore ${clusteringInsights.optimalClusters} natural data groupings and their distinguishing characteristics`,
           chartType: ChartType.SCATTER_PLOT,
           complexity: ComplexityLevel.SIMPLE,
@@ -566,7 +624,7 @@ export class Section4Analyzer {
       }
 
       // Extract cluster characteristics for visualization enhancement
-      const clusterProfiles = clusteringAnalysis.finalClustering.clusterProfiles.map(profile => ({
+      const clusterProfiles = clusteringAnalysis.finalClustering.clusterProfiles.map((profile) => ({
         clusterId: profile.clusterId,
         characteristics: profile.distinctiveFeatures,
         size: profile.size,
@@ -679,7 +737,9 @@ export class Section4Analyzer {
     let distribution: DistributionCharacteristics | undefined;
     if (Section4Analyzer.isNumericalType(dataType) && columnAnalysis.distributionAnalysis) {
       distribution = {
-        shape: Section4Analyzer.mapSkewnessToShape(columnAnalysis.distributionAnalysis.skewness || 0),
+        shape: Section4Analyzer.mapSkewnessToShape(
+          columnAnalysis.distributionAnalysis.skewness || 0,
+        ),
         skewness: columnAnalysis.distributionAnalysis.skewness || 0,
         kurtosis: columnAnalysis.distributionAnalysis.kurtosis || 0,
         outliers: {
@@ -773,11 +833,14 @@ export class Section4Analyzer {
       Section4Analyzer.meetsQualityThreshold(rec, completeness),
     );
 
-    const enhancedRecommendations = Section4Analyzer.applyAntiPatternDetection(filteredRecommendations, {
-      cardinality,
-      completeness,
-      dataType,
-    });
+    const enhancedRecommendations = Section4Analyzer.applyAntiPatternDetection(
+      filteredRecommendations,
+      {
+        cardinality,
+        completeness,
+        dataType,
+      },
+    );
 
     return enhancedRecommendations
       .slice(0, this.config.maxRecommendationsPerChart)
@@ -868,7 +931,9 @@ export class Section4Analyzer {
         interactivity: Section4Analyzer.createAdvancedInteractivity(),
         accessibility: Section4Analyzer.createAccessibilityGuidance(ChartType.VIOLIN_WITH_BOX),
         performance: Section4Analyzer.createPerformanceConsiderations(ChartType.VIOLIN_WITH_BOX),
-        libraryRecommendations: Section4Analyzer.getLibraryRecommendations(ChartType.VIOLIN_WITH_BOX),
+        libraryRecommendations: Section4Analyzer.getLibraryRecommendations(
+          ChartType.VIOLIN_WITH_BOX,
+        ),
         dataPreparation: Section4Analyzer.createNumericalDataPreparation(columnAnalysis),
         designGuidelines: Section4Analyzer.createDesignGuidelines(ChartType.VIOLIN_WITH_BOX),
       });
@@ -963,7 +1028,9 @@ export class Section4Analyzer {
       interactivity: Section4Analyzer.createBasicInteractivity(),
       accessibility: Section4Analyzer.createAccessibilityGuidance(ChartType.TIME_SERIES_LINE),
       performance: Section4Analyzer.createPerformanceConsiderations(ChartType.TIME_SERIES_LINE),
-      libraryRecommendations: Section4Analyzer.getLibraryRecommendations(ChartType.TIME_SERIES_LINE),
+      libraryRecommendations: Section4Analyzer.getLibraryRecommendations(
+        ChartType.TIME_SERIES_LINE,
+      ),
       dataPreparation: Section4Analyzer.createDateTimeDataPreparation(columnAnalysis),
       designGuidelines: Section4Analyzer.createDesignGuidelines(ChartType.TIME_SERIES_LINE),
     });
@@ -1015,7 +1082,9 @@ export class Section4Analyzer {
         interactivity: Section4Analyzer.createBasicInteractivity(),
         accessibility: Section4Analyzer.createAccessibilityGuidance(ChartType.HORIZONTAL_BAR),
         performance: Section4Analyzer.createPerformanceConsiderations(ChartType.HORIZONTAL_BAR),
-        libraryRecommendations: Section4Analyzer.getLibraryRecommendations(ChartType.HORIZONTAL_BAR),
+        libraryRecommendations: Section4Analyzer.getLibraryRecommendations(
+          ChartType.HORIZONTAL_BAR,
+        ),
         dataPreparation: Section4Analyzer.createTextDataPreparation(columnAnalysis),
         designGuidelines: Section4Analyzer.createDesignGuidelines(ChartType.HORIZONTAL_BAR),
       });
@@ -1038,16 +1107,16 @@ export class Section4Analyzer {
     }
 
     // Extract correlation data from Section 3 results
-    const correlations = Section4Analyzer.extractCorrelations(section3Result);
+    const correlations = this.extractCorrelations(section3Result);
 
     // Filter for meaningful correlations - exclude ID field and use more practical thresholds
     const significantCorrelations = correlations.filter(
-      (corr) => 
+      (corr) =>
         // Exclude ID field from visualization recommendations
-        !corr.variable1.toLowerCase().includes('id') && 
+        !corr.variable1.toLowerCase().includes('id') &&
         !corr.variable2.toLowerCase().includes('id') &&
         // Use more practical correlation threshold for medical data
-        Math.abs(corr.strength) > 0.2 && 
+        Math.abs(corr.strength) > 0.2 &&
         // Be more lenient with p-values
         corr.significance <= 0.1,
     );
@@ -1087,8 +1156,8 @@ export class Section4Analyzer {
         strength: correlation.correlation,
         significance: correlation.pValue || 0.01,
         confidenceInterval: [correlation.correlation - 0.1, correlation.correlation + 0.1],
-        relationshipType: Section4Analyzer.determineRelationshipType(correlation.correlation),
-        visualizationSuitability: Section4Analyzer.calculateVisualizationSuitability(correlation),
+        relationshipType: this.determineRelationshipType(correlation.correlation),
+        visualizationSuitability: this.calculateVisualizationSuitability(correlation),
       };
 
       correlations.push(analysis);
@@ -1157,7 +1226,10 @@ export class Section4Analyzer {
         priority: RecommendationPriority.PRIMARY,
         confidence: 0.9,
         reasoning: `Scatter plot ideal for showing ${correlation.relationshipType.replace('_', ' ')} relationship (r=${correlation.strength.toFixed(3)})`,
-        encoding: Section4Analyzer.createScatterPlotEncoding(correlation.variable1, correlation.variable2),
+        encoding: Section4Analyzer.createScatterPlotEncoding(
+          correlation.variable1,
+          correlation.variable2,
+        ),
         interactivity: Section4Analyzer.createAdvancedInteractivity(),
         accessibility: Section4Analyzer.createAccessibilityGuidance(ChartType.SCATTER_PLOT),
         performance: Section4Analyzer.createPerformanceConsiderations(ChartType.SCATTER_PLOT),
@@ -1179,11 +1251,16 @@ export class Section4Analyzer {
           confidence: 0.85,
           reasoning:
             'Regression plot with confidence intervals shows linear trend and prediction uncertainty',
-          encoding: Section4Analyzer.createRegressionPlotEncoding(correlation.variable1, correlation.variable2),
+          encoding: Section4Analyzer.createRegressionPlotEncoding(
+            correlation.variable1,
+            correlation.variable2,
+          ),
           interactivity: Section4Analyzer.createAdvancedInteractivity(),
           accessibility: Section4Analyzer.createAccessibilityGuidance(ChartType.REGRESSION_PLOT),
           performance: Section4Analyzer.createPerformanceConsiderations(ChartType.REGRESSION_PLOT),
-          libraryRecommendations: Section4Analyzer.getLibraryRecommendations(ChartType.REGRESSION_PLOT),
+          libraryRecommendations: Section4Analyzer.getLibraryRecommendations(
+            ChartType.REGRESSION_PLOT,
+          ),
           dataPreparation: Section4Analyzer.createBivariateDataPreparation(),
           designGuidelines: Section4Analyzer.createDesignGuidelines(ChartType.REGRESSION_PLOT),
         });
@@ -1207,7 +1284,9 @@ export class Section4Analyzer {
         interactivity: Section4Analyzer.createAdvancedInteractivity(),
         accessibility: Section4Analyzer.createAccessibilityGuidance(ChartType.BOX_PLOT_BY_GROUP),
         performance: Section4Analyzer.createPerformanceConsiderations(ChartType.BOX_PLOT_BY_GROUP),
-        libraryRecommendations: Section4Analyzer.getLibraryRecommendations(ChartType.BOX_PLOT_BY_GROUP),
+        libraryRecommendations: Section4Analyzer.getLibraryRecommendations(
+          ChartType.BOX_PLOT_BY_GROUP,
+        ),
         dataPreparation: Section4Analyzer.createBivariateDataPreparation(),
         designGuidelines: Section4Analyzer.createDesignGuidelines(ChartType.BOX_PLOT_BY_GROUP),
       });
@@ -1224,7 +1303,9 @@ export class Section4Analyzer {
           interactivity: Section4Analyzer.createAdvancedInteractivity(),
           accessibility: Section4Analyzer.createAccessibilityGuidance(ChartType.VIOLIN_BY_GROUP),
           performance: Section4Analyzer.createPerformanceConsiderations(ChartType.VIOLIN_BY_GROUP),
-          libraryRecommendations: Section4Analyzer.getLibraryRecommendations(ChartType.VIOLIN_BY_GROUP),
+          libraryRecommendations: Section4Analyzer.getLibraryRecommendations(
+            ChartType.VIOLIN_BY_GROUP,
+          ),
           dataPreparation: Section4Analyzer.createBivariateDataPreparation(),
           designGuidelines: Section4Analyzer.createDesignGuidelines(ChartType.VIOLIN_BY_GROUP),
         });
@@ -1260,7 +1341,10 @@ export class Section4Analyzer {
           confidence: 0.75,
           reasoning:
             'Mosaic plot shows proportional relationships and cell contributions to overall association',
-          encoding: Section4Analyzer.createMosaicPlotEncoding(correlation.variable1, correlation.variable2),
+          encoding: Section4Analyzer.createMosaicPlotEncoding(
+            correlation.variable1,
+            correlation.variable2,
+          ),
           interactivity: Section4Analyzer.createAdvancedInteractivity(),
           accessibility: Section4Analyzer.createAccessibilityGuidance(ChartType.MOSAIC_PLOT),
           performance: Section4Analyzer.createPerformanceConsiderations(ChartType.MOSAIC_PLOT),
@@ -1367,37 +1451,40 @@ export class Section4Analyzer {
     univariateRecommendations: ColumnVisualizationProfile[],
     bivariateRecommendations: BivariateVisualizationProfile[],
     domainContext: any,
-    aestheticProfile: any
+    aestheticProfile: any,
   ): DashboardRecommendation {
     // Create visualization specifications for dashboard layout engine
     const visualizations = Section4Analyzer.createVisualizationSpecs(
-      univariateRecommendations, 
-      bivariateRecommendations
+      univariateRecommendations,
+      bivariateRecommendations,
     );
-    
+
     // Define layout constraints based on typical dashboard requirements
     const constraints = {
       maxWidth: 1200,
       maxHeight: 800,
       minChartSize: { width: 250, height: 200 },
-      margins: { top: 16, right: 16, bottom: 16, left: 16 }
+      margins: { top: 16, right: 16, bottom: 16, left: 16 },
     };
-    
+
     // Define context based on domain
     const context = {
-      purpose: domainContext.primaryDomain.domain === 'education' ? 'analytical' as const : 'exploratory' as const,
+      purpose:
+        domainContext.primaryDomain.domain === 'education'
+          ? ('analytical' as const)
+          : ('exploratory' as const),
       audience: 'mixed' as const,
       platform: 'desktop' as const,
-      timeConstraint: 'detailed_analysis' as const
+      timeConstraint: 'detailed_analysis' as const,
     };
-    
+
     // Use sophisticated dashboard layout engine
     const dashboardLayout = DashboardLayoutEngine.generateLayout(
       visualizations,
       constraints,
-      context
+      context,
     );
-    
+
     return {
       type: domainContext.primaryDomain.domain === 'education' ? 'analytical' : 'exploratory',
       purpose: `Sophisticated ${domainContext.primaryDomain.domain} domain dashboard with perceptual optimization`,
@@ -1412,8 +1499,8 @@ export class Section4Analyzer {
         perceptualHierarchy: dashboardLayout.perceptualHierarchy,
         aestheticProfile: aestheticProfile,
         cognitiveOptimization: dashboardLayout.cognitiveOptimization,
-        responsiveAdaptation: dashboardLayout.responsiveAdaptation
-      }
+        responsiveAdaptation: dashboardLayout.responsiveAdaptation,
+      },
     } as any;
   }
 
@@ -1436,38 +1523,54 @@ export class Section4Analyzer {
     univariateRecommendations: ColumnVisualizationProfile[],
     bivariateRecommendations: BivariateVisualizationProfile[],
     domainContext: any,
-    aestheticProfile: any
+    aestheticProfile: any,
   ): TechnicalGuidance {
     // Analyze performance requirements based on data characteristics
-    const totalDataPoints = univariateRecommendations.reduce((sum, rec) => sum + (rec.cardinality || 0), 0);
-    const complexityScore = bivariateRecommendations.length * 20 + univariateRecommendations.length * 10;
-    
+    const totalDataPoints = univariateRecommendations.reduce(
+      (sum, rec) => sum + (rec.cardinality || 0),
+      0,
+    );
+    const complexityScore =
+      bivariateRecommendations.length * 20 + univariateRecommendations.length * 10;
+
     // Use Performance Optimizer to determine optimal implementation strategies
-    const performanceStrategy = Section4Analyzer.generatePerformanceStrategy(totalDataPoints, complexityScore);
-    
+    const performanceStrategy = Section4Analyzer.generatePerformanceStrategy(
+      totalDataPoints,
+      complexityScore,
+    );
+
     // Domain-specific technical recommendations
     const domainTechnicalGuidance = Section4Analyzer.generateDomainTechnicalGuidance(domainContext);
-    
+
     // Aesthetic implementation guidance
-    const aestheticImplementation = Section4Analyzer.generateAestheticImplementationGuidance(aestheticProfile);
-    
+    const aestheticImplementation =
+      Section4Analyzer.generateAestheticImplementationGuidance(aestheticProfile);
+
     return {
-      recommendedLibraries: Section4Analyzer.getOptimalLibraryRecommendations(performanceStrategy, domainContext),
-      implementationPatterns: Section4Analyzer.getSophisticatedImplementationPatterns(domainContext),
+      recommendedLibraries: Section4Analyzer.getOptimalLibraryRecommendations(
+        performanceStrategy,
+        domainContext,
+      ),
+      implementationPatterns:
+        Section4Analyzer.getSophisticatedImplementationPatterns(domainContext),
       performanceOptimizations: performanceStrategy,
       domainSpecificGuidance: domainTechnicalGuidance,
       aestheticImplementation: aestheticImplementation,
       sophisticatedFeatures: {
-        statisticalChartSelection: 'Use data distribution analysis for optimal chart type selection',
+        statisticalChartSelection:
+          'Use data distribution analysis for optimal chart type selection',
         performanceOptimization: 'Implement adaptive algorithms for large dataset handling',
         advancedComposition: 'Use multi-dimensional encoding for rich information display',
         perceptualDesign: 'Apply Gestalt principles and cognitive science in layout',
         domainIntelligence: 'Leverage domain-specific patterns and best practices',
-        aestheticOptimization: 'Implement data-driven color theory and typography systems'
+        aestheticOptimization: 'Implement data-driven color theory and typography systems',
       },
-      codeExamples: Section4Analyzer.generateSophisticatedCodeExamples(domainContext, aestheticProfile),
+      codeExamples: Section4Analyzer.generateSophisticatedCodeExamples(
+        domainContext,
+        aestheticProfile,
+      ),
       bestPractices: Section4Analyzer.generateAdvancedBestPractices(domainContext),
-      commonPitfalls: Section4Analyzer.getAdvancedCommonPitfalls(domainContext)
+      commonPitfalls: Section4Analyzer.getAdvancedCommonPitfalls(domainContext),
     } as any;
   }
 
@@ -1489,16 +1592,16 @@ export class Section4Analyzer {
   private assessEnhancedAccessibility(
     univariateRecommendations: ColumnVisualizationProfile[],
     bivariateRecommendations: BivariateVisualizationProfile[],
-    aestheticProfile: any
+    aestheticProfile: any,
   ): AccessibilityAssessment {
     // Get all chart types used in recommendations
     const chartTypes = [
-      ...univariateRecommendations.flatMap(rec => rec.recommendations.map(r => r.chartType)),
-      ...bivariateRecommendations.flatMap(rec => rec.recommendations.map(r => r.chartType))
+      ...univariateRecommendations.flatMap((rec) => rec.recommendations.map((r) => r.chartType)),
+      ...bivariateRecommendations.flatMap((rec) => rec.recommendations.map((r) => r.chartType)),
     ];
-    
+
     // Use WCAG accessibility engine for comprehensive assessment
-    const wcagAssessments = chartTypes.map(chartType => {
+    const wcagAssessments = chartTypes.map((chartType) => {
       const assessmentInput = {
         chartType,
         colorScheme: {
@@ -1522,40 +1625,47 @@ export class Section4Analyzer {
         complexity: this.config.complexityThreshold,
         dataSize: 1000,
       };
-      
+
       return WCAGAccessibilityEngine.assessAccessibility(assessmentInput);
     });
 
     // Combine WCAG assessments with aesthetic profile analysis
     const accessibility = aestheticProfile?.accessibility || {};
-    
+
     // Calculate overall accessibility score from WCAG assessments
-    const wcagScores = wcagAssessments.map(assessment => {
-      const score = assessment.compliance.criteria.reduce((sum, criterion) => {
-        return sum + (criterion.status === 'pass' ? 1 : 0);
-      }, 0) / assessment.compliance.criteria.length * 100;
+    const wcagScores = wcagAssessments.map((assessment) => {
+      const score =
+        (assessment.compliance.criteria.reduce((sum, criterion) => {
+          return sum + (criterion.status === 'pass' ? 1 : 0);
+        }, 0) /
+          assessment.compliance.criteria.length) *
+        100;
       return score;
     });
-    
-    const avgWcagScore = wcagScores.length > 0 ? wcagScores.reduce((sum, score) => sum + score, 0) / wcagScores.length : 75;
-    
+
+    const avgWcagScore =
+      wcagScores.length > 0
+        ? wcagScores.reduce((sum, score) => sum + score, 0) / wcagScores.length
+        : 75;
+
     // Use aesthetic profile scores where available, fallback to WCAG scores
     const wcagScore = accessibility.wcagCompliance?.score || avgWcagScore;
     const universalDesignScore = accessibility.universalDesign?.assessment?.overall || 80;
-    const assistiveTechScore = accessibility.assistiveTechnology ? 
-      Section4Analyzer.calculateAssistiveTechnologyScore(accessibility.assistiveTechnology) : 75;
+    const assistiveTechScore = accessibility.assistiveTechnology
+      ? Section4Analyzer.calculateAssistiveTechnologyScore(accessibility.assistiveTechnology)
+      : 75;
     const cognitiveScore = accessibility.cognitiveAccessibility?.simplicityScore || 85;
     const inclusiveScore = accessibility.inclusiveDesign?.representationAnalysis?.score || 80;
-    
-    const overallScore = (wcagScore + universalDesignScore + assistiveTechScore + cognitiveScore + inclusiveScore) / 5;
-    
+
+    const overallScore =
+      (wcagScore + universalDesignScore + assistiveTechScore + cognitiveScore + inclusiveScore) / 5;
+
     // Get compliance level from WCAG assessments
-    const complianceLevel = wcagAssessments.length > 0 ? 
-      wcagAssessments[0].compliance.level : 'AA';
-    
+    const complianceLevel = wcagAssessments.length > 0 ? wcagAssessments[0].compliance.level : 'AA';
+
     // Aggregate compliance gaps from all assessments
-    const allGaps = wcagAssessments.flatMap(assessment => assessment.compliance.gaps);
-    
+    const allGaps = wcagAssessments.flatMap((assessment) => assessment.compliance.gaps);
+
     return {
       overallLevel: this.scoreToAccessibilityLevel(overallScore),
       compliance: {
@@ -1563,24 +1673,27 @@ export class Section4Analyzer {
         criteria: wcagAssessments.length > 0 ? wcagAssessments[0].compliance.criteria : [],
         gaps: allGaps,
       },
-      improvements: wcagAssessments.flatMap(assessment => assessment.improvements),
-      testing: wcagAssessments.length > 0 ? wcagAssessments[0].testing : {
-        automated: {
-          tools: ['axe-core', 'lighthouse'],
-          frequency: 'On each build',
-          coverage: 70,
-        },
-        manual: {
-          procedures: ['Keyboard navigation testing', 'Screen reader testing'],
-          frequency: 'Weekly',
-          checklist: ['Basic accessibility checks'],
-        },
-        userTesting: {
-          groups: ['Users with disabilities'],
-          scenarios: ['Navigate visualization'],
-          frequency: 'Before releases',
-        },
-      },
+      improvements: wcagAssessments.flatMap((assessment) => assessment.improvements),
+      testing:
+        wcagAssessments.length > 0
+          ? wcagAssessments[0].testing
+          : {
+              automated: {
+                tools: ['axe-core', 'lighthouse'],
+                frequency: 'On each build',
+                coverage: 70,
+              },
+              manual: {
+                procedures: ['Keyboard navigation testing', 'Screen reader testing'],
+                frequency: 'Weekly',
+                checklist: ['Basic accessibility checks'],
+              },
+              userTesting: {
+                groups: ['Users with disabilities'],
+                scenarios: ['Navigate visualization'],
+                frequency: 'Before releases',
+              },
+            },
     };
   }
 
@@ -2636,61 +2749,88 @@ export class Section4Analyzer {
     return {
       rowCount: section1Result?.overview?.structuralDimensions?.totalRows || 0,
       columnCount: section1Result?.overview?.structuralDimensions?.totalColumns || 0,
-      dataTypes: section1Result?.overview?.structuralDimensions?.columnInventory?.map((col: any) => col.dataType) || [],
-      correlations: section3Result?.exploratory?.bivariateAnalysis?.numericalVsNumerical?.correlationPairs || [],
+      dataTypes:
+        section1Result?.overview?.structuralDimensions?.columnInventory?.map(
+          (col: any) => col.dataType,
+        ) || [],
+      correlations:
+        section3Result?.exploratory?.bivariateAnalysis?.numericalVsNumerical?.correlationPairs ||
+        [],
       univariateStats: section3Result?.exploratory?.univariateAnalysis || {},
-      maxCategories: section1Result?.overview?.structuralDimensions?.columnInventory?.length > 0 
-        ? Math.max(...(section1Result.overview.structuralDimensions.columnInventory.map((col: any) => col.uniqueValues || 0)))
-        : 5
+      maxCategories:
+        section1Result?.overview?.structuralDimensions?.columnInventory?.length > 0
+          ? Math.max(
+              ...section1Result.overview.structuralDimensions.columnInventory.map(
+                (col: any) => col.uniqueValues || 0,
+              ),
+            )
+          : 5,
     };
   }
 
   /**
    * Generate sophisticated univariate recommendations
    */
-  static generateSophisticatedUnivariateRecommendations(columnAnalysis: any, domainContext: any): any[] {
-    return [{
-      chartType: 'histogram',
-      confidence: 0.8,
-      reasoning: 'Standard univariate visualization',
-      domainContext: domainContext?.primaryDomain?.domain || 'generic'
-    }];
+  static generateSophisticatedUnivariateRecommendations(
+    columnAnalysis: any,
+    domainContext: any,
+  ): any[] {
+    return [
+      {
+        chartType: 'histogram',
+        confidence: 0.8,
+        reasoning: 'Standard univariate visualization',
+        domainContext: domainContext?.primaryDomain?.domain || 'generic',
+      },
+    ];
   }
 
   /**
    * Generate sophisticated bivariate recommendations
    */
-  static generateSophisticatedBivariateRecommendations(correlation: any, domainContext: any): any[] {
-    return [{
-      chartType: 'scatter_plot',
-      confidence: 0.8,
-      reasoning: 'Standard bivariate visualization',
-      domainContext: domainContext?.primaryDomain?.domain || 'generic'
-    }];
+  static generateSophisticatedBivariateRecommendations(
+    correlation: any,
+    domainContext: any,
+  ): any[] {
+    return [
+      {
+        chartType: 'scatter_plot',
+        confidence: 0.8,
+        reasoning: 'Standard bivariate visualization',
+        domainContext: domainContext?.primaryDomain?.domain || 'generic',
+      },
+    ];
   }
 
   /**
    * Generate sophisticated multivariate recommendations
    */
-  static generateSophisticatedMultivariateRecommendations(dataCharacteristics: any, domainContext: any): any[] {
-    return [{
-      chartType: 'correlation_matrix',
-      confidence: 0.7,
-      reasoning: 'Standard multivariate visualization',
-      domainContext: domainContext?.primaryDomain?.domain || 'generic'
-    }];
+  static generateSophisticatedMultivariateRecommendations(
+    dataCharacteristics: any,
+    domainContext: any,
+  ): any[] {
+    return [
+      {
+        chartType: 'correlation_matrix',
+        confidence: 0.7,
+        reasoning: 'Standard multivariate visualization',
+        domainContext: domainContext?.primaryDomain?.domain || 'generic',
+      },
+    ];
   }
 
   /**
    * Generate sophisticated dashboard recommendations
    */
   static generateSophisticatedDashboardRecommendations(domainContext: any): any[] {
-    return [{
-      dashboardType: 'analytical',
-      confidence: 0.7,
-      reasoning: 'Standard dashboard layout',
-      domainContext: domainContext?.primaryDomain?.domain || 'generic'
-    }];
+    return [
+      {
+        dashboardType: 'analytical',
+        confidence: 0.7,
+        reasoning: 'Standard dashboard layout',
+        domainContext: domainContext?.primaryDomain?.domain || 'generic',
+      },
+    ];
   }
 
   /**
@@ -2701,12 +2841,12 @@ export class Section4Analyzer {
       implementation: {
         frameworks: ['D3.js', 'Plotly'],
         libraries: ['matplotlib', 'seaborn'],
-        considerations: ['responsive design', 'accessibility']
+        considerations: ['responsive design', 'accessibility'],
       },
       performance: {
         dataThreshold: 10000,
-        optimizations: ['sampling', 'aggregation']
-      }
+        optimizations: ['sampling', 'aggregation'],
+      },
     };
   }
 
@@ -2719,7 +2859,7 @@ export class Section4Analyzer {
       screenReaderCompatibility: 'high',
       keyboardNavigation: 'supported',
       contrastRatio: 4.5,
-      score: 85
+      score: 85,
     };
   }
 
@@ -2731,7 +2871,7 @@ export class Section4Analyzer {
       primaryDomain: domainContext?.primaryDomain?.domain || 'generic',
       stakeholders: domainContext?.stakeholders || [],
       visualizationStrategy: domainContext?.visualizationStrategy || {},
-      confidence: domainContext?.confidence || 0.5
+      confidence: domainContext?.confidence || 0.5,
     };
   }
 
@@ -2739,7 +2879,7 @@ export class Section4Analyzer {
    * Get unique chart types
    */
   static getUniqueChartTypes(recommendations: any[]): string[] {
-    return [...new Set(recommendations.map(r => r.chartType || 'unknown'))];
+    return [...new Set(recommendations.map((r) => r.chartType || 'unknown'))];
   }
 
   /**
@@ -2753,7 +2893,7 @@ export class Section4Analyzer {
    * Calculate overall confidence
    */
   static calculateOverallConfidence(recommendations: any[]): number {
-    const confidences = recommendations.map(r => r.confidence || 0);
+    const confidences = recommendations.map((r) => r.confidence || 0);
     return confidences.reduce((sum, conf) => sum + conf, 0) / Math.max(confidences.length, 1);
   }
 
@@ -2764,7 +2904,7 @@ export class Section4Analyzer {
     const domain = domainContext?.primaryDomain?.domain || 'generic';
     return {
       level: domain === 'education' ? 'moderate' : 'standard',
-      features: ['hover', 'click', 'filter']
+      features: ['hover', 'click', 'filter'],
     };
   }
 
@@ -2775,7 +2915,7 @@ export class Section4Analyzer {
     const rowCount = dataCharacteristics?.rowCount || 0;
     return {
       level: rowCount > 10000 ? 'optimized' : 'standard',
-      considerations: rowCount > 10000 ? ['sampling', 'aggregation'] : ['standard']
+      considerations: rowCount > 10000 ? ['sampling', 'aggregation'] : ['standard'],
     };
   }
 
@@ -2786,18 +2926,18 @@ export class Section4Analyzer {
    */
   private static isDomainRelevantCorrelation(correlation: any, domainContext: any): boolean {
     const domain = domainContext.primaryDomain?.domain;
-    
+
     if (domain === 'education') {
       // Filter out correlations with ID fields or non-meaningful relationships
       const excludePatterns = ['id', 'student_id'];
       const var1Lower = correlation.variable1.toLowerCase();
       const var2Lower = correlation.variable2.toLowerCase();
-      
-      return !excludePatterns.some(pattern => 
-        var1Lower.includes(pattern) || var2Lower.includes(pattern)
+
+      return !excludePatterns.some(
+        (pattern) => var1Lower.includes(pattern) || var2Lower.includes(pattern),
       );
     }
-    
+
     // For other domains, apply general relevance filters
     return Math.abs(correlation.strength) > 0.1; // Only correlations above threshold
   }
@@ -2807,28 +2947,31 @@ export class Section4Analyzer {
    */
   private static enhanceCorrelationWithDomainKnowledge(correlation: any, domainContext: any): any {
     const domain = domainContext.primaryDomain?.domain;
-    
+
     if (domain === 'education') {
       // Add educational context to correlations
       const educationalMeanings = {
-        'study_hours_exam_score': 'Academic effort directly impacts performance outcomes',
-        'attendance_performance': 'Class participation correlates with academic success',
-        'sleep_mental_health': 'Sleep quality affects cognitive function and wellbeing',
-        'exercise_mental_health': 'Physical activity supports mental health and learning capacity',
-        'social_media_performance': 'Screen time may impact focus and academic outcomes'
+        study_hours_exam_score: 'Academic effort directly impacts performance outcomes',
+        attendance_performance: 'Class participation correlates with academic success',
+        sleep_mental_health: 'Sleep quality affects cognitive function and wellbeing',
+        exercise_mental_health: 'Physical activity supports mental health and learning capacity',
+        social_media_performance: 'Screen time may impact focus and academic outcomes',
       };
-      
-      const pairKey = Section4Analyzer.generateCorrelationKey(correlation.variable1, correlation.variable2);
+
+      const pairKey = Section4Analyzer.generateCorrelationKey(
+        correlation.variable1,
+        correlation.variable2,
+      );
       const meaning = educationalMeanings[pairKey as keyof typeof educationalMeanings];
-      
+
       return {
         ...correlation,
         domainMeaning: meaning || 'Relationship requires domain expert interpretation',
         educationalImplications: Section4Analyzer.getEducationalImplications(correlation),
-        interventionOpportunities: Section4Analyzer.getInterventionOpportunities(correlation)
+        interventionOpportunities: Section4Analyzer.getInterventionOpportunities(correlation),
       };
     }
-    
+
     return correlation;
   }
 
@@ -2838,25 +2981,25 @@ export class Section4Analyzer {
   private static generateCorrelationKey(var1: string, var2: string): string {
     // Create consistent key regardless of variable order
     const variables = [var1.toLowerCase(), var2.toLowerCase()].sort();
-    
+
     // Map to educational concepts
     const conceptMap = {
-      'study_hours_per_day': 'study_hours',
-      'exam_score': 'exam_score',
-      'attendance_percentage': 'attendance',
-      'mental_health_rating': 'mental_health',
-      'exercise_frequency': 'exercise',
-      'social_media_hours': 'social_media',
-      'sleep_hours': 'sleep'
+      study_hours_per_day: 'study_hours',
+      exam_score: 'exam_score',
+      attendance_percentage: 'attendance',
+      mental_health_rating: 'mental_health',
+      exercise_frequency: 'exercise',
+      social_media_hours: 'social_media',
+      sleep_hours: 'sleep',
     };
-    
-    const concepts = variables.map(v => {
+
+    const concepts = variables.map((v) => {
       for (const [pattern, concept] of Object.entries(conceptMap)) {
         if (v.includes(pattern.replace('_', ''))) return concept;
       }
       return v;
     });
-    
+
     return concepts.join('_');
   }
 
@@ -2866,7 +3009,7 @@ export class Section4Analyzer {
   private static getEducationalImplications(correlation: any): string[] {
     const implications: string[] = [];
     const strength = Math.abs(correlation.strength);
-    
+
     if (strength > 0.5) {
       implications.push('Strong predictor for academic outcomes');
       implications.push('High priority for intervention planning');
@@ -2877,7 +3020,7 @@ export class Section4Analyzer {
       implications.push('Weak but potentially meaningful relationship');
       implications.push('Monitor as part of comprehensive assessment');
     }
-    
+
     return implications;
   }
 
@@ -2888,22 +3031,22 @@ export class Section4Analyzer {
     const opportunities: string[] = [];
     const var1Lower = correlation.variable1.toLowerCase();
     const var2Lower = correlation.variable2.toLowerCase();
-    
+
     if (var1Lower.includes('study') || var2Lower.includes('study')) {
       opportunities.push('Study skills workshop');
       opportunities.push('Time management training');
     }
-    
+
     if (var1Lower.includes('sleep') || var2Lower.includes('sleep')) {
       opportunities.push('Sleep hygiene education');
       opportunities.push('Wellness counseling');
     }
-    
+
     if (var1Lower.includes('mental') || var2Lower.includes('mental')) {
       opportunities.push('Mental health support services');
       opportunities.push('Stress management programs');
     }
-    
+
     return opportunities;
   }
 
@@ -2914,7 +3057,7 @@ export class Section4Analyzer {
     correlation: any,
     section3Result: Section3Result,
     domainContext: any,
-    aestheticProfile: any
+    aestheticProfile: any,
   ): BivariateVisualizationProfile | null {
     // Get data types for both variables
     const var1Data = Section4Analyzer.getVariableData(correlation.variable1, section3Result);
@@ -2925,21 +3068,23 @@ export class Section4Analyzer {
     }
 
     // Use Statistical Chart Selector for intelligent recommendations
-    const chartRecommendations = Section4Analyzer.generateSophisticatedBivariateChartRecommendations(
-      correlation,
-      var1Data,
-      var2Data,
-      domainContext,
-      aestheticProfile
-    );
+    const chartRecommendations =
+      Section4Analyzer.generateSophisticatedBivariateChartRecommendations(
+        correlation,
+        var1Data,
+        var2Data,
+        domainContext,
+        aestheticProfile,
+      );
 
     // Use Performance Optimizer to enhance recommendations
-    const rowCount = section3Result.edaAnalysis?.univariateAnalysis?.length > 0 
-      ? section3Result.edaAnalysis.univariateAnalysis[0]?.totalValues || 1000
-      : 1000;
+    const rowCount =
+      section3Result.edaAnalysis?.univariateAnalysis?.length > 0
+        ? section3Result.edaAnalysis.univariateAnalysis[0]?.totalValues || 1000
+        : 1000;
     const optimizedRecommendations = Section4Analyzer.optimizeChartRecommendationsForPerformance(
       chartRecommendations,
-      { rowCount }
+      { rowCount },
     );
 
     return {
@@ -2953,12 +3098,15 @@ export class Section4Analyzer {
       strength: correlation.strength,
       significance: correlation.significance,
       recommendations: optimizedRecommendations,
-      dataPreparation: Section4Analyzer.createSophisticatedBivariateDataPreparation(correlation, domainContext),
+      dataPreparation: Section4Analyzer.createSophisticatedBivariateDataPreparation(
+        correlation,
+        domainContext,
+      ),
       domainInsights: {
         meaning: correlation.domainMeaning,
         implications: correlation.educationalImplications || [],
-        interventionOpportunities: correlation.interventionOpportunities || []
-      }
+        interventionOpportunities: correlation.interventionOpportunities || [],
+      },
     };
   }
 
@@ -2970,13 +3118,13 @@ export class Section4Analyzer {
     var1Data: any,
     var2Data: any,
     domainContext: any,
-    aestheticProfile: any
+    aestheticProfile: any,
   ): ChartRecommendation[] {
     const recommendations: ChartRecommendation[] = [];
-    
+
     const isVar1Numerical = Section4Analyzer.isNumericalType(var1Data.dataType);
     const isVar2Numerical = Section4Analyzer.isNumericalType(var2Data.dataType);
-    
+
     // Enhanced scatter plot for numerical vs numerical
     if (isVar1Numerical && isVar2Numerical) {
       recommendations.push({
@@ -2986,20 +3134,26 @@ export class Section4Analyzer {
         confidence: Math.min(0.95, 0.8 + Math.abs(correlation.strength) * 0.3),
         reasoning: `Sophisticated scatter plot analysis showing ${correlation.domainMeaning || 'relationship'} (r=${correlation.strength.toFixed(3)})`,
         encoding: Section4Analyzer.createEnhancedScatterPlotEncoding(
-          correlation.variable1, 
-          correlation.variable2, 
+          correlation.variable1,
+          correlation.variable2,
           aestheticProfile,
-          domainContext
+          domainContext,
         ),
         interactivity: Section4Analyzer.createAdvancedInteractivity(),
         accessibility: Section4Analyzer.createAccessibilityGuidance(ChartType.SCATTER_PLOT),
         performance: Section4Analyzer.createPerformanceConsiderations(ChartType.SCATTER_PLOT),
         libraryRecommendations: Section4Analyzer.getLibraryRecommendations(ChartType.SCATTER_PLOT),
-        dataPreparation: Section4Analyzer.createSophisticatedBivariateDataPreparation(correlation, domainContext),
-        designGuidelines: Section4Analyzer.createEnhancedDesignGuidelines(ChartType.SCATTER_PLOT, aestheticProfile),
+        dataPreparation: Section4Analyzer.createSophisticatedBivariateDataPreparation(
+          correlation,
+          domainContext,
+        ),
+        designGuidelines: Section4Analyzer.createEnhancedDesignGuidelines(
+          ChartType.SCATTER_PLOT,
+          aestheticProfile,
+        ),
       });
     }
-    
+
     return recommendations;
   }
 
@@ -3009,7 +3163,7 @@ export class Section4Analyzer {
   private static createSophisticatedColumnProfile(
     columnAnalysis: any,
     domainContext: any,
-    aestheticProfile: any
+    aestheticProfile: any,
   ): ColumnVisualizationProfile {
     const dataType = columnAnalysis.detectedDataType;
     const cardinality = columnAnalysis.uniqueValues || 0;
@@ -3022,13 +3176,16 @@ export class Section4Analyzer {
       cardinality,
       completeness,
       domainContext,
-      aestheticProfile
+      aestheticProfile,
     );
 
     // Generate enhanced distribution characteristics
     let distribution: DistributionCharacteristics | undefined;
     if (Section4Analyzer.isNumericalType(dataType) && columnAnalysis.distributionAnalysis) {
-      distribution = Section4Analyzer.createEnhancedDistributionCharacteristics(columnAnalysis, domainContext);
+      distribution = Section4Analyzer.createEnhancedDistributionCharacteristics(
+        columnAnalysis,
+        domainContext,
+      );
     }
 
     return {
@@ -3040,8 +3197,13 @@ export class Section4Analyzer {
       completeness,
       distribution,
       recommendations: chartRecommendations,
-      warnings: Section4Analyzer.generateSophisticatedColumnWarnings(columnAnalysis, cardinality, completeness, domainContext),
-      domainContext: Section4Analyzer.generateColumnDomainContext(columnAnalysis, domainContext)
+      warnings: Section4Analyzer.generateSophisticatedColumnWarnings(
+        columnAnalysis,
+        cardinality,
+        completeness,
+        domainContext,
+      ),
+      domainContext: Section4Analyzer.generateColumnDomainContext(columnAnalysis, domainContext),
     };
   }
 
@@ -3054,23 +3216,32 @@ export class Section4Analyzer {
     cardinality: number,
     completeness: number,
     domainContext: any,
-    aestheticProfile: any
+    aestheticProfile: any,
   ): ChartRecommendation[] {
     // Use base chart generation then enhance with sophisticated features
     const baseRecommendations = Section4Analyzer.generateSimpleColumnChartRecommendations(
       columnAnalysis,
       dataType,
       cardinality,
-      completeness
+      completeness,
     );
 
     // Enhance recommendations with aesthetic optimization and domain awareness
-    return baseRecommendations.map(rec => ({
+    return baseRecommendations.map((rec) => ({
       ...rec,
-      encoding: Section4Analyzer.enhanceEncodingWithAesthetics(rec.encoding || {}, aestheticProfile),
-      designGuidelines: Section4Analyzer.createEnhancedDesignGuidelines(rec.chartType, aestheticProfile),
-      domainSpecificGuidance: Section4Analyzer.generateDomainSpecificGuidance(rec.chartType, domainContext),
-      confidence: Math.min(0.98, rec.confidence + 0.1) // Boost confidence for sophisticated analysis
+      encoding: Section4Analyzer.enhanceEncodingWithAesthetics(
+        rec.encoding || {},
+        aestheticProfile,
+      ),
+      designGuidelines: Section4Analyzer.createEnhancedDesignGuidelines(
+        rec.chartType,
+        aestheticProfile,
+      ),
+      domainSpecificGuidance: Section4Analyzer.generateDomainSpecificGuidance(
+        rec.chartType,
+        domainContext,
+      ),
+      confidence: Math.min(0.98, rec.confidence + 0.1), // Boost confidence for sophisticated analysis
     }));
   }
 
@@ -3078,9 +3249,9 @@ export class Section4Analyzer {
 
   private static optimizeChartRecommendationsForPerformance(
     recommendations: ChartRecommendation[],
-    dataCharacteristics: any
+    dataCharacteristics: any,
   ): ChartRecommendation[] {
-    return recommendations.map(rec => {
+    return recommendations.map((rec) => {
       // Apply performance optimizations based on data size
       if (dataCharacteristics.rowCount > 10000) {
         rec.performance = {
@@ -3090,15 +3261,15 @@ export class Section4Analyzer {
               type: 'sampling',
               description: 'Reduce data points for visualization',
               implementation: 'Random sampling or strategic subsampling',
-              impact: 'high'
+              impact: 'high',
             },
             {
               type: 'virtualization',
               description: 'Render only visible elements',
               implementation: 'Virtual scrolling or windowing',
-              impact: 'medium'
-            }
-          ]
+              impact: 'medium',
+            },
+          ],
         };
       }
       return rec;
@@ -3109,23 +3280,28 @@ export class Section4Analyzer {
     var1: string,
     var2: string,
     aestheticProfile: any,
-    domainContext: any
+    domainContext: any,
   ): VisualEncoding {
-    const baseEncoding = Section4Analyzer.createEnhancedScatterPlotEncoding(var1, var2, aestheticProfile, domainContext);
-    
+    const baseEncoding = Section4Analyzer.createEnhancedScatterPlotEncoding(
+      var1,
+      var2,
+      aestheticProfile,
+      domainContext,
+    );
+
     return {
       ...baseEncoding,
       color: {
         ...baseEncoding.color,
         scheme: aestheticProfile.colorSystem.dataVisualizationPalette.categorical,
-        accessibility: aestheticProfile.accessibility.colorBlindnessSupport
-      }
+        accessibility: aestheticProfile.accessibility.colorBlindnessSupport,
+      },
     };
   }
 
   private static createEnhancedDistributionCharacteristics(
     columnAnalysis: any,
-    domainContext: any
+    domainContext: any,
   ): DistributionCharacteristics {
     const base = {
       shape: Section4Analyzer.mapSkewnessToShape(columnAnalysis.distributionAnalysis.skewness || 0),
@@ -3135,9 +3311,11 @@ export class Section4Analyzer {
         count: columnAnalysis.outlierAnalysis?.summary?.totalOutliers || 0,
         percentage: columnAnalysis.outlierAnalysis?.summary?.totalPercentage || 0,
         extreme: (columnAnalysis.outlierAnalysis?.summary?.totalPercentage || 0) > 10,
-        impact: Section4Analyzer.assessOutlierImpact(columnAnalysis.outlierAnalysis?.summary?.totalPercentage || 0) as 'low' | 'medium' | 'high',
+        impact: Section4Analyzer.assessOutlierImpact(
+          columnAnalysis.outlierAnalysis?.summary?.totalPercentage || 0,
+        ) as 'low' | 'medium' | 'high',
       },
-      modality: 'unimodal'
+      modality: 'unimodal',
     };
 
     // Add domain-specific distribution insights
@@ -3150,44 +3328,44 @@ export class Section4Analyzer {
 
   private static enhanceEncodingWithAesthetics(
     encoding: VisualEncoding,
-    aestheticProfile: any
+    aestheticProfile: any,
   ): VisualEncoding {
     return {
       ...encoding,
       color: {
         ...encoding.color,
         scheme: aestheticProfile.colorSystem.dataVisualizationPalette.categorical,
-        accessibility: aestheticProfile.accessibility.colorBlindnessSupport
-      }
+        accessibility: aestheticProfile.accessibility.colorBlindnessSupport,
+      },
     };
   }
 
   private static createEnhancedDesignGuidelines(
     chartType: ChartType,
-    aestheticProfile: any
+    aestheticProfile: any,
   ): DesignGuidelines {
     const baseGuidelines = Section4Analyzer.createDesignGuidelines(chartType);
-    
+
     return {
       ...baseGuidelines,
       typography: aestheticProfile.typographySystem.fontHierarchy,
       spacing: aestheticProfile.visualComposition.proportionSystem,
-      branding: aestheticProfile.brandIntegration
+      branding: aestheticProfile.brandIntegration,
     };
   }
 
   private static generateDomainSpecificGuidance(
     chartType: ChartType,
-    domainContext: any
+    domainContext: any,
   ): string[] {
     const guidance: string[] = [];
-    
+
     if (domainContext.primaryDomain?.domain === 'education') {
       guidance.push('Ensure student privacy protection in all visualizations');
       guidance.push('Use academic calendar context for temporal analysis');
       guidance.push('Highlight actionable insights for educators');
     }
-    
+
     return guidance;
   }
 
@@ -3195,10 +3373,14 @@ export class Section4Analyzer {
     columnAnalysis: any,
     cardinality: number,
     completeness: number,
-    domainContext: any
+    domainContext: any,
   ): VisualizationWarning[] {
-    const warnings = Section4Analyzer.generateColumnWarnings(columnAnalysis, cardinality, completeness);
-    
+    const warnings = Section4Analyzer.generateColumnWarnings(
+      columnAnalysis,
+      cardinality,
+      completeness,
+    );
+
     // Add domain-specific warnings
     if (domainContext.primaryDomain?.domain === 'education') {
       if (columnAnalysis.columnName.toLowerCase().includes('student')) {
@@ -3207,28 +3389,31 @@ export class Section4Analyzer {
           severity: 'high',
           message: 'Student data requires privacy protection',
           recommendation: 'Use aggregate views and avoid individual student identification',
-          impact: 'FERPA compliance requirement for educational data'
+          impact: 'FERPA compliance requirement for educational data',
         });
       }
     }
-    
+
     return warnings;
   }
 
-  private static generateColumnDomainContext(
-    columnAnalysis: any,
-    domainContext: any
-  ): any {
+  private static generateColumnDomainContext(columnAnalysis: any, domainContext: any): any {
     return {
       domain: domainContext.primaryDomain?.domain,
-      semanticMeaning: Section4Analyzer.inferColumnSemanticMeaning(columnAnalysis.columnName, domainContext),
-      domainSpecificConsiderations: Section4Analyzer.getDomainSpecificConsiderations(columnAnalysis, domainContext)
+      semanticMeaning: Section4Analyzer.inferColumnSemanticMeaning(
+        columnAnalysis.columnName,
+        domainContext,
+      ),
+      domainSpecificConsiderations: Section4Analyzer.getDomainSpecificConsiderations(
+        columnAnalysis,
+        domainContext,
+      ),
     };
   }
 
   private static inferColumnSemanticMeaning(columnName: string, domainContext: any): string {
     const columnLower = columnName.toLowerCase();
-    
+
     if (domainContext.primaryDomain?.domain === 'education') {
       if (columnLower.includes('score') || columnLower.includes('grade')) {
         return 'Academic performance outcome';
@@ -3240,47 +3425,47 @@ export class Section4Analyzer {
         return 'Engagement indicator';
       }
     }
-    
+
     return 'Domain-specific meaning requires expert interpretation';
   }
 
   private static getDomainSpecificConsiderations(
     columnAnalysis: any,
-    domainContext: any
+    domainContext: any,
   ): string[] {
     const considerations: string[] = [];
-    
+
     if (domainContext.primaryDomain?.domain === 'education') {
       considerations.push('Educational privacy regulations apply');
       considerations.push('Consider academic calendar context');
       considerations.push('Focus on actionable educational insights');
     }
-    
+
     return considerations;
   }
 
   private static createSophisticatedBivariateDataPreparation(
     correlation: any,
-    domainContext: any
+    domainContext: any,
   ): DataPreparationSteps {
     const basePreparation = Section4Analyzer.createBivariateDataPreparation();
-    
+
     // Add domain-specific preparation steps
     if (domainContext.primaryDomain?.domain === 'education') {
       basePreparation.required.push({
         step: 'Educational context validation',
         description: 'Ensure variables represent meaningful educational constructs',
-        importance: 'critical'
+        importance: 'critical',
       });
     }
-    
+
     return basePreparation;
   }
 
   // Missing methods implementation
   private static createVisualizationSpecs(
     univariateRecommendations: ColumnVisualizationProfile[],
-    bivariateRecommendations: BivariateVisualizationProfile[]
+    bivariateRecommendations: BivariateVisualizationProfile[],
   ): any[] {
     return [...univariateRecommendations, ...bivariateRecommendations].map((rec, index) => ({
       id: `viz_${index}`,
@@ -3289,17 +3474,17 @@ export class Section4Analyzer {
       complexity: 0.6,
       size: { width: 400, height: 300 },
       data: [],
-      relationships: []
+      relationships: [],
     }));
   }
 
   private static extractKeyMetricsFromDomain(domainContext: any): string[] {
     const domain = domainContext.primaryDomain?.domain || 'generic';
     const metrics: Record<string, string[]> = {
-      'education': ['Academic Performance', 'Student Engagement', 'Learning Outcomes'],
-      'healthcare': ['Patient Outcomes', 'Treatment Efficacy', 'Safety Metrics'],
-      'finance': ['Revenue Growth', 'Risk Assessment', 'Portfolio Performance'],
-      'generic': ['Key Performance Indicators', 'Trend Analysis', 'Comparative Metrics']
+      education: ['Academic Performance', 'Student Engagement', 'Learning Outcomes'],
+      healthcare: ['Patient Outcomes', 'Treatment Efficacy', 'Safety Metrics'],
+      finance: ['Revenue Growth', 'Risk Assessment', 'Portfolio Performance'],
+      generic: ['Key Performance Indicators', 'Trend Analysis', 'Comparative Metrics'],
     };
     return metrics[domain] || metrics.generic;
   }
@@ -3316,7 +3501,7 @@ export class Section4Analyzer {
     return {
       optimization: 'progressive_loading',
       caching: 'intelligent',
-      renderingMode: 'adaptive'
+      renderingMode: 'adaptive',
     };
   }
 
@@ -3324,7 +3509,7 @@ export class Section4Analyzer {
     return {
       colorImplementation: 'CSS custom properties',
       typographyImplementation: 'Fluid scaling with clamp()',
-      responsiveStrategy: 'Container queries'
+      responsiveStrategy: 'Container queries',
     };
   }
 
@@ -3332,26 +3517,30 @@ export class Section4Analyzer {
     return {
       dataBinding: 'Reactive patterns',
       stateManagement: 'Centralized store',
-      rendering: 'Virtual DOM optimization'
+      rendering: 'Virtual DOM optimization',
     };
   }
 
   private static generateSophisticatedCodeExamples(): any {
     return {
       examples: ['Advanced D3.js implementation', 'React with sophisticated hooks'],
-      patterns: ['Observer pattern for data updates', 'Strategy pattern for chart types']
+      patterns: ['Observer pattern for data updates', 'Strategy pattern for chart types'],
     };
   }
 
   private static generateAdvancedBestPractices(): any {
     return {
-      practices: ['Performance monitoring', 'Accessibility testing', 'User experience validation']
+      practices: ['Performance monitoring', 'Accessibility testing', 'User experience validation'],
     };
   }
 
   private static getAdvancedCommonPitfalls(): any {
     return {
-      pitfalls: ['Overplotting in large datasets', 'Color accessibility violations', 'Performance degradation']
+      pitfalls: [
+        'Overplotting in large datasets',
+        'Color accessibility violations',
+        'Performance degradation',
+      ],
     };
   }
 
@@ -3377,7 +3566,7 @@ export class Section4Analyzer {
       linking: true,
       zooming: true,
       filtering: true,
-      customizations: ['Dynamic querying', 'Real-time updates']
+      customizations: ['Dynamic querying', 'Real-time updates'],
     };
   }
 
@@ -3386,7 +3575,7 @@ export class Section4Analyzer {
       screenReader: 'Full ARIA support with descriptive labels',
       keyboardNavigation: 'Tab-based navigation with focus indicators',
       colorBlindness: 'Pattern and texture alternatives provided',
-      implementation: ['aria-label attributes', 'role definitions', 'live regions']
+      implementation: ['aria-label attributes', 'role definitions', 'live regions'],
     };
   }
 
@@ -3395,7 +3584,7 @@ export class Section4Analyzer {
       largeDatasets: 'Implement data virtualization',
       renderingOptimization: 'Use canvas for large point clouds',
       memoryManagement: 'Implement progressive loading',
-      suggestions: ['Data aggregation', 'Lazy loading', 'Caching strategies']
+      suggestions: ['Data aggregation', 'Lazy loading', 'Caching strategies'],
     };
   }
 
@@ -3403,62 +3592,194 @@ export class Section4Analyzer {
     columnAnalysis: any,
     dataType: string,
     cardinality: number,
-    completeness: number
+    completeness: number,
   ): ChartRecommendation[] {
-    return [{
-      chartType: ChartType.HISTOGRAM,
-      confidence: 0.85,
-      reasoning: 'Default numerical distribution visualization',
-      encoding: { 
-        x: { field: columnAnalysis.columnName, type: 'quantitative' },
-        y: { field: 'count', type: 'quantitative' }
+    // Use proper data type-based chart selection
+    const chartRecommendation = Section4Analyzer.getOptimalChartForDataType(
+      dataType,
+      cardinality,
+      columnAnalysis,
+    );
+
+    return [
+      {
+        chartType: chartRecommendation.chartType,
+        confidence: chartRecommendation.confidence,
+        reasoning: chartRecommendation.reasoning,
+        encoding: chartRecommendation.encoding,
+        interactivity: {
+          level: 'moderate' as const,
+          interactions: [InteractionType.HOVER, InteractionType.ZOOM],
+          responsiveness: ResponsivenessLevel.ADAPTIVE,
+          keyboard: {
+            navigation: true,
+            shortcuts: { 'ctrl+z': 'zoom', 'ctrl+r': 'reset', tab: 'navigate' },
+            focusManagement: true,
+          },
+          screenReader: {
+            ariaLabels: { chart: 'Interactive chart', data: 'Data visualization' },
+            alternativeText: 'Chart with data visualization',
+            dataTable: true,
+            sonification: false,
+          },
+        },
+        accessibility: {
+          level: AccessibilityLevel.WCAG_AA,
+          wcagCompliance: 'AA' as const,
+          colorBlindness: {
+            protanopia: true,
+            deuteranopia: true,
+            tritanopia: true,
+            monochromacy: true,
+          },
+          motorImpairment: {
+            keyboardNavigation: true,
+            largeClickTargets: true,
+            reducedMotionSupport: true,
+          },
+          cognitiveAccessibility: {
+            clearLabels: true,
+            consistentPatterns: true,
+            minimalCognitiveLoad: true,
+          },
+          recommendations: ['Use high contrast colors', 'Include clear labels'],
+        },
       },
-      interactivity: { 
-        level: 'moderate' as const,
-        interactions: [InteractionType.HOVER, InteractionType.ZOOM],
-        responsiveness: ResponsivenessLevel.ADAPTIVE,
-        keyboard: KeyboardSupport.FULL,
-        screenReader: ScreenReaderSupport.ENHANCED
-      },
-      accessibility: { 
-        level: AccessibilityLevel.WCAG_AA,
-        wcagCompliance: 'AA' as const,
-        colorBlindness: {
-          protanopia: true,
-          deuteranopia: true,
-          tritanopia: true,
-          monochromacy: true
-        },
-        motorImpairment: {
-          keyboardNavigation: true,
-          largeClickTargets: true,
-          reducedMotionSupport: true
-        },
-        cognitiveAccessibility: {
-          clearLabels: true,
-          consistentPatterns: true,
-          minimalCognitiveLoad: true
-        },
-        recommendations: ['Use high contrast colors', 'Include clear labels']
-      }
-    }];
+    ];
   }
 
   private static createBivariateDataPreparation(): DataPreparationSteps {
     return {
       required: [
         { step: 'Data cleaning', description: 'Remove missing values', importance: 'critical' },
-        { step: 'Outlier detection', description: 'Identify and handle outliers', importance: 'recommended' as const }
+        {
+          step: 'Outlier detection',
+          description: 'Identify and handle outliers',
+          importance: 'recommended' as const,
+        },
       ],
       optional: [
-        { step: 'Data transformation', description: 'Apply normalization if needed', importance: 'optional' as const }
+        {
+          step: 'Data transformation',
+          description: 'Apply normalization if needed',
+          importance: 'optional' as const,
+        },
       ],
       qualityChecks: [
-        { check: 'Data quality', description: 'Verify data integrity', remediation: 'Remove invalid values' },
-        { check: 'Statistical assumptions', description: 'Check distribution assumptions', remediation: 'Apply transformations if needed' }
+        {
+          check: 'Data quality',
+          description: 'Verify data integrity',
+          remediation: 'Remove invalid values',
+        },
+        {
+          check: 'Statistical assumptions',
+          description: 'Check distribution assumptions',
+          remediation: 'Apply transformations if needed',
+        },
       ],
-      aggregations: []
+      aggregations: [],
     };
+  }
+
+  /**
+   * Get optimal chart type based on data type and characteristics
+   */
+  private static getOptimalChartForDataType(
+    dataType: string,
+    cardinality: number,
+    columnAnalysis: any,
+  ): {
+    chartType: ChartType;
+    confidence: number;
+    reasoning: string;
+    encoding: any;
+  } {
+    const columnName = columnAnalysis.columnName;
+
+    switch (dataType) {
+      case EdaDataType.NUMERICAL_FLOAT:
+      case EdaDataType.NUMERICAL_INTEGER:
+        // For numerical data, use histogram
+        return {
+          chartType: ChartType.HISTOGRAM,
+          confidence: 0.9,
+          reasoning: 'Numerical data best visualised with histogram to show distribution',
+          encoding: {
+            x: { field: columnName, type: 'quantitative' },
+            y: { field: 'count', type: 'quantitative' },
+          },
+        };
+
+      case EdaDataType.CATEGORICAL:
+        // For categorical data, choose based on cardinality
+        if (cardinality <= 5) {
+          return {
+            chartType: ChartType.PIE_CHART,
+            confidence: 0.85,
+            reasoning:
+              'Low cardinality categorical data suitable for pie chart proportional comparison',
+            encoding: {
+              theta: { field: 'count', type: 'quantitative' },
+              color: { field: columnName, type: 'nominal' },
+            },
+          };
+        } else if (cardinality <= 15) {
+          return {
+            chartType: ChartType.BAR_CHART,
+            confidence: 0.9,
+            reasoning: 'Moderate cardinality categorical data ideal for bar chart comparison',
+            encoding: {
+              x: { field: columnName, type: 'nominal' },
+              y: { field: 'count', type: 'quantitative' },
+            },
+          };
+        } else {
+          return {
+            chartType: ChartType.BAR_CHART,
+            confidence: 0.8,
+            reasoning:
+              'High cardinality categorical data requires horizontal bar chart for label readability',
+            encoding: {
+              y: { field: columnName, type: 'nominal' },
+              x: { field: 'count', type: 'quantitative' },
+            },
+          };
+        }
+
+      case EdaDataType.BOOLEAN:
+        return {
+          chartType: ChartType.PIE_CHART,
+          confidence: 0.95,
+          reasoning: 'Boolean data perfectly suited for pie chart showing true/false proportions',
+          encoding: {
+            theta: { field: 'count', type: 'quantitative' },
+            color: { field: columnName, type: 'nominal' },
+          },
+        };
+
+      case EdaDataType.DATE_TIME:
+        return {
+          chartType: ChartType.LINE_CHART,
+          confidence: 0.9,
+          reasoning: 'Time series data best visualised with line chart to show temporal trends',
+          encoding: {
+            x: { field: columnName, type: 'temporal' },
+            y: { field: 'count', type: 'quantitative' },
+          },
+        };
+
+      default:
+        // Fallback for unknown types
+        return {
+          chartType: ChartType.BAR_CHART,
+          confidence: 0.5,
+          reasoning: 'Default bar chart for unknown data type',
+          encoding: {
+            x: { field: columnName, type: 'nominal' },
+            y: { field: 'count', type: 'quantitative' },
+          },
+        };
+    }
   }
 
   private static createBasicScatterPlotEncoding(): VisualEncoding {
@@ -3467,30 +3788,32 @@ export class Section4Analyzer {
         variable: 'variable1',
         scale: 'linear',
         label: 'Variable 1',
-        ticks: { count: 10, format: '.2f' }
+        ticks: { count: 10, format: '.2f' },
       },
       yAxis: {
         variable: 'variable2',
         scale: 'linear',
         label: 'Variable 2',
-        ticks: { count: 10, format: '.2f' }
+        ticks: { count: 10, format: '.2f' },
       },
       color: {
         variable: 'category',
         scale: 'categorical',
         scheme: 'tableau10',
-        legend: { position: 'right', title: 'Category' }
+        legend: { position: 'right', title: 'Category' },
       },
       layout: {
         type: 'cartesian',
         responsive: true,
         aspectRatio: 1.618,
-        margins: { top: 20, right: 80, bottom: 40, left: 60 }
-      }
+        margins: { top: 20, right: 80, bottom: 40, left: 60 },
+      },
     };
   }
 
-  private static mapSkewnessToShape(skewness: number): 'unknown' | 'normal' | 'uniform' | 'bimodal' | 'skewed_left' | 'skewed_right' | 'exponential' {
+  private static mapSkewnessToShape(
+    skewness: number,
+  ): 'unknown' | 'normal' | 'uniform' | 'bimodal' | 'skewed_left' | 'skewed_right' | 'exponential' {
     if (Math.abs(skewness) < 0.5) return 'normal';
     if (skewness > 0.5) return 'skewed_right';
     if (skewness < -0.5) return 'skewed_left';
@@ -3506,51 +3829,67 @@ export class Section4Analyzer {
   private static createDesignGuidelines(): DesignGuidelines {
     return {
       principles: [
-        { principle: 'Clarity', description: 'Ensure clear data representation', application: 'Use appropriate chart types' },
-        { principle: 'Consistency', description: 'Maintain visual consistency', application: 'Apply uniform styling' },
-        { principle: 'Accessibility', description: 'Design for all users', application: 'Follow WCAG guidelines' },
-        { principle: 'Performance', description: 'Optimize rendering speed', application: 'Use efficient encodings' }
+        {
+          principle: 'Clarity',
+          description: 'Ensure clear data representation',
+          application: 'Use appropriate chart types',
+        },
+        {
+          principle: 'Consistency',
+          description: 'Maintain visual consistency',
+          application: 'Apply uniform styling',
+        },
+        {
+          principle: 'Accessibility',
+          description: 'Design for all users',
+          application: 'Follow WCAG guidelines',
+        },
+        {
+          principle: 'Performance',
+          description: 'Optimize rendering speed',
+          application: 'Use efficient encodings',
+        },
       ],
       typography: {
         fontFamily: ['Arial', 'sans-serif'],
         fontSize: { title: 16, subtitle: 14, axis: 12, label: 10, annotation: 9 },
         fontWeight: { title: 'bold', subtitle: 'medium', axis: 'normal', label: 'normal' },
-        lineHeight: 1.5
+        lineHeight: 1.5,
       },
       spacing: {
         margin: { top: 20, right: 20, bottom: 40, left: 40 },
         padding: { chart: 10, legend: 10 },
-        gap: { element: 8, group: 16 }
+        gap: { element: 8, group: 16 },
       },
       branding: {
         primaryColor: '#1f77b4',
         secondaryColor: '#ff7f0e',
         accentColor: '#2ca02c',
         backgroundColor: '#ffffff',
-        textColor: '#333333'
+        textColor: '#333333',
       },
       context: {
         domain: 'general',
         audience: 'technical',
         purpose: 'analysis',
-        medium: 'screen'
-      }
+        medium: 'screen',
+      },
     };
   }
 
   private static generateColumnWarnings(columnAnalysis: any): VisualizationWarning[] {
     const warnings: VisualizationWarning[] = [];
-    
+
     if (columnAnalysis.uniqueValues > 50) {
       warnings.push({
         type: 'performance',
         severity: 'medium',
         message: 'High cardinality may affect visualization performance',
         recommendation: 'Consider grouping or sampling for large categorical data',
-        impact: 'performance'
+        impact: 'performance',
       });
     }
-    
+
     return warnings;
   }
 }
