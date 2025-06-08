@@ -40,7 +40,7 @@ export class CSVParser {
       autoDetect: true,
       sampleSize: options.sampleSize ?? perfConfig.sampleSize,
       ...options,
-    };
+    } as Required<CSVParserOptions>;
 
     this.stats = {
       bytesProcessed: 0,
@@ -242,6 +242,13 @@ export class CSVParser {
    * Parse CSV from string data
    */
   parseString(data: string): ParsedRow[] {
+    // Strip BOM if present
+    let cleanData = data;
+    if (data.charCodeAt(0) === 0xfeff) {
+      cleanData = data.slice(1);
+      logger.debug('Stripped UTF-8 BOM from string data');
+    }
+
     const stateMachine = new CSVStateMachine({
       delimiter: this.options.delimiter,
       quote: this.options.quote,
@@ -250,7 +257,7 @@ export class CSVParser {
       maxFieldSize: this.options.maxFieldSize,
     });
 
-    const rawRows = stateMachine.processChunk(data);
+    const rawRows = stateMachine.processChunk(cleanData);
     const finalRow = stateMachine.finalize();
 
     if (finalRow) {
@@ -259,7 +266,7 @@ export class CSVParser {
 
     const stats = stateMachine.getStats();
     this.stats.errors.push(...stats.errors);
-    this.stats.bytesProcessed = data.length;
+    this.stats.bytesProcessed = cleanData.length;
 
     // Apply maxRows limit
     const limitedRawRows = rawRows.slice(0, this.options.maxRows);
@@ -324,11 +331,14 @@ export class CSVParser {
         const detected = CSVDetector.detect(sampleBuffer);
 
         // Update options with detected values
-        this.options.encoding = detected.encoding;
-        this.options.delimiter = detected.delimiter;
-        this.options.quote = detected.quote;
-        this.options.lineEnding = detected.lineEnding;
-        this.options.hasHeader = detected.hasHeader;
+        this.options = {
+          ...this.options,
+          encoding: detected.encoding,
+          delimiter: detected.delimiter,
+          quote: detected.quote,
+          lineEnding: detected.lineEnding,
+          hasHeader: detected.hasHeader,
+        };
 
         logger.debug(
           `Auto-detected format: delimiter='${detected.delimiter}', encoding='${detected.encoding}', quote='${detected.quote}'`,
@@ -380,36 +390,49 @@ export class CSVParser {
 
     let buffer = '';
     let processedRows = 0;
-    const parser = this; // Capture reference for use in transform functions
+    let isFirstChunk = true;
+    const parserInstance = this; // Capture reference for use in transform functions
 
     return new Transform({
       objectMode: true,
 
-      transform(chunk: Buffer | string, _encoding, callback) {
-        if (parser.aborted) {
+      transform(chunk: Buffer | string, _encoding, callback): void {
+        if (parserInstance.aborted) {
           callback();
           return;
         }
 
         try {
-          // Convert chunk to string and add to buffer
-          const chunkStr =
-            chunk instanceof Buffer ? chunk.toString(parser.options.encoding) : chunk;
+          // Convert chunk to string
+          let chunkStr =
+            chunk instanceof Buffer ? chunk.toString(parserInstance.options.encoding) : chunk;
+
+          // Strip BOM from first chunk
+          if (isFirstChunk) {
+            isFirstChunk = false;
+            // Check for UTF-8 BOM (EF BB BF)
+            if (chunkStr.length > 0 && chunkStr.charCodeAt(0) === 0xfeff) {
+              chunkStr = chunkStr.slice(1);
+              logger.debug('Stripped UTF-8 BOM from first chunk');
+            }
+          }
+
           buffer += chunkStr;
-          parser.stats.bytesProcessed += chunk.length;
+          parserInstance.stats.bytesProcessed +=
+            chunk instanceof Buffer ? chunk.length : chunk.length;
 
           // Process complete lines from buffer
-          const { processedBuffer, rows } = parser.processBuffer(buffer, stateMachine);
+          const { processedBuffer, rows } = parserInstance.processBuffer(buffer, stateMachine);
           buffer = processedBuffer;
 
           // Handle processed rows
           for (const rawRow of rows) {
-            if (processedRows >= parser.options.maxRows) {
-              parser.aborted = true;
+            if (processedRows >= parserInstance.options.maxRows) {
+              parserInstance.aborted = true;
               break;
             }
 
-            const processedRowData = parser.processRawRows([rawRow]);
+            const processedRowData = parserInstance.processRawRows([rawRow]);
             if (processedRowData.length > 0) {
               const row = processedRowData[0];
               processedRows++;
@@ -428,7 +451,7 @@ export class CSVParser {
         }
       },
 
-      flush(callback) {
+      flush(callback): void {
         try {
           // Process any remaining data in buffer
           if (buffer.length > 0) {
@@ -440,9 +463,9 @@ export class CSVParser {
             }
 
             for (const rawRow of rows) {
-              if (processedRows >= parser.options.maxRows) break;
+              if (processedRows >= parserInstance.options.maxRows) break;
 
-              const processedRowData = parser.processRawRows([rawRow]);
+              const processedRowData = parserInstance.processRawRows([rawRow]);
               if (processedRowData.length > 0) {
                 const row = processedRowData[0];
                 processedRows++;
@@ -458,9 +481,9 @@ export class CSVParser {
 
           // Update final stats
           const machineStats = stateMachine.getStats();
-          parser.stats.errors.push(...machineStats.errors);
-          parser.stats.rowsProcessed = processedRows;
-          parser.stats.endTime = Date.now();
+          parserInstance.stats.errors.push(...machineStats.errors);
+          parserInstance.stats.rowsProcessed = processedRows;
+          parserInstance.stats.endTime = Date.now();
 
           callback();
         } catch (error) {
