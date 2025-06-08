@@ -52,7 +52,20 @@ export class ArgumentParser {
         'A lightweight CLI statistical computation engine for comprehensive CSV data analysis',
       )
       .version('1.0.0')
-      .helpOption('-h, --help', 'Display help information');
+      .helpOption('-h, --help', 'Display help information')
+      .addHelpText('after', `
+
+Confidence Metrics Guide:
+DataPilot reports confidence scores throughout the analysis. These indicate the reliability of automated decisions:
+
+• Parsing Confidence (Section 1): 95% = High certainty in CSV parameter detection
+• Type Detection Confidence (Section 3): 0.85+ = Strong evidence for data type classification  
+• Visualization Confidence (Section 4): 0.9+ = Chart type strongly recommended
+• Quality Scores (Section 2): Based on completeness of quality dimension analysis
+• ML Readiness (Section 5): Reflects assessment completeness and data suitability
+• Modeling Confidence (Section 6): Categorical levels based on task clarity and algorithm fit
+
+Use --verbose for detailed confidence explanations in reports.`);
 
     // Global options
     this.program

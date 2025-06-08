@@ -10,6 +10,7 @@ export enum SemanticType {
   IDENTIFIER = 'identifier',
   CATEGORY = 'category',
   STATUS = 'status',
+  DEMOGRAPHIC = 'demographic',
   DATE_TRANSACTION = 'date_transaction',
   ORGANIZATIONAL_UNIT = 'organizational_unit',
   RATING = 'rating',

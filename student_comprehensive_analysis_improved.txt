@@ -1,7 +1,7 @@
 🤖 DATAPILOT COMPLETE ANALYSIS ENGINE
 ======================================
 Analysis Target: student_habits_performance.csv
-Report Generated: 2025-06-08 12:42:14 (UTC)
+Report Generated: 2025-06-08 13:05:50 (UTC)
 DataPilot Version: v1.0.0 (TypeScript Edition)
 
 ---
@@ -19,7 +19,7 @@ This section provides a detailed snapshot of the dataset properties, how it was 
 **1.2. Data Ingestion & Parsing Parameters:**
     * Data Source Type: Local File System
     * Parsing Engine Utilized: DataPilot Advanced CSV Parser v1.0.0
-    * Time Taken for Parsing & Initial Load: 0.011 seconds
+    * Time Taken for Parsing & Initial Load: 0.01 seconds
     * Detected Character Encoding: `utf8`
         * Encoding Detection Method: Statistical Character Pattern Analysis
         * Encoding Confidence: High (95%)
@@ -65,10 +65,10 @@ This section provides a detailed snapshot of the dataset properties, how it was 
 **1.4. Analysis Configuration & Execution Context:**
     * Full Command Executed: `datapilot all /Users/massimoraso/plum/test-datasets/kaggle/student_habits_performance.csv`
     * Analysis Mode Invoked: Comprehensive Deep Scan
-    * Timestamp of Analysis Start: 2025-06-08 12:42:14 (UTC)
+    * Timestamp of Analysis Start: 2025-06-08 13:05:50 (UTC)
     * Global Dataset Sampling Strategy: Full dataset analysis (No record sampling applied for initial overview)
     * DataPilot Modules Activated for this Run: File I/O Manager, Advanced CSV Parser, Metadata Collector, Structural Analyzer, Report Generator
-    * Processing Time for Section 1 Generation: 0.019 seconds
+    * Processing Time for Section 1 Generation: 0.017 seconds
     * Host Environment Details:
         * Operating System: macOS (Unknown Version)
         * System Architecture: ARM64 (Apple Silicon/ARM 64-bit)
@@ -79,10 +79,10 @@ This section provides a detailed snapshot of the dataset properties, how it was 
 ### Performance Metrics
 
 **Processing Performance:**
-    * Total Analysis Time: 0.02 seconds
-    * File analysis: 0.005s
-    * Parsing: 0.011s
-    * Structural analysis: 0.003s
+    * Total Analysis Time: 0.017 seconds
+    * File analysis: 0.004s
+    * Parsing: 0.01s
+    * Structural analysis: 0.002s
 
 ---
 
@@ -326,7 +326,7 @@ This section provides an exhaustive assessment of the dataset's reliability, str
 ---
 
 **Data Quality Audit Summary:**
-* **Generated:** 2025-06-08T12:42:14.928Z
+* **Generated:** 2025-06-08T13:05:50.144Z
 * **Version:** 1.0.0
 * **Overall Assessment:** Good data quality with 92.3/100 composite score.
 
@@ -1291,7 +1291,7 @@ This section provides a comprehensive statistical exploration of the dataset. Th
 **Variables Analysed:** age, study_hours_per_day, social_media_hours, netflix_hours, attendance_percentage, sleep_hours, exercise_frequency, mental_health_rating, exam_score (9 numerical variables)
 
 **3.4.A. Principal Component Analysis (PCA):**
-* Not applicable: Eigenvalue decomposition failed to converge
+* Not applicable: Computational failure: Eigenvalue decomposition failed to converge after 1000 iterations. This indicates numerical instability, possibly due to multicollinearity or ill-conditioned data matrix.
 
 **3.4.B. Cluster Analysis:**
 * **Optimal Clusters:** 2 clusters identified using elbow method
@@ -1304,6 +1304,7 @@ This section provides a comprehensive statistical exploration of the dataset. Th
 **3.4.C. Multivariate Outlier Detection:**
 * **Method:** Mahalanobis distance with 5.0% significance level
 * **Outliers Detected:** 595 observations (59.5% of dataset)
+* **Note on Outlier Discrepancy:** While individual variables show few univariate outliers, multivariate analysis detects combinations of values that are unusual together. These 595 observations are not extreme on any single variable but represent uncommon patterns in the multidimensional space - this is a normal and expected pattern in multivariate analysis.
 * **Severity Distribution:** 493 extreme, 56 moderate, 46 mild
 * **Most Affected Variables:** exam_score (595 outliers), mental_health_rating (595 outliers), social_media_hours (595 outliers)
 * **Recommendations:** High outlier rate (>10%) suggests systematic data quality issues or model misspecification; 493 extreme outliers detected - manual investigation recommended
@@ -1351,7 +1352,7 @@ This section provides a comprehensive statistical exploration of the dataset. Th
 
 **3.6. EDA Summary & Key Hypotheses/Insights:**
     * **Top Statistical Findings:**
-    1. Streaming analysis processed 1,001 rows using only 67MB peak memory
+    1. Streaming analysis processed 1,001 rows using only 66MB peak memory
     * **Data Quality Issues Uncovered:**
     * No major data quality issues identified during EDA.
     * **Hypotheses Generated for Further Testing:**
@@ -1366,9 +1367,9 @@ This section provides a comprehensive statistical exploration of the dataset. Th
 ---
 
 **Analysis Performance Summary:**
-* **Processing Time:** 52ms (0.05 seconds)
+* **Processing Time:** 46ms (0.05 seconds)
 * **Rows Analysed:** 1,001
-* **Memory Efficiency:** Constant ~67MB usage
+* **Memory Efficiency:** Constant ~66MB usage
 * **Analysis Method:** Streaming with online algorithms
 * **Dataset Size:** 1,001 records across 16 columns
 
@@ -4526,7 +4527,7 @@ No specific compliance regulations identified.
 
 ## 📊 Engineering Analysis Performance
 
-**Analysis Completed in:** 4ms
+**Analysis Completed in:** 1ms
 **Transformations Evaluated:** 15
 **Schema Recommendations Generated:** 16
 **ML Features Designed:** 21

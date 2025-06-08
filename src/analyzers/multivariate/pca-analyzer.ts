@@ -520,7 +520,10 @@ export class PCAAnalyzer {
       const { eigenvalues, eigenvectors, converged } = EigenDecomposition.compute(covarianceMatrix);
 
       if (!converged) {
-        return this.createNonApplicableResult('Eigenvalue decomposition failed to converge');
+        return this.createNonApplicableResult(
+          'Computational failure: Eigenvalue decomposition failed to converge after 1000 iterations. ' +
+          'This indicates numerical instability, possibly due to multicollinearity or ill-conditioned data matrix.'
+        );
       }
 
       // Calculate variance explained
