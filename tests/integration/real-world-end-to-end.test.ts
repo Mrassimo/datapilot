@@ -2,31 +2,48 @@
  * Simplified Real-World End-to-End Test
  */
 
-import { describe, test, expect } from '@jest/globals';
+import { describe, test, expect, beforeEach, afterEach } from '@jest/globals';
 import { Section1Analyzer } from '../../src/analyzers/overview/section1-analyzer';
+import { writeFileSync, unlinkSync, mkdtempSync } from 'fs';
+import { join } from 'path';
+import { tmpdir } from 'os';
 
 describe('Real-World End-to-End Test (Simplified)', () => {
+  let tempDir: string;
+  let tempFile: string;
+
+  beforeEach(() => {
+    tempDir = mkdtempSync(join(tmpdir(), 'datapilot-integration-test-'));
+    tempFile = join(tempDir, 'test.csv');
+  });
+
+  afterEach(() => {
+    try {
+      unlinkSync(tempFile);
+    } catch (e) {
+      // File might not exist
+    }
+  });
+
   test('should complete basic analysis', async () => {
     // Create minimal test data
-    const testData = [
-      ['id', 'name', 'value'],
-      ['1', 'Test1', '100'],
-      ['2', 'Test2', '200']
-    ];
+    const csvData = `id,name,value
+1,Test1,100
+2,Test2,200
+3,Test3,300`;
     
-    const headers = testData[0];
-    const data = testData.slice(1);
+    writeFileSync(tempFile, csvData, 'utf8');
 
     const analyzer = new Section1Analyzer({
-      // enableDetailedParsing: true, // Property may not exist
-      performanceOptimization: 'comprehensive',
+      detailedProfiling: true,
+      privacyMode: 'minimal',
     });
 
-    const result = await analyzer.analyze('/tmp/test.csv');
+    const result = await analyzer.analyze(tempFile);
 
     expect(result).toBeDefined();
     expect(result.overview).toBeDefined();
-    expect(result.overview.structuralDimensions.totalDataRows).toBe(2);
+    expect(result.overview.structuralDimensions.totalDataRows).toBe(3);
     expect(result.overview.structuralDimensions.totalColumns).toBe(3);
   });
 

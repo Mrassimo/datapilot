@@ -31,7 +31,11 @@ describe('Section6Analyzer - Predictive Modeling Guidance', () => {
       
       writeFileSync(tempFile, csvData, 'utf8');
       
-      const analyzer = new Section6Analyzer();
+      const analyzer = new Section6Analyzer({
+        focusAreas: ['regression', 'binary_classification'],
+        complexityPreference: 'moderate',
+        interpretabilityRequirement: 'high'
+      });
       const result = await analyzer.analyze(tempFile);
       
       expect(result.taskIdentification).toBeDefined();
@@ -54,7 +58,11 @@ describe('Section6Analyzer - Predictive Modeling Guidance', () => {
       
       writeFileSync(tempFile, csvData, 'utf8');
       
-      const analyzer = new Section6Analyzer();
+      const analyzer = new Section6Analyzer({
+        focusAreas: ['regression', 'binary_classification'],
+        complexityPreference: 'moderate',
+        interpretabilityRequirement: 'high'
+      });
       const result = await analyzer.analyze(tempFile);
       
       expect(result.taskIdentification.primaryTask.type).toBe('classification');
@@ -78,7 +86,11 @@ describe('Section6Analyzer - Predictive Modeling Guidance', () => {
       
       writeFileSync(tempFile, csvData, 'utf8');
       
-      const analyzer = new Section6Analyzer();
+      const analyzer = new Section6Analyzer({
+        focusAreas: ['regression', 'binary_classification'],
+        complexityPreference: 'moderate',
+        interpretabilityRequirement: 'high'
+      });
       const result = await analyzer.analyze(tempFile);
       
       // Should identify clustering potential
@@ -98,7 +110,11 @@ describe('Section6Analyzer - Predictive Modeling Guidance', () => {
       
       writeFileSync(tempFile, csvData, 'utf8');
       
-      const analyzer = new Section6Analyzer();
+      const analyzer = new Section6Analyzer({
+        focusAreas: ['regression', 'binary_classification'],
+        complexityPreference: 'moderate',
+        interpretabilityRequirement: 'high'
+      });
       const result = await analyzer.analyze(tempFile);
       
       // Should identify time series potential
@@ -120,7 +136,11 @@ describe('Section6Analyzer - Predictive Modeling Guidance', () => {
       
       writeFileSync(tempFile, csvData, 'utf8');
       
-      const analyzer = new Section6Analyzer();
+      const analyzer = new Section6Analyzer({
+        focusAreas: ['regression', 'binary_classification'],
+        complexityPreference: 'moderate',
+        interpretabilityRequirement: 'high'
+      });
       const result = await analyzer.analyze(tempFile);
       
       // Should identify anomaly detection potential
@@ -142,7 +162,11 @@ describe('Section6Analyzer - Predictive Modeling Guidance', () => {
       
       writeFileSync(tempFile, csvData, 'utf8');
       
-      const analyzer = new Section6Analyzer();
+      const analyzer = new Section6Analyzer({
+        focusAreas: ['regression', 'binary_classification'],
+        complexityPreference: 'moderate',
+        interpretabilityRequirement: 'high'
+      });
       const result = await analyzer.analyze(tempFile);
       
       expect(result.algorithmRecommendations).toBeDefined();
@@ -169,7 +193,11 @@ describe('Section6Analyzer - Predictive Modeling Guidance', () => {
       
       writeFileSync(tempFile, csvData, 'utf8');
       
-      const analyzer = new Section6Analyzer();
+      const analyzer = new Section6Analyzer({
+        focusAreas: ['regression', 'binary_classification'],
+        complexityPreference: 'moderate',
+        interpretabilityRequirement: 'high'
+      });
       const result = await analyzer.analyze(tempFile);
       
       const primary = result.algorithmRecommendations.primary;
@@ -219,7 +247,11 @@ describe('Section6Analyzer - Predictive Modeling Guidance', () => {
       
       writeFileSync(tempFile, csvData, 'utf8');
       
-      const analyzer = new Section6Analyzer();
+      const analyzer = new Section6Analyzer({
+        focusAreas: ['regression', 'binary_classification'],
+        complexityPreference: 'moderate',
+        interpretabilityRequirement: 'high'
+      });
       const result = await analyzer.analyze(tempFile);
       
       const comparison = result.algorithmRecommendations.comparison;
@@ -484,7 +516,11 @@ describe('Section6Analyzer - Predictive Modeling Guidance', () => {
       
       writeFileSync(tempFile, csvData, 'utf8');
       
-      const analyzer = new Section6Analyzer();
+      const analyzer = new Section6Analyzer({
+        focusAreas: ['regression', 'binary_classification'],
+        complexityPreference: 'moderate',
+        interpretabilityRequirement: 'high'
+      });
       const result = await analyzer.analyze(tempFile);
       
       expect(result.stakeholderRecommendations).toBeDefined();
@@ -510,7 +546,11 @@ describe('Section6Analyzer - Predictive Modeling Guidance', () => {
       writeFileSync(tempFile, csvData, 'utf8');
       
       const startTime = Date.now();
-      const analyzer = new Section6Analyzer();
+      const analyzer = new Section6Analyzer({
+        focusAreas: ['regression', 'binary_classification'],
+        complexityPreference: 'moderate',
+        interpretabilityRequirement: 'high'
+      });
       const result = await analyzer.analyze(tempFile);
       const endTime = Date.now();
       
@@ -555,7 +595,11 @@ describe('Section6Analyzer - Predictive Modeling Guidance', () => {
       const csvData = 'x,y\n1,2';
       writeFileSync(tempFile, csvData, 'utf8');
       
-      const analyzer = new Section6Analyzer();
+      const analyzer = new Section6Analyzer({
+        focusAreas: ['regression', 'binary_classification'],
+        complexityPreference: 'moderate',
+        interpretabilityRequirement: 'high'
+      });
       const result = await analyzer.analyze(tempFile);
       
       expect(result.warnings).toBeDefined();
@@ -570,7 +614,11 @@ describe('Section6Analyzer - Predictive Modeling Guidance', () => {
       const csvData = 'feature1,feature2,target\n1,2,\n3,4,\n5,6,';
       writeFileSync(tempFile, csvData, 'utf8');
       
-      const analyzer = new Section6Analyzer();
+      const analyzer = new Section6Analyzer({
+        focusAreas: ['regression', 'binary_classification'],
+        complexityPreference: 'moderate',
+        interpretabilityRequirement: 'high'
+      });
       const result = await analyzer.analyze(tempFile);
       
       expect(result.warnings).toBeDefined();
@@ -586,7 +634,11 @@ describe('Section6Analyzer - Predictive Modeling Guidance', () => {
       const csvData = 'cat1,cat2,cat3,target\nA,X,M,yes\nB,Y,N,no\nC,Z,O,yes';
       writeFileSync(tempFile, csvData, 'utf8');
       
-      const analyzer = new Section6Analyzer();
+      const analyzer = new Section6Analyzer({
+        focusAreas: ['regression', 'binary_classification'],
+        complexityPreference: 'moderate',
+        interpretabilityRequirement: 'high'
+      });
       const result = await analyzer.analyze(tempFile);
       
       // Should recommend algorithms suitable for categorical data
@@ -607,7 +659,11 @@ describe('Section6Formatter', () => {
     writeFileSync(tempFile, csvData, 'utf8');
     
     try {
-      const analyzer = new Section6Analyzer();
+      const analyzer = new Section6Analyzer({
+        focusAreas: ['regression', 'binary_classification'],
+        complexityPreference: 'moderate',
+        interpretabilityRequirement: 'high'
+      });
       const result = await analyzer.analyze(tempFile);
       const formatter = new Section6Formatter();
       
@@ -637,7 +693,11 @@ describe('Section6Formatter', () => {
     writeFileSync(tempFile, csvData, 'utf8');
     
     try {
-      const analyzer = new Section6Analyzer();
+      const analyzer = new Section6Analyzer({
+        focusAreas: ['regression', 'binary_classification'],
+        complexityPreference: 'moderate',
+        interpretabilityRequirement: 'high'
+      });
       const result = await analyzer.analyze(tempFile);
       const formatter = new Section6Formatter();
       
@@ -660,7 +720,11 @@ describe('Section6Formatter', () => {
     writeFileSync(tempFile, csvData, 'utf8');
     
     try {
-      const analyzer = new Section6Analyzer();
+      const analyzer = new Section6Analyzer({
+        focusAreas: ['regression', 'binary_classification'],
+        complexityPreference: 'moderate',
+        interpretabilityRequirement: 'high'
+      });
       const result = await analyzer.analyze(tempFile);
       const formatter = new Section6Formatter();
       
