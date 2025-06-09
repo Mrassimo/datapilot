@@ -1391,18 +1391,24 @@ export class DashboardLayoutEngine {
     sharedDimensions: string[],
   ): ContextualConnection {
     return {
-      sourceVisualization: viz1.id,
-      targetVisualization: viz2.id,
-      connectionType: 'dimensional_relationship',
-      strength: this.calculateConnectionStrength(sharedDimensions.length),
-      purpose: 'Show relationship through shared data dimensions',
-      implementation: {
-        visualTechnique: 'coordinated_highlighting',
-        interactionPattern: 'brush_and_link',
-        aestheticCues: ['consistent_color_encoding', 'aligned_axes'],
+      connectionType: 'data_relationship',
+      elements: [viz1.id, viz2.id],
+      visualConnection: {
+        technique: 'color_coding',
+        style: {
+          strokeWidth: 2,
+          strokeColor: '#007acc',
+          strokeStyle: 'solid',
+          opacity: 0.8,
+        },
+        interactivity: ['brush_and_link'],
       },
-      semanticMeaning: `Visualizations share ${sharedDimensions.length} data dimension(s): ${sharedDimensions.join(', ')}`,
-      cognitiveSupport: 'Enables cross-visualization comparison and pattern recognition',
+      semanticConnection: {
+        meaning: `Visualizations share ${sharedDimensions.length} data dimension(s): ${sharedDimensions.join(', ')}`,
+        strength: this.calculateConnectionStrength(sharedDimensions.length),
+        explanation: 'Show relationship through shared data dimensions',
+        userBenefit: 'Enables cross-visualization comparison and pattern recognition',
+      },
     };
   }
 
@@ -1432,18 +1438,24 @@ export class DashboardLayoutEngine {
         (viz1.analysisType === type2 && viz2.analysisType === type1)
       ) {
         return {
-          sourceVisualization: viz1.id,
-          targetVisualization: viz2.id,
-          connectionType: 'complementary_analysis',
-          strength: 80,
-          purpose: `Provide complementary ${type1}-${type2} perspective`,
-          implementation: {
-            visualTechnique: 'contextual_placement',
-            interactionPattern: 'detail_on_demand',
-            aestheticCues: ['visual_grouping', 'consistent_styling'],
+          connectionType: 'comparative_analysis',
+          elements: [viz1.id, viz2.id],
+          visualConnection: {
+            technique: 'proximity',
+            style: {
+              strokeWidth: 1,
+              strokeColor: '#6c757d',
+              strokeStyle: 'dashed',
+              opacity: 0.6,
+            },
+            interactivity: ['detail_on_demand'],
           },
-          semanticMeaning: `${type1} and ${type2} analysis provide complementary insights`,
-          cognitiveSupport: 'Supports comprehensive understanding through multiple perspectives',
+          semanticConnection: {
+            meaning: `${type1} and ${type2} analysis provide complementary insights`,
+            strength: 80,
+            explanation: `Provide complementary ${type1}-${type2} perspective`,
+            userBenefit: 'Supports comprehensive understanding through multiple perspectives',
+          },
         };
       }
     }
@@ -1464,18 +1476,24 @@ export class DashboardLayoutEngine {
           viz1.granularityLevel > viz2.granularityLevel ? [viz1, viz2] : [viz2, viz1];
 
         return {
-          sourceVisualization: parentViz.id,
-          targetVisualization: childViz.id,
-          connectionType: 'hierarchical_detail',
-          strength: 85,
-          purpose: 'Show hierarchical relationship between overview and detail',
-          implementation: {
-            visualTechnique: 'nested_layout',
-            interactionPattern: 'drill_down',
-            aestheticCues: ['size_hierarchy', 'containment_relationships'],
+          connectionType: 'causal_link',
+          elements: [parentViz.id, childViz.id],
+          visualConnection: {
+            technique: 'line',
+            style: {
+              strokeWidth: 3,
+              strokeColor: '#28a745',
+              strokeStyle: 'solid',
+              opacity: 0.9,
+            },
+            interactivity: ['drill_down'],
           },
-          semanticMeaning: 'Detail view of selected elements from overview',
-          cognitiveSupport: 'Enables progressive disclosure and focused exploration',
+          semanticConnection: {
+            meaning: 'Detail view of selected elements from overview',
+            strength: 85,
+            explanation: 'Show hierarchical relationship between overview and detail',
+            userBenefit: 'Enables progressive disclosure and focused exploration',
+          },
         };
       }
     }
@@ -1493,18 +1511,24 @@ export class DashboardLayoutEngine {
     for (let i = 0; i < temporalViz.length - 1; i++) {
       for (let j = i + 1; j < temporalViz.length; j++) {
         connections.push({
-          sourceVisualization: temporalViz[i].id,
-          targetVisualization: temporalViz[j].id,
-          connectionType: 'temporal_synchronization',
-          strength: 95,
-          purpose: 'Synchronize temporal navigation across time-based visualizations',
-          implementation: {
-            visualTechnique: 'synchronized_time_axis',
-            interactionPattern: 'coordinated_temporal_navigation',
-            aestheticCues: ['aligned_time_scales', 'synchronized_highlighting'],
+          connectionType: 'temporal_sequence',
+          elements: [temporalViz[i].id, temporalViz[j].id],
+          visualConnection: {
+            technique: 'shared_axis',
+            style: {
+              strokeWidth: 2,
+              strokeColor: '#ffc107',
+              strokeStyle: 'solid',
+              opacity: 0.9,
+            },
+            interactivity: ['coordinated_temporal_navigation'],
           },
-          semanticMeaning: 'Coordinated exploration of temporal patterns',
-          cognitiveSupport: 'Enables temporal pattern comparison across multiple dimensions',
+          semanticConnection: {
+            meaning: 'Coordinated exploration of temporal patterns',
+            strength: 95,
+            explanation: 'Synchronize temporal navigation across time-based visualizations',
+            userBenefit: 'Enables temporal pattern comparison across multiple dimensions',
+          },
         });
       }
     }
@@ -1525,18 +1549,24 @@ export class DashboardLayoutEngine {
 
     for (let i = 0; i < sortedViz.length - 1; i++) {
       connections.push({
-        sourceVisualization: sortedViz[i].id,
-        targetVisualization: sortedViz[i + 1].id,
-        connectionType: 'narrative_flow',
-        strength: 70,
-        purpose: 'Guide user through logical analysis progression',
-        implementation: {
-          visualTechnique: 'directional_flow_indicators',
-          interactionPattern: 'guided_navigation',
-          aestheticCues: ['flow_arrows', 'progressive_reveal', 'breadcrumb_trail'],
+        connectionType: 'data_relationship',
+        elements: [sortedViz[i].id, sortedViz[i + 1].id],
+        visualConnection: {
+          technique: 'line',
+          style: {
+            strokeWidth: 2,
+            strokeColor: '#17a2b8',
+            strokeStyle: 'solid',
+            opacity: 0.7,
+          },
+          interactivity: ['guided_navigation'],
         },
-        semanticMeaning: `Step ${i + 1} to ${i + 2} in analytical narrative`,
-        cognitiveSupport: 'Provides clear analytical progression and reduces cognitive burden',
+        semanticConnection: {
+          meaning: `Step ${i + 1} to ${i + 2} in analytical narrative`,
+          strength: 70,
+          explanation: 'Guide user through logical analysis progression',
+          userBenefit: 'Provides clear analytical progression and reduces cognitive burden',
+        },
       });
     }
 
@@ -1553,6 +1583,11 @@ interface VisualizationSpec {
   complexity: number;
   size: { width: number; height: number };
   relationships: string[];
+  dataDimensions?: Array<{ field: string; semanticType: string }>;
+  analysisType?: string;
+  granularityLevel?: number;
+  hasTemporalDimension?: boolean;
+  narrativeOrder?: number;
 }
 
 interface LayoutConstraints {
