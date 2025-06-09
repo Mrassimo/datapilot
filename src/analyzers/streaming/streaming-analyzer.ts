@@ -817,8 +817,10 @@ export class StreamingAnalyzer {
    * Check if multivariate data should be collected
    */
   private shouldCollectMultivariateData(): boolean {
-    return this.collectedData.length < this.maxCollectedRows &&
-           this.state.currentMemoryMB < (this.config.memoryThresholdMB * 0.8);
+    return (
+      this.collectedData.length < this.maxCollectedRows &&
+      this.state.currentMemoryMB < this.config.memoryThresholdMB * 0.8
+    );
   }
 
   /**
@@ -826,7 +828,7 @@ export class StreamingAnalyzer {
    */
   private collectMultivariateData(rowData: readonly (string | number | null | undefined)[]): void {
     // Use a more memory-efficient approach by sampling if needed
-    const shouldSample = this.collectedData.length > (this.maxCollectedRows * 0.8);
+    const shouldSample = this.collectedData.length > this.maxCollectedRows * 0.8;
     if (!shouldSample || Math.random() < 0.1) {
       (this.collectedData as any).push(Object.freeze([...rowData]));
     }
@@ -835,10 +837,7 @@ export class StreamingAnalyzer {
   /**
    * Handle memory pressure for multivariate data collection
    */
-  private handleMultivariateMemoryPressure(
-    streamingConfig: any,
-    perfConfig: any
-  ): void {
+  private handleMultivariateMemoryPressure(streamingConfig: any, perfConfig: any): void {
     const emergencyThreshold =
       this.config.memoryThresholdMB * streamingConfig.memoryManagement.emergencyThresholdMultiplier;
     const minMultivariateRows = Math.min(1000, perfConfig.maxCollectedRowsMultivariate / 2);
@@ -856,7 +855,7 @@ export class StreamingAnalyzer {
    * Perform multivariate analysis with enhanced type safety
    */
   private async performMultivariateAnalysis(): Promise<MultivariateAnalysis> {
-    const dataArray = this.collectedData.map(row => [...row]);
+    const dataArray = this.collectedData.map((row) => [...row]);
     return await MultivariateOrchestrator.analyze(
       dataArray,
       this.headers,

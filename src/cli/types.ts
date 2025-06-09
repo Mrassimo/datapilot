@@ -96,12 +96,12 @@ export interface ProgressCallbacks {
 }
 
 // Section Result Union Types
-export type SectionResult = 
-  | Section1Result 
-  | Section2Result 
-  | Section3Result 
-  | Section4Result 
-  | Section5Result 
+export type SectionResult =
+  | Section1Result
+  | Section2Result
+  | Section3Result
+  | Section4Result
+  | Section5Result
   | Section6Result;
 
 export type SectionResultMap = {
@@ -132,7 +132,7 @@ export interface DependencyResolver {
 export interface AnalyzerFactory<
   TOptions extends Record<string, unknown> = CLIOptions,
   TDeps extends SectionResult[] = SectionResult[],
-  TResult extends SectionResult = SectionResult
+  TResult extends SectionResult = SectionResult,
 > {
   (filePath: string, options: TOptions, dependencies?: TDeps): Promise<TResult>;
 }
@@ -140,7 +140,7 @@ export interface AnalyzerFactory<
 // Configuration for section analysis
 export interface SectionAnalysisConfig<
   TResult extends SectionResult = SectionResult,
-  TDeps extends SectionResult[] = SectionResult[]
+  TDeps extends SectionResult[] = SectionResult[],
 > {
   sectionName: string;
   phase: string;
@@ -179,7 +179,11 @@ export interface CLIErrorContext extends LogContext {
 }
 
 export interface CLIErrorHandler {
-  handleSectionError(error: DataPilotError, sectionName: string, context: CLIErrorContext): Promise<boolean>;
+  handleSectionError(
+    error: DataPilotError,
+    sectionName: string,
+    context: CLIErrorContext,
+  ): Promise<boolean>;
   recordSectionFailure(sectionName: string, error: DataPilotError): void;
   getSectionErrors(sectionName: string): DataPilotError[];
   getTotalErrors(): number;

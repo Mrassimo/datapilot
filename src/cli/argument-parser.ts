@@ -53,7 +53,9 @@ export class ArgumentParser {
       )
       .version('1.0.0')
       .helpOption('-h, --help', 'Display help information')
-      .addHelpText('after', `
+      .addHelpText(
+        'after',
+        `
 
 Confidence Metrics Guide:
 DataPilot reports confidence scores throughout the analysis. These indicate the reliability of automated decisions:
@@ -65,7 +67,8 @@ DataPilot reports confidence scores throughout the analysis. These indicate the 
 • ML Readiness (Section 5): Reflects assessment completeness and data suitability
 • Modeling Confidence (Section 6): Categorical levels based on task clarity and algorithm fit
 
-Use --verbose for detailed confidence explanations in reports.`);
+Use --verbose for detailed confidence explanations in reports.`,
+      );
 
     // Global options
     this.program

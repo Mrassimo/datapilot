@@ -522,7 +522,7 @@ export class PCAAnalyzer {
       if (!converged) {
         return this.createNonApplicableResult(
           'Computational failure: Eigenvalue decomposition failed to converge after 1000 iterations. ' +
-          'This indicates numerical instability, possibly due to multicollinearity or ill-conditioned data matrix.'
+            'This indicates numerical instability, possibly due to multicollinearity or ill-conditioned data matrix.',
         );
       }
 

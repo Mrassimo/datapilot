@@ -1,0 +1,3022 @@
+🤖 DATAPILOT COMPLETE ANALYSIS ENGINE
+======================================
+Analysis Target: Medicaldataset.csv
+Report Generated: 2025-06-08 13:08:56 (UTC)
+DataPilot Version: v1.0.0 (TypeScript Edition)
+
+---
+### Section 1: Comprehensive Dataset & Analysis Overview
+This section provides a detailed snapshot of the dataset properties, how it was processed, and the context of this analysis run.
+
+**1.1. Input Data File Details:**
+    * Original Filename: `Medicaldataset.csv`
+    * Full Resolved Path: `/Users/[user]/plum/test-datasets/kaggle/Medicaldataset.csv`
+    * File Size (on disk): 0.04993 MB
+    * MIME Type (detected/inferred): `text/csv`
+    * File Last Modified (OS Timestamp): 2025-06-05 11:34:05 (UTC)
+    * File Hash (SHA256): `ba28e4585e736fff12f0232c9d139f944e374c2c29c32594b3c6bae44b6348e0`
+
+**1.2. Data Ingestion & Parsing Parameters:**
+    * Data Source Type: Local File System
+    * Parsing Engine Utilized: DataPilot Advanced CSV Parser v1.0.0
+    * Time Taken for Parsing & Initial Load: 0.01 seconds
+    * Detected Character Encoding: `utf8`
+        * Encoding Detection Method: Statistical Character Pattern Analysis
+        * Encoding Confidence: High (90%)
+    * Detected Delimiter Character: `,` (Comma)
+        * Delimiter Detection Method: Character Frequency Analysis with Field Consistency Scoring
+        * Delimiter Confidence: High (100%)
+    * Detected Line Ending Format: `CRLF (Windows-style)`
+    * Detected Quoting Character: `"`
+        * Empty Lines Encountered: 1
+    * Header Row Processing:
+        * Header Presence: Detected
+        * Header Row Number(s): 1
+        * Column Names Derived From: First row interpreted as column headers
+    * Byte Order Mark (BOM): Not Detected
+    * Initial Row/Line Scan Limit for Detection: First 52355 bytes or 1000 lines
+
+**1.3. Dataset Structural Dimensions & Initial Profile:**
+    * Total Rows Read (including header, if any): 1,320
+    * Total Rows of Data (excluding header): 1,319
+    * Total Columns Detected: 9
+    * Total Data Cells (Data Rows × Columns): 11,871
+    * List of Column Names (9) and Original Index:
+        1.  (Index 0) `Age`
+        2.  (Index 1) `Gender`
+        3.  (Index 2) `Heart rate`
+        4.  (Index 3) `Systolic blood pressure`
+        5.  (Index 4) `Diastolic blood pressure`
+        6.  (Index 5) `Blood sugar`
+        7.  (Index 6) `CK-MB`
+        8.  (Index 7) `Troponin`
+        9.  (Index 8) `Result`
+    * Estimated In-Memory Size (Post-Parsing & Initial Type Guessing): 0.48 MB
+    * Average Row Length (bytes, approximate): 39 bytes
+    * Dataset Sparsity (Initial Estimate): Dense dataset with minimal missing values (0% sparse cells via Full dataset analysis)
+
+**1.4. Analysis Configuration & Execution Context:**
+    * Full Command Executed: `datapilot all /Users/massimoraso/plum/test-datasets/kaggle/Medicaldataset.csv`
+    * Analysis Mode Invoked: Comprehensive Deep Scan
+    * Timestamp of Analysis Start: 2025-06-08 13:08:56 (UTC)
+    * Global Dataset Sampling Strategy: Full dataset analysis (No record sampling applied for initial overview)
+    * DataPilot Modules Activated for this Run: File I/O Manager, Advanced CSV Parser, Metadata Collector, Structural Analyzer, Report Generator
+    * Processing Time for Section 1 Generation: 0.014 seconds
+    * Host Environment Details:
+        * Operating System: macOS (Unknown Version)
+        * System Architecture: ARM64 (Apple Silicon/ARM 64-bit)
+        * Execution Runtime: Node.js v23.6.1 (V8 12.9.202.28-node.12) on darwin
+        * Available CPU Cores / Memory (at start of analysis): 8 cores / 8 GB
+
+---
+### Performance Metrics
+
+**Processing Performance:**
+    * Total Analysis Time: 0.014 seconds
+    * File analysis: 0.002s
+    * Parsing: 0.01s
+    * Structural analysis: 0.002s
+
+---
+
+---
+
+### **Section 2: Comprehensive Data Quality & Integrity Audit Report** 🧐🛡️
+
+This section provides an exhaustive assessment of the dataset's reliability, structural soundness, and adherence to quality standards. Each dimension of data quality is examined in detail, offering insights from dataset-wide summaries down to granular column-specific checks.
+
+**2.1. Overall Data Quality Cockpit:**
+    * **Composite Data Quality Score (CDQS):** 93.9 / 100
+        * *Methodology:* Weighted average of individual quality dimension scores.
+        * *Interpretation:* Good - Weighted average of 10 quality dimensions
+    * **Data Quality Dimensions Summary:**
+        * Completeness: 100.0/100 (Excellent)
+        * Uniqueness: 100.0/100 (Excellent)
+        * Validity: 100.0/100 (Excellent)
+        * Consistency: 100.0/100 (Excellent)
+        * Accuracy: 92.0/100 (Good)
+        * Timeliness: 50.0/100 (Needs Improvement)
+        * Integrity: 85.0/100 (Good)
+        * Reasonableness: 80.0/100 (Good)
+        * Precision: 15.0/100 (Poor)
+        * Representational: 80.0/100 (Good)
+    * **Top 3 Data Quality Strengths:**
+        1. Excellent completeness with 100% score (completeness).
+        2. Excellent accuracy with 92% score (accuracy).
+        3. Excellent consistency with 100% score (consistency).
+    * **Top 3 Data Quality Weaknesses (Areas for Immediate Attention):**
+        1. precision quality needs attention (15% score) (Priority: 10/10).
+        2. timeliness quality needs attention (50% score) (Priority: 8/10).
+        3. reasonableness quality needs attention (80% score) (Priority: 6/10).
+    * **Estimated Technical Debt (Data Cleaning Effort):**
+        * *Time Estimate:* 21 hours estimated cleanup.
+        * *Complexity Level:* High.
+        * *Primary Debt Contributors:* precision quality needs attention (15% score), timeliness quality needs attention (50% score), reasonableness quality needs attention (80% score).
+    * **Automated Cleaning Potential:**
+        * *Number of Issues with Suggested Automated Fixes:* 0.
+        * *Examples:* Trimming leading/trailing spaces, Standardizing text casing, Date format normalization.
+
+**2.2. Completeness Dimension (Absence of Missing Data):**
+    * **Dataset-Level Completeness Overview:**
+        * Overall Dataset Completeness Ratio: 100.00%.
+        * Total Missing Values (Entire Dataset): 0.
+        * Percentage of Rows Containing at Least One Missing Value: 0.00%.
+        * Percentage of Columns Containing at Least One Missing Value: 0.00%.
+        * Missing Value Distribution Overview: No missing values detected.
+    * **Column-Level Completeness Deep Dive:** (Showing top 9 columns)
+        * `Age`:
+            * Number of Missing Values: 0.
+            * Percentage of Missing Values: 0.00%.
+            * Missingness Pattern: No missing values detected.
+            * Suggested Imputation Strategy: None (Confidence: 100%).
+            * Missing Data Distribution: ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁.
+        * `Gender`:
+            * Number of Missing Values: 0.
+            * Percentage of Missing Values: 0.00%.
+            * Missingness Pattern: No missing values detected.
+            * Suggested Imputation Strategy: None (Confidence: 100%).
+            * Missing Data Distribution: ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁.
+        * `Heart rate`:
+            * Number of Missing Values: 0.
+            * Percentage of Missing Values: 0.00%.
+            * Missingness Pattern: No missing values detected.
+            * Suggested Imputation Strategy: None (Confidence: 100%).
+            * Missing Data Distribution: ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁.
+        * `Systolic blood pressure`:
+            * Number of Missing Values: 0.
+            * Percentage of Missing Values: 0.00%.
+            * Missingness Pattern: No missing values detected.
+            * Suggested Imputation Strategy: None (Confidence: 100%).
+            * Missing Data Distribution: ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁.
+        * `Diastolic blood pressure`:
+            * Number of Missing Values: 0.
+            * Percentage of Missing Values: 0.00%.
+            * Missingness Pattern: No missing values detected.
+            * Suggested Imputation Strategy: None (Confidence: 100%).
+            * Missing Data Distribution: ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁.
+        * `Blood sugar`:
+            * Number of Missing Values: 0.
+            * Percentage of Missing Values: 0.00%.
+            * Missingness Pattern: No missing values detected.
+            * Suggested Imputation Strategy: None (Confidence: 100%).
+            * Missing Data Distribution: ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁.
+        * `CK-MB`:
+            * Number of Missing Values: 0.
+            * Percentage of Missing Values: 0.00%.
+            * Missingness Pattern: No missing values detected.
+            * Suggested Imputation Strategy: None (Confidence: 100%).
+            * Missing Data Distribution: ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁.
+        * `Troponin`:
+            * Number of Missing Values: 0.
+            * Percentage of Missing Values: 0.00%.
+            * Missingness Pattern: No missing values detected.
+            * Suggested Imputation Strategy: None (Confidence: 100%).
+            * Missing Data Distribution: ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁.
+        * `Result`:
+            * Number of Missing Values: 0.
+            * Percentage of Missing Values: 0.00%.
+            * Missingness Pattern: No missing values detected.
+            * Suggested Imputation Strategy: None (Confidence: 100%).
+            * Missing Data Distribution: ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁.
+    * **Missing Data Correlations:**
+        * No significant missing data correlations detected.
+    * **Missing Data Block Patterns:**
+        * No block patterns detected.
+    * **Completeness Score:** 100.0/100 (Excellent) - 100% of cells contain data.
+
+**2.3. Accuracy Dimension (Conformity to "True" Values):**
+    * *(Note: True accuracy often requires external validation or domain expertise. Analysis shows rule-based conformity checks.)*
+    * **Value Conformity Assessment:** 198 total rule violations, 11 critical
+    * **Cross-Field Validation Results:**
+        * *Rule percentage_range_Heart rate:* Heart rate should be between 0 and 100. (Number of Violations: 82).
+        * *Rule heart_rate_range:* Heart rate should be within physiologically plausible range. (Number of Violations: 5).
+        * *Rule blood_pressure_systolic_diastolic:* Systolic pressure should be greater than diastolic pressure. (Number of Violations: 11).
+    * **Pattern Validation Results:**
+        * *Purchase Order Number:* PO numbers should follow business format. Violations: 100 across columns: Troponin.
+    * **Business Rules Analysis:**
+        * *Business Rules Summary:* 4 rules evaluated, 98 violations (11 critical).
+    * **Impact of Outliers on Accuracy:** Outlier analysis not available - Section 3 results required
+    * **Accuracy Score:** 92.0/100 (Good).
+
+**2.4. Consistency Dimension (Absence of Contradictions):**
+    * **Intra-Record Consistency (Logical consistency across columns within the same row):**
+        * No intra-record consistency issues detected.
+    * **Inter-Record Consistency (Consistency of facts across different records for the same entity):**
+        * No entity resolution performed.
+    * **Format & Representational Consistency (Standardization of Data Values):**
+        * No format consistency issues detected.
+    * **Pattern Consistency Summary:**
+        * *Pattern Analysis:* 29 patterns evaluated, 100 violations across 1 columns.
+    * **Consistency Score (Rule-based and pattern detection):** 100.0/100 (Excellent).
+
+**2.5. Timeliness & Currency Dimension:**
+    * **Data Freshness Indicators:** No date/timestamp columns found for timeliness assessment
+    * **Update Frequency Analysis:** Not applicable for single-snapshot data.
+    * **Timeliness Score:** 50.0/100 (Needs Improvement).
+
+**2.6. Uniqueness Dimension (Minimisation of Redundancy):**
+    * **Exact Duplicate Record Detection:**
+        * Number of Fully Duplicate Rows: 0.
+        * Percentage of Dataset Comprised of Exact Duplicates: 0.00%.
+    * **Key Uniqueness & Integrity:**
+        * No key-like columns identified.
+    * **Column-Level Value Uniqueness Profile:**
+        * `Age`: 5.7% unique values. 1244 duplicates. Most frequent: "60" (106 times).
+        * `Gender`: 0.2% unique values. 1317 duplicates. Most frequent: "1" (870 times).
+        * `Heart rate`: 6.0% unique values. 1240 duplicates. Most frequent: "60" (95 times).
+        * `Systolic blood pressure`: 8.8% unique values. 1203 duplicates. Most frequent: "150" (50 times).
+        * `Diastolic blood pressure`: 5.5% unique values. 1246 duplicates. Most frequent: "75" (69 times).
+        * `Blood sugar`: 18.5% unique values. 1075 duplicates. Most frequent: "100" (41 times).
+        * `CK-MB`: 53.1% unique values. 619 duplicates. Most frequent: "300" (19 times).
+        * `Troponin`: 26.7% unique values. 967 duplicates. Most frequent: "0.003" (190 times).
+    * **Fuzzy/Semantic Duplicate Detection:**
+        * Number of Record Pairs Suspected to be Semantic Duplicates: 946 pairs.
+        * Methods Used: levenshtein, soundex.
+    * **Uniqueness Score:** 100.0/100 (Excellent) - 0.00% duplicate rows, 0 key constraint violations.
+
+**2.7. Validity & Conformity Dimension:**
+    * **Data Type Conformance Deep Dive:**
+        * `Age` (Expected: String, Detected: Integer, Confidence: 100%):
+            * Non-Conforming Values: 0 (100.0% conformance).
+            * Examples: None.
+            * Conversion Strategy: No conversion needed - high conformance.
+        * `Gender` (Expected: String, Detected: Boolean, Confidence: 100%):
+            * Non-Conforming Values: 0 (100.0% conformance).
+            * Examples: None.
+            * Conversion Strategy: No conversion needed - high conformance.
+        * `Heart rate` (Expected: String, Detected: Integer, Confidence: 100%):
+            * Non-Conforming Values: 0 (100.0% conformance).
+            * Examples: None.
+            * Conversion Strategy: No conversion needed - high conformance.
+        * `Systolic blood pressure` (Expected: String, Detected: Integer, Confidence: 100%):
+            * Non-Conforming Values: 0 (100.0% conformance).
+            * Examples: None.
+            * Conversion Strategy: No conversion needed - high conformance.
+        * `Diastolic blood pressure` (Expected: String, Detected: Integer, Confidence: 100%):
+            * Non-Conforming Values: 0 (100.0% conformance).
+            * Examples: None.
+            * Conversion Strategy: No conversion needed - high conformance.
+        * `Blood sugar` (Expected: String, Detected: Integer, Confidence: 100%):
+            * Non-Conforming Values: 0 (100.0% conformance).
+            * Examples: None.
+            * Conversion Strategy: No conversion needed - high conformance.
+        * `CK-MB` (Expected: String, Detected: Float, Confidence: 98%):
+            * Non-Conforming Values: 0 (100.0% conformance).
+            * Examples: None.
+            * Conversion Strategy: No conversion needed - high conformance.
+        * `Troponin` (Expected: String, Detected: Float, Confidence: 99%):
+            * Non-Conforming Values: 0 (100.0% conformance).
+            * Examples: None.
+            * Conversion Strategy: No conversion needed - high conformance.
+    * **Range & Value Set Conformance:**
+        * No range constraints defined.
+    * **Pattern Conformance (Regex Validation):**
+        * `Result` (Fixed Format Code): 0 violations.
+    * **Cross-Column Validation Rules:**
+        * Business rules: 0 configured rules.
+    * **File Structure & Schema Validity:**
+        * Consistent Number of Columns Per Row: Yes.
+        * Header Row Conformance: Yes.
+    * **Validity Score:** 100.0/100 (Excellent) - 100.0% average type conformance, 0 total violations.
+
+**2.8. Integrity Dimension (Relationships & Structural Soundness):**
+    * **Potential Orphaned Record Detection:** Enhanced integrity analysis with statistical validation
+    * **Relationship Cardinality Conformance:** No relationships defined.
+    * **Data Model Integrity:** Schema validation not performed.
+    * **Integrity Score:** 85.0/100 (Good).
+
+**2.9. Reasonableness & Plausibility Dimension:**
+    * **Value Plausibility Analysis:** Reasonableness analysis not yet implemented
+    * **Inter-Field Semantic Plausibility:** No semantic rules configured.
+    * **Contextual Anomaly Detection:** Statistical analysis pending.
+    * **Plausibility Score:** 80.0/100 (Good).
+
+**2.10. Precision & Granularity Dimension:**
+    * **Numeric Precision Analysis:** Major precision problems affecting data reliability
+    * **Temporal Granularity:** To be implemented.
+    * **Categorical Specificity:** To be implemented.
+    * **Precision Score:** 15.0/100 (Poor).
+
+**2.11. Representational Form & Interpretability:**
+    * **Standardisation Analysis:** Representational analysis not yet implemented
+    * **Abbreviation & Code Standardisation:** To be implemented.
+    * **Boolean Value Representation:** To be implemented.
+    * **Text Field Formatting:** To be implemented.
+    * **Interpretability Score:** 80.0/100 (Good).
+
+**2.13. Data Profiling Insights Directly Impacting Quality:**
+    * **Value Length Analysis:** 0 columns analysed.
+    * **Character Set & Encoding Validation:** 0 columns analysed.
+    * **Special Character Analysis:** 0 columns analysed.
+    * *Note: Detailed profiling insights to be implemented in future versions.*
+
+---
+
+**Data Quality Audit Summary:**
+* **Generated:** 2025-06-08T13:08:56.212Z
+* **Version:** 1.0.0
+* **Overall Assessment:** Good data quality with 93.9/100 composite score.
+
+This comprehensive quality audit provides actionable insights for data improvement initiatives. Focus on addressing the identified weaknesses to enhance overall data reliability and analytical value.
+
+---
+
+### **Section 3: Exploratory Data Analysis (EDA) Deep Dive** 📊🔬
+
+This section provides a comprehensive statistical exploration of the dataset. The goal is to understand the data's underlying structure, identify patterns, detect anomalies, and extract key insights. Unless specified, all analyses are performed on the full dataset. Over 60 statistical tests and checks are considered in this module.
+
+**3.1. EDA Methodology Overview:**
+* **Approach:** Systematic univariate, bivariate, and multivariate analysis using streaming algorithms.
+* **Column Type Classification:** Each column is analysed based on its inferred data type (Numerical, Categorical, Date/Time, Boolean, Text).
+* **Statistical Significance:** Standard p-value thresholds (e.g., 0.05) are used where applicable, but effect sizes and practical significance are also considered.
+* **Memory-Efficient Processing:** Streaming with online algorithms ensures scalability to large datasets.
+* **Sampling Strategy:** Analysis performed on the complete dataset.
+
+**3.2. Univariate Analysis (Per-Column In-Depth Profile):**
+
+*This sub-section provides detailed statistical profiles for each column in the dataset, adapted based on detected data type.*
+
+---
+**Column: `Age`**
+* **Detected Data Type:** numerical_integer
+* **Inferred Semantic Type:** age
+* **Data Quality Flag:** Good
+* **Quick Stats:**
+    * Total Values (Count): 1,320
+    * Missing Values: 1 (0.08%)
+    * Unique Values: 75 (5.69% of total)
+
+**3.2.A. Numerical Column Analysis:**
+
+**Descriptive Statistics:**
+* Minimum: 14
+* Maximum: 103
+* Range: 89
+* Sum: 74117
+* Mean (Arithmetic): 56.191812
+* Median (50th Percentile): 58.953237
+* Mode(s): [60 (Frequency: 8.04%)]
+* Standard Deviation: 13.642141
+* Variance: 186.108015
+* Coefficient of Variation (CV): 0.2428%
+
+**Quantile & Percentile Statistics:**
+* 1st Percentile: 23.011982
+* 5th Percentile: 32.034872
+* 10th Percentile: 39.107052
+* 25th Percentile (Q1 - First Quartile): 48.469978
+* 75th Percentile (Q3 - Third Quartile): 65.084299
+* 90th Percentile: 72.927528
+* 95th Percentile: 75.962455
+* 99th Percentile: 87.818773
+* Interquartile Range (IQR = Q3 - Q1): 16.614321
+* Median Absolute Deviation (MAD): 8.953237
+
+**Distribution Shape & Normality Assessment:**
+* Skewness: -0.2389 (Approximately symmetric)
+* Kurtosis (Excess): -0.0284 (Mesokurtic (normal-like tails))
+* Histogram Analysis: Distribution spans 10 bins
+* Normality Tests:
+    * Shapiro-Wilk Test: W-statistic = 15.772772, p-value = NaN (Data significantly deviates from normal distribution (p ≤ 0.05))
+    * Jarque-Bera Test: JB-statistic = 1.971418, p-value = 0.2 (Data consistent with normal distribution (p > 0.05))
+    * Kolmogorov-Smirnov Test: D-statistic = 0.068661, p-value = 0.2 (Data consistent with normal distribution (p > 0.05))
+
+**Univariate Outlier Analysis:**
+* Method 1: IQR Proximity Rule
+    * Lower Fence (Q1 - 1.5 * IQR): 23.548496
+    * Upper Fence (Q3 + 1.5 * IQR): 90.005781
+    * Number of Outliers (Below Lower): 1 (1%)
+    * Number of Outliers (Above Upper): 0 (0%)
+    * Extreme Outliers (using 3.0 * IQR factor): 0 (0%)
+* Method 2: Z-Score Method
+    * Standard Deviations from Mean for Threshold: +/- 3
+    * Number of Outliers (Z-score < -3): 0
+    * Number of Outliers (Z-score > +3): 0
+* Method 3: Modified Z-Score (using MAD)
+    * Threshold: +/- 3.5
+    * Number of Outliers: 0
+* Summary of Outliers: Total 1 (1%). Min Outlier Value: 21, Max Outlier Value: 21.
+* Potential Impact: Low outlier impact
+
+**Specific Numerical Patterns & Characteristics:**
+* Percentage of Zero Values: 0%
+* Percentage of Negative Values: 0%
+* Round Numbers Analysis: High proportion of round numbers suggests potential data rounding
+* Potential for Log Transformation: Log transformation may not be beneficial
+
+---
+**Column: `Gender`**
+* **Detected Data Type:** boolean
+* **Inferred Semantic Type:** status
+* **Data Quality Flag:** Good
+* **Quick Stats:**
+    * Total Values (Count): 1,320
+    * Missing Values: 1 (0.08%)
+    * Unique Values: 2 (0.15% of total)
+
+**3.2.D. Boolean Column Analysis:**
+
+**Frequency Distribution:**
+* Count of True: 870 (65.96%)
+* Count of False: 449 (34.04%)
+* Interpretation: Balanced distribution
+
+---
+**Column: `Heart rate`**
+* **Detected Data Type:** numerical_integer
+* **Inferred Semantic Type:** percentage
+* **Data Quality Flag:** Good
+* **Quick Stats:**
+    * Total Values (Count): 1,320
+    * Missing Values: 1 (0.08%)
+    * Unique Values: 79 (5.99% of total)
+
+**3.2.A. Numerical Column Analysis:**
+
+**Descriptive Statistics:**
+* Minimum: 20
+* Maximum: 1111
+* Range: 1091
+* Sum: 103326
+* Mean (Arithmetic): 78.336619
+* Median (50th Percentile): 75.097791
+* Mode(s): [60 (Frequency: 7.2%)]
+* Standard Deviation: 51.610695
+* Variance: 2663.663792
+* Coefficient of Variation (CV): 0.6588%
+
+**Quantile & Percentile Statistics:**
+* 1st Percentile: 49.970556
+* 5th Percentile: 57.931299
+* 10th Percentile: 59.997888
+* 25th Percentile (Q1 - First Quartile): 62.977447
+* 75th Percentile (Q3 - Third Quartile): 85.445341
+* 90th Percentile: 95.995883
+* 95th Percentile: 104.108611
+* 99th Percentile: 125.252999
+* Interquartile Range (IQR = Q3 - Q1): 22.467894
+* Median Absolute Deviation (MAD): 12.097791
+
+**Distribution Shape & Normality Assessment:**
+* Skewness: 18.227 (Right-skewed (positive skew))
+* Kurtosis (Excess): 361.5757 (Leptokurtic (heavy tails))
+* Histogram Analysis: Distribution spans 10 bins
+* Normality Tests:
+    * Shapiro-Wilk Test: W-statistic = 1.176552, p-value = NaN (Data significantly deviates from normal distribution (p ≤ 0.05))
+    * Jarque-Bera Test: JB-statistic = 35856.537263, p-value = 0.001 (Data significantly deviates from normal distribution (p ≤ 0.05))
+    * Kolmogorov-Smirnov Test: D-statistic = 0.387251, p-value = 0.01 (Data significantly deviates from normal distribution (p ≤ 0.05))
+
+**Univariate Outlier Analysis:**
+* Method 1: IQR Proximity Rule
+    * Lower Fence (Q1 - 1.5 * IQR): 29.275605
+    * Upper Fence (Q3 + 1.5 * IQR): 119.147182
+    * Number of Outliers (Below Lower): 0 (0%)
+    * Number of Outliers (Above Upper): 1 (1%)
+    * Extreme Outliers (using 3.0 * IQR factor): 1 (1%)
+* Method 2: Z-Score Method
+    * Standard Deviations from Mean for Threshold: +/- 3
+    * Number of Outliers (Z-score < -3): 0
+    * Number of Outliers (Z-score > +3): 1
+* Method 3: Modified Z-Score (using MAD)
+    * Threshold: +/- 3.5
+    * Number of Outliers: 1
+* Summary of Outliers: Total 2 (2%). Min Outlier Value: 125, Max Outlier Value: 1111.
+* Potential Impact: Low outlier impact
+
+**Specific Numerical Patterns & Characteristics:**
+* Percentage of Zero Values: 0%
+* Percentage of Negative Values: 0%
+* Round Numbers Analysis: Moderate rounding detected
+* Potential for Log Transformation: Good candidate for log transformation due to wide range
+
+---
+**Column: `Systolic blood pressure`**
+* **Detected Data Type:** numerical_integer
+* **Inferred Semantic Type:** unknown
+* **Data Quality Flag:** Good
+* **Quick Stats:**
+    * Total Values (Count): 1,320
+    * Missing Values: 1 (0.08%)
+    * Unique Values: 82 (6.22% of total)
+
+**3.2.A. Numerical Column Analysis:**
+
+**Descriptive Statistics:**
+* Minimum: 42
+* Maximum: 223
+* Range: 181
+* Sum: 167738
+* Mean (Arithmetic): 127.170584
+* Median (50th Percentile): 123.970257
+* Mode(s): [150 (Frequency: 3.79%)]
+* Standard Deviation: 26.112816
+* Variance: 681.879165
+* Coefficient of Variation (CV): 0.2053%
+
+**Quantile & Percentile Statistics:**
+* 1st Percentile: 75.944151
+* 5th Percentile: 90.956401
+* 10th Percentile: 95.175811
+* 25th Percentile (Q1 - First Quartile): 107.935898
+* 75th Percentile (Q3 - Third Quartile): 144.024779
+* 90th Percentile: 159.36749
+* 95th Percentile: 170.636077
+* 99th Percentile: 207.605529
+* Interquartile Range (IQR = Q3 - Q1): 36.088881
+* Median Absolute Deviation (MAD): 14.029743
+
+**Distribution Shape & Normality Assessment:**
+* Skewness: 0.6845 (Right-skewed (positive skew))
+* Kurtosis (Excess): 0.9438 (Leptokurtic (heavy tails))
+* Histogram Analysis: Distribution spans 10 bins
+* Normality Tests:
+    * Shapiro-Wilk Test: W-statistic = 15.397904, p-value = NaN (Data significantly deviates from normal distribution (p ≤ 0.05))
+    * Jarque-Bera Test: JB-statistic = 1.994145, p-value = 0.2 (Data consistent with normal distribution (p > 0.05))
+    * Kolmogorov-Smirnov Test: D-statistic = 0.068652, p-value = 0.2 (Data consistent with normal distribution (p > 0.05))
+
+**Univariate Outlier Analysis:**
+* Method 1: IQR Proximity Rule
+    * Lower Fence (Q1 - 1.5 * IQR): 53.802576
+    * Upper Fence (Q3 + 1.5 * IQR): 198.1581
+    * Number of Outliers (Below Lower): 0 (0%)
+    * Number of Outliers (Above Upper): 0 (0%)
+    * Extreme Outliers (using 3.0 * IQR factor): 0 (0%)
+* Method 2: Z-Score Method
+    * Standard Deviations from Mean for Threshold: +/- 3
+    * Number of Outliers (Z-score < -3): 0
+    * Number of Outliers (Z-score > +3): 0
+* Method 3: Modified Z-Score (using MAD)
+    * Threshold: +/- 3.5
+    * Number of Outliers: 0
+* Summary of Outliers: Total 0 (0%). Min Outlier Value: 0, Max Outlier Value: 0.
+* Potential Impact: Low outlier impact
+
+**Specific Numerical Patterns & Characteristics:**
+* Percentage of Zero Values: 0%
+* Percentage of Negative Values: 0%
+* Round Numbers Analysis: High proportion of round numbers suggests potential data rounding
+* Potential for Log Transformation: Log transformation may not be beneficial
+
+---
+**Column: `Diastolic blood pressure`**
+* **Detected Data Type:** numerical_integer
+* **Inferred Semantic Type:** unknown
+* **Data Quality Flag:** Good
+* **Quick Stats:**
+    * Total Values (Count): 1,320
+    * Missing Values: 1 (0.08%)
+    * Unique Values: 73 (5.53% of total)
+
+**3.2.A. Numerical Column Analysis:**
+
+**Descriptive Statistics:**
+* Minimum: 38
+* Maximum: 154
+* Range: 116
+* Sum: 95323
+* Mean (Arithmetic): 72.269143
+* Median (50th Percentile): 71.954841
+* Mode(s): [75 (Frequency: 5.23%)]
+* Standard Deviation: 14.028603
+* Variance: 196.801709
+* Coefficient of Variation (CV): 0.1941%
+
+**Quantile & Percentile Statistics:**
+* 1st Percentile: 44.646482
+* 5th Percentile: 51.708103
+* 10th Percentile: 54.996595
+* 25th Percentile (Q1 - First Quartile): 61.81454
+* 75th Percentile (Q3 - Third Quartile): 80.598062
+* 90th Percentile: 89.898013
+* 95th Percentile: 97.254436
+* 99th Percentile: 106.825499
+* Interquartile Range (IQR = Q3 - Q1): 18.783522
+* Median Absolute Deviation (MAD): 9.045159
+
+**Distribution Shape & Normality Assessment:**
+* Skewness: 0.4886 (Approximately symmetric)
+* Kurtosis (Excess): 0.8575 (Leptokurtic (heavy tails))
+* Histogram Analysis: Distribution spans 10 bins
+* Normality Tests:
+    * Shapiro-Wilk Test: W-statistic = 16.274739, p-value = NaN (Data significantly deviates from normal distribution (p ≤ 0.05))
+    * Jarque-Bera Test: JB-statistic = 1.866914, p-value = 0.2 (Data consistent with normal distribution (p > 0.05))
+    * Kolmogorov-Smirnov Test: D-statistic = 0.063133, p-value = 0.2 (Data consistent with normal distribution (p > 0.05))
+
+**Univariate Outlier Analysis:**
+* Method 1: IQR Proximity Rule
+    * Lower Fence (Q1 - 1.5 * IQR): 33.639256
+    * Upper Fence (Q3 + 1.5 * IQR): 108.773345
+    * Number of Outliers (Below Lower): 0 (0%)
+    * Number of Outliers (Above Upper): 0 (0%)
+    * Extreme Outliers (using 3.0 * IQR factor): 0 (0%)
+* Method 2: Z-Score Method
+    * Standard Deviations from Mean for Threshold: +/- 3
+    * Number of Outliers (Z-score < -3): 0
+    * Number of Outliers (Z-score > +3): 0
+* Method 3: Modified Z-Score (using MAD)
+    * Threshold: +/- 3.5
+    * Number of Outliers: 0
+* Summary of Outliers: Total 0 (0%). Min Outlier Value: 0, Max Outlier Value: 0.
+* Potential Impact: Low outlier impact
+
+**Specific Numerical Patterns & Characteristics:**
+* Percentage of Zero Values: 0%
+* Percentage of Negative Values: 0%
+* Round Numbers Analysis: Moderate rounding detected
+* Potential for Log Transformation: Log transformation may not be beneficial
+
+---
+**Column: `Blood sugar`**
+* **Detected Data Type:** numerical_integer
+* **Inferred Semantic Type:** unknown
+* **Data Quality Flag:** Good
+* **Quick Stats:**
+    * Total Values (Count): 1,320
+    * Missing Values: 1 (0.08%)
+    * Unique Values: 92 (6.97% of total)
+
+**3.2.A. Numerical Column Analysis:**
+
+**Descriptive Statistics:**
+* Minimum: 35
+* Maximum: 541
+* Range: 506
+* Sum: 193410.7
+* Mean (Arithmetic): 146.634344
+* Median (50th Percentile): 117.582283
+* Mode(s): [100 (Frequency: 3.11%)]
+* Standard Deviation: 74.894638
+* Variance: 5609.206773
+* Coefficient of Variation (CV): 0.5108%
+
+**Quantile & Percentile Statistics:**
+* 1st Percentile: 65.338027
+* 5th Percentile: 82.300206
+* 10th Percentile: 88.872739
+* 25th Percentile (Q1 - First Quartile): 97.85843
+* 75th Percentile (Q3 - Third Quartile): 166.383557
+* 90th Percentile: 263.412274
+* 95th Percentile: 307.074401
+* 99th Percentile: 415.082643
+* Interquartile Range (IQR = Q3 - Q1): 68.525127
+* Median Absolute Deviation (MAD): 22.582283
+
+**Distribution Shape & Normality Assessment:**
+* Skewness: 1.9313 (Right-skewed (positive skew))
+* Kurtosis (Excess): 4.1003 (Leptokurtic (heavy tails))
+* Histogram Analysis: Distribution spans 10 bins
+* Normality Tests:
+    * Shapiro-Wilk Test: W-statistic = 12.372568, p-value = NaN (Data significantly deviates from normal distribution (p ≤ 0.05))
+    * Jarque-Bera Test: JB-statistic = 39.427409, p-value = 0.001 (Data significantly deviates from normal distribution (p ≤ 0.05))
+    * Kolmogorov-Smirnov Test: D-statistic = 0.199016, p-value = 0.01 (Data significantly deviates from normal distribution (p ≤ 0.05))
+
+**Univariate Outlier Analysis:**
+* Method 1: IQR Proximity Rule
+    * Lower Fence (Q1 - 1.5 * IQR): -4.929261
+    * Upper Fence (Q3 + 1.5 * IQR): 269.171248
+    * Number of Outliers (Below Lower): 0 (0%)
+    * Number of Outliers (Above Upper): 10 (10%)
+    * Extreme Outliers (using 3.0 * IQR factor): 1 (1%)
+* Method 2: Z-Score Method
+    * Standard Deviations from Mean for Threshold: +/- 3
+    * Number of Outliers (Z-score < -3): 0
+    * Number of Outliers (Z-score > +3): 1
+* Method 3: Modified Z-Score (using MAD)
+    * Threshold: +/- 3.5
+    * Number of Outliers: 16
+* Summary of Outliers: Total 16 (16%). Min Outlier Value: 238, Max Outlier Value: 382.
+* Potential Impact: High outlier presence may affect analysis
+
+**Specific Numerical Patterns & Characteristics:**
+* Percentage of Zero Values: 0%
+* Percentage of Negative Values: 0%
+* Round Numbers Analysis: Moderate rounding detected
+* Potential for Log Transformation: Log transformation may not be beneficial
+
+---
+**Column: `CK-MB`**
+* **Detected Data Type:** numerical_float
+* **Inferred Semantic Type:** unknown
+* **Data Quality Flag:** Good
+* **Quick Stats:**
+    * Total Values (Count): 1,320
+    * Missing Values: 1 (0.08%)
+    * Unique Values: 96 (7.28% of total)
+
+**3.2.A. Numerical Column Analysis:**
+
+**Descriptive Statistics:**
+* Minimum: 0.321
+* Maximum: 300
+* Range: 299.679
+* Sum: 20146.809
+* Mean (Arithmetic): 15.274306
+* Median (50th Percentile): 2.801123
+* Mode(s): [300 (Frequency: 1.44%)]
+* Standard Deviation: 46.309519
+* Variance: 2144.57151
+* Coefficient of Variation (CV): 3.0319%
+
+**Quantile & Percentile Statistics:**
+* 1st Percentile: 0.523431
+* 5th Percentile: 0.859314
+* 10th Percentile: 1.136726
+* 25th Percentile (Q1 - First Quartile): 1.660224
+* 75th Percentile (Q3 - Third Quartile): 6.478777
+* 90th Percentile: 29.480823
+* 95th Percentile: 74.651186
+* 99th Percentile: 297.90587
+* Interquartile Range (IQR = Q3 - Q1): 4.818553
+* Median Absolute Deviation (MAD): 1.511123
+
+**Distribution Shape & Normality Assessment:**
+* Skewness: 4.9724 (Right-skewed (positive skew))
+* Kurtosis (Excess): 25.3895 (Leptokurtic (heavy tails))
+* Histogram Analysis: Distribution spans 10 bins
+* Normality Tests:
+    * Shapiro-Wilk Test: W-statistic = 2.087142, p-value = NaN (Data significantly deviates from normal distribution (p ≤ 0.05))
+    * Jarque-Bera Test: JB-statistic = 2515.626789, p-value = 0.001 (Data significantly deviates from normal distribution (p ≤ 0.05))
+    * Kolmogorov-Smirnov Test: D-statistic = 0.400145, p-value = 0.01 (Data significantly deviates from normal distribution (p ≤ 0.05))
+
+**Univariate Outlier Analysis:**
+* Method 1: IQR Proximity Rule
+    * Lower Fence (Q1 - 1.5 * IQR): -5.567606
+    * Upper Fence (Q3 + 1.5 * IQR): 13.706608
+    * Number of Outliers (Below Lower): 0 (0%)
+    * Number of Outliers (Above Upper): 4 (4%)
+    * Extreme Outliers (using 3.0 * IQR factor): 9 (9%)
+* Method 2: Z-Score Method
+    * Standard Deviations from Mean for Threshold: +/- 3
+    * Number of Outliers (Z-score < -3): 0
+    * Number of Outliers (Z-score > +3): 4
+* Method 3: Modified Z-Score (using MAD)
+    * Threshold: +/- 3.5
+    * Number of Outliers: 15
+* Summary of Outliers: Total 14 (14%). Min Outlier Value: 10.78, Max Outlier Value: 300.
+* Potential Impact: High outlier presence may affect analysis
+
+**Specific Numerical Patterns & Characteristics:**
+* Percentage of Zero Values: 0%
+* Percentage of Negative Values: 0%
+* Round Numbers Analysis: No significant rounding detected
+* Potential for Log Transformation: Log transformation may not be beneficial
+
+---
+**Column: `Troponin`**
+* **Detected Data Type:** numerical_float
+* **Inferred Semantic Type:** unknown
+* **Data Quality Flag:** Good
+* **Quick Stats:**
+    * Total Values (Count): 1,320
+    * Missing Values: 1 (0.08%)
+    * Unique Values: 95 (7.2% of total)
+
+**3.2.A. Numerical Column Analysis:**
+
+**Descriptive Statistics:**
+* Minimum: 0.001
+* Maximum: 10.3
+* Range: 10.299000000000001
+* Sum: 476.083
+* Mean (Arithmetic): 0.360942
+* Median (50th Percentile): 0.015212
+* Mode(s): [0.003 (Frequency: 14.4%)]
+* Standard Deviation: 1.15413
+* Variance: 1.332016
+* Coefficient of Variation (CV): 3.1975%
+
+**Quantile & Percentile Statistics:**
+* 1st Percentile: 0.003
+* 5th Percentile: 0.003
+* 10th Percentile: 0.003006
+* 25th Percentile (Q1 - First Quartile): 0.005861
+* 75th Percentile (Q3 - Third Quartile): 0.070371
+* 90th Percentile: 1.084965
+* 95th Percentile: 1.798872
+* 99th Percentile: 5.997958
+* Interquartile Range (IQR = Q3 - Q1): 0.06451
+* Median Absolute Deviation (MAD): 0.012212
+
+**Distribution Shape & Normality Assessment:**
+* Skewness: 5.7925 (Right-skewed (positive skew))
+* Kurtosis (Excess): 39.8605 (Leptokurtic (heavy tails))
+* Histogram Analysis: Distribution spans 10 bins
+* Normality Tests:
+    * Shapiro-Wilk Test: W-statistic = 2.056109, p-value = NaN (Data significantly deviates from normal distribution (p ≤ 0.05))
+    * Jarque-Bera Test: JB-statistic = 4370.554646, p-value = 0.001 (Data significantly deviates from normal distribution (p ≤ 0.05))
+    * Kolmogorov-Smirnov Test: D-statistic = 0.376426, p-value = 0.01 (Data significantly deviates from normal distribution (p ≤ 0.05))
+
+**Univariate Outlier Analysis:**
+* Method 1: IQR Proximity Rule
+    * Lower Fence (Q1 - 1.5 * IQR): -0.090904
+    * Upper Fence (Q3 + 1.5 * IQR): 0.167136
+    * Number of Outliers (Below Lower): 0 (0%)
+    * Number of Outliers (Above Upper): 3 (3%)
+    * Extreme Outliers (using 3.0 * IQR factor): 17 (17%)
+* Method 2: Z-Score Method
+    * Standard Deviations from Mean for Threshold: +/- 3
+    * Number of Outliers (Z-score < -3): 0
+    * Number of Outliers (Z-score > +3): 2
+* Method 3: Modified Z-Score (using MAD)
+    * Threshold: +/- 3.5
+    * Number of Outliers: 27
+* Summary of Outliers: Total 27 (27%). Min Outlier Value: 0.087, Max Outlier Value: 9.11.
+* Potential Impact: High outlier presence may affect analysis
+
+**Specific Numerical Patterns & Characteristics:**
+* Percentage of Zero Values: 0%
+* Percentage of Negative Values: 0%
+* Round Numbers Analysis: No significant rounding detected
+* Potential for Log Transformation: Log transformation may not be beneficial
+
+---
+**Column: `Result`**
+* **Detected Data Type:** categorical
+* **Inferred Semantic Type:** category
+* **Data Quality Flag:** Good
+* **Quick Stats:**
+    * Total Values (Count): 1,320
+    * Missing Values: 0 (0%)
+    * Unique Values: 3 (0.23% of total)
+
+**3.2.B. Categorical Column Analysis:**
+
+**Frequency & Proportionality:**
+* Number of Unique Categories: 3
+* Mode (Most Frequent Category): `positive` (Frequency: 810, 61.36%)
+* Second Most Frequent Category: `negative` (Frequency: 509, 38.56%)
+* Least Frequent Category: `Result` (Frequency: 1, 0.08%)
+* Frequency Distribution Table (Top 10):
+
+| Category Label | Count | Percentage (%) | Cumulative % |
+|----------------|-------|----------------|--------------|
+| positive | 810 | 61.36% | 61.36% |
+| negative | 509 | 38.56% | 99.92% |
+| Result | 1 | 0.08% | 100% |
+
+**Diversity & Balance:**
+* Shannon Entropy: 0.9703 (Range: 0 to 1.585)
+* Gini Impurity: 0.4748
+* Interpretation of Balance: Unbalanced distribution
+* Major Category Dominance: Major category present
+
+**Category Label Analysis:**
+* Minimum Label Length: 6 characters
+* Maximum Label Length: 8 characters
+* Average Label Length: 8 characters
+* Empty String or Null-like Labels: 0 occurrences
+
+**Potential Issues & Recommendations:**
+
+
+* No significant issues detected.
+
+**3.3. Bivariate Analysis (Exploring Relationships Between Pairs of Variables):**
+
+**Numerical vs. Numerical:**
+    * **Correlation Matrix Summary (Pearson's r):**
+        * Total Pairs Analysed: 21
+        * Top 5 Strongest Positive Correlations:
+        1. `Systolic blood pressure` vs `Diastolic blood pressure`: r = 0.5862 (Correlation significantly different from zero (p ≤ 0.05)) - Moderate positive correlation (Correlation significantly different from zero (p ≤ 0.05)).
+        2. `Heart rate` vs `Diastolic blood pressure`: r = 0.1084 (Correlation significantly different from zero (p ≤ 0.05)) - Very Weak positive correlation (Correlation significantly different from zero (p ≤ 0.05)).
+        3. `Age` vs `Troponin`: r = 0.0888 (Correlation significantly different from zero (p ≤ 0.05)) - Very Weak positive correlation (Correlation significantly different from zero (p ≤ 0.05)).
+        4. `Blood sugar` vs `CK-MB`: r = 0.0458 (Correlation not significantly different from zero (p > 0.05)) - Very Weak positive correlation (Correlation not significantly different from zero (p > 0.05)).
+        5. `Systolic blood pressure` vs `Troponin`: r = 0.0437 (Correlation not significantly different from zero (p > 0.05)) - Very Weak positive correlation (Correlation not significantly different from zero (p > 0.05)).
+        * Top 5 Strongest Negative Correlations:
+        1. `Diastolic blood pressure` vs `Blood sugar`: r = -0.0256 (Correlation not significantly different from zero (p > 0.05)) - Very Weak negative correlation (Correlation not significantly different from zero (p > 0.05)).
+        2. `Age` vs `Heart rate`: r = -0.0234 (Correlation not significantly different from zero (p > 0.05)) - Very Weak negative correlation (Correlation not significantly different from zero (p > 0.05)).
+        3. `Diastolic blood pressure` vs `CK-MB`: r = -0.0234 (Correlation not significantly different from zero (p > 0.05)) - Very Weak negative correlation (Correlation not significantly different from zero (p > 0.05)).
+        4. `Heart rate` vs `Blood sugar`: r = -0.0196 (Correlation not significantly different from zero (p > 0.05)) - Very Weak negative correlation (Correlation not significantly different from zero (p > 0.05)).
+        5. `Systolic blood pressure` vs `CK-MB`: r = -0.0164 (Correlation not significantly different from zero (p > 0.05)) - Very Weak negative correlation (Correlation not significantly different from zero (p > 0.05)).
+        * Strong Correlations (|r| > 0.5): 1 pairs identified
+    * **Scatter Plot Insights (Key Relationships):**
+        * `Age` vs `Heart rate`: "50 point sample shows linear relationship" (Recommended: Scatter plot with trend line)
+        * `Age` vs `Systolic blood pressure`: "50 point sample shows linear relationship" (Recommended: Scatter plot with trend line)
+        * `Age` vs `Diastolic blood pressure`: "50 point sample shows linear relationship" (Recommended: Scatter plot with trend line)
+
+**Numerical vs. Categorical:**
+    * **Comparative Statistics (Mean/Median by Category):**
+    * **`Result` by `Age`:**
+        | Category | Mean | Median | StdDev | Count |
+        |----------|------|--------|--------|-------|
+        | negative | 52.0943 | 52.0943 | 13.7173 | 509 |
+        | positive | 58.7667 | 58.7667 | 12.9474 | 810 |
+        * **Statistical Tests:** 
+            * **ANOVA F-test:** F(1,1317) = 79.271, p = 1.0000 (not significant (p ≥ 0.05)). No significant difference between group means.
+            * **Kruskal-Wallis test:** H = 77.453, df = 1, p = 0.0000 (highly significant (p < 0.001)). Group distributions differ significantly.
+        * **Summary:** positive has highest mean (58.77), negative has lowest (52.09)
+
+    * **`Result` by `Heart rate`:**
+        | Category | Mean | Median | StdDev | Count |
+        |----------|------|--------|--------|-------|
+        | negative | 77.8861 | 77.8861 | 48.1637 | 509 |
+        | positive | 78.6198 | 78.6198 | 53.6617 | 810 |
+        * **Statistical Tests:** 
+            * **ANOVA F-test:** F(1,1317) = 0.063, p = 0.1984 (not significant (p ≥ 0.05)). No significant difference between group means.
+            * **Kruskal-Wallis test:** H = 0.067, df = 1, p = 0.7956 (not significant (p ≥ 0.05)). No significant difference between group distributions.
+        * **Summary:** positive has highest mean (78.62), negative has lowest (77.89)
+
+    * **`Result` by `Systolic blood pressure`:**
+        | Category | Mean | Median | StdDev | Count |
+        |----------|------|--------|--------|-------|
+        | negative | 127.8566 | 127.8566 | 27.0105 | 509 |
+        | positive | 126.7395 | 126.7395 | 25.5232 | 810 |
+        * **Statistical Tests:** 
+            * **ANOVA F-test:** F(1,1317) = 0.572, p = 0.5505 (not significant (p ≥ 0.05)). No significant difference between group means.
+            * **Kruskal-Wallis test:** H = 0.559, df = 1, p = 0.4545 (not significant (p ≥ 0.05)). No significant difference between group distributions.
+        * **Summary:** negative has highest mean (127.86), positive has lowest (126.74)
+
+**3.4. Multivariate Analysis (Advanced Multi-Variable Interactions):**
+
+**Analysis Overview:** Dataset well-suited for comprehensive multivariate analysis
+
+**Variables Analysed:** Age, Heart rate, Systolic blood pressure, Diastolic blood pressure, Blood sugar, CK-MB, Troponin (7 numerical variables)
+
+**3.4.A. Principal Component Analysis (PCA):**
+* **Variance Explained:** 6 components explain 85% of variance, 7 explain 95%
+* **Most Influential Variables:** Troponin (loading: 0.707), Age (loading: 0.700), Heart rate (loading: 0.665)
+* **Recommendation:** Kaiser criterion suggests 3 meaningful components (eigenvalue > 1); Scree plot suggests 2 components based on elbow criterion; 5 variables show high importance, 1 show low importance - consider feature selection; Selected variables with importance >= 0.200
+
+**3.4.B. Cluster Analysis:**
+* **Optimal Clusters:** 8 clusters identified using elbow method
+* **Cluster Quality:** Silhouette score = 0.185 (undefined)
+* **Cluster Profiles:**
+    * **Cluster 1:** Cluster characterized by moderately higher Age (316 members) (316 observations)
+    * **Cluster 2:** Cluster characterized by moderately lower Age and moderately lower Blood sugar (273 members) (273 observations)
+    * **Cluster 3:** Cluster characterized by moderately lower Diastolic blood pressure and moderately lower Blood sugar (237 members) (237 observations)
+* **Recommendation:** Consider feature engineering or different clustering approach due to weak structure; Many clusters detected - consider hierarchical clustering for better interpretation; Unbalanced clusters - consider different initialization or clustering algorithm
+
+**3.4.C. Multivariate Outlier Detection:**
+* **Method:** Mahalanobis distance with 5.0% significance level
+* **Outliers Detected:** 133 observations (10.1% of dataset)
+
+* **Severity Distribution:** 66 extreme, 25 moderate, 42 mild
+* **Most Affected Variables:** Heart rate (133 outliers), CK-MB (133 outliers), Troponin (133 outliers)
+* **Recommendations:** High outlier rate (>10%) suggests systematic data quality issues or model misspecification; 66 extreme outliers detected - manual investigation recommended
+
+**3.4.D. Multivariate Normality Tests:**
+* **Overall Assessment:** Multivariate normality rejected (confidence: 0.0%)
+* **Mardia's Test:** Multivariate normality rejected due to both skewness and kurtosis
+* **Royston's Test:** Multivariate normality not rejected (p >= 0.05)
+* **Violations:** Multivariate skewness detected, Multivariate kurtosis detected
+* **Recommendations:** Consider data transformations (log, Box-Cox) to improve normality; Use non-parametric or robust statistical methods
+
+**3.4.E. Variable Relationship Analysis:**
+* **Key Interactions:** Systolic blood pressure ↔ Diastolic blood pressure (synergistic, strength: 0.586)
+
+* **Independent Variables:** 5 variables with low correlations
+* **Dimensionality:** Reduction recommended - 1 effective dimensions detected
+
+**3.4.F. Multivariate Insights & Recommendations:**
+**Key Multivariate Findings:**
+    1. 6 principal components explain 85% of variance
+    2. 8 natural clusters identified (silhouette: 0.185)
+    3. 133 multivariate outliers detected (10.1%)
+
+**Data Quality Issues:**
+    * High multivariate outlier rate may indicate data quality issues
+    * Multivariate normality assumption violated
+
+**Preprocessing Recommendations:**
+    * Investigate and potentially remove or transform outliers
+    * Consider data transformations or robust methods
+
+**Analysis Recommendations:**
+    * Dimensionality reduction recommended based on correlation structure
+
+**3.5. Specific Analysis Modules (Activated Based on Data Characteristics):**
+
+    * **No Specific Modules Activated:** Dataset does not contain sufficient datetime or rich text columns for specialized analysis modules.
+
+**3.6. EDA Summary & Key Hypotheses/Insights:**
+    * **Top Statistical Findings:**
+    1. Streaming analysis processed 1,320 rows using only 90MB peak memory
+    * **Data Quality Issues Uncovered:**
+    * No major data quality issues identified during EDA.
+    * **Hypotheses Generated for Further Testing:**
+    * No specific hypotheses generated - consider domain knowledge for hypothesis formation.
+    * **Recommendations for Data Preprocessing & Feature Engineering:**
+    * Standard preprocessing steps recommended based on detected data types.
+    * **Critical Warnings & Considerations:**
+    * No critical warnings identified.
+
+
+
+---
+
+**Analysis Performance Summary:**
+* **Processing Time:** 40ms (0.04 seconds)
+* **Rows Analysed:** 1,320
+* **Memory Efficiency:** Constant ~90MB usage
+* **Analysis Method:** Streaming with online algorithms
+* **Dataset Size:** 1,320 records across 9 columns
+
+---
+
+{
+  "visualizationAnalysis": {
+    "strategy": {
+      "primaryDomain": "generic",
+      "stakeholders": [],
+      "visualizationStrategy": {},
+      "confidence": 0.5
+    },
+    "univariateRecommendations": [
+      {
+        "columnName": "Age",
+        "dataType": "numerical_integer",
+        "semanticType": "age",
+        "cardinality": 75,
+        "uniqueness": 5.69,
+        "completeness": 99.92,
+        "distribution": {
+          "shape": "normal",
+          "skewness": -0.2389,
+          "kurtosis": -0.0284,
+          "outliers": {
+            "count": 1,
+            "percentage": 1,
+            "extreme": false,
+            "impact": "low"
+          },
+          "modality": "unimodal"
+        },
+        "recommendations": [
+          {
+            "chartType": "histogram",
+            "confidence": 0.98,
+            "reasoning": "Numerical data best visualised with histogram to show distribution",
+            "encoding": {
+              "x": {
+                "field": "Age",
+                "type": "quantitative"
+              },
+              "y": {
+                "field": "count",
+                "type": "quantitative"
+              },
+              "color": {
+                "scheme": [
+                  "#1f77b4",
+                  "#ff7f0e",
+                  "#2ca02c",
+                  "#d62728",
+                  "#9467bd"
+                ]
+              }
+            },
+            "interactivity": {
+              "level": "moderate",
+              "interactions": [
+                "hover",
+                "zoom"
+              ],
+              "responsiveness": "adaptive",
+              "keyboard": {
+                "navigation": true,
+                "shortcuts": {
+                  "ctrl+z": "zoom",
+                  "ctrl+r": "reset",
+                  "tab": "navigate"
+                },
+                "focusManagement": true
+              },
+              "screenReader": {
+                "ariaLabels": {
+                  "chart": "Interactive chart",
+                  "data": "Data visualization"
+                },
+                "alternativeText": "Chart with data visualization",
+                "dataTable": true,
+                "sonification": false
+              }
+            },
+            "accessibility": {
+              "wcagCompliance": "AA",
+              "colorBlindness": {
+                "protanopia": true,
+                "deuteranopia": true,
+                "tritanopia": true,
+                "monochromacy": true
+              },
+              "motorImpairment": {
+                "keyboardNavigation": true,
+                "largeClickTargets": true,
+                "reducedMotionSupport": true
+              },
+              "cognitiveAccessibility": {
+                "clearLabels": true,
+                "consistentPatterns": true,
+                "minimalCognitiveLoad": true
+              },
+              "recommendations": [
+                "Use high contrast colors",
+                "Include clear labels"
+              ]
+            },
+            "designGuidelines": {
+              "principles": [
+                {
+                  "principle": "Clarity",
+                  "description": "Ensure clear data representation",
+                  "application": "Use appropriate chart types"
+                },
+                {
+                  "principle": "Consistency",
+                  "description": "Maintain visual consistency",
+                  "application": "Apply uniform styling"
+                },
+                {
+                  "principle": "Accessibility",
+                  "description": "Design for all users",
+                  "application": "Follow WCAG guidelines"
+                },
+                {
+                  "principle": "Performance",
+                  "description": "Optimize rendering speed",
+                  "application": "Use efficient encodings"
+                }
+              ],
+              "branding": {},
+              "context": {
+                "domain": "general",
+                "audience": "technical",
+                "purpose": "analysis",
+                "medium": "screen"
+              }
+            },
+            "domainSpecificGuidance": []
+          }
+        ],
+        "warnings": [
+          {
+            "type": "performance",
+            "severity": "medium",
+            "message": "High cardinality may affect visualization performance",
+            "recommendation": "Consider grouping or sampling for large categorical data",
+            "impact": "performance"
+          }
+        ],
+        "domainContext": {
+          "domain": "healthcare",
+          "semanticMeaning": "Domain-specific meaning requires expert interpretation",
+          "domainSpecificConsiderations": []
+        }
+      },
+      {
+        "columnName": "Gender",
+        "dataType": "boolean",
+        "semanticType": "status",
+        "cardinality": 2,
+        "uniqueness": 0.15,
+        "completeness": 99.92,
+        "recommendations": [
+          {
+            "chartType": "pie_chart",
+            "confidence": 0.98,
+            "reasoning": "Boolean data perfectly suited for pie chart showing true/false proportions",
+            "encoding": {
+              "theta": {
+                "field": "count",
+                "type": "quantitative"
+              },
+              "color": {
+                "field": "Gender",
+                "type": "nominal",
+                "scheme": [
+                  "#1f77b4",
+                  "#ff7f0e",
+                  "#2ca02c",
+                  "#d62728",
+                  "#9467bd"
+                ]
+              }
+            },
+            "interactivity": {
+              "level": "moderate",
+              "interactions": [
+                "hover",
+                "zoom"
+              ],
+              "responsiveness": "adaptive",
+              "keyboard": {
+                "navigation": true,
+                "shortcuts": {
+                  "ctrl+z": "zoom",
+                  "ctrl+r": "reset",
+                  "tab": "navigate"
+                },
+                "focusManagement": true
+              },
+              "screenReader": {
+                "ariaLabels": {
+                  "chart": "Interactive chart",
+                  "data": "Data visualization"
+                },
+                "alternativeText": "Chart with data visualization",
+                "dataTable": true,
+                "sonification": false
+              }
+            },
+            "accessibility": {
+              "wcagCompliance": "AA",
+              "colorBlindness": {
+                "protanopia": true,
+                "deuteranopia": true,
+                "tritanopia": true,
+                "monochromacy": true
+              },
+              "motorImpairment": {
+                "keyboardNavigation": true,
+                "largeClickTargets": true,
+                "reducedMotionSupport": true
+              },
+              "cognitiveAccessibility": {
+                "clearLabels": true,
+                "consistentPatterns": true,
+                "minimalCognitiveLoad": true
+              },
+              "recommendations": [
+                "Use high contrast colors",
+                "Include clear labels"
+              ]
+            },
+            "designGuidelines": {
+              "principles": [
+                {
+                  "principle": "Clarity",
+                  "description": "Ensure clear data representation",
+                  "application": "Use appropriate chart types"
+                },
+                {
+                  "principle": "Consistency",
+                  "description": "Maintain visual consistency",
+                  "application": "Apply uniform styling"
+                },
+                {
+                  "principle": "Accessibility",
+                  "description": "Design for all users",
+                  "application": "Follow WCAG guidelines"
+                },
+                {
+                  "principle": "Performance",
+                  "description": "Optimize rendering speed",
+                  "application": "Use efficient encodings"
+                }
+              ],
+              "branding": {},
+              "context": {
+                "domain": "general",
+                "audience": "technical",
+                "purpose": "analysis",
+                "medium": "screen"
+              }
+            },
+            "domainSpecificGuidance": []
+          }
+        ],
+        "warnings": [],
+        "domainContext": {
+          "domain": "healthcare",
+          "semanticMeaning": "Domain-specific meaning requires expert interpretation",
+          "domainSpecificConsiderations": []
+        }
+      },
+      {
+        "columnName": "Heart rate",
+        "dataType": "numerical_integer",
+        "semanticType": "percentage",
+        "cardinality": 79,
+        "uniqueness": 5.99,
+        "completeness": 99.92,
+        "distribution": {
+          "shape": "skewed_right",
+          "skewness": 18.227,
+          "kurtosis": 361.5757,
+          "outliers": {
+            "count": 2,
+            "percentage": 2,
+            "extreme": false,
+            "impact": "low"
+          },
+          "modality": "unimodal"
+        },
+        "recommendations": [
+          {
+            "chartType": "histogram",
+            "confidence": 0.98,
+            "reasoning": "Numerical data best visualised with histogram to show distribution",
+            "encoding": {
+              "x": {
+                "field": "Heart rate",
+                "type": "quantitative"
+              },
+              "y": {
+                "field": "count",
+                "type": "quantitative"
+              },
+              "color": {
+                "scheme": [
+                  "#1f77b4",
+                  "#ff7f0e",
+                  "#2ca02c",
+                  "#d62728",
+                  "#9467bd"
+                ]
+              }
+            },
+            "interactivity": {
+              "level": "moderate",
+              "interactions": [
+                "hover",
+                "zoom"
+              ],
+              "responsiveness": "adaptive",
+              "keyboard": {
+                "navigation": true,
+                "shortcuts": {
+                  "ctrl+z": "zoom",
+                  "ctrl+r": "reset",
+                  "tab": "navigate"
+                },
+                "focusManagement": true
+              },
+              "screenReader": {
+                "ariaLabels": {
+                  "chart": "Interactive chart",
+                  "data": "Data visualization"
+                },
+                "alternativeText": "Chart with data visualization",
+                "dataTable": true,
+                "sonification": false
+              }
+            },
+            "accessibility": {
+              "wcagCompliance": "AA",
+              "colorBlindness": {
+                "protanopia": true,
+                "deuteranopia": true,
+                "tritanopia": true,
+                "monochromacy": true
+              },
+              "motorImpairment": {
+                "keyboardNavigation": true,
+                "largeClickTargets": true,
+                "reducedMotionSupport": true
+              },
+              "cognitiveAccessibility": {
+                "clearLabels": true,
+                "consistentPatterns": true,
+                "minimalCognitiveLoad": true
+              },
+              "recommendations": [
+                "Use high contrast colors",
+                "Include clear labels"
+              ]
+            },
+            "designGuidelines": {
+              "principles": [
+                {
+                  "principle": "Clarity",
+                  "description": "Ensure clear data representation",
+                  "application": "Use appropriate chart types"
+                },
+                {
+                  "principle": "Consistency",
+                  "description": "Maintain visual consistency",
+                  "application": "Apply uniform styling"
+                },
+                {
+                  "principle": "Accessibility",
+                  "description": "Design for all users",
+                  "application": "Follow WCAG guidelines"
+                },
+                {
+                  "principle": "Performance",
+                  "description": "Optimize rendering speed",
+                  "application": "Use efficient encodings"
+                }
+              ],
+              "branding": {},
+              "context": {
+                "domain": "general",
+                "audience": "technical",
+                "purpose": "analysis",
+                "medium": "screen"
+              }
+            },
+            "domainSpecificGuidance": []
+          }
+        ],
+        "warnings": [
+          {
+            "type": "performance",
+            "severity": "medium",
+            "message": "High cardinality may affect visualization performance",
+            "recommendation": "Consider grouping or sampling for large categorical data",
+            "impact": "performance"
+          }
+        ],
+        "domainContext": {
+          "domain": "healthcare",
+          "semanticMeaning": "Domain-specific meaning requires expert interpretation",
+          "domainSpecificConsiderations": []
+        }
+      },
+      {
+        "columnName": "Systolic blood pressure",
+        "dataType": "numerical_integer",
+        "semanticType": "unknown",
+        "cardinality": 82,
+        "uniqueness": 6.22,
+        "completeness": 99.92,
+        "distribution": {
+          "shape": "skewed_right",
+          "skewness": 0.6845,
+          "kurtosis": 0.9438,
+          "outliers": {
+            "count": 0,
+            "percentage": 0,
+            "extreme": false,
+            "impact": "low"
+          },
+          "modality": "unimodal"
+        },
+        "recommendations": [
+          {
+            "chartType": "histogram",
+            "confidence": 0.98,
+            "reasoning": "Numerical data best visualised with histogram to show distribution",
+            "encoding": {
+              "x": {
+                "field": "Systolic blood pressure",
+                "type": "quantitative"
+              },
+              "y": {
+                "field": "count",
+                "type": "quantitative"
+              },
+              "color": {
+                "scheme": [
+                  "#1f77b4",
+                  "#ff7f0e",
+                  "#2ca02c",
+                  "#d62728",
+                  "#9467bd"
+                ]
+              }
+            },
+            "interactivity": {
+              "level": "moderate",
+              "interactions": [
+                "hover",
+                "zoom"
+              ],
+              "responsiveness": "adaptive",
+              "keyboard": {
+                "navigation": true,
+                "shortcuts": {
+                  "ctrl+z": "zoom",
+                  "ctrl+r": "reset",
+                  "tab": "navigate"
+                },
+                "focusManagement": true
+              },
+              "screenReader": {
+                "ariaLabels": {
+                  "chart": "Interactive chart",
+                  "data": "Data visualization"
+                },
+                "alternativeText": "Chart with data visualization",
+                "dataTable": true,
+                "sonification": false
+              }
+            },
+            "accessibility": {
+              "wcagCompliance": "AA",
+              "colorBlindness": {
+                "protanopia": true,
+                "deuteranopia": true,
+                "tritanopia": true,
+                "monochromacy": true
+              },
+              "motorImpairment": {
+                "keyboardNavigation": true,
+                "largeClickTargets": true,
+                "reducedMotionSupport": true
+              },
+              "cognitiveAccessibility": {
+                "clearLabels": true,
+                "consistentPatterns": true,
+                "minimalCognitiveLoad": true
+              },
+              "recommendations": [
+                "Use high contrast colors",
+                "Include clear labels"
+              ]
+            },
+            "designGuidelines": {
+              "principles": [
+                {
+                  "principle": "Clarity",
+                  "description": "Ensure clear data representation",
+                  "application": "Use appropriate chart types"
+                },
+                {
+                  "principle": "Consistency",
+                  "description": "Maintain visual consistency",
+                  "application": "Apply uniform styling"
+                },
+                {
+                  "principle": "Accessibility",
+                  "description": "Design for all users",
+                  "application": "Follow WCAG guidelines"
+                },
+                {
+                  "principle": "Performance",
+                  "description": "Optimize rendering speed",
+                  "application": "Use efficient encodings"
+                }
+              ],
+              "branding": {},
+              "context": {
+                "domain": "general",
+                "audience": "technical",
+                "purpose": "analysis",
+                "medium": "screen"
+              }
+            },
+            "domainSpecificGuidance": []
+          }
+        ],
+        "warnings": [
+          {
+            "type": "performance",
+            "severity": "medium",
+            "message": "High cardinality may affect visualization performance",
+            "recommendation": "Consider grouping or sampling for large categorical data",
+            "impact": "performance"
+          }
+        ],
+        "domainContext": {
+          "domain": "healthcare",
+          "semanticMeaning": "Domain-specific meaning requires expert interpretation",
+          "domainSpecificConsiderations": []
+        }
+      },
+      {
+        "columnName": "Diastolic blood pressure",
+        "dataType": "numerical_integer",
+        "semanticType": "unknown",
+        "cardinality": 73,
+        "uniqueness": 5.53,
+        "completeness": 99.92,
+        "distribution": {
+          "shape": "normal",
+          "skewness": 0.4886,
+          "kurtosis": 0.8575,
+          "outliers": {
+            "count": 0,
+            "percentage": 0,
+            "extreme": false,
+            "impact": "low"
+          },
+          "modality": "unimodal"
+        },
+        "recommendations": [
+          {
+            "chartType": "histogram",
+            "confidence": 0.98,
+            "reasoning": "Numerical data best visualised with histogram to show distribution",
+            "encoding": {
+              "x": {
+                "field": "Diastolic blood pressure",
+                "type": "quantitative"
+              },
+              "y": {
+                "field": "count",
+                "type": "quantitative"
+              },
+              "color": {
+                "scheme": [
+                  "#1f77b4",
+                  "#ff7f0e",
+                  "#2ca02c",
+                  "#d62728",
+                  "#9467bd"
+                ]
+              }
+            },
+            "interactivity": {
+              "level": "moderate",
+              "interactions": [
+                "hover",
+                "zoom"
+              ],
+              "responsiveness": "adaptive",
+              "keyboard": {
+                "navigation": true,
+                "shortcuts": {
+                  "ctrl+z": "zoom",
+                  "ctrl+r": "reset",
+                  "tab": "navigate"
+                },
+                "focusManagement": true
+              },
+              "screenReader": {
+                "ariaLabels": {
+                  "chart": "Interactive chart",
+                  "data": "Data visualization"
+                },
+                "alternativeText": "Chart with data visualization",
+                "dataTable": true,
+                "sonification": false
+              }
+            },
+            "accessibility": {
+              "wcagCompliance": "AA",
+              "colorBlindness": {
+                "protanopia": true,
+                "deuteranopia": true,
+                "tritanopia": true,
+                "monochromacy": true
+              },
+              "motorImpairment": {
+                "keyboardNavigation": true,
+                "largeClickTargets": true,
+                "reducedMotionSupport": true
+              },
+              "cognitiveAccessibility": {
+                "clearLabels": true,
+                "consistentPatterns": true,
+                "minimalCognitiveLoad": true
+              },
+              "recommendations": [
+                "Use high contrast colors",
+                "Include clear labels"
+              ]
+            },
+            "designGuidelines": {
+              "principles": [
+                {
+                  "principle": "Clarity",
+                  "description": "Ensure clear data representation",
+                  "application": "Use appropriate chart types"
+                },
+                {
+                  "principle": "Consistency",
+                  "description": "Maintain visual consistency",
+                  "application": "Apply uniform styling"
+                },
+                {
+                  "principle": "Accessibility",
+                  "description": "Design for all users",
+                  "application": "Follow WCAG guidelines"
+                },
+                {
+                  "principle": "Performance",
+                  "description": "Optimize rendering speed",
+                  "application": "Use efficient encodings"
+                }
+              ],
+              "branding": {},
+              "context": {
+                "domain": "general",
+                "audience": "technical",
+                "purpose": "analysis",
+                "medium": "screen"
+              }
+            },
+            "domainSpecificGuidance": []
+          }
+        ],
+        "warnings": [
+          {
+            "type": "performance",
+            "severity": "medium",
+            "message": "High cardinality may affect visualization performance",
+            "recommendation": "Consider grouping or sampling for large categorical data",
+            "impact": "performance"
+          }
+        ],
+        "domainContext": {
+          "domain": "healthcare",
+          "semanticMeaning": "Domain-specific meaning requires expert interpretation",
+          "domainSpecificConsiderations": []
+        }
+      },
+      {
+        "columnName": "Blood sugar",
+        "dataType": "numerical_integer",
+        "semanticType": "unknown",
+        "cardinality": 92,
+        "uniqueness": 6.97,
+        "completeness": 99.92,
+        "distribution": {
+          "shape": "skewed_right",
+          "skewness": 1.9313,
+          "kurtosis": 4.1003,
+          "outliers": {
+            "count": 16,
+            "percentage": 16,
+            "extreme": true,
+            "impact": "high"
+          },
+          "modality": "unimodal"
+        },
+        "recommendations": [
+          {
+            "chartType": "histogram",
+            "confidence": 0.98,
+            "reasoning": "Numerical data best visualised with histogram to show distribution",
+            "encoding": {
+              "x": {
+                "field": "Blood sugar",
+                "type": "quantitative"
+              },
+              "y": {
+                "field": "count",
+                "type": "quantitative"
+              },
+              "color": {
+                "scheme": [
+                  "#1f77b4",
+                  "#ff7f0e",
+                  "#2ca02c",
+                  "#d62728",
+                  "#9467bd"
+                ]
+              }
+            },
+            "interactivity": {
+              "level": "moderate",
+              "interactions": [
+                "hover",
+                "zoom"
+              ],
+              "responsiveness": "adaptive",
+              "keyboard": {
+                "navigation": true,
+                "shortcuts": {
+                  "ctrl+z": "zoom",
+                  "ctrl+r": "reset",
+                  "tab": "navigate"
+                },
+                "focusManagement": true
+              },
+              "screenReader": {
+                "ariaLabels": {
+                  "chart": "Interactive chart",
+                  "data": "Data visualization"
+                },
+                "alternativeText": "Chart with data visualization",
+                "dataTable": true,
+                "sonification": false
+              }
+            },
+            "accessibility": {
+              "wcagCompliance": "AA",
+              "colorBlindness": {
+                "protanopia": true,
+                "deuteranopia": true,
+                "tritanopia": true,
+                "monochromacy": true
+              },
+              "motorImpairment": {
+                "keyboardNavigation": true,
+                "largeClickTargets": true,
+                "reducedMotionSupport": true
+              },
+              "cognitiveAccessibility": {
+                "clearLabels": true,
+                "consistentPatterns": true,
+                "minimalCognitiveLoad": true
+              },
+              "recommendations": [
+                "Use high contrast colors",
+                "Include clear labels"
+              ]
+            },
+            "designGuidelines": {
+              "principles": [
+                {
+                  "principle": "Clarity",
+                  "description": "Ensure clear data representation",
+                  "application": "Use appropriate chart types"
+                },
+                {
+                  "principle": "Consistency",
+                  "description": "Maintain visual consistency",
+                  "application": "Apply uniform styling"
+                },
+                {
+                  "principle": "Accessibility",
+                  "description": "Design for all users",
+                  "application": "Follow WCAG guidelines"
+                },
+                {
+                  "principle": "Performance",
+                  "description": "Optimize rendering speed",
+                  "application": "Use efficient encodings"
+                }
+              ],
+              "branding": {},
+              "context": {
+                "domain": "general",
+                "audience": "technical",
+                "purpose": "analysis",
+                "medium": "screen"
+              }
+            },
+            "domainSpecificGuidance": []
+          }
+        ],
+        "warnings": [
+          {
+            "type": "performance",
+            "severity": "medium",
+            "message": "High cardinality may affect visualization performance",
+            "recommendation": "Consider grouping or sampling for large categorical data",
+            "impact": "performance"
+          }
+        ],
+        "domainContext": {
+          "domain": "healthcare",
+          "semanticMeaning": "Domain-specific meaning requires expert interpretation",
+          "domainSpecificConsiderations": []
+        }
+      },
+      {
+        "columnName": "CK-MB",
+        "dataType": "numerical_float",
+        "semanticType": "unknown",
+        "cardinality": 96,
+        "uniqueness": 7.28,
+        "completeness": 99.92,
+        "distribution": {
+          "shape": "skewed_right",
+          "skewness": 4.9724,
+          "kurtosis": 25.3895,
+          "outliers": {
+            "count": 14,
+            "percentage": 14,
+            "extreme": true,
+            "impact": "high"
+          },
+          "modality": "unimodal"
+        },
+        "recommendations": [
+          {
+            "chartType": "histogram",
+            "confidence": 0.98,
+            "reasoning": "Numerical data best visualised with histogram to show distribution",
+            "encoding": {
+              "x": {
+                "field": "CK-MB",
+                "type": "quantitative"
+              },
+              "y": {
+                "field": "count",
+                "type": "quantitative"
+              },
+              "color": {
+                "scheme": [
+                  "#1f77b4",
+                  "#ff7f0e",
+                  "#2ca02c",
+                  "#d62728",
+                  "#9467bd"
+                ]
+              }
+            },
+            "interactivity": {
+              "level": "moderate",
+              "interactions": [
+                "hover",
+                "zoom"
+              ],
+              "responsiveness": "adaptive",
+              "keyboard": {
+                "navigation": true,
+                "shortcuts": {
+                  "ctrl+z": "zoom",
+                  "ctrl+r": "reset",
+                  "tab": "navigate"
+                },
+                "focusManagement": true
+              },
+              "screenReader": {
+                "ariaLabels": {
+                  "chart": "Interactive chart",
+                  "data": "Data visualization"
+                },
+                "alternativeText": "Chart with data visualization",
+                "dataTable": true,
+                "sonification": false
+              }
+            },
+            "accessibility": {
+              "wcagCompliance": "AA",
+              "colorBlindness": {
+                "protanopia": true,
+                "deuteranopia": true,
+                "tritanopia": true,
+                "monochromacy": true
+              },
+              "motorImpairment": {
+                "keyboardNavigation": true,
+                "largeClickTargets": true,
+                "reducedMotionSupport": true
+              },
+              "cognitiveAccessibility": {
+                "clearLabels": true,
+                "consistentPatterns": true,
+                "minimalCognitiveLoad": true
+              },
+              "recommendations": [
+                "Use high contrast colors",
+                "Include clear labels"
+              ]
+            },
+            "designGuidelines": {
+              "principles": [
+                {
+                  "principle": "Clarity",
+                  "description": "Ensure clear data representation",
+                  "application": "Use appropriate chart types"
+                },
+                {
+                  "principle": "Consistency",
+                  "description": "Maintain visual consistency",
+                  "application": "Apply uniform styling"
+                },
+                {
+                  "principle": "Accessibility",
+                  "description": "Design for all users",
+                  "application": "Follow WCAG guidelines"
+                },
+                {
+                  "principle": "Performance",
+                  "description": "Optimize rendering speed",
+                  "application": "Use efficient encodings"
+                }
+              ],
+              "branding": {},
+              "context": {
+                "domain": "general",
+                "audience": "technical",
+                "purpose": "analysis",
+                "medium": "screen"
+              }
+            },
+            "domainSpecificGuidance": []
+          }
+        ],
+        "warnings": [
+          {
+            "type": "performance",
+            "severity": "medium",
+            "message": "High cardinality may affect visualization performance",
+            "recommendation": "Consider grouping or sampling for large categorical data",
+            "impact": "performance"
+          }
+        ],
+        "domainContext": {
+          "domain": "healthcare",
+          "semanticMeaning": "Domain-specific meaning requires expert interpretation",
+          "domainSpecificConsiderations": []
+        }
+      },
+      {
+        "columnName": "Troponin",
+        "dataType": "numerical_float",
+        "semanticType": "unknown",
+        "cardinality": 95,
+        "uniqueness": 7.2,
+        "completeness": 99.92,
+        "distribution": {
+          "shape": "skewed_right",
+          "skewness": 5.7925,
+          "kurtosis": 39.8605,
+          "outliers": {
+            "count": 27,
+            "percentage": 27,
+            "extreme": true,
+            "impact": "high"
+          },
+          "modality": "unimodal"
+        },
+        "recommendations": [
+          {
+            "chartType": "histogram",
+            "confidence": 0.98,
+            "reasoning": "Numerical data best visualised with histogram to show distribution",
+            "encoding": {
+              "x": {
+                "field": "Troponin",
+                "type": "quantitative"
+              },
+              "y": {
+                "field": "count",
+                "type": "quantitative"
+              },
+              "color": {
+                "scheme": [
+                  "#1f77b4",
+                  "#ff7f0e",
+                  "#2ca02c",
+                  "#d62728",
+                  "#9467bd"
+                ]
+              }
+            },
+            "interactivity": {
+              "level": "moderate",
+              "interactions": [
+                "hover",
+                "zoom"
+              ],
+              "responsiveness": "adaptive",
+              "keyboard": {
+                "navigation": true,
+                "shortcuts": {
+                  "ctrl+z": "zoom",
+                  "ctrl+r": "reset",
+                  "tab": "navigate"
+                },
+                "focusManagement": true
+              },
+              "screenReader": {
+                "ariaLabels": {
+                  "chart": "Interactive chart",
+                  "data": "Data visualization"
+                },
+                "alternativeText": "Chart with data visualization",
+                "dataTable": true,
+                "sonification": false
+              }
+            },
+            "accessibility": {
+              "wcagCompliance": "AA",
+              "colorBlindness": {
+                "protanopia": true,
+                "deuteranopia": true,
+                "tritanopia": true,
+                "monochromacy": true
+              },
+              "motorImpairment": {
+                "keyboardNavigation": true,
+                "largeClickTargets": true,
+                "reducedMotionSupport": true
+              },
+              "cognitiveAccessibility": {
+                "clearLabels": true,
+                "consistentPatterns": true,
+                "minimalCognitiveLoad": true
+              },
+              "recommendations": [
+                "Use high contrast colors",
+                "Include clear labels"
+              ]
+            },
+            "designGuidelines": {
+              "principles": [
+                {
+                  "principle": "Clarity",
+                  "description": "Ensure clear data representation",
+                  "application": "Use appropriate chart types"
+                },
+                {
+                  "principle": "Consistency",
+                  "description": "Maintain visual consistency",
+                  "application": "Apply uniform styling"
+                },
+                {
+                  "principle": "Accessibility",
+                  "description": "Design for all users",
+                  "application": "Follow WCAG guidelines"
+                },
+                {
+                  "principle": "Performance",
+                  "description": "Optimize rendering speed",
+                  "application": "Use efficient encodings"
+                }
+              ],
+              "branding": {},
+              "context": {
+                "domain": "general",
+                "audience": "technical",
+                "purpose": "analysis",
+                "medium": "screen"
+              }
+            },
+            "domainSpecificGuidance": []
+          }
+        ],
+        "warnings": [
+          {
+            "type": "performance",
+            "severity": "medium",
+            "message": "High cardinality may affect visualization performance",
+            "recommendation": "Consider grouping or sampling for large categorical data",
+            "impact": "performance"
+          }
+        ],
+        "domainContext": {
+          "domain": "healthcare",
+          "semanticMeaning": "Domain-specific meaning requires expert interpretation",
+          "domainSpecificConsiderations": []
+        }
+      },
+      {
+        "columnName": "Result",
+        "dataType": "categorical",
+        "semanticType": "category",
+        "cardinality": 3,
+        "uniqueness": 0.23,
+        "completeness": 100,
+        "recommendations": [
+          {
+            "chartType": "pie_chart",
+            "confidence": 0.95,
+            "reasoning": "Low cardinality categorical data suitable for pie chart proportional comparison",
+            "encoding": {
+              "theta": {
+                "field": "count",
+                "type": "quantitative"
+              },
+              "color": {
+                "field": "Result",
+                "type": "nominal",
+                "scheme": [
+                  "#1f77b4",
+                  "#ff7f0e",
+                  "#2ca02c",
+                  "#d62728",
+                  "#9467bd"
+                ]
+              }
+            },
+            "interactivity": {
+              "level": "moderate",
+              "interactions": [
+                "hover",
+                "zoom"
+              ],
+              "responsiveness": "adaptive",
+              "keyboard": {
+                "navigation": true,
+                "shortcuts": {
+                  "ctrl+z": "zoom",
+                  "ctrl+r": "reset",
+                  "tab": "navigate"
+                },
+                "focusManagement": true
+              },
+              "screenReader": {
+                "ariaLabels": {
+                  "chart": "Interactive chart",
+                  "data": "Data visualization"
+                },
+                "alternativeText": "Chart with data visualization",
+                "dataTable": true,
+                "sonification": false
+              }
+            },
+            "accessibility": {
+              "wcagCompliance": "AA",
+              "colorBlindness": {
+                "protanopia": true,
+                "deuteranopia": true,
+                "tritanopia": true,
+                "monochromacy": true
+              },
+              "motorImpairment": {
+                "keyboardNavigation": true,
+                "largeClickTargets": true,
+                "reducedMotionSupport": true
+              },
+              "cognitiveAccessibility": {
+                "clearLabels": true,
+                "consistentPatterns": true,
+                "minimalCognitiveLoad": true
+              },
+              "recommendations": [
+                "Use high contrast colors",
+                "Include clear labels"
+              ]
+            },
+            "designGuidelines": {
+              "principles": [
+                {
+                  "principle": "Clarity",
+                  "description": "Ensure clear data representation",
+                  "application": "Use appropriate chart types"
+                },
+                {
+                  "principle": "Consistency",
+                  "description": "Maintain visual consistency",
+                  "application": "Apply uniform styling"
+                },
+                {
+                  "principle": "Accessibility",
+                  "description": "Design for all users",
+                  "application": "Follow WCAG guidelines"
+                },
+                {
+                  "principle": "Performance",
+                  "description": "Optimize rendering speed",
+                  "application": "Use efficient encodings"
+                }
+              ],
+              "branding": {},
+              "context": {
+                "domain": "general",
+                "audience": "technical",
+                "purpose": "analysis",
+                "medium": "screen"
+              }
+            },
+            "domainSpecificGuidance": []
+          }
+        ],
+        "warnings": [],
+        "domainContext": {
+          "domain": "healthcare",
+          "semanticMeaning": "Domain-specific meaning requires expert interpretation",
+          "domainSpecificConsiderations": []
+        }
+      }
+    ],
+    "bivariateRecommendations": [
+      {
+        "variable1": "Systolic blood pressure",
+        "variable2": "Diastolic blood pressure",
+        "relationshipType": "moderate",
+        "strength": 0.5862,
+        "significance": 0.001,
+        "recommendations": [],
+        "dataPreparation": {
+          "required": [
+            {
+              "step": "Data cleaning",
+              "description": "Remove missing values",
+              "importance": "critical"
+            },
+            {
+              "step": "Outlier detection",
+              "description": "Identify and handle outliers",
+              "importance": "recommended"
+            }
+          ],
+          "optional": [
+            {
+              "step": "Data transformation",
+              "description": "Apply normalization if needed",
+              "importance": "optional"
+            }
+          ],
+          "qualityChecks": [
+            {
+              "check": "Data quality",
+              "description": "Verify data integrity",
+              "remediation": "Remove invalid values"
+            },
+            {
+              "check": "Statistical assumptions",
+              "description": "Check distribution assumptions",
+              "remediation": "Apply transformations if needed"
+            }
+          ],
+          "aggregations": []
+        },
+        "domainInsights": {
+          "implications": [],
+          "interventionOpportunities": []
+        }
+      },
+      {
+        "variable1": "Heart rate",
+        "variable2": "Diastolic blood pressure",
+        "relationshipType": "moderate",
+        "strength": 0.1084,
+        "significance": 0.001,
+        "recommendations": [],
+        "dataPreparation": {
+          "required": [
+            {
+              "step": "Data cleaning",
+              "description": "Remove missing values",
+              "importance": "critical"
+            },
+            {
+              "step": "Outlier detection",
+              "description": "Identify and handle outliers",
+              "importance": "recommended"
+            }
+          ],
+          "optional": [
+            {
+              "step": "Data transformation",
+              "description": "Apply normalization if needed",
+              "importance": "optional"
+            }
+          ],
+          "qualityChecks": [
+            {
+              "check": "Data quality",
+              "description": "Verify data integrity",
+              "remediation": "Remove invalid values"
+            },
+            {
+              "check": "Statistical assumptions",
+              "description": "Check distribution assumptions",
+              "remediation": "Apply transformations if needed"
+            }
+          ],
+          "aggregations": []
+        },
+        "domainInsights": {
+          "implications": [],
+          "interventionOpportunities": []
+        }
+      }
+    ],
+    "multivariateRecommendations": [
+      {
+        "chartType": "correlation_matrix",
+        "confidence": 0.7,
+        "reasoning": "Standard multivariate visualization",
+        "domainContext": "healthcare"
+      }
+    ],
+    "dashboardRecommendations": [
+      {
+        "dashboardType": "analytical",
+        "confidence": 0.7,
+        "reasoning": "Standard dashboard layout",
+        "domainContext": "generic"
+      }
+    ],
+    "technicalGuidance": {
+      "implementation": {
+        "frameworks": [
+          "D3.js",
+          "Plotly"
+        ],
+        "libraries": [
+          "matplotlib",
+          "seaborn"
+        ],
+        "considerations": [
+          "responsive design",
+          "accessibility"
+        ]
+      },
+      "performance": {
+        "dataThreshold": 10000,
+        "optimizations": [
+          "sampling",
+          "aggregation"
+        ]
+      }
+    },
+    "accessibilityAssessment": {
+      "colorBlindnessSupport": "full",
+      "screenReaderCompatibility": "high",
+      "keyboardNavigation": "supported",
+      "contrastRatio": 4.5,
+      "score": 85
+    }
+  },
+  "warnings": [],
+  "performanceMetrics": {
+    "analysisTimeMs": 3,
+    "recommendationsGenerated": 9,
+    "chartTypesConsidered": 2,
+    "accessibilityChecks": 10
+  },
+  "metadata": {
+    "analysisApproach": "Ultra-sophisticated visualization intelligence with 6 specialized engines",
+    "totalColumns": 9,
+    "bivariateRelationships": 2,
+    "recommendationConfidence": 0.98
+  }
+}
+
+---
+
+# Section 5: Data Engineering & Structural Insights 🏛️🛠️
+
+This section evaluates the dataset from a data engineering perspective, focusing on schema optimization, transformation pipelines, scalability considerations, and machine learning readiness.
+
+---
+
+## 5.1 Executive Summary
+
+**Analysis Overview:**
+- **Approach:** Comprehensive engineering analysis with ML optimization
+- **Source Dataset Size:** 1,319 rows
+- **Engineered Features:** 14 features designed
+- **ML Readiness Score:** 85% 
+
+**Key Engineering Insights:**
+- Schema optimization recommendations generated for improved performance
+- Comprehensive transformation pipeline designed for ML preparation
+- Data integrity analysis completed with structural recommendations
+- Scalability pathway identified for future growth
+
+## 5.2 Schema Analysis & Optimization
+
+### 5.2.1 Current Schema Profile
+| Column Name              | Detected Type | Semantic Type | Nullability (%) | Uniqueness (%) | Sample Values    |
+| ------------------------ | ------------- | ------------- | --------------- | -------------- | ---------------- |
+| Age                      | string        | unknown       | 5.0%            | 80.0%          | sample1, sample2 |
+| Gender                   | string        | unknown       | 5.0%            | 80.0%          | sample1, sample2 |
+| Heart rate               | string        | unknown       | 5.0%            | 80.0%          | sample1, sample2 |
+| Systolic blood pressure  | string        | unknown       | 5.0%            | 80.0%          | sample1, sample2 |
+| Diastolic blood pressure | string        | unknown       | 5.0%            | 80.0%          | sample1, sample2 |
+| Blood sugar              | string        | unknown       | 5.0%            | 80.0%          | sample1, sample2 |
+| CK-MB                    | string        | unknown       | 5.0%            | 80.0%          | sample1, sample2 |
+| Troponin                 | string        | unknown       | 5.0%            | 80.0%          | sample1, sample2 |
+| Result                   | string        | unknown       | 5.0%            | 80.0%          | sample1, sample2 |
+
+**Dataset Metrics:**
+- **Estimated Rows:** 1,319
+- **Estimated Size:** 0.0 MB
+- **Detected Encoding:** utf8
+
+### 5.2.2 Optimized Schema Recommendations
+**Target System:** postgresql
+
+**Optimized Column Definitions:**
+
+| Original Name            | Optimized Name           | Recommended Type | Constraints | Reasoning                                 |
+| ------------------------ | ------------------------ | ---------------- | ----------- | ----------------------------------------- |
+| Age                      | age                      | INTEGER          | None        | Numeric value typically stored as integer |
+| Gender                   | gender                   | DATE             | None        | Date column                               |
+| Heart rate               | heart_rate               | DECIMAL(10,2)    | None        | Numeric value that may contain decimals   |
+| Systolic blood pressure  | systolic_blood_pressure  | NUMERIC          | None        | General numeric column                    |
+| Diastolic blood pressure | diastolic_blood_pressure | NUMERIC          | None        | General numeric column                    |
+| Blood sugar              | blood_sugar              | VARCHAR(255)     | None        | General text field                        |
+| CK-MB                    | ck_mb                    | VARCHAR(255)     | None        | General text field                        |
+| Troponin                 | troponin                 | VARCHAR(255)     | None        | General text field                        |
+| Result                   | result                   | VARCHAR(255)     | None        | General text field                        |
+
+**Generated DDL Statement:**
+
+```sql
+-- Optimized Schema for postgresql
+-- Generated with intelligent type inference
+CREATE TABLE optimized_dataset (
+  age INTEGER,
+  gender DATE,
+  heart_rate DECIMAL(10,2),
+  systolic_blood_pressure NUMERIC,
+  diastolic_blood_pressure NUMERIC,
+  blood_sugar VARCHAR(255),
+  ck_mb VARCHAR(255),
+  troponin VARCHAR(255),
+  result VARCHAR(255)
+);
+```
+
+**Recommended Indexes:**
+
+1. **PRIMARY INDEX** on `Age`
+   - **Purpose:** Primary key constraint
+   - **Expected Impact:** Improved query performance
+
+
+
+### 5.2.3 Data Type Conversions
+No data type conversions required.
+
+### 5.2.4 Character Encoding & Collation
+**Current Encoding:** utf8
+**Recommended Encoding:** UTF-8
+**Collation Recommendation:** en_US.UTF-8
+
+**No character set issues detected.**
+
+## 5.3 Structural Integrity Analysis
+
+### 5.3.1 Primary Key Candidates
+**Primary Key Candidate Analysis:**
+
+| Column Name | Uniqueness | Completeness | Stability | Confidence | Reasoning                                    |
+| ----------- | ---------- | ------------ | --------- | ---------- | -------------------------------------------- |
+| Age         | 100.0%     | 95.0%        | 90.0%     | HIGH       | First column appears to be unique identifier |
+
+**Recommended Primary Key:** `Age` (high confidence)
+
+### 5.3.2 Foreign Key Relationships
+No foreign key relationships inferred.
+
+### 5.3.3 Data Integrity Score
+**Overall Data Integrity Score:** 93.9/100 (Good)
+
+**Contributing Factors:**
+- **Data Quality** (positive, weight: 0.8): Overall data quality contributes to integrity
+
+## 5.4 Data Transformation Pipeline
+
+### 5.4.1 Column Standardization
+| Original Name            | Standardized Name        | Convention | Reasoning                                  |
+| ------------------------ | ------------------------ | ---------- | ------------------------------------------ |
+| Age                      | age                      | snake_case | Improves consistency and SQL compatibility |
+| Gender                   | gender                   | snake_case | Improves consistency and SQL compatibility |
+| Heart rate               | heart_rate               | snake_case | Improves consistency and SQL compatibility |
+| Systolic blood pressure  | systolic_blood_pressure  | snake_case | Improves consistency and SQL compatibility |
+| Diastolic blood pressure | diastolic_blood_pressure | snake_case | Improves consistency and SQL compatibility |
+| Blood sugar              | blood_sugar              | snake_case | Improves consistency and SQL compatibility |
+| CK-MB                    | ck_mb                    | snake_case | Improves consistency and SQL compatibility |
+| Troponin                 | troponin                 | snake_case | Improves consistency and SQL compatibility |
+| Result                   | result                   | snake_case | Improves consistency and SQL compatibility |
+
+### 5.4.2 Missing Value Strategy
+**Missing Value Handling Strategies:**
+
+**1. sample_column** (MEDIAN)
+- **Parameters:** {}
+- **Flag Column:** `sample_column_IsMissing`
+- **Reasoning:** Median is robust for numerical data
+- **Impact:** Preserves distribution characteristics
+
+
+
+### 5.4.3 Outlier Treatment
+No outlier treatment required.
+
+### 5.4.4 Categorical Encoding
+No categorical encoding required.
+
+## 5.5 Scalability Assessment
+
+### 5.5.1 Current Metrics
+- **Disk Size:** 0.04993 MB
+- **In-Memory Size:** 0.48 MB  
+- **Row Count:** 1,319
+- **Column Count:** 9
+- **Estimated Growth Rate:** 10%/year
+
+### 5.5.2 Scalability Analysis
+**Current Capability:** Suitable for local processing
+
+**Technology Recommendations:**
+
+**1. PostgreSQL** (medium complexity)
+- **Use Case:** Structured data storage
+- **Benefits:** ACID compliance, Rich SQL support, Extensible
+- **Considerations:** Setup complexity, Resource requirements
+
+
+
+
+
+## 5.6 Data Governance Considerations
+
+### 5.6.1 Data Sensitivity Classification
+No sensitive data classifications identified.
+
+### 5.6.2 Data Freshness Analysis
+**Freshness Score:** 80/100
+**Last Update Detected:** 2025-06-05T11:34:05.867Z
+**Update Frequency Estimate:** Unknown
+
+**Implications:**
+- Data appears recent
+
+**Recommendations:**
+- Monitor for regular updates
+
+### 5.6.3 Compliance Considerations
+No specific compliance regulations identified.
+
+## 5.7 Machine Learning Readiness Assessment
+
+### 5.7.1 Overall ML Readiness Score: 88/100
+
+### 5.7.2 Enhancing Factors
+**1. Clean Data Structure** (HIGH impact)
+   Well-structured CSV with consistent formatting
+
+**2. Adequate Sample Size** (MEDIUM impact)
+   1319 rows provide good sample size
+
+**3. Clear Feature Importance Patterns** (MEDIUM impact)
+   2 features show strong principal component loadings
+
+
+
+### 5.7.3 Remaining Challenges
+**1. Type Detection** (MEDIUM severity)
+- **Impact:** May require manual type specification
+- **Mitigation:** Implement enhanced type detection
+- **Estimated Effort:** 2-4 hours
+
+**2. Limited Dimensionality Reduction Benefits** (LOW severity)
+- **Impact:** Most features contribute meaningfully to variance
+- **Mitigation:** Proceed with feature selection instead of PCA
+- **Estimated Effort:** 1-2 hours
+
+
+
+### 5.7.4 Feature Preparation Matrix
+| ML Feature Name             | Original Column          | Final Type | Key Issues            | Engineering Steps                       | ML Feature Type |
+| --------------------------- | ------------------------ | ---------- | --------------------- | --------------------------------------- | --------------- |
+| ml_age                      | Age                      | String     | Type detection needed | Type inference, Encoding if categorical | Categorical     |
+| ml_gender                   | Gender                   | String     | Type detection needed | Type inference, Encoding if categorical | Categorical     |
+| ml_heart_rate               | Heart rate               | String     | Type detection needed | Type inference, Encoding if categorical | Categorical     |
+| ml_systolic_blood_pressure  | Systolic blood pressure  | String     | Type detection needed | Type inference, Encoding if categorical | Categorical     |
+| ml_diastolic_blood_pressure | Diastolic blood pressure | String     | Type detection needed | Type inference, Encoding if categorical | Categorical     |
+| ml_blood_sugar              | Blood sugar              | String     | Type detection needed | Type inference, Encoding if categorical | Categorical     |
+| ml_ck_mb                    | CK-MB                    | String     | Type detection needed | Type inference, Encoding if categorical | Categorical     |
+| ml_troponin                 | Troponin                 | String     | Type detection needed | Type inference, Encoding if categorical | Categorical     |
+| ml_result                   | Result                   | String     | Type detection needed | Type inference, Encoding if categorical | Categorical     |
+
+### 5.7.5 Modeling Considerations
+**1. Feature Engineering**
+- **Consideration:** Multiple categorical columns may need encoding
+- **Impact:** Could create high-dimensional feature space
+- **Recommendations:** Use appropriate encoding methods, Consider dimensionality reduction
+
+**2. Feature Selection**
+- **Consideration:** Some features have dominant influence on variance structure
+- **Impact:** Can guide feature prioritisation in modeling
+- **Recommendations:** Consider feature selection based on PCA loadings, Prioritise high-loading features in initial models, Use loadings for feature interpretation
+
+
+
+## 5.8 Knowledge Base Output
+
+### 5.8.1 Dataset Profile Summary
+**Dataset:** Medicaldataset.csv
+**Analysis Date:** 6/8/2025
+**Total Rows:** 1,319
+**Original Columns:** 9
+**Engineered ML Features:** 12
+**Technical Debt:** 6 hours
+**ML Readiness Score:** 85/100
+
+### 5.8.2 Schema Recommendations Summary
+| Original Column          | Target Column            | Recommended Type | Constraints | Key Transformations     |
+| ------------------------ | ------------------------ | ---------------- | ----------- | ----------------------- |
+| Age                      | age                      | INTEGER          | None        | Standardize column name |
+| Gender                   | gender                   | DATE             | None        | Standardize column name |
+| Heart rate               | heart_rate               | DECIMAL(10,2)    | None        | Standardize column name |
+| Systolic blood pressure  | systolic_blood_pressure  | NUMERIC          | None        | Standardize column name |
+| Diastolic blood pressure | diastolic_blood_pressure | NUMERIC          | None        | Standardize column name |
+| Blood sugar              | blood_sugar              | VARCHAR(255)     | None        | Standardize column name |
+| CK-MB                    | ck_mb                    | VARCHAR(255)     | None        | Standardize column name |
+| Troponin                 | troponin                 | VARCHAR(255)     | None        | Standardize column name |
+| Result                   | result                   | VARCHAR(255)     | None        | Standardize column name |
+
+### 5.8.3 Key Transformations Summary
+**1. Column Standardization**
+- **Steps:** Convert to snake_case, Remove special characters
+- **Impact:** Improves SQL compatibility and consistency
+
+
+
+## 📊 Engineering Analysis Performance
+
+**Analysis Completed in:** 1ms
+**Transformations Evaluated:** 15
+**Schema Recommendations Generated:** 9
+**ML Features Designed:** 14
+
+---
+
+---
+
+# Section 6: Predictive Modeling & Advanced Analytics Guidance 🧠⚙️📊
+
+This section leverages insights from Data Quality (Section 2), EDA (Section 3), Visualization (Section 4), and Data Engineering (Section 5) to provide comprehensive guidance on machine learning model selection, implementation, and best practices.
+
+---
+
+## 6.1 Executive Summary
+
+**Analysis Overview:**
+- **Approach:** Comprehensive modeling guidance with specialized focus on interpretability
+- **Complexity Level:** Moderate
+- **Primary Focus Areas:** Regression, Binary classification, Clustering
+- **Recommendation Confidence:** Very high
+
+**Key Modeling Opportunities:**
+- **Tasks Identified:** 1 potential modeling tasks
+- **Algorithm Recommendations:** 1 algorithms evaluated
+- **Specialized Analyses:** 
+- **Ethics Assessment:** Comprehensive bias and fairness analysis completed
+
+**Implementation Readiness:**
+- Well-defined modeling workflow with 6 detailed steps
+- Evaluation framework established with multiple validation approaches
+- Risk mitigation strategies identified for ethical AI deployment
+
+## 6.2 Potential Modeling Tasks & Objectives
+
+### 6.2.1 Task Summary
+
+| Task Type | Target Variable | Business Objective | Feasibility Score | Confidence Level |
+|-----------|-----------------|--------------------|--------------------|------------------|
+| Clustering | N/A | Discover natural groupings or segments in the data | 88% | Very high |
+
+### 6.2.2 Detailed Task Analysis
+
+**1. Clustering**
+
+- **Target Variable:** None (unsupervised)
+- **Target Type:** None
+- **Input Features:** 
+- **Business Objective:** Discover natural groupings or segments in the data
+- **Technical Objective:** Identify clusters of similar instances for segmentation analysis
+- **Feasibility Score:** 88% (Highly Feasible)
+- **Estimated Complexity:** Moderate
+
+**Justification:**
+- Multiple numerical variables available for clustering
+- No predefined target variable - unsupervised learning appropriate
+- Potential for discovering hidden patterns or segments
+
+**Potential Challenges:**
+- Determining optimal number of clusters
+- Feature scaling may be required
+- Cluster interpretation and validation
+
+**Success Metrics:** Silhouette Score, Davies-Bouldin Index, Inertia, Cluster Validation
+
+
+
+## 6.3 Algorithm Recommendations & Selection Guidance
+
+### 6.3.1 Recommendation Summary
+
+| Algorithm | Category | Suitability Score | Complexity | Interpretability | Key Strengths |
+|-----------|----------|-------------------|------------|------------------|---------------|
+| K-Means Clustering | Unsupervised | 90% | Simple | Medium | Simple and fast algorithm, Works well with spherical clusters |
+
+### 6.3.2 Detailed Algorithm Analysis
+
+**1. K-Means Clustering**
+
+- **Category:** Unsupervised
+- **Suitability Score:** 90% (Excellent Match)
+- **Complexity:** Simple
+- **Interpretability:** Medium
+
+**Strengths:**
+- Simple and fast algorithm
+- Works well with spherical clusters
+- Scalable to large datasets
+- Well-understood algorithm
+
+**Limitations:**
+- Requires pre-specifying number of clusters
+- Assumes spherical clusters
+- Sensitive to initialization
+- Sensitive to feature scaling
+
+**Key Hyperparameters:**
+- **n_clusters:** Number of clusters (critical importance)
+- **init:** Initialization method (important importance)
+
+**Implementation Frameworks:** scikit-learn, R (kmeans), H2O
+
+**Recommendation Reasoning:**
+- Good starting point for clustering
+- Fast and scalable
+- Works well when clusters are roughly spherical
+
+
+
+## 6.6 Modeling Workflow & Best Practices
+
+### 6.6.1 Step-by-Step Implementation Guide
+
+**Step 1: Data Preparation and Validation**
+
+Prepare the dataset for modeling by applying transformations from Section 5 and validating data quality
+
+- **Estimated Time:** 30-60 minutes
+- **Difficulty:** Intermediate
+- **Tools:** pandas, scikit-learn preprocessing, NumPy
+
+**Key Considerations:**
+- Apply feature engineering recommendations from Section 5
+- Handle missing values according to imputation strategy
+- Scale numerical features if required by chosen algorithms
+- Encode categorical variables appropriately
+
+**Common Pitfalls to Avoid:**
+- Data leakage through improper scaling before train/test split
+- Inconsistent handling of missing values between train and test sets
+- Forgetting to save transformation parameters for production use
+
+**Step 2: Data Splitting Strategy**
+
+Split data into training, validation, and test sets for unbiased evaluation
+
+- **Estimated Time:** 15-30 minutes
+- **Difficulty:** Beginner
+- **Tools:** scikit-learn train_test_split, pandas, stratification tools
+
+**Key Considerations:**
+- Ensure representative sampling across classes
+- Document split ratios and random seeds for reproducibility
+- Verify class balance in each split for classification tasks
+
+**Common Pitfalls to Avoid:**
+- Inadequate stratification for imbalanced classes
+- Test set too small for reliable performance estimates
+- Information leakage between splits
+
+**Step 3: Baseline Model Implementation**
+
+Implement simple baseline models to establish performance benchmarks
+
+- **Estimated Time:** 1-2 hours
+- **Difficulty:** Intermediate
+- **Tools:** scikit-learn, statsmodels, evaluation metrics
+
+**Key Considerations:**
+- Start with simplest recommended algorithm (e.g., Linear/Logistic Regression)
+- Establish clear evaluation metrics and benchmarks
+- Document all hyperparameters and assumptions
+
+**Common Pitfalls to Avoid:**
+- Skipping baseline models and jumping to complex algorithms
+- Using inappropriate evaluation metrics for the task
+- Over-optimizing baseline models instead of treating them as benchmarks
+
+**Step 4: Hyperparameter Optimization**
+
+Systematically tune hyperparameters for best-performing algorithms
+
+- **Estimated Time:** 1-3 hours
+- **Difficulty:** Advanced
+- **Tools:** GridSearchCV, RandomizedSearchCV, Optuna/Hyperopt
+
+**Key Considerations:**
+- Use cross-validation within training set for hyperparameter tuning
+- Focus on most important hyperparameters first
+- Monitor for diminishing returns vs computational cost
+
+**Common Pitfalls to Avoid:**
+- Tuning on test set (causes overfitting)
+- Excessive hyperparameter tuning leading to overfitting
+- Ignoring computational budget constraints
+
+**Step 5: Model Evaluation and Interpretation**
+
+Comprehensive evaluation of final models and interpretation of results
+
+- **Estimated Time:** 2-4 hours
+- **Difficulty:** Intermediate
+- **Tools:** Model evaluation metrics, SHAP/LIME, visualization libraries
+
+**Key Considerations:**
+- Evaluate models on held-out test set
+- Generate model interpretation and explanations
+- Assess model robustness and stability
+
+**Common Pitfalls to Avoid:**
+- Using validation performance as final performance estimate
+- Inadequate model interpretation and explanation
+- Ignoring model assumptions and limitations
+
+**Step 6: Documentation and Reporting**
+
+Document methodology, results, and recommendations for stakeholders
+
+- **Estimated Time:** 2-4 hours
+- **Difficulty:** Intermediate
+- **Tools:** Jupyter notebooks, Documentation tools, Visualization libraries
+
+**Key Considerations:**
+- Document all methodological decisions and rationale
+- Create clear visualizations for stakeholder communication
+- Provide actionable business recommendations
+
+**Common Pitfalls to Avoid:**
+- Inadequate documentation of methodology
+- Technical jargon in business-facing reports
+- Missing discussion of limitations and assumptions
+
+### 6.6.2 Best Practices Summary
+
+**Cross-Validation:**
+- Always use cross-validation for model selection and hyperparameter tuning
+  *Reasoning:* Provides more robust estimates of model performance and reduces overfitting to validation set
+
+**Feature Engineering:**
+- Apply feature transformations consistently across train/validation/test sets
+  *Reasoning:* Prevents data leakage and ensures model can be deployed reliably
+
+**Model Selection:**
+- Start simple and increase complexity gradually
+  *Reasoning:* Simple models are more interpretable and often sufficient. Complex models risk overfitting.
+
+**Model Evaluation:**
+- Use multiple evaluation metrics appropriate for your problem
+  *Reasoning:* Single metrics can be misleading. Different metrics highlight different aspects of performance.
+
+**Model Interpretability:**
+- Prioritize model interpretability based on business requirements
+  *Reasoning:* Interpretable models build trust and enable better decision-making
+
+**Documentation:**
+- Document all modeling decisions and assumptions
+  *Reasoning:* Enables reproducibility and helps future model maintenance
+
+
+
+## 6.7 Model Evaluation Framework
+
+### 6.7.1 Evaluation Strategy
+
+Comprehensive evaluation framework established with multiple validation approaches and business-relevant metrics.
+
+*Detailed evaluation metrics and procedures are integrated into the workflow steps above.*
+
+## 6.8 Model Interpretation & Explainability
+
+### 6.8.1 Interpretation Strategy
+
+Model interpretation guidance provided with focus on business stakeholder communication and decision transparency.
+
+*Specific interpretation techniques are detailed within algorithm recommendations and specialized analyses.*
+
+## 6.9 Ethical AI & Bias Analysis
+
+### 6.9.1 Bias Risk Assessment
+
+**Overall Risk Level:** High
+
+**Identified Bias Sources:**
+
+1. 🟠 **Historical Bias** (High Risk)
+   - **Description:** Historical data may reflect past discrimination or systemic biases
+   - **Evidence:** 2 sensitive attributes identified; Historical data collection may reflect societal biases
+
+2. 🟡 **Algorithmic Bias** (Medium Risk)
+   - **Description:** Complex algorithms may introduce or amplify existing biases
+   - **Evidence:** 1 complex modeling tasks identified; Black box algorithms may lack transparency
+
+**Sensitive Attributes Identified:**
+
+- **Age:** Medium risk - potential for discrimination
+- **Gender:** High risk - direct protected characteristic
+
+### 6.9.3 Ethical Considerations
+
+**Privacy:**
+🟠 Protect individual privacy and prevent re-identification
+
+**Consent:**
+🟡 Ensure proper consent for data use in modeling
+
+**Transparency:**
+🟡 Provide adequate transparency and explainability
+
+**Accountability:**
+🟠 Establish clear accountability for model decisions
+
+**Fairness:**
+🟠 Ensure fair treatment across all demographic groups
+
+### 6.9.4 Risk Mitigation Strategies
+
+**1. Algorithmic Bias**
+- **Strategy:** Implement fairness-aware machine learning techniques
+- **Implementation:** Use algorithms like adversarial debiasing, fairness constraints, or post-processing correction
+- **Effectiveness:** High - directly addresses bias in model predictions
+
+**2. Privacy Violation**
+- **Strategy:** Implement privacy-preserving machine learning techniques
+- **Implementation:** Use differential privacy, federated learning, or secure multi-party computation
+- **Effectiveness:** Medium to High - depends on technique and implementation quality
+
+**3. Lack of Transparency**
+- **Strategy:** Implement comprehensive model explainability framework
+- **Implementation:** Deploy SHAP/LIME explanations, feature importance analysis, and model documentation
+- **Effectiveness:** Medium - improves understanding but may not fully resolve black box concerns
+
+
+
+## 6.10 Implementation Roadmap
+
+**Estimated Timeline:** 4-8 weeks
+
+
+
+## 📊 Modeling Analysis Performance
+
+**Analysis Completed in:** 3ms
+**Tasks Identified:** 1
+**Algorithms Evaluated:** 1
+**Ethics Checks Performed:** 7
+**Total Recommendations Generated:** 2
+
+---

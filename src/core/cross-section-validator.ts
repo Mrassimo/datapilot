@@ -55,17 +55,18 @@ export class CrossSectionValidator {
    */
   private static validateColumnCounts(results: any): ValidationIssue[] {
     const issues: ValidationIssue[] = [];
-    
+
     const section1Columns = results.section1?.overview?.structuralDimensions?.totalColumns;
     const section3Columns = results.section3?.edaAnalysis?.metadata?.columnsAnalyzed;
-    
+
     if (section1Columns && section3Columns && section1Columns !== section3Columns) {
       issues.push({
         severity: 'error',
         sections: ['Section 1', 'Section 3'],
         issue: 'Column count mismatch',
         description: `Section 1 reports ${section1Columns} columns, Section 3 reports ${section3Columns} columns`,
-        recommendation: 'Check data parsing consistency and ensure same dataset is analyzed across sections'
+        recommendation:
+          'Check data parsing consistency and ensure same dataset is analyzed across sections',
       });
     }
 
@@ -80,22 +81,29 @@ export class CrossSectionValidator {
 
     // Check for gender column misclassification
     const section3Columns = results.section3?.edaAnalysis?.univariateAnalysis?.columnProfiles;
-    const section5Schema = results.section5?.engineeringAnalysis?.schemaAnalysis?.optimizedSchema?.columns;
+    const section5Schema =
+      results.section5?.engineeringAnalysis?.schemaAnalysis?.optimizedSchema?.columns;
 
     if (section3Columns && section5Schema) {
-      const genderColumn3 = section3Columns.find((col: any) => 
-        col.columnName?.toLowerCase().includes('gender'));
-      const genderColumn5 = section5Schema.find((col: any) => 
-        col.originalName?.toLowerCase().includes('gender'));
+      const genderColumn3 = section3Columns.find((col: any) =>
+        col.columnName?.toLowerCase().includes('gender'),
+      );
+      const genderColumn5 = section5Schema.find((col: any) =>
+        col.originalName?.toLowerCase().includes('gender'),
+      );
 
       if (genderColumn3 && genderColumn5) {
-        if (genderColumn3.detectedDataType !== 'categorical' && genderColumn5.inferredDatabaseType === 'DATE') {
+        if (
+          genderColumn3.detectedDataType !== 'categorical' &&
+          genderColumn5.inferredDatabaseType === 'DATE'
+        ) {
           issues.push({
             severity: 'error',
             sections: ['Section 3', 'Section 5'],
             issue: 'Gender column type misclassification',
             description: `Gender column incorrectly classified as ${genderColumn5.inferredDatabaseType} in Section 5, should be categorical`,
-            recommendation: 'Fix type detection engine to properly identify demographic columns as categorical'
+            recommendation:
+              'Fix type detection engine to properly identify demographic columns as categorical',
           });
         }
       }
@@ -115,21 +123,26 @@ export class CrossSectionValidator {
 
     if (section3PCA && section5Challenges) {
       const section3Failed = !section3PCA.applicable;
-      const section5InsufficientFeatures = section5Challenges.some((challenge: any) => 
-        challenge.challenge?.includes('Insufficient Numerical Features for PCA'));
+      const section5InsufficientFeatures = section5Challenges.some((challenge: any) =>
+        challenge.challenge?.includes('Insufficient Numerical Features for PCA'),
+      );
 
       if (section3Failed && section5InsufficientFeatures) {
         const section3Reason = section3PCA.applicabilityReason || '';
-        const isComputationalFailure = section3Reason.includes('convergence') || section3Reason.includes('decomposition');
-        const isDataFailure = section3Reason.includes('Insufficient') || section3Reason.includes('variables');
+        const isComputationalFailure =
+          section3Reason.includes('convergence') || section3Reason.includes('decomposition');
+        const isDataFailure =
+          section3Reason.includes('Insufficient') || section3Reason.includes('variables');
 
         if (isComputationalFailure && section5InsufficientFeatures) {
           issues.push({
             severity: 'warning',
             sections: ['Section 3', 'Section 5'],
             issue: 'PCA failure reason inconsistency',
-            description: 'Section 3 reports computational failure (convergence), Section 5 reports data insufficiency',
-            recommendation: 'Clarify whether PCA failed due to computational issues or insufficient data. If both, report primary cause first.'
+            description:
+              'Section 3 reports computational failure (convergence), Section 5 reports data insufficiency',
+            recommendation:
+              'Clarify whether PCA failed due to computational issues or insufficient data. If both, report primary cause first.',
           });
         }
       }
@@ -145,7 +158,8 @@ export class CrossSectionValidator {
     const issues: ValidationIssue[] = [];
 
     const univariateProfiles = results.section3?.edaAnalysis?.univariateAnalysis?.columnProfiles;
-    const multivariateOutliers = results.section3?.edaAnalysis?.multivariateAnalysis?.outlierDetection;
+    const multivariateOutliers =
+      results.section3?.edaAnalysis?.multivariateAnalysis?.outlierDetection;
 
     if (univariateProfiles && multivariateOutliers) {
       // Count total univariate outliers
@@ -163,7 +177,8 @@ export class CrossSectionValidator {
           sections: ['Section 3'],
           issue: 'High multivariate outliers with low univariate outliers',
           description: `Found ${totalUnivariateOutliers} univariate outliers but ${multivariateOutlierCount} multivariate outliers (${multivariatePercentage.toFixed(1)}%)`,
-          recommendation: 'This pattern is normal - multivariate outliers detect unusual combinations of values that are not extreme individually. Consider adding explanation in report.'
+          recommendation:
+            'This pattern is normal - multivariate outliers detect unusual combinations of values that are not extreme individually. Consider adding explanation in report.',
         });
       }
     }
@@ -178,7 +193,8 @@ export class CrossSectionValidator {
     const issues: ValidationIssue[] = [];
 
     const qualityScore = results.section2?.qualityAudit?.overallScore?.compositeScore;
-    const mlReadinessScore = results.section5?.engineeringAnalysis?.mlReadiness?.overallReadinessScore;
+    const mlReadinessScore =
+      results.section5?.engineeringAnalysis?.mlReadiness?.overallReadinessScore;
 
     if (qualityScore && mlReadinessScore) {
       // Check for inconsistent quality vs ML readiness
@@ -188,7 +204,8 @@ export class CrossSectionValidator {
           sections: ['Section 2', 'Section 5'],
           issue: 'Quality vs ML readiness score inconsistency',
           description: `Low data quality score (${qualityScore}) but high ML readiness (${mlReadinessScore})`,
-          recommendation: 'Review ML readiness calculation to ensure it properly accounts for data quality issues'
+          recommendation:
+            'Review ML readiness calculation to ensure it properly accounts for data quality issues',
         });
       }
     }
@@ -204,9 +221,9 @@ export class CrossSectionValidator {
       return '✅ **Cross-Section Validation**: No consistency issues detected between analysis sections.';
     }
 
-    const errorCount = issues.filter(i => i.severity === 'error').length;
-    const warningCount = issues.filter(i => i.severity === 'warning').length;
-    const infoCount = issues.filter(i => i.severity === 'info').length;
+    const errorCount = issues.filter((i) => i.severity === 'error').length;
+    const warningCount = issues.filter((i) => i.severity === 'warning').length;
+    const infoCount = issues.filter((i) => i.severity === 'info').length;
 
     let report = `## Cross-Section Validation Report\n\n`;
     report += `**Summary**: ${errorCount} errors, ${warningCount} warnings, ${infoCount} informational items\n\n`;

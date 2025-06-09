@@ -182,7 +182,9 @@ export class Section6Analyzer {
         },
       };
     } catch (error) {
-      logger.error('Section 6 analysis failed:', { error: error instanceof Error ? error.message : String(error) });
+      logger.error('Section 6 analysis failed:', {
+        error: error instanceof Error ? error.message : String(error),
+      });
       throw error;
     }
   }
@@ -363,7 +365,12 @@ export class Section6Analyzer {
     section3Result: Section3Result,
     mlReadiness: MLReadinessAssessment,
   ): ModelingTask {
-    const numericalColumns = allColumns.filter((col) => col.name.toLowerCase().includes('num') || col.name.toLowerCase().includes('score') || col.name.toLowerCase().includes('count'));
+    const numericalColumns = allColumns.filter(
+      (col) =>
+        col.name.toLowerCase().includes('num') ||
+        col.name.toLowerCase().includes('score') ||
+        col.name.toLowerCase().includes('count'),
+    );
 
     return {
       taskType: 'clustering',
@@ -461,7 +468,10 @@ export class Section6Analyzer {
   }
 
   // Intelligent column classification methods
-  private identifyNumericalColumns(columns: ColumnInventory[], section3Result: Section3Result): ColumnInventory[] {
+  private identifyNumericalColumns(
+    columns: ColumnInventory[],
+    section3Result: Section3Result,
+  ): ColumnInventory[] {
     return columns.filter((col) => {
       const lowerName = col.name.toLowerCase();
       // Check for obvious numerical indicators in column names
@@ -497,7 +507,10 @@ export class Section6Analyzer {
     });
   }
 
-  private identifyCategoricalColumns(columns: ColumnInventory[], section3Result: Section3Result): ColumnInventory[] {
+  private identifyCategoricalColumns(
+    columns: ColumnInventory[],
+    section3Result: Section3Result,
+  ): ColumnInventory[] {
     return columns.filter((col) => {
       const lowerName = col.name.toLowerCase();
       const categoricalKeywords = [
@@ -526,7 +539,10 @@ export class Section6Analyzer {
     });
   }
 
-  private identifyTemporalColumns(columns: ColumnInventory[], section3Result: Section3Result): ColumnInventory[] {
+  private identifyTemporalColumns(
+    columns: ColumnInventory[],
+    section3Result: Section3Result,
+  ): ColumnInventory[] {
     return columns.filter((col) => {
       const lowerName = col.name.toLowerCase();
       const temporalKeywords = [
@@ -591,7 +607,10 @@ export class Section6Analyzer {
     return hasTargetKeyword && !hasExcludeKeyword;
   }
 
-  private isPotentialCategoricalTarget(column: ColumnInventory, section3Result: Section3Result): boolean {
+  private isPotentialCategoricalTarget(
+    column: ColumnInventory,
+    section3Result: Section3Result,
+  ): boolean {
     const lowerName = column.name.toLowerCase();
 
     // Strong indicators of categorical target variables
@@ -637,11 +656,15 @@ export class Section6Analyzer {
   }
 
   // Helper methods for task creation
-  private generateDataRequirements(taskType: ModelingTaskType, mlReadiness: MLReadinessAssessment): DataRequirement[] {
+  private generateDataRequirements(
+    taskType: ModelingTaskType,
+    mlReadiness: MLReadinessAssessment,
+  ): DataRequirement[] {
     const baseRequirements: DataRequirement[] = [
       {
         requirement: 'Sufficient sample size',
-        currentStatus: mlReadiness.overallScore > 70 ? ('met' as const) : ('partially_met' as const),
+        currentStatus:
+          mlReadiness.overallScore > 70 ? ('met' as const) : ('partially_met' as const),
         importance: 'critical' as const,
         mitigation: 'Consider data augmentation if sample size is insufficient',
       },
@@ -832,7 +855,12 @@ export class Section6Analyzer {
     section3Result: Section3Result,
     mlReadiness: MLReadinessAssessment,
   ): ModelingTask {
-    const numericalColumns = columns.filter((col) => col.name.toLowerCase().includes('num') || col.name.toLowerCase().includes('score') || col.name.toLowerCase().includes('count'));
+    const numericalColumns = columns.filter(
+      (col) =>
+        col.name.toLowerCase().includes('num') ||
+        col.name.toLowerCase().includes('score') ||
+        col.name.toLowerCase().includes('count'),
+    );
 
     return {
       taskType: 'anomaly_detection',

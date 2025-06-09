@@ -540,9 +540,10 @@ ${profilesText ? `* **Cluster Profiles:**\n${profilesText}` : ''}
     const countText = `* **Outliers Detected:** ${outliers.totalOutliers} observations (${outliers.outlierPercentage.toFixed(1)}% of dataset)`;
 
     // Add explanation for high multivariate outlier count when univariate outliers are low
-    const explanationText = outliers.outlierPercentage > 30 
-      ? `* **Note on Outlier Discrepancy:** While individual variables show few univariate outliers, multivariate analysis detects combinations of values that are unusual together. These ${outliers.totalOutliers} observations are not extreme on any single variable but represent uncommon patterns in the multidimensional space - this is a normal and expected pattern in multivariate analysis.`
-      : '';
+    const explanationText =
+      outliers.outlierPercentage > 30
+        ? `* **Note on Outlier Discrepancy:** While individual variables show few univariate outliers, multivariate analysis detects combinations of values that are unusual together. These ${outliers.totalOutliers} observations are not extreme on any single variable but represent uncommon patterns in the multidimensional space - this is a normal and expected pattern in multivariate analysis.`
+        : '';
 
     const severityText = outliers.severityDistribution
       ? `* **Severity Distribution:** ${outliers.severityDistribution.extreme} extreme, ${outliers.severityDistribution.moderate} moderate, ${outliers.severityDistribution.mild} mild`

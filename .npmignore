@@ -1,0 +1,79 @@
+# Source files (only include compiled dist)
+src/
+tests/
+test-datasets/
+examples/outputs/
+
+# Development files
+*.ts
+!*.d.ts
+tsconfig.json
+jest.config.js
+.eslintrc*
+.prettierrc*
+
+# Test and coverage
+coverage/
+*.test.js
+*.test.ts
+*.spec.js
+*.spec.ts
+test-*.js
+test-*.ts
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+
+# Documentation source
+docs/
+*.md
+!README.md
+!LICENSE
+!CHANGELOG.md
+
+# Environment and config
+.env*
+.datapilotrc
+*.log
+logs/
+
+# IDE and OS
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+*.tsbuildinfo
+tmp/
+temp/
+
+# Development scripts
+test-quality-enhancements.js
+test-sections-456.js
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Archives and analysis outputs
+*.txt
+*.json
+!package.json
+!package-lock.json
+*.yaml
+!.github/**/*.yaml
+!.github/**/*.yml
+*.csv
+
+# Misc
+node_modules/
+npm-debug.log*
+yarn-error.log*
+.npm/
+test-results-archive/

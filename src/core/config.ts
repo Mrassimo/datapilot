@@ -203,7 +203,7 @@ export interface EnvironmentConfig {
 }
 
 // Performance Preset Types with Discriminated Unions
-export type PerformancePreset = 
+export type PerformancePreset =
   | { preset: 'low-memory'; maxMemoryMB: 256; maxRows: 10000; enableCache: false }
   | { preset: 'balanced'; maxMemoryMB: 1024; maxRows: 100000; enableCache: true }
   | { preset: 'high-performance'; maxMemoryMB: 4096; maxRows: 1000000; enableCache: true }
@@ -239,10 +239,10 @@ export interface DataPilotConfig {
   streaming: StreamingConfig;
   visualization: VisualizationConfig;
   modeling: ModelingConfig;
-  
+
   // Environment and deployment settings
   environment?: EnvironmentConfig;
-  
+
   // Feature flags for experimental features
   features?: {
     enableAdvancedMultivariate?: boolean;
@@ -250,14 +250,14 @@ export interface DataPilotConfig {
     enableRealTimeProcessing?: boolean;
     enableCloudIntegration?: boolean;
   };
-  
+
   // Custom analyzers and extensions
   extensions?: {
     customAnalyzers?: string[];
     pluginPaths?: string[];
     externalValidators?: Record<string, string>;
   };
-  
+
   // Security and privacy settings
   security?: {
     enableDataEncryption?: boolean;
@@ -553,7 +553,7 @@ export class ConfigManager {
           maxRowsAnalyzed: preset.maxRows,
         });
         break;
-      
+
       case 'balanced':
         this.updatePerformanceConfig({
           maxRows: preset.maxRows,
@@ -561,7 +561,7 @@ export class ConfigManager {
           adaptiveChunkSizing: true,
         });
         break;
-      
+
       case 'high-performance':
         this.updatePerformanceConfig({
           maxRows: preset.maxRows,
@@ -570,7 +570,7 @@ export class ConfigManager {
           batchSize: 5000,
         });
         break;
-      
+
       case 'custom':
         this.updatePerformanceConfig(preset.config);
         break;
@@ -653,9 +653,12 @@ export class ConfigManager {
           field: 'maxFeaturesAutoSelection',
           validator: (value, context) => {
             if (typeof value !== 'number' || value <= 0) {
-              return { isValid: false, message: 'maxFeaturesAutoSelection must be a positive number' };
+              return {
+                isValid: false,
+                message: 'maxFeaturesAutoSelection must be a positive number',
+              };
             }
-            
+
             // Warn about very large feature counts
             if (value > 1000) {
               return {
@@ -663,14 +666,14 @@ export class ConfigManager {
                 message: 'Very large feature count may impact performance and interpretability',
               };
             }
-            
+
             return { isValid: true };
           },
           message: 'maxFeaturesAutoSelection must be a positive number',
           severity: 'warning',
         },
       ],
-      
+
       // Additional validation sections with enhanced rules
       streaming: [
         {
@@ -679,20 +682,22 @@ export class ConfigManager {
             if (typeof value !== 'number' || value <= 0) {
               return { isValid: false, message: 'memoryThresholdMB must be a positive number' };
             }
-            
+
             // Check consistency with performance memory settings
-            const perfMemoryMB = context?.fullConfig.performance.memoryThresholdBytes ? 
-              context.fullConfig.performance.memoryThresholdBytes / (1024 * 1024) : null;
-            
+            const perfMemoryMB = context?.fullConfig.performance.memoryThresholdBytes
+              ? context.fullConfig.performance.memoryThresholdBytes / (1024 * 1024)
+              : null;
+
             if (perfMemoryMB && value > perfMemoryMB) {
               return {
                 isValid: false,
-                message: 'streaming.memoryThresholdMB should not exceed performance memory threshold',
+                message:
+                  'streaming.memoryThresholdMB should not exceed performance memory threshold',
                 suggestedValue: Math.floor(perfMemoryMB * 0.8),
                 relatedFields: ['performance.memoryThresholdBytes'],
               };
             }
-            
+
             return { isValid: true };
           },
           message: 'memoryThresholdMB must be a positive number',
@@ -859,21 +864,21 @@ export class ConfigManager {
     // Validate each section using the schema
     for (const [sectionName, rules] of Object.entries(this.validationSchema)) {
       const sectionConfig = this.config[sectionName as keyof DataPilotConfig];
-      
+
       for (const rule of rules) {
         const fieldValue = (sectionConfig as any)[rule.field];
-        
+
         // Check required fields
         if (rule.required && (fieldValue === undefined || fieldValue === null)) {
           errors.push(`${sectionName}.${String(rule.field)} is required`);
           continue;
         }
-        
+
         // Skip validation if field is not present and not required
         if (fieldValue === undefined || fieldValue === null) {
           continue;
         }
-        
+
         // Run the validator
         if (!rule.validator(fieldValue)) {
           errors.push(`${sectionName}.${String(rule.field)}: ${rule.message}`);
@@ -901,7 +906,7 @@ export class ConfigManager {
     // Check memory consistency
     const performanceMemoryMB = this.config.performance.memoryThresholdBytes / (1024 * 1024);
     const streamingMemoryMB = this.config.streaming.memoryThresholdMB;
-    
+
     if (streamingMemoryMB > performanceMemoryMB) {
       warnings.push('streaming.memoryThresholdMB should not exceed performance memory threshold');
     }
@@ -914,7 +919,7 @@ export class ConfigManager {
     // Check significance levels are reasonable
     const baseLevel = this.config.statistical.significanceLevel;
     const altLevels = this.config.statistical.alternativeSignificanceLevels;
-    
+
     if (altLevels.correlationTests < baseLevel) {
       warnings.push('correlationTests significance level is more strict than base level');
     }
@@ -925,17 +930,19 @@ export class ConfigManager {
    */
   private validatePerformanceSettings(warnings: string[]): void {
     const perf = this.config.performance;
-    
+
     // Check for potential memory issues
-    if (perf.memoryThresholdBytes < 256 * 1024 * 1024) { // Less than 256MB
+    if (perf.memoryThresholdBytes < 256 * 1024 * 1024) {
+      // Less than 256MB
       warnings.push('Memory threshold is quite low, consider increasing for better performance');
     }
-    
+
     // Check chunk size efficiency
-    if (perf.chunkSize < 32 * 1024) { // Less than 32KB
+    if (perf.chunkSize < 32 * 1024) {
+      // Less than 32KB
       warnings.push('Small chunk size may impact performance, consider increasing');
     }
-    
+
     // Check batch size consistency
     if (perf.batchSize > perf.chunkSize / 100) {
       warnings.push('Batch size seems large relative to chunk size');
@@ -972,7 +979,9 @@ export class ConfigBuilder {
     return this;
   }
 
-  useCase(useCase: 'data-quality' | 'eda-focused' | 'ml-pipeline' | 'visualization' | 'quick-scan'): ConfigBuilder {
+  useCase(
+    useCase: 'data-quality' | 'eda-focused' | 'ml-pipeline' | 'visualization' | 'quick-scan',
+  ): ConfigBuilder {
     const useCaseConfig = getUseCaseConfig(useCase);
     this.config = { ...this.config, ...useCaseConfig };
     return this;
@@ -996,7 +1005,7 @@ export class ConfigBuilder {
   build(): DataPilotConfig {
     const manager = ConfigManager.getInstance(this.config);
     const validation = manager.validateConfig();
-    
+
     if (!validation.isValid) {
       throw new Error(`Configuration validation failed: ${validation.errors.join(', ')}`);
     }
@@ -1017,12 +1026,12 @@ export const ConfigFactory = {
   production: () => ConfigBuilder.create().environment('production'),
   ci: () => ConfigBuilder.create().environment('ci'),
   test: () => ConfigBuilder.create().environment('test'),
-  
+
   small: () => ConfigBuilder.create().preset('small'),
   medium: () => ConfigBuilder.create().preset('medium'),
   large: () => ConfigBuilder.create().preset('large'),
   xlarge: () => ConfigBuilder.create().preset('xlarge'),
-  
+
   dataQuality: () => ConfigBuilder.create().useCase('data-quality'),
   eda: () => ConfigBuilder.create().useCase('eda-focused'),
   ml: () => ConfigBuilder.create().useCase('ml-pipeline'),
@@ -1218,7 +1227,7 @@ export function getPresetConfig(
  * Create configuration for specific use cases
  */
 export function getUseCaseConfig(
-  useCase: 'data-quality' | 'eda-focused' | 'ml-pipeline' | 'visualization' | 'quick-scan'
+  useCase: 'data-quality' | 'eda-focused' | 'ml-pipeline' | 'visualization' | 'quick-scan',
 ): Partial<DataPilotConfig> {
   const useCaseConfigs: Record<string, Partial<DataPilotConfig>> = {
     'data-quality': {
@@ -1226,10 +1235,10 @@ export function getUseCaseConfig(
         ...DEFAULT_CONFIG.quality,
         qualityWeights: {
           completeness: 0.25,
-          uniqueness: 0.20,
+          uniqueness: 0.2,
           validity: 0.25,
-          consistency: 0.20,
-          accuracy: 0.10,
+          consistency: 0.2,
+          accuracy: 0.1,
           timeliness: 0.0,
           integrity: 0.0,
           reasonableness: 0.0,
@@ -1270,7 +1279,7 @@ export function getUseCaseConfig(
         },
       },
     },
-    'visualization': {
+    visualization: {
       visualization: {
         ...DEFAULT_CONFIG.visualization,
         maxDataPoints: 50000, // More points for rich visualizations

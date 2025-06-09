@@ -3,7 +3,7 @@
  * Formats modeling analysis results into comprehensive markdown reports
  */
 
-import type { 
+import type {
   Section6Result,
   Section6Metadata,
   ModelingAnalysis,
@@ -16,7 +16,7 @@ import type {
   InterpretationGuidance,
   EthicsAnalysis,
   ImplementationRoadmap,
-  Section6Warning
+  Section6Warning,
 } from './types';
 
 export class Section6Formatter {
@@ -57,7 +57,10 @@ This section leverages insights from Data Quality (Section 2), EDA (Section 3), 
 ---`;
   }
 
-  private static formatExecutiveSummary(analysis: ModelingAnalysis, metadata: Section6Metadata): string {
+  private static formatExecutiveSummary(
+    analysis: ModelingAnalysis,
+    metadata: Section6Metadata,
+  ): string {
     return `## 6.1 Executive Summary
 
 **Analysis Overview:**

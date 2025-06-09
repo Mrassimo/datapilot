@@ -3,13 +3,13 @@
  * Manages complex dependencies between analysis sections with caching and validation
  */
 
-import type { 
-  SectionResult, 
-  SectionResultMap, 
-  DependencyResolver, 
+import type {
+  SectionResult,
+  SectionResultMap,
+  DependencyResolver,
   AnalyzerDependency,
   CLIOptions,
-  CLIErrorContext
+  CLIErrorContext,
 } from './types';
 import type { LogContext } from '../utils/logger';
 import { logger } from '../utils/logger';
@@ -48,7 +48,7 @@ export class AnalyzerDependencyResolver implements DependencyResolver {
    */
   registerResolver<K extends keyof SectionResultMap>(
     sectionName: K,
-    resolver: () => Promise<SectionResultMap[K]>
+    resolver: () => Promise<SectionResultMap[K]>,
   ): void {
     this.resolverFunctions.set(sectionName, resolver);
     logger.debug(`Registered resolver for ${sectionName}`, this.context);
@@ -57,9 +57,7 @@ export class AnalyzerDependencyResolver implements DependencyResolver {
   /**
    * Resolve a specific section dependency with error handling and retries
    */
-  async resolve<K extends keyof SectionResultMap>(
-    sectionName: K
-  ): Promise<SectionResultMap[K]> {
+  async resolve<K extends keyof SectionResultMap>(sectionName: K): Promise<SectionResultMap[K]> {
     const startTime = Date.now();
     const sectionContext: LogContext = {
       ...this.context,
@@ -73,7 +71,7 @@ export class AnalyzerDependencyResolver implements DependencyResolver {
         const cached = this.dependencies.get(sectionName)!;
         logger.debug(
           `Using cached result for ${sectionName} (cached at ${cached.timestamp.toISOString()})`,
-          sectionContext
+          sectionContext,
         );
         return cached.result as SectionResultMap[K];
       }
@@ -91,7 +89,7 @@ export class AnalyzerDependencyResolver implements DependencyResolver {
               description: `Call registerResolver('${sectionName}', resolver) before resolving`,
               severity: ErrorSeverity.HIGH,
             },
-          ]
+          ],
         );
       }
 
@@ -133,7 +131,7 @@ export class AnalyzerDependencyResolver implements DependencyResolver {
             description: 'Ensure the input data is valid and accessible',
             severity: ErrorSeverity.MEDIUM,
           },
-        ]
+        ],
       );
     }
   }
@@ -141,14 +139,11 @@ export class AnalyzerDependencyResolver implements DependencyResolver {
   /**
    * Execute resolver with timeout protection
    */
-  private async executeWithTimeout<T>(
-    resolver: () => Promise<T>,
-    timeoutMs: number
-  ): Promise<T> {
+  private async executeWithTimeout<T>(resolver: () => Promise<T>, timeoutMs: number): Promise<T> {
     return Promise.race([
       resolver(),
       new Promise<T>((_, reject) =>
-        setTimeout(() => reject(new Error('Resolver timeout')), timeoutMs)
+        setTimeout(() => reject(new Error('Resolver timeout')), timeoutMs),
       ),
     ]);
   }
@@ -161,13 +156,13 @@ export class AnalyzerDependencyResolver implements DependencyResolver {
       throw DataPilotError.validation(
         `${sectionName} resolver returned null or undefined`,
         'NULL_RESULT',
-        { section: sectionName }
+        { section: sectionName },
       );
     }
 
     // Check for required properties based on section type
     const validationRules = this.getSectionValidationRules(sectionName);
-    
+
     for (const rule of validationRules) {
       if (!this.hasProperty(result, rule.property)) {
         throw DataPilotError.validation(
@@ -180,7 +175,7 @@ export class AnalyzerDependencyResolver implements DependencyResolver {
               description: `Ensure ${sectionName} analyzer returns an object with ${rule.property}`,
               severity: ErrorSeverity.HIGH,
             },
-          ]
+          ],
         );
       }
     }
@@ -190,7 +185,7 @@ export class AnalyzerDependencyResolver implements DependencyResolver {
       throw DataPilotError.validation(
         `${sectionName} warnings must be an array`,
         'INVALID_WARNINGS',
-        { section: sectionName }
+        { section: sectionName },
       );
     }
   }
@@ -198,7 +193,9 @@ export class AnalyzerDependencyResolver implements DependencyResolver {
   /**
    * Get validation rules for a specific section
    */
-  private getSectionValidationRules(sectionName: string): Array<{ property: string; required: boolean }> {
+  private getSectionValidationRules(
+    sectionName: string,
+  ): Array<{ property: string; required: boolean }> {
     const rules: Record<string, Array<{ property: string; required: boolean }>> = {
       section1: [
         { property: 'overview', required: true },
@@ -254,8 +251,8 @@ export class AnalyzerDependencyResolver implements DependencyResolver {
     };
 
     this.dependencies.set(sectionName, dependency);
-    logger.debug(`Cached result for ${sectionName}`, { 
-      ...this.context, 
+    logger.debug(`Cached result for ${sectionName}`, {
+      ...this.context,
       section: sectionName,
       cacheSize: this.dependencies.size,
     });
@@ -268,7 +265,7 @@ export class AnalyzerDependencyResolver implements DependencyResolver {
     const cachedCount = this.dependencies.size;
     this.dependencies.clear();
     this.resolverFunctions.clear();
-    
+
     logger.debug(`Cleared ${cachedCount} cached dependencies`, this.context);
   }
 
@@ -296,13 +293,19 @@ export class AnalyzerDependencyResolver implements DependencyResolver {
     newestCache?: Date;
   } {
     const dependencies = Array.from(this.dependencies.values());
-    const timestamps = dependencies.map(dep => dep.timestamp);
+    const timestamps = dependencies.map((dep) => dep.timestamp);
 
     return {
       totalCached: this.dependencies.size,
       cachedSections: Array.from(this.dependencies.keys()),
-      oldestCache: timestamps.length > 0 ? new Date(Math.min(...timestamps.map(t => t.getTime()))) : undefined,
-      newestCache: timestamps.length > 0 ? new Date(Math.max(...timestamps.map(t => t.getTime()))) : undefined,
+      oldestCache:
+        timestamps.length > 0
+          ? new Date(Math.min(...timestamps.map((t) => t.getTime())))
+          : undefined,
+      newestCache:
+        timestamps.length > 0
+          ? new Date(Math.max(...timestamps.map((t) => t.getTime())))
+          : undefined,
     };
   }
 
@@ -310,10 +313,10 @@ export class AnalyzerDependencyResolver implements DependencyResolver {
    * Resolve multiple dependencies in order
    */
   async resolveMultiple<K extends keyof SectionResultMap>(
-    sectionNames: K[]
+    sectionNames: K[],
   ): Promise<Record<K, SectionResultMap[K]>> {
     const results = {} as Record<K, SectionResultMap[K]>;
-    
+
     // Sort by resolution order to ensure dependencies are resolved first
     const orderedSections = sectionNames.sort((a, b) => {
       const indexA = this.resolutionOrder.indexOf(a);
@@ -332,7 +335,7 @@ export class AnalyzerDependencyResolver implements DependencyResolver {
    * Get the recommended resolution order for given sections
    */
   getResolutionOrder(sectionNames: string[]): string[] {
-    return this.resolutionOrder.filter(section => sectionNames.includes(section));
+    return this.resolutionOrder.filter((section) => sectionNames.includes(section));
   }
 
   /**
@@ -340,7 +343,7 @@ export class AnalyzerDependencyResolver implements DependencyResolver {
    */
   canResolve(sectionName: string): { canResolve: boolean; missingDependencies: string[] } {
     const dependencies = this.getSectionDependencies(sectionName);
-    const missingDependencies = dependencies.filter(dep => !this.has(dep));
+    const missingDependencies = dependencies.filter((dep) => !this.has(dep));
 
     return {
       canResolve: missingDependencies.length === 0,
@@ -355,7 +358,7 @@ export class AnalyzerDependencyResolver implements DependencyResolver {
     const dependencyMap: Record<string, string[]> = {
       section1: [],
       section2: [], // Can optionally use section1 but not required
-      section3: [], // Can optionally use section1 but not required  
+      section3: [], // Can optionally use section1 but not required
       section4: ['section1', 'section3'],
       section5: ['section1', 'section2', 'section3'],
       section6: ['section1', 'section2', 'section3'], // section5 is resolved internally
@@ -371,7 +374,7 @@ export class AnalyzerDependencyResolver implements DependencyResolver {
 export function createDependencyResolver(
   filePath: string,
   options: CLIOptions,
-  context: LogContext = {}
+  context: LogContext = {},
 ): AnalyzerDependencyResolver {
   const resolver = new AnalyzerDependencyResolver({
     ...context,
@@ -407,7 +410,11 @@ export class DependencyChainValidator {
   /**
    * Validate that all dependencies can be resolved for the given sections
    */
-  validateChain(requestedSections: string[]): { isValid: boolean; errors: string[]; warnings: string[] } {
+  validateChain(requestedSections: string[]): {
+    isValid: boolean;
+    errors: string[];
+    warnings: string[];
+  } {
     const errors: string[] = [];
     const warnings: string[] = [];
 
@@ -420,14 +427,18 @@ export class DependencyChainValidator {
 
       for (const dep of deps) {
         if (!requestedSections.includes(dep)) {
-          errors.push(`Section ${section} requires ${dep}, but ${dep} is not in the execution plan`);
+          errors.push(
+            `Section ${section} requires ${dep}, but ${dep} is not in the execution plan`,
+          );
         }
       }
     }
 
     // Check for potential performance issues
     if (requestedSections.includes('section6') && requestedSections.length === 1) {
-      warnings.push('Running section6 alone will require executing sections 1, 2, 3, and 5 as dependencies');
+      warnings.push(
+        'Running section6 alone will require executing sections 1, 2, 3, and 5 as dependencies',
+      );
     }
 
     return {
@@ -442,16 +453,16 @@ export class DependencyChainValidator {
    */
   getExecutionOrder(requestedSections: string[]): string[] {
     const allRequired = new Set<string>();
-    
+
     // Add all requested sections and their dependencies
     for (const section of requestedSections) {
       allRequired.add(section);
       const deps = this.dependencies.get(section) || [];
-      deps.forEach(dep => allRequired.add(dep));
+      deps.forEach((dep) => allRequired.add(dep));
     }
 
     // Sort by dependency order
     const ordered = ['section1', 'section2', 'section3', 'section4', 'section5', 'section6'];
-    return ordered.filter(section => allRequired.has(section));
+    return ordered.filter((section) => allRequired.has(section));
   }
 }

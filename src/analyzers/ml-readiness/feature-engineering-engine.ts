@@ -495,12 +495,20 @@ df['${column.name}_month_cos'] = np.cos(2 * np.pi * df['${column.name}_month'] /
       if (
         result.correlationType === 'numerical_numerical' &&
         result.correlation &&
-        Math.abs(typeof result.correlation === 'number' ? result.correlation : result.correlationDetails?.pearson || 0) > 0.7
+        Math.abs(
+          typeof result.correlation === 'number'
+            ? result.correlation
+            : result.correlationDetails?.pearson || 0,
+        ) > 0.7
       ) {
         interactions.push({
           features: [result.column1, result.column2],
           interactionType: 'ratio',
-          statisticalSignificance: Math.abs(typeof result.correlation === 'number' ? result.correlation : result.correlationDetails?.pearson || 0),
+          statisticalSignificance: Math.abs(
+            typeof result.correlation === 'number'
+              ? result.correlation
+              : result.correlationDetails?.pearson || 0,
+          ),
           reasoning: 'Strong correlation suggests ratio might capture relationship',
           implementation: `df['${result.column1}_${result.column2}_ratio'] = df['${result.column1}'] / (df['${result.column2}'] + 1e-8)`,
         });
@@ -567,7 +575,11 @@ df['${column.name}_month_cos'] = np.cos(2 * np.pi * df['${column.name}_month'] /
         (r) => r.column1 === column.name || r.column2 === column.name,
       );
       const maxCorrelation = Math.max(
-        ...correlations.map((c) => Math.abs(typeof c.correlation === 'number' ? c.correlation : c.correlationDetails?.pearson || 0)),
+        ...correlations.map((c) =>
+          Math.abs(
+            typeof c.correlation === 'number' ? c.correlation : c.correlationDetails?.pearson || 0,
+          ),
+        ),
       );
       if (maxCorrelation > 0.3 && maxCorrelation < 0.95) {
         score += 0.3;
@@ -719,14 +731,16 @@ df['${column.name}_month_cos'] = np.cos(2 * np.pi * df['${column.name}_month'] /
         (r.column1 === column && r.column2 === target) ||
         (r.column1 === target && r.column2 === column),
     );
-    return result ? (typeof result.correlation === 'number' ? result.correlation : result.correlationDetails?.pearson || null) : null;
+    return result
+      ? typeof result.correlation === 'number'
+        ? result.correlation
+        : result.correlationDetails?.pearson || null
+      : null;
   }
 
   private static shouldBinVariable(univariate: UnivariateAnalysis): boolean {
     // Bin if distribution is highly skewed or has specific patterns
-    return (
-      Math.abs(univariate.skewness || 0) > 2 || ((univariate.kurtosis || 0) > 5)
-    );
+    return Math.abs(univariate.skewness || 0) > 2 || (univariate.kurtosis || 0) > 5;
   }
 
   private static detectOutliers(univariate: UnivariateAnalysis): boolean {

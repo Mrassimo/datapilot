@@ -125,15 +125,26 @@ export class EnhancedTypeDetector {
 
     // Skip obvious non-date columns to prevent misclassification
     const nonDateNames = ['gender', 'sex', 'type', 'category', 'status', 'class', 'group'];
-    if (nonDateNames.some(name => columnName.toLowerCase().includes(name))) {
+    if (nonDateNames.some((name) => columnName.toLowerCase().includes(name))) {
       return null;
     }
 
     // Check for obvious categorical values that shouldn't be dates
     const uniqueValues = new Set(values);
-    const commonCategorical = ['male', 'female', 'yes', 'no', 'true', 'false', 'good', 'bad', 'poor', 'excellent'];
-    const hasCategoricalValues = Array.from(uniqueValues).some(val => 
-      commonCategorical.includes(val.toLowerCase())
+    const commonCategorical = [
+      'male',
+      'female',
+      'yes',
+      'no',
+      'true',
+      'false',
+      'good',
+      'bad',
+      'poor',
+      'excellent',
+    ];
+    const hasCategoricalValues = Array.from(uniqueValues).some((val) =>
+      commonCategorical.includes(val.toLowerCase()),
     );
     if (hasCategoricalValues && uniqueValues.size <= 10) {
       return null;
@@ -497,11 +508,11 @@ export class EnhancedTypeDetector {
     const genderValues = ['male', 'female', 'm', 'f', 'man', 'woman'];
     const educationValues = ['bachelor', 'master', 'phd', 'doctorate', 'high school', 'college'];
     const qualityValues = ['poor', 'fair', 'good', 'excellent', 'average'];
-    
+
     // Check for gender column specifically
     if (columnName.toLowerCase().includes('gender') || columnName.toLowerCase().includes('sex')) {
-      const isGenderLike = valuesArray.every(val => 
-        genderValues.some(gv => val.toLowerCase().includes(gv.toLowerCase()))
+      const isGenderLike = valuesArray.every((val) =>
+        genderValues.some((gv) => val.toLowerCase().includes(gv.toLowerCase())),
       );
       if (isGenderLike) {
         reasons.push('Column name and values indicate gender/demographic data');
@@ -515,7 +526,18 @@ export class EnhancedTypeDetector {
     }
 
     // Check column name hints
-    const nameHints = ['category', 'type', 'class', 'group', 'status', 'department', 'gender', 'education', 'quality', 'level'];
+    const nameHints = [
+      'category',
+      'type',
+      'class',
+      'group',
+      'status',
+      'department',
+      'gender',
+      'education',
+      'quality',
+      'level',
+    ];
     const nameHasHint = nameHints.some((hint) => columnName.toLowerCase().includes(hint));
 
     if (nameHasHint) {

@@ -3,13 +3,13 @@
  * Manages complex progress reporting across multiple analyzers with aggregation and callbacks
  */
 
-import type { 
-  ProgressState, 
-  ProgressCallback, 
+import type {
+  ProgressState,
+  ProgressCallback,
   ProgressCallbacks,
   ResourceMetrics,
   ResourceMonitor,
-  CLIOptions
+  CLIOptions,
 } from './types';
 import type { LogContext } from '../utils/logger';
 import { logger } from '../utils/logger';
@@ -66,7 +66,7 @@ export class ProgressOrchestrator implements ResourceMonitor {
   constructor(
     callbacks: ProgressCallbacks = {},
     options: CLIOptions = {},
-    context: LogContext = {}
+    context: LogContext = {},
   ) {
     this.callbacks = callbacks;
     this.context = context;
@@ -77,7 +77,7 @@ export class ProgressOrchestrator implements ResourceMonitor {
       rowsProcessed: 0,
       sectionsCompleted: 0,
     };
-    
+
     this.setupDefaultPhases();
     this.setupProgressLogging(options);
   }
@@ -159,7 +159,7 @@ export class ProgressOrchestrator implements ResourceMonitor {
       },
     ];
 
-    defaultPhases.forEach(phase => this.phases.set(phase.name, phase));
+    defaultPhases.forEach((phase) => this.phases.set(phase.name, phase));
   }
 
   /**
@@ -168,10 +168,11 @@ export class ProgressOrchestrator implements ResourceMonitor {
   private setupProgressLogging(options: CLIOptions): void {
     if (options.verbose) {
       this.callbacks.onProgress = (state) => {
-        logger.debug(
-          `Progress: ${state.phase} - ${state.progress}% - ${state.message}`,
-          { ...this.context, progress: state.progress, phase: state.phase }
-        );
+        logger.debug(`Progress: ${state.phase} - ${state.progress}% - ${state.message}`, {
+          ...this.context,
+          progress: state.progress,
+          phase: state.phase,
+        });
       };
     }
 
@@ -180,8 +181,8 @@ export class ProgressOrchestrator implements ResourceMonitor {
       if (!this.callbacks.onProgress) {
         this.callbacks.onProgress = (state) => {
           const timeStr = this.formatDuration(state.timeElapsed);
-          const etaStr = state.estimatedTimeRemaining 
-            ? ` (ETA: ${this.formatDuration(state.estimatedTimeRemaining)})` 
+          const etaStr = state.estimatedTimeRemaining
+            ? ` (ETA: ${this.formatDuration(state.estimatedTimeRemaining)})`
             : '';
           console.log(`  ${state.progress}% - ${state.message} [${timeStr}]${etaStr}`);
         };
@@ -218,7 +219,7 @@ export class ProgressOrchestrator implements ResourceMonitor {
     if (phase) {
       logger.debug(
         `Starting phase ${phaseName} (weight: ${phase.weight}%, estimated: ${phase.estimatedDuration}ms)`,
-        { ...this.context, phase: phaseName }
+        { ...this.context, phase: phaseName },
       );
     }
 
@@ -275,7 +276,7 @@ export class ProgressOrchestrator implements ResourceMonitor {
    */
   updateMetrics(metrics: Partial<ResourceMetrics>): void {
     this.resourceMetrics = { ...this.resourceMetrics, ...metrics };
-    
+
     if (metrics.rowsProcessed !== undefined) {
       logger.debug(`Processed ${metrics.rowsProcessed} rows`, {
         ...this.context,
@@ -289,7 +290,7 @@ export class ProgressOrchestrator implements ResourceMonitor {
    */
   completePhase(message: string): void {
     const duration = Date.now() - this.phaseStartTime;
-    
+
     if (this.currentPhase) {
       logger.info(`Completed phase ${this.currentPhase} in ${duration}ms`, {
         ...this.context,
@@ -309,7 +310,7 @@ export class ProgressOrchestrator implements ResourceMonitor {
     const duration = Date.now() - this.sectionStartTime;
     this.completedSections++;
     this.resourceMetrics.sectionsCompleted = this.completedSections;
-    
+
     if (this.currentSection) {
       logger.info(`Completed section ${this.currentSection} in ${duration}ms`, {
         ...this.context,
@@ -327,7 +328,11 @@ export class ProgressOrchestrator implements ResourceMonitor {
    * Report an error in the current phase
    */
   reportError(message: string, error?: Error): void {
-    logger.error(`Error in ${this.currentPhase || 'unknown phase'}: ${message}`, this.context, error);
+    logger.error(
+      `Error in ${this.currentPhase || 'unknown phase'}: ${message}`,
+      this.context,
+      error,
+    );
     this.callbacks.onError?.(message);
   }
 
@@ -365,10 +370,18 @@ export class ProgressOrchestrator implements ResourceMonitor {
    */
   private isPhaseCompleted(phaseName: string): boolean {
     // This is a simplified check - in practice, we'd track completed phases
-    const phaseOrder = ['initialization', 'section1', 'section2', 'section3', 'section4', 'section5', 'section6'];
+    const phaseOrder = [
+      'initialization',
+      'section1',
+      'section2',
+      'section3',
+      'section4',
+      'section5',
+      'section6',
+    ];
     const currentIndex = phaseOrder.indexOf(this.currentPhase || '');
     const checkIndex = phaseOrder.indexOf(phaseName);
-    
+
     return checkIndex >= 0 && checkIndex < currentIndex;
   }
 
@@ -414,7 +427,8 @@ export class ProgressOrchestrator implements ResourceMonitor {
     // Check memory usage (if available)
     if (this.resourceMetrics.memoryUsage > 0) {
       const memoryMB = this.resourceMetrics.memoryUsage / (1024 * 1024);
-      if (memoryMB > 1024) { // 1GB threshold
+      if (memoryMB > 1024) {
+        // 1GB threshold
         warnings.push(`High memory usage: ${memoryMB.toFixed(1)}MB`);
         exceeded = true;
       }
@@ -422,7 +436,8 @@ export class ProgressOrchestrator implements ResourceMonitor {
 
     // Check processing time
     const timeElapsed = Date.now() - this.startTime;
-    if (timeElapsed > 300000) { // 5 minutes
+    if (timeElapsed > 300000) {
+      // 5 minutes
       warnings.push(`Long processing time: ${this.formatDuration(timeElapsed)}`);
     }
 
@@ -469,7 +484,7 @@ export class ProgressOrchestrator implements ResourceMonitor {
     return (state: ProgressState) => {
       // Scale the progress based on section weight
       const scaledProgress = (state.progress * sectionWeight) / 100;
-      
+
       this.updateProgress({
         ...state,
         progress: scaledProgress,
@@ -482,25 +497,25 @@ export class ProgressOrchestrator implements ResourceMonitor {
    * Create a progress callback that aggregates multiple sub-operations
    */
   createAggregatedCallback(
-    subOperations: Array<{ name: string; weight: number }>
+    subOperations: Array<{ name: string; weight: number }>,
   ): (operationName: string, progress: number) => void {
     const operationProgress = new Map<string, number>();
-    
+
     return (operationName: string, progress: number) => {
       operationProgress.set(operationName, progress);
-      
+
       // Calculate weighted average
       let totalWeight = 0;
       let weightedSum = 0;
-      
+
       for (const op of subOperations) {
         const opProgress = operationProgress.get(op.name) || 0;
         totalWeight += op.weight;
         weightedSum += opProgress * op.weight;
       }
-      
+
       const aggregatedProgress = totalWeight > 0 ? weightedSum / totalWeight : 0;
-      
+
       this.updateProgress({
         progress: aggregatedProgress,
         message: `${operationName}: ${progress}%`,
@@ -515,10 +530,10 @@ export class ProgressOrchestrator implements ResourceMonitor {
  */
 export function createProgressOrchestrator(
   options: CLIOptions,
-  context: LogContext = {}
+  context: LogContext = {},
 ): ProgressOrchestrator {
   const callbacks: ProgressCallbacks = {};
-  
+
   // Setup callbacks based on options
   if (!options.quiet) {
     callbacks.onPhaseStart = (phase, message) => {
@@ -526,18 +541,17 @@ export function createProgressOrchestrator(
         console.log(`\n🔄 ${phase}: ${message}`);
       }
     };
-    
+
     callbacks.onPhaseComplete = (message, timeElapsed) => {
-      const duration = timeElapsed < 1000 
-        ? `${Math.round(timeElapsed)}ms` 
-        : `${(timeElapsed / 1000).toFixed(1)}s`;
+      const duration =
+        timeElapsed < 1000 ? `${Math.round(timeElapsed)}ms` : `${(timeElapsed / 1000).toFixed(1)}s`;
       console.log(`✅ ${message} [${duration}]`);
     };
-    
+
     callbacks.onError = (message) => {
       console.error(`❌ ${message}`);
     };
-    
+
     callbacks.onWarning = (message) => {
       console.warn(`⚠️  ${message}`);
     };

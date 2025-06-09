@@ -1,11 +1,11 @@
 # DataPilot 🚁📊
 
-[![Version](https://img.shields.io/badge/version-0.1.0-blue)](package.json)
-[![Node.js](https://img.shields.io/badge/node-%3E%3D18.0.0-green)](package.json#L34)
-[![TypeScript](https://img.shields.io/badge/typescript-5.3.3-blue)](package.json)
-[![License](https://img.shields.io/badge/license-MIT-green)](package.json#L32)
+[![npm version](https://img.shields.io/npm/v/@datapilot/cli.svg)](https://www.npmjs.com/package/@datapilot/cli)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Node.js Version](https://img.shields.io/node/v/@datapilot/cli.svg)](https://nodejs.org)
+[![Platform Support](https://img.shields.io/badge/platform-windows%20%7C%20macos%20%7C%20linux-blue)](https://nodejs.org)
 
-> **A lightweight CLI statistical computation engine for comprehensive CSV data analysis**
+> **Enterprise-grade streaming CSV analysis with comprehensive statistical insights**
 
 DataPilot does the maths, so AI (or you) can derive the meaning. Get deep insights from your CSV data with a single command.
 
@@ -17,215 +17,278 @@ DataPilot does the maths, so AI (or you) can derive the meaning. Get deep insigh
 - ♿ **Accessibility-First**: WCAG 2.1 AA compliant visualization recommendations
 - 🎯 **Multiple Output Formats**: Markdown, JSON, YAML, and plain text
 - ⚡ **High Performance**: Optimized for speed with intelligent caching
+- 🌍 **Cross-Platform**: Full support for Windows, macOS, and Linux
+- 🔒 **Enterprise Ready**: Proxy support, configurable for corporate environments
+- 📦 **Zero Runtime Dependencies**: Only one production dependency (commander)
 - 🧪 **Extensive Testing**: 90%+ test coverage with real-world datasets
 
-## 🚀 Quick Start
+## 🚀 Installation
 
-### Installation
+### Standard Installation
 
 ```bash
-npm install -g datapilot
+# Using npm (recommended)
+npm install -g @datapilot/cli
+
+# Using yarn
+yarn global add @datapilot/cli
+
+# Using npx (no installation)
+npx @datapilot/cli analyze data.csv
 ```
+
+### Windows Installation
+
+```powershell
+# For Windows users, run as Administrator if needed
+npm install -g @datapilot/cli
+
+# If 'datapilot' command is not found, use:
+npx @datapilot/cli analyze data.csv
+
+# Or add npm global bin to PATH:
+# Control Panel → System → Advanced → Environment Variables
+# Add to PATH: %APPDATA%\npm
+```
+
+### Corporate/Proxy Installation
+
+```bash
+# For HTTP proxy
+npm config set proxy http://proxy.company.com:8080
+npm config set https-proxy http://proxy.company.com:8080
+npm install -g @datapilot/cli
+
+# For authenticated proxy
+npm config set proxy http://username:password@proxy.company.com:8080
+npm config set https-proxy http://username:password@proxy.company.com:8080
+
+# Using environment variables (Unix/macOS/Linux)
+export HTTP_PROXY=http://proxy.company.com:8080
+export HTTPS_PROXY=http://proxy.company.com:8080
+npm install -g @datapilot/cli
+
+# Using environment variables (Windows)
+set HTTP_PROXY=http://proxy.company.com:8080
+set HTTPS_PROXY=http://proxy.company.com:8080
+npm install -g @datapilot/cli
+```
+
+### Docker Installation (Coming Soon)
+
+```bash
+# Run without installation
+docker run --rm -v $(pwd):/data datapilot/cli analyze /data/file.csv
+```
+
+## 📋 Quick Start
 
 ### Basic Usage
 
 ```bash
-# Comprehensive analysis (all sections)
-datapilot all your-data.csv
+# Analyze with all sections (comprehensive analysis)
+datapilot analyze data.csv
 
-# Individual section analysis
-datapilot overview your-data.csv      # File structure & metadata
-datapilot quality your-data.csv       # Data quality audit
-datapilot eda your-data.csv          # Exploratory data analysis
-datapilot visualization your-data.csv # Chart recommendations
-datapilot engineering your-data.csv  # Schema & ML preparation
-datapilot modeling your-data.csv     # Predictive modeling guidance
-```
+# Run specific sections
+datapilot analyze data.csv --sections 1,2,3
 
-### Output Options
-
-```bash
 # Different output formats
-datapilot all data.csv --output json
-datapilot all data.csv --output yaml
-datapilot all data.csv --output markdown  # Default
+datapilot analyze data.csv --format json
+datapilot analyze data.csv --format yaml
+datapilot analyze data.csv --format markdown --output report.md
 
-# Custom output file
-datapilot all data.csv --output-file my-analysis.md
+# Memory-efficient mode for large files
+datapilot analyze large-file.csv --preset low-memory
 
-# Quiet mode
-datapilot all data.csv --quiet
+# Silent mode for CI/CD pipelines
+datapilot analyze data.csv --quiet --format json > results.json
 ```
 
-## 📋 Analysis Sections
+### Configuration File
+
+Create a `.datapilotrc` file in your project root:
+
+```json
+{
+  "defaultSections": [1, 2, 3],
+  "outputFormat": "markdown",
+  "performance": {
+    "maxRows": 1000000,
+    "memoryThresholdMB": 512
+  },
+  "quiet": false,
+  "verbose": true
+}
+```
+
+## 📊 Analysis Sections
 
 ### Section 1: Overview 🗂️
 **File metadata, parsing detection, structural analysis**
-- File characteristics (size, encoding, structure)
-- Column type detection and confidence scores
+- File characteristics (size, encoding, BOM detection)
+- Column type detection with confidence scores
 - Data profiling and sparsity analysis
-- Environment and system information
+- UTF-8 BOM handling for Excel exports
 
 ### Section 2: Data Quality 🧐
 **Comprehensive data quality audit**
-- **10 Quality Dimensions**: Completeness, accuracy, consistency, uniqueness, validity, timeliness, integrity, reasonableness, precision, representational
-- **Composite Quality Score**: Weighted assessment across all dimensions
-- **Missing Data Analysis**: Patterns, correlations, imputation strategies
-- **Duplicate Detection**: Exact and fuzzy/semantic duplicates
-- **Business Rule Validation**: Cross-field consistency checks
+- 10 Quality Dimensions assessment
+- Composite Quality Score (0-100)
+- Missing data patterns and correlations
+- Duplicate detection (exact and fuzzy)
+- Business rule validation
 
 ### Section 3: Exploratory Data Analysis 📈
 **Streaming statistical computation**
-- **Univariate Analysis**: Distributions, normality tests, outlier detection
-- **Bivariate Analysis**: Correlations, relationships, dependency analysis
-- **Multivariate Analysis**: PCA, clustering, advanced pattern detection
-- **Statistical Tests**: Hypothesis testing with multiple correction methods
-- **Performance Optimized**: Handles millions of rows efficiently
+- Univariate and bivariate analysis
+- Distribution testing and outlier detection
+- Correlation analysis (Pearson, Spearman, Cramér's V)
+- Hypothesis testing with corrections
+- Memory-efficient streaming algorithms
 
 ### Section 4: Visualization Intelligence 📊
 **Accessibility-first chart recommendations**
-- **Smart Chart Selection**: Data-driven recommendations with confidence scores
-- **Aesthetic Optimization**: Color palettes, typography, layout principles
-- **Accessibility Features**: WCAG 2.1 AA compliance, colorblind-friendly
-- **Library Recommendations**: d3.js, Plotly, Observable Plot suggestions
-- **Performance Considerations**: Rendering strategies for different data sizes
+- Smart chart selection based on data types
+- WCAG 2.1 AA compliant color schemes
+- Performance-based rendering strategies
+- Library-specific code generation
+- Responsive design recommendations
 
 ### Section 5: Data Engineering 🏗️
 **Schema optimization and ML preparation**
-- **Database Schema Design**: Optimized for PostgreSQL, MySQL, others
-- **Feature Engineering**: Automated suggestions for ML pipelines
-- **Data Type Optimization**: Memory and storage efficiency recommendations
-- **ML Readiness Assessment**: Pipeline preparation and data transformation guides
+- Database schema generation (PostgreSQL, MySQL, SQLite)
+- Feature engineering suggestions
+- Data type optimization
+- Indexing strategies
+- ML pipeline preparation
 
 ### Section 6: Predictive Modeling 🧠
 **Algorithm selection and modeling strategy**
-- **Task Identification**: Regression, classification, clustering, time series
-- **Algorithm Recommendations**: Scikit-learn, TensorFlow, PyTorch suggestions
-- **Model Validation**: Cross-validation strategies and performance metrics
-- **Ethics & Bias Assessment**: Fairness analysis and bias detection
-- **Deployment Strategy**: Production readiness and monitoring recommendations
+- Automatic task type identification
+- Algorithm recommendations with rationale
+- Cross-validation strategies
+- Performance metrics selection
+- Deployment considerations
 
-## 🛠️ Development
+## 🛠️ Advanced Usage
 
-### Prerequisites
-
-- Node.js ≥ 18.0.0
-- npm or yarn
-
-### Setup
+### Working with Large Files
 
 ```bash
-# Clone the repository
-git clone <repository-url>
-cd datapilot
+# Streaming mode (default for files > 100MB)
+datapilot analyze huge-dataset.csv --streaming
 
-# Install dependencies
-npm install
+# Adjust memory limits
+datapilot analyze data.csv --memory-limit 1024
 
-# Build the project
-npm run build
-
-# Run tests
-npm test
+# Sample analysis for quick insights
+datapilot analyze data.csv --sample-size 10000
 ```
 
-### Development Commands
+### Programmatic Usage
+
+```javascript
+const { analyze } = require('@datapilot/cli/api');
+
+// Async analysis
+const results = await analyze('data.csv', {
+  sections: [1, 2, 3],
+  format: 'json',
+  streaming: true
+});
+
+console.log(results.overview.structuralDimensions);
+console.log(results.quality.compositeScore);
+```
+
+### CI/CD Integration
+
+```yaml
+# GitHub Actions example
+- name: Analyze Data Quality
+  run: |
+    npm install -g @datapilot/cli
+    datapilot analyze data.csv --sections 2 --format json > quality.json
+    
+    # Check quality score
+    score=$(jq '.quality.compositeScore' quality.json)
+    if (( $(echo "$score < 80" | bc -l) )); then
+      echo "Data quality score too low: $score"
+      exit 1
+    fi
+```
+
+## 🔧 Troubleshooting
+
+### Common Issues
+
+**Command not found after installation:**
+```bash
+# Check npm global bin path
+npm bin -g
+
+# Add to PATH (Unix/macOS/Linux)
+export PATH="$(npm bin -g):$PATH"
+
+# Use npx as fallback
+npx @datapilot/cli analyze data.csv
+```
+
+**Memory issues with large files:**
+```bash
+# Increase Node.js memory limit
+NODE_OPTIONS="--max-old-space-size=4096" datapilot analyze large.csv
+
+# Use streaming mode
+datapilot analyze large.csv --preset low-memory
+```
+
+**Proxy/firewall issues:**
+```bash
+# Verify proxy settings
+npm config get proxy
+npm config get https-proxy
+
+# Bypass proxy for local npm registry
+npm config set noproxy "localhost,127.0.0.1,your-internal-domain.com"
+```
+
+### Debug Mode
 
 ```bash
-npm run build          # Compile TypeScript to dist/
-npm run dev            # Watch mode compilation  
-npm run test           # Run all tests
-npm run test:coverage  # Generate coverage report (90% threshold)
-npm run lint           # ESLint checking
-npm run lint:fix       # Auto-fix linting issues
-npm run typecheck      # Type checking without emitting files
-npm run clean          # Remove dist directory
-```
+# Enable debug logging
+DEBUG=datapilot:* datapilot analyze data.csv
 
-### Project Structure
+# Verbose output
+datapilot analyze data.csv --verbose
 
-```
-src/
-├── analyzers/          # Analysis engines for each section
-│   ├── overview/       # Section 1: File & structure analysis
-│   ├── quality/        # Section 2: Data quality assessment
-│   ├── streaming/      # Section 3: EDA & statistical analysis
-│   ├── visualization/  # Section 4: Chart recommendations
-│   ├── engineering/    # Section 5: Schema & ML preparation
-│   └── modeling/       # Section 6: Predictive modeling guidance
-├── cli/               # Command-line interface
-├── core/              # Core utilities and configuration
-├── parsers/           # CSV parsing and detection
-└── utils/             # Shared utilities and helpers
-
-test-datasets/         # Sample datasets for testing
-examples/              # Example outputs and usage
-tests/                 # Comprehensive test suite
-```
-
-## 📖 Examples
-
-### Sample Output
-
-DataPilot generates comprehensive reports like this:
-
-```markdown
-### Section 2: Comprehensive Data Quality & Integrity Audit Report 🧐🛡️
-
-**2.1. Overall Data Quality Cockpit:**
-* **Composite Data Quality Score (CDQS):** 92.3 / 100
-* **Top Data Quality Strengths:**
-  1. Excellent completeness with 99.38% score (completeness)
-  2. Excellent uniqueness with 100% score (uniqueness)
-* **Areas for Improvement:**
-  1. Precision quality needs attention (0% score)
-```
-
-### Real-World Datasets
-
-DataPilot has been tested with:
-- **Student Performance Data**: Academic metrics and lifestyle factors
-- **Medical Datasets**: Patient records and clinical data
-- **Air Quality Data**: Environmental monitoring across cities
-- **Financial Transactions**: Large-scale transaction logs
-- **Flight Data**: Aviation industry datasets
-
-## 🧪 Testing
-
-DataPilot includes extensive testing across multiple dimensions:
-
-- **Unit Tests**: Individual component validation
-- **Integration Tests**: Cross-section data flow
-- **Performance Tests**: Large dataset handling
-- **Real-World Tests**: Actual datasets from Kaggle and industry sources
-
-```bash
-# Run all tests
-npm test
-
-# Run specific test suites
-npm test -- --testPathPattern="section1"
-npm test -- --testPathPattern="quality"
-npm test -- --testPathPattern="streaming"
-
-# Generate coverage report
-npm run test:coverage
+# Save debug log
+datapilot analyze data.csv --verbose 2> debug.log
 ```
 
 ## 🤝 Contributing
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
 
-### Code Style
+### Development Setup
 
-- TypeScript with strict mode enabled
-- ESLint + Prettier for formatting
-- Comprehensive JSDoc documentation
-- 90%+ test coverage requirement
+```bash
+# Clone and install
+git clone https://github.com/Mrassimo/datapilot.git
+cd datapilot
+npm install
+
+# Run tests
+npm test
+npm run test:coverage
+
+# Build
+npm run build
+
+# Link for local testing
+npm link
+datapilot analyze test-datasets/sample.csv
+```
 
 ## 📄 License
 
@@ -234,9 +297,16 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🙏 Acknowledgments
 
 - Built with TypeScript and Node.js
-- Statistical computations optimized for streaming processing
-- Accessibility guidelines following WCAG 2.1 AA standards
-- Visualization recommendations based on statistical best practices
+- Statistical algorithms optimized for streaming
+- Accessibility guidelines from WCAG 2.1
+- Community feedback and contributions
+
+## 📞 Support
+
+- 📖 [Documentation](https://github.com/Mrassimo/datapilot/wiki)
+- 🐛 [Issue Tracker](https://github.com/Mrassimo/datapilot/issues)
+- 💬 [Discussions](https://github.com/Mrassimo/datapilot/discussions)
+- 📧 Email: support@datapilot.dev
 
 ---
 

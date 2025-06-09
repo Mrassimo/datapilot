@@ -2629,18 +2629,48 @@ export class AestheticOptimizer {
     // Real implementation with domain-specific typography optimization
     const scaleRatio = 1.25; // Golden ratio approximation
     const typographyLevels: TypographyLevel[] = [
-      { level: 'h1', fontSize: { desktop: 48, tablet: 36, mobile: 28, unit: 'px', fluidScaling: true }, fontWeight: { value: 700, name: 'bold', usage: ['headings'], effectiveness: 0.9 }, lineHeight: 1.2 },
-      { level: 'h2', fontSize: { desktop: 36, tablet: 28, mobile: 24, unit: 'px', fluidScaling: true }, fontWeight: { value: 700, name: 'bold', usage: ['headings'], effectiveness: 0.9 }, lineHeight: 1.3 },
-      { level: 'h3', fontSize: { desktop: 24, tablet: 20, mobile: 18, unit: 'px', fluidScaling: true }, fontWeight: { value: 600, name: 'semibold', usage: ['subheadings'], effectiveness: 0.8 }, lineHeight: 1.4 },
-      { level: 'body', fontSize: { desktop: 16, tablet: 16, mobile: 14, unit: 'px', fluidScaling: false }, fontWeight: { value: 400, name: 'regular', usage: ['body'], effectiveness: 0.7 }, lineHeight: 1.5 },
-      { level: 'caption', fontSize: { desktop: 12, tablet: 12, mobile: 11, unit: 'px', fluidScaling: false }, fontWeight: { value: 400, name: 'regular', usage: ['captions'], effectiveness: 0.6 }, lineHeight: 1.4 },
+      {
+        level: 'h1',
+        fontSize: { desktop: 48, tablet: 36, mobile: 28, unit: 'px', fluidScaling: true },
+        fontWeight: { value: 700, name: 'bold', usage: ['headings'], effectiveness: 0.9 },
+        lineHeight: 1.2,
+      },
+      {
+        level: 'h2',
+        fontSize: { desktop: 36, tablet: 28, mobile: 24, unit: 'px', fluidScaling: true },
+        fontWeight: { value: 700, name: 'bold', usage: ['headings'], effectiveness: 0.9 },
+        lineHeight: 1.3,
+      },
+      {
+        level: 'h3',
+        fontSize: { desktop: 24, tablet: 20, mobile: 18, unit: 'px', fluidScaling: true },
+        fontWeight: { value: 600, name: 'semibold', usage: ['subheadings'], effectiveness: 0.8 },
+        lineHeight: 1.4,
+      },
+      {
+        level: 'body',
+        fontSize: { desktop: 16, tablet: 16, mobile: 14, unit: 'px', fluidScaling: false },
+        fontWeight: { value: 400, name: 'regular', usage: ['body'], effectiveness: 0.7 },
+        lineHeight: 1.5,
+      },
+      {
+        level: 'caption',
+        fontSize: { desktop: 12, tablet: 12, mobile: 11, unit: 'px', fluidScaling: false },
+        fontWeight: { value: 400, name: 'regular', usage: ['captions'], effectiveness: 0.6 },
+        lineHeight: 1.4,
+      },
     ];
 
     return {
       fontHierarchy: {
         levels: typographyLevels,
         scaleRatio,
-        verticalRhythm: { baselineGrid: 24, rhythm: 1.5, alignment: 'baseline', consistency: 85 } as VerticalRhythm, // 24px baseline
+        verticalRhythm: {
+          baselineGrid: 24,
+          rhythm: 1.5,
+          alignment: 'baseline',
+          consistency: 85,
+        } as VerticalRhythm, // 24px baseline
         typeScale: {
           modularScale: true,
           ratio: scaleRatio,
@@ -2648,11 +2678,46 @@ export class AestheticOptimizer {
           harmonicProgression: true,
         },
         semanticMapping: {
-          headings: [{ element: 'h1', level: 'primary', purpose: 'main-heading', characteristics: ['large', 'bold', 'prominent'] }],
-          body: [{ element: 'p', level: 'base', purpose: 'body-text', characteristics: ['readable', 'clear', 'flowing'] }],
-          captions: [{ element: 'figcaption', level: 'small', purpose: 'supporting-text', characteristics: ['subtle', 'secondary'] }],
-          labels: [{ element: 'label', level: 'medium', purpose: 'form-labels', characteristics: ['clear', 'directive'] }],
-          ui: [{ element: 'button', level: 'medium', purpose: 'interface', characteristics: ['actionable', 'clear'] }],
+          headings: [
+            {
+              element: 'h1',
+              level: 'primary',
+              purpose: 'main-heading',
+              characteristics: ['large', 'bold', 'prominent'],
+            },
+          ],
+          body: [
+            {
+              element: 'p',
+              level: 'base',
+              purpose: 'body-text',
+              characteristics: ['readable', 'clear', 'flowing'],
+            },
+          ],
+          captions: [
+            {
+              element: 'figcaption',
+              level: 'small',
+              purpose: 'supporting-text',
+              characteristics: ['subtle', 'secondary'],
+            },
+          ],
+          labels: [
+            {
+              element: 'label',
+              level: 'medium',
+              purpose: 'form-labels',
+              characteristics: ['clear', 'directive'],
+            },
+          ],
+          ui: [
+            {
+              element: 'button',
+              level: 'medium',
+              purpose: 'interface',
+              characteristics: ['actionable', 'clear'],
+            },
+          ],
         } as TypographySemanticMapping,
       },
       readabilityOptimization: {
@@ -3353,7 +3418,10 @@ export class AestheticOptimizer {
     };
   }
 
-  private static establishCompositionHierarchy(dataCharacteristics: any, layoutPrinciples: any): any {
+  private static establishCompositionHierarchy(
+    dataCharacteristics: any,
+    layoutPrinciples: any,
+  ): any {
     return {
       primaryElements: ['title', 'main-chart'],
       secondaryElements: ['axis-labels', 'legend'],
@@ -3362,7 +3430,11 @@ export class AestheticOptimizer {
     };
   }
 
-  private static defineSpatialRelationships(dataCharacteristics: any, visualBalance: any, visualHierarchy: any): any {
+  private static defineSpatialRelationships(
+    dataCharacteristics: any,
+    visualBalance: any,
+    visualHierarchy: any,
+  ): any {
     return {
       proximityGroups: ['chart-legend', 'title-subtitle'],
       whiteSpaceRatios: { content: 0.6, whitespace: 0.4 },

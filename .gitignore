@@ -1,21 +1,32 @@
 # Dependencies
 node_modules/
+.npm/
 
 # Build output
 dist/
 build/
+*.tsbuildinfo
 
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
+*~
+
+# OS files
 .DS_Store
+.DS_Store?
+._*
+Thumbs.db
+ehthumbs.db
+Desktop.ini
 
 # Testing
 coverage/
 *.lcov
 .nyc_output/
+junit.xml
 
 # Logs
 logs/
@@ -23,31 +34,91 @@ logs/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
 
 # Environment
 .env
 .env.local
 .env.*.local
+.env.development
+.env.production
 
 # Temporary files
 *.tmp
 *.temp
+tmp/
+temp/
+.tmp/
+.temp/
 .cache/
+.eslintcache
 
-# Test data
+# Test data and outputs
 test-data/
+test-results/
 test-results-archive/
+*_datapilot_*.md
+*_datapilot_*.txt
+*_datapilot_*.json
+test-results-*/
+
+# Output files (keep only specific ones)
+*.txt
 *.csv
+*.json
+*.yaml
+*.yml
+
+# Keep essential project files
+!package.json
+!package-lock.json
+!tsconfig.json
+!jest.config.js
+!.eslintrc.json
+!.prettierrc.json
+!.npmignore
+!.datapilotrc.example
+
+# Keep scripts
+!scripts/*.js
+
+# Keep examples
 !examples/*.csv
+!examples/**/*.md
+!examples/**/*.json
+!examples/sample-outputs/*.txt
+
+# Keep test datasets
 !test-datasets/**/*.csv
+
+# Keep documentation
+!docs/**/*.md
+!docs/**/*.json
+!docs/**/*.yml
 
 # Large test datasets (over 100MB limit)
 test-datasets/large/transactions-large.csv
 test-datasets/large/transactions-xlarge.csv
 test-datasets/large/yellow_tripdata_2023-01.csv
 
-# Test outputs
-*_datapilot_*.md
-*_datapilot_*.txt
-*_datapilot_*.json
-test-results-*/
+# Development artifacts
+.history/
+.vscode-test/
+*.vsix
+
+# Package artifacts
+*.tgz
+
+# Yarn
+.yarn-integrity
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*
+
+# Miscellaneous
+.grunt/
+.lock-wscript
+.node_repl_history

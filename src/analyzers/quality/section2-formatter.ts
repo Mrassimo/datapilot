@@ -3,7 +3,7 @@
  * Generates comprehensive Markdown report matching section2.md specification
  */
 
-import type { 
+import type {
   Section2QualityAudit,
   DataQualityCockpit,
   CompletenessAnalysis,
@@ -16,7 +16,7 @@ import type {
   ReasonablenessAnalysis,
   PrecisionAnalysis,
   RepresentationalAnalysis,
-  ProfilingInsights
+  ProfilingInsights,
 } from './types.js';
 
 export class Section2Formatter {
@@ -98,10 +98,7 @@ ${topWeaknesses.map((weakness, i: number) => `        ${i + 1}. ${weakness.descr
 
     const correlationDetails = missingDataMatrix.correlations
       .slice(0, 3)
-      .map(
-        (corr) =>
-          `        * ${corr.description} (Correlation: ${corr.correlation.toFixed(3)}).`,
-      )
+      .map((corr) => `        * ${corr.description} (Correlation: ${corr.correlation.toFixed(3)}).`)
       .join('\n');
 
     return `**2.2. Completeness Dimension (Absence of Missing Data):**

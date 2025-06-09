@@ -6,15 +6,15 @@
 import type { Section1Result, ColumnInventory } from '../overview/types';
 import type { Section2Result } from '../quality/types';
 import type { Section3Result } from '../eda/types';
-import type { 
-  Section5Result, 
-  Section5Config, 
-  Section5Progress, 
+import type {
+  Section5Result,
+  Section5Config,
+  Section5Progress,
   Section5Warning,
   DataEngineeringAnalysis,
   FeaturePreparationEntry,
   DatabaseTypeInference,
-  PCAInsights
+  PCAInsights,
 } from './types';
 import { logger } from '../../utils/logger';
 

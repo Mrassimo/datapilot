@@ -17,7 +17,11 @@ import { Section2Formatter } from '../analyzers/quality/section2-formatter';
 import { StreamingAnalyzer } from '../analyzers/streaming/streaming-analyzer';
 import { Section3Formatter } from '../analyzers/eda/section3-formatter';
 import { Section4Analyzer, Section4Formatter } from '../analyzers/visualization';
-import { RecommendationType, AccessibilityLevel, ComplexityLevel } from '../analyzers/visualization/types';
+import {
+  RecommendationType,
+  AccessibilityLevel,
+  ComplexityLevel,
+} from '../analyzers/visualization/types';
 import { Section5Analyzer, Section5Formatter } from '../analyzers/engineering';
 import { Section6Analyzer, Section6Formatter } from '../analyzers/modeling';
 import { ModelingTaskType } from '../analyzers/modeling/types';
@@ -44,7 +48,13 @@ import type { Section5Result } from '../analyzers/engineering/types';
 import type { Section6Result } from '../analyzers/modeling/types';
 
 // Union type for all section results
-type SectionResult = Section1Result | Section2Result | Section3Result | Section4Result | Section5Result | Section6Result;
+type SectionResult =
+  | Section1Result
+  | Section2Result
+  | Section3Result
+  | Section4Result
+  | Section5Result
+  | Section6Result;
 
 // Generic analysis configuration with proper typing
 interface AnalysisConfig<T extends SectionResult = SectionResult> {
@@ -52,7 +62,11 @@ interface AnalysisConfig<T extends SectionResult = SectionResult> {
   phase: string;
   message: string;
   dependencies?: string[];
-  analyzerFactory: (filePath: string, options: CLIOptions, dependencies?: SectionResult[]) => Promise<T>;
+  analyzerFactory: (
+    filePath: string,
+    options: CLIOptions,
+    dependencies?: SectionResult[],
+  ) => Promise<T>;
   formatterMethod?: (result: T) => string;
   outputMethod: (
     outputManager: OutputManager,
@@ -75,7 +89,7 @@ export class DataPilotCLI {
   constructor() {
     this.argumentParser = new ArgumentParser();
     this.progressReporter = new ProgressReporter();
-    
+
     // Initialize error handling and memory management
     this.initializeErrorHandling();
   }
@@ -401,7 +415,11 @@ export class DataPilotCLI {
   /**
    * Execute dependency analysis and cache results
    */
-  private async executeDependency(depName: string, filePath: string, options: CLIOptions): Promise<SectionResult> {
+  private async executeDependency(
+    depName: string,
+    filePath: string,
+    options: CLIOptions,
+  ): Promise<SectionResult> {
     switch (depName) {
       case 'section1':
         const section1Analyzer = new Section1Analyzer({
@@ -482,7 +500,7 @@ export class DataPilotCLI {
     if (this.dependencyResolver) {
       this.dependencyResolver.clear();
     }
-    
+
     // Register resolvers for the sections we'll need
     this.registerSectionResolvers(filePath, options);
 

@@ -52,23 +52,23 @@ export class OnlineStatistics {
   getCount(): number {
     return this.count;
   }
-  
+
   getSum(): number {
     return this.sum;
   }
-  
+
   getMean(): number {
     return this.count > 0 ? this.mean : 0;
   }
-  
+
   getMin(): number {
     return this.count > 0 ? (this.min === Number.POSITIVE_INFINITY ? 0 : this.min) : 0;
   }
-  
+
   getMax(): number {
     return this.count > 0 ? (this.max === Number.NEGATIVE_INFINITY ? 0 : this.max) : 0;
   }
-  
+
   getRange(): number {
     return this.count > 0 ? this.getMax() - this.getMin() : 0;
   }

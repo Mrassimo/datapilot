@@ -3,7 +3,7 @@
  * Formats engineering analysis results into comprehensive markdown reports
  */
 
-import type { 
+import type {
   Section5Result,
   Section5Metadata,
   DataEngineeringAnalysis,
@@ -18,7 +18,7 @@ import type {
   ScalabilityAssessment,
   DataGovernanceConsiderations,
   MLReadinessAssessment,
-  KnowledgeBaseOutput
+  KnowledgeBaseOutput,
 } from './types';
 
 export class Section5Formatter {
@@ -53,7 +53,10 @@ This section evaluates the dataset from a data engineering perspective, focusing
 ---`;
   }
 
-  private static formatExecutiveSummary(_analysis: DataEngineeringAnalysis, metadata: Section5Metadata): string {
+  private static formatExecutiveSummary(
+    _analysis: DataEngineeringAnalysis,
+    metadata: Section5Metadata,
+  ): string {
     return `## 5.1 Executive Summary
 
 **Analysis Overview:**
@@ -325,7 +328,9 @@ ${score.factors
     return output;
   }
 
-  private static formatTransformationPipeline(pipeline: TransformationPipelineRecommendations): string {
+  private static formatTransformationPipeline(
+    pipeline: TransformationPipelineRecommendations,
+  ): string {
     const sections = [
       '## 5.4 Data Transformation Pipeline',
       '',

@@ -22,11 +22,17 @@ export interface BaseCSVParserOptions {
   readonly sampleSize?: number;
 }
 
-export type CSVParserOptions = BaseCSVParserOptions & (
-  | { mode: 'strict'; strictValidation: true; abortOnError: true }
-  | { mode: 'lenient'; strictValidation?: false; continueOnError?: true; maxErrors?: number }
-  | { mode: 'recovery'; strictValidation: false; attemptRecovery: true; recoveryStrategies: readonly RecoveryStrategy[] }
-);
+export type CSVParserOptions = BaseCSVParserOptions &
+  (
+    | { mode: 'strict'; strictValidation: true; abortOnError: true }
+    | { mode: 'lenient'; strictValidation?: false; continueOnError?: true; maxErrors?: number }
+    | {
+        mode: 'recovery';
+        strictValidation: false;
+        attemptRecovery: true;
+        recoveryStrategies: readonly RecoveryStrategy[];
+      }
+  );
 
 export interface RecoveryStrategy {
   readonly type: 'skip-row' | 'substitute-value' | 'truncate-field' | 'interpolate';
