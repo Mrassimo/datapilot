@@ -49,24 +49,25 @@ export class InteractivePrompt {
         type: 'input',
         message: 'Enter number or file path:',
         validate: (input) => {
-          const num = parseInt(input, 10);
+          const inputStr = String(input);
+          const num = parseInt(inputStr, 10);
           if (!isNaN(num) && num >= 1 && num <= csvFiles.length + 1) {
             return true;
           }
-          if (existsSync(input)) {
+          if (existsSync(inputStr)) {
             return true;
           }
           return 'Please enter a valid number or file path';
         },
       });
 
-      const num = parseInt(choice, 10);
+      const num = parseInt(String(choice), 10);
       if (!isNaN(num) && num <= csvFiles.length) {
         return join(currentDir, csvFiles[num - 1]);
       } else if (num === csvFiles.length + 1) {
         return this.promptForCustomPath();
       }
-      return choice;
+      return String(choice);
     } else {
       console.log('No CSV files found in current directory.');
       return this.promptForCustomPath();
@@ -81,9 +82,10 @@ export class InteractivePrompt {
       type: 'input',
       message: 'Enter CSV file path:',
       validate: (input) => {
-        if (!input) return 'File path is required';
-        if (!existsSync(input)) return 'File not found';
-        if (!input.toLowerCase().endsWith('.csv')) return 'File must be a CSV';
+        const inputStr = String(input);
+        if (!inputStr) return 'File path is required';
+        if (!existsSync(inputStr)) return 'File not found';
+        if (!inputStr.toLowerCase().endsWith('.csv')) return 'File must be a CSV';
         return true;
       },
     });
@@ -116,12 +118,12 @@ export class InteractivePrompt {
       message: 'Enter number (1-9):',
       default: '1',
       validate: (input) => {
-        const num = parseInt(input, 10);
+        const num = parseInt(String(input), 10);
         return (num >= 1 && num <= commands.length) || 'Please enter a valid number';
       },
     });
 
-    return commands[parseInt(choice, 10) - 1].value;
+    return commands[parseInt(String(choice), 10) - 1].value;
   }
 
   /**
@@ -146,12 +148,12 @@ export class InteractivePrompt {
       message: 'Enter number (1-4):',
       default: '1',
       validate: (input) => {
-        const num = parseInt(input, 10);
+        const num = parseInt(String(input), 10);
         return (num >= 1 && num <= formats.length) || 'Please enter a valid number';
       },
     });
 
-    return formats[parseInt(choice, 10) - 1].value;
+    return formats[parseInt(String(choice), 10) - 1].value;
   }
 
   /**
@@ -200,7 +202,7 @@ export class InteractivePrompt {
       message: `Chunk size (rows per batch):`,
       default: recommendedChunkSize.toString(),
       validate: (input) => {
-        const num = parseInt(input, 10);
+        const num = parseInt(String(input), 10);
         return num > 0 || 'Must be a positive number';
       },
     });
@@ -210,7 +212,7 @@ export class InteractivePrompt {
       message: `Memory limit (MB):`,
       default: recommendedMemory.toString(),
       validate: (input) => {
-        const num = parseInt(input, 10);
+        const num = parseInt(String(input), 10);
         return num > 0 || 'Must be a positive number';
       },
     });
@@ -228,16 +230,16 @@ export class InteractivePrompt {
         message: 'Maximum rows to process:',
         default: '100000',
         validate: (input) => {
-          const num = parseInt(input, 10);
+          const num = parseInt(String(input), 10);
           return num > 0 || 'Must be a positive number';
         },
       });
     }
 
     return {
-      chunkSize: parseInt(chunkSize, 10),
-      maxMemory: parseInt(maxMemory, 10),
-      maxRows: maxRows ? parseInt(maxRows, 10) : undefined,
+      chunkSize: parseInt(String(chunkSize), 10),
+      maxMemory: parseInt(String(maxMemory), 10),
+      maxRows: maxRows ? parseInt(String(maxRows), 10) : undefined,
     };
   }
 

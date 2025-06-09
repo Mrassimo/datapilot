@@ -126,6 +126,12 @@ export interface AnalysisConfig {
   highCardinalityThreshold: number;
   /** Missing value threshold for quality alerts */
   missingValueQualityThreshold: number;
+  /** Multivariate analysis threshold */
+  multivariateThreshold: number;
+  /** Maximum dimensions for PCA analysis */
+  maxDimensionsForPCA: number;
+  /** Clustering methods */
+  clusteringMethods: string[];
 }
 
 export interface StreamingConfig {
@@ -140,12 +146,16 @@ export interface StreamingConfig {
     maxChunkSize: number;
     reductionFactor: number;
     expansionFactor: number;
+    targetMemoryUtilization: number;
   };
   /** Memory management settings */
   memoryManagement: {
     cleanupInterval: number;
     emergencyThresholdMultiplier: number;
     forceGarbageCollection: boolean;
+    gcFrequency: number;
+    memoryLeakDetection: boolean;
+    autoGarbageCollect: boolean;
   };
 }
 
@@ -212,9 +222,10 @@ export type PerformancePreset =
 // Configuration Validation Rules
 export interface ConfigValidationRule<T> {
   field: keyof T;
-  validator: (value: any) => boolean;
+  validator: (value: any, context?: any) => boolean | { isValid: boolean; message?: string; suggestedValue?: any; relatedFields?: string[] };
   message: string;
   required?: boolean;
+  severity?: 'error' | 'warning';
 }
 
 export interface ConfigValidationSchema {
@@ -365,6 +376,9 @@ export const DEFAULT_CONFIG: DataPilotConfig = {
     enabledAnalyses: ['univariate', 'bivariate', 'correlations'],
     highCardinalityThreshold: 80,
     missingValueQualityThreshold: 20,
+    multivariateThreshold: 1000,
+    maxDimensionsForPCA: 10,
+    clusteringMethods: ['kmeans', 'hierarchical']
   },
 
   streaming: {
@@ -376,11 +390,15 @@ export const DEFAULT_CONFIG: DataPilotConfig = {
       maxChunkSize: 2000,
       reductionFactor: 0.6,
       expansionFactor: 1.1,
+      targetMemoryUtilization: 0.8,
     },
     memoryManagement: {
       cleanupInterval: 20,
       emergencyThresholdMultiplier: 1.5,
       forceGarbageCollection: true,
+      gcFrequency: 1000,
+      memoryLeakDetection: false,
+      autoGarbageCollect: false,
     },
   },
 
@@ -483,11 +501,36 @@ export class ConfigManager {
     this.environmentOverrides.set('development', {
       performance: {
         maxRows: 50000,
+        maxFieldSize: 1024 * 1024, // 1MB
         memoryThresholdBytes: 512 * 1024 * 1024, // 512MB
+        chunkSize: 100,
+        sampleSize: 1000,
+        adaptiveChunkSizing: false,
+        maxCollectedRowsMultivariate: 10000,
+        batchSize: 50,
+        performanceMonitoringInterval: 1000,
+        memoryCleanupInterval: 5000,
+        emergencyMemoryThresholdMultiplier: 0.9
       },
       streaming: {
         memoryThresholdMB: 50,
         maxRowsAnalyzed: 50000,
+        adaptiveChunkSizing: {
+          enabled: false,
+          minChunkSize: 50,
+          maxChunkSize: 200,
+          reductionFactor: 0.5,
+          expansionFactor: 1.1,
+          targetMemoryUtilization: 0.8
+        },
+        memoryManagement: {
+          cleanupInterval: 20,
+          emergencyThresholdMultiplier: 1.5,
+          forceGarbageCollection: true,
+          gcFrequency: 1000,
+          memoryLeakDetection: true,
+          autoGarbageCollect: true
+        }
       },
     });
 
@@ -495,12 +538,36 @@ export class ConfigManager {
     this.environmentOverrides.set('production', {
       performance: {
         maxRows: 2000000,
+        maxFieldSize: 10 * 1024 * 1024, // 10MB
         memoryThresholdBytes: 4 * 1024 * 1024 * 1024, // 4GB
+        chunkSize: 1000,
+        sampleSize: 10000,
         adaptiveChunkSizing: true,
+        maxCollectedRowsMultivariate: 100000,
+        batchSize: 500,
+        performanceMonitoringInterval: 5000,
+        memoryCleanupInterval: 10000,
+        emergencyMemoryThresholdMultiplier: 0.95
       },
       streaming: {
         memoryThresholdMB: 500,
         maxRowsAnalyzed: 2000000,
+        adaptiveChunkSizing: {
+          enabled: true,
+          minChunkSize: 500,
+          maxChunkSize: 2000,
+          reductionFactor: 0.7,
+          expansionFactor: 1.1,
+          targetMemoryUtilization: 0.85
+        },
+        memoryManagement: {
+          cleanupInterval: 20,
+          emergencyThresholdMultiplier: 1.5,
+          forceGarbageCollection: true,
+          gcFrequency: 5000,
+          memoryLeakDetection: true,
+          autoGarbageCollect: true
+        }
       },
     });
 
@@ -508,10 +575,30 @@ export class ConfigManager {
     this.environmentOverrides.set('ci', {
       performance: {
         maxRows: 10000,
+        maxFieldSize: 512 * 1024, // 512KB
         memoryThresholdBytes: 256 * 1024 * 1024, // 256MB
+        chunkSize: 50,
+        sampleSize: 500,
+        adaptiveChunkSizing: false,
+        maxCollectedRowsMultivariate: 1000,
+        batchSize: 25,
+        performanceMonitoringInterval: 500,
+        memoryCleanupInterval: 2000,
+        emergencyMemoryThresholdMultiplier: 0.8
       },
       analysis: {
+        maxCategoricalLevels: 20,
+        maxCorrelationPairs: 10,
+        samplingThreshold: 1000,
+        outlierMethods: ['iqr'],
+        normalityTests: ['shapiro'],
         enableMultivariate: false,
+        enabledAnalyses: ['univariate'],
+        highCardinalityThreshold: 80,
+        missingValueQualityThreshold: 20,
+        multivariateThreshold: 500,
+        maxDimensionsForPCA: 5,
+        clusteringMethods: ['kmeans']
       },
     });
 
@@ -519,10 +606,29 @@ export class ConfigManager {
     this.environmentOverrides.set('test', {
       performance: {
         maxRows: 1000,
+        maxFieldSize: 256 * 1024, // 256KB
         memoryThresholdBytes: 128 * 1024 * 1024, // 128MB
+        chunkSize: 25,
+        sampleSize: 100,
+        adaptiveChunkSizing: false,
+        maxCollectedRowsMultivariate: 500,
+        batchSize: 10,
+        performanceMonitoringInterval: 250,
+        memoryCleanupInterval: 1000,
+        emergencyMemoryThresholdMultiplier: 0.7
       },
       statistical: {
         significanceLevel: 0.1, // Less strict for testing
+        alternativeSignificanceLevels: {
+          normalityTests: 0.1,
+          correlationTests: 0.1,
+          hypothesisTests: 0.1,
+          outlierDetection: 0.2
+        },
+        confidenceLevel: 0.9,
+        correlationThresholds: { weak: 0.2, moderate: 0.5, strong: 0.8, veryStrong: 0.9 },
+        outlierThresholds: { zScoreThreshold: 3.0, modifiedZScoreThreshold: 3.5, iqrMultiplier: 1.5 },
+        normalityThresholds: { shapiroWilkMinSample: 3, shapiroWilkMaxSample: 5000, jarqueBeraThreshold: 0.1, ksTestThreshold: 0.1 }
       },
     });
   }
@@ -543,32 +649,38 @@ export class ConfigManager {
   applyPerformancePreset(preset: PerformancePreset): void {
     switch (preset.preset) {
       case 'low-memory':
-        this.updatePerformanceConfig({
-          maxRows: preset.maxRows,
-          memoryThresholdBytes: preset.maxMemoryMB * 1024 * 1024,
-          adaptiveChunkSizing: false,
-        });
-        this.updateStreamingConfig({
-          memoryThresholdMB: preset.maxMemoryMB / 4,
-          maxRowsAnalyzed: preset.maxRows,
-        });
+        if ('maxMemoryMB' in preset && 'maxRows' in preset) {
+          this.updatePerformanceConfig({
+            maxRows: preset.maxRows,
+            memoryThresholdBytes: preset.maxMemoryMB * 1024 * 1024,
+            adaptiveChunkSizing: false,
+          });
+          this.updateStreamingConfig({
+            memoryThresholdMB: preset.maxMemoryMB / 4,
+            maxRowsAnalyzed: preset.maxRows,
+          });
+        }
         break;
 
       case 'balanced':
-        this.updatePerformanceConfig({
-          maxRows: preset.maxRows,
-          memoryThresholdBytes: preset.maxMemoryMB * 1024 * 1024,
-          adaptiveChunkSizing: true,
-        });
+        if ('maxMemoryMB' in preset && 'maxRows' in preset) {
+          this.updatePerformanceConfig({
+            maxRows: preset.maxRows,
+            memoryThresholdBytes: preset.maxMemoryMB * 1024 * 1024,
+            adaptiveChunkSizing: true,
+          });
+        }
         break;
 
       case 'high-performance':
-        this.updatePerformanceConfig({
-          maxRows: preset.maxRows,
-          memoryThresholdBytes: preset.maxMemoryMB * 1024 * 1024,
-          adaptiveChunkSizing: true,
-          batchSize: 5000,
-        });
+        if ('maxMemoryMB' in preset && 'maxRows' in preset) {
+          this.updatePerformanceConfig({
+            maxRows: preset.maxRows,
+            memoryThresholdBytes: preset.maxMemoryMB * 1024 * 1024,
+            adaptiveChunkSizing: true,
+            batchSize: 5000,
+          });
+        }
         break;
 
       case 'custom':
@@ -620,7 +732,7 @@ export class ConfigManager {
           field: 'qualityWeights',
           validator: (weights) => {
             if (typeof weights !== 'object') return false;
-            const sum = Object.values(weights).reduce((a, b) => a + b, 0);
+            const sum = Object.values(weights as Record<string, number>).reduce((a: number, b: number) => a + b, 0);
             return Math.abs(sum - 1.0) < 0.01;
           },
           message: 'qualityWeights must sum to 1.0',
@@ -632,13 +744,6 @@ export class ConfigManager {
           field: 'maxCategoricalLevels',
           validator: (value) => typeof value === 'number' && value > 0,
           message: 'maxCategoricalLevels must be a positive number',
-        },
-      ],
-      streaming: [
-        {
-          field: 'memoryThresholdMB',
-          validator: (value) => typeof value === 'number' && value > 0,
-          message: 'memoryThresholdMB must be a positive number',
         },
       ],
       visualization: [
@@ -702,7 +807,6 @@ export class ConfigManager {
           },
           message: 'memoryThresholdMB must be a positive number',
           severity: 'warning',
-          dependencies: ['performance'],
         },
       ],
     };
@@ -847,7 +951,7 @@ export class ConfigManager {
     Object.keys(updates).forEach((key) => {
       const section = key as keyof DataPilotConfig;
       if (updates[section] && typeof updates[section] === 'object') {
-        merged[section] = { ...merged[section], ...updates[section] };
+        (merged as any)[section] = { ...(merged as any)[section], ...updates[section] };
       }
     });
 

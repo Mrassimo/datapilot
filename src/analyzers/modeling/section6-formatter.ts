@@ -601,4 +601,218 @@ This section leverages insights from Data Quality (Section 2), EDA (Section 3), 
     if (score >= 60) return 'Acceptable';
     return 'Limited Suitability';
   }
+
+  /**
+   * Format complete modeling report
+   */
+  formatReport(result: Section6Result): string {
+    return Section6Formatter.formatMarkdown(result);
+  }
+
+  /**
+   * Format summary report
+   */
+  formatSummary(result: Section6Result): string {
+    const { modelingAnalysis, metadata } = result;
+    
+    let summary = '# Modeling Summary\n\n';
+    
+    // Primary task
+    if (modelingAnalysis.identifiedTasks.length > 0) {
+      const primaryTask = modelingAnalysis.identifiedTasks[0];
+      summary += '## Primary Task\n\n';
+      summary += `**Type:** ${Section6Formatter.formatTaskType(primaryTask.taskType)}\n`;
+      summary += `**Target Variable:** ${primaryTask.targetVariable || 'N/A'}\n`;
+      summary += `**Confidence:** ${Section6Formatter.capitalizeFirst(primaryTask.confidenceLevel)}\n`;
+      summary += `**Feasibility:** ${primaryTask.feasibilityScore}%\n\n`;
+    }
+    
+    // Algorithm recommendations
+    if (modelingAnalysis.algorithmRecommendations.length > 0) {
+      const topAlgorithm = modelingAnalysis.algorithmRecommendations[0];
+      summary += '## Recommended Algorithm\n\n';
+      summary += `**Algorithm:** ${topAlgorithm.algorithmName}\n`;
+      summary += `**Suitability:** ${topAlgorithm.suitabilityScore}%\n`;
+      summary += `**Complexity:** ${Section6Formatter.capitalizeFirst(topAlgorithm.complexity)}\n`;
+      summary += `**Interpretability:** ${Section6Formatter.capitalizeFirst(topAlgorithm.interpretability)}\n\n`;
+    }
+    
+    // Ethics analysis
+    if (modelingAnalysis.ethicsAnalysis) {
+      const ethics = modelingAnalysis.ethicsAnalysis;
+      summary += '## Ethics Assessment\n\n';
+      summary += `**Overall Risk Level:** ${Section6Formatter.capitalizeFirst(ethics.biasAssessment.overallRiskLevel)}\n`;
+      summary += `**Sensitive Attributes:** ${ethics.biasAssessment.sensitiveAttributes.length}\n`;
+      summary += `**Bias Sources Identified:** ${ethics.biasAssessment.potentialBiasSources.length}\n\n`;
+    }
+    
+    return summary;
+  }
+
+  /**
+   * Format JSON output
+   */
+  formatJSON(result: Section6Result): string {
+    const { modelingAnalysis, metadata, performanceMetrics, warnings } = result;
+    
+    const jsonOutput = {
+      section: 'Section 6: Predictive Modeling & Advanced Analytics',
+      summary: {
+        tasksIdentified: modelingAnalysis.identifiedTasks.length,
+        algorithmsEvaluated: modelingAnalysis.algorithmRecommendations.length,
+        analysisTime: performanceMetrics.analysisTimeMs,
+        confidence: metadata.recommendationConfidence
+      },
+      taskIdentification: {
+        primaryTask: modelingAnalysis.identifiedTasks[0] || null,
+        alternativeTasks: modelingAnalysis.identifiedTasks.slice(1),
+        identifiedFeatures: this.extractFeatureTypes(modelingAnalysis.identifiedTasks),
+        temporalColumns: this.extractTemporalColumns(modelingAnalysis.identifiedTasks)
+      },
+      algorithmRecommendations: {
+        primary: modelingAnalysis.algorithmRecommendations[0] || null,
+        alternatives: modelingAnalysis.algorithmRecommendations.slice(1),
+        comparison: modelingAnalysis.algorithmRecommendations.map(alg => ({
+          algorithm: alg.algorithmName,
+          pros: alg.strengths,
+          cons: alg.weaknesses,
+          complexity: alg.complexity,
+          interpretability: alg.interpretability,
+          suitabilityScore: alg.suitabilityScore
+        }))
+      },
+      preprocessingRecommendations: this.generatePreprocessingRecommendations(modelingAnalysis),
+      ethicsAnalysis: modelingAnalysis.ethicsAnalysis,
+      workflowGuidance: modelingAnalysis.workflowGuidance,
+      implementationRoadmap: modelingAnalysis.implementationRoadmap,
+      warnings: warnings,
+      metadata: metadata
+    };
+    
+    return JSON.stringify(jsonOutput, null, 2);
+  }
+
+  /**
+   * Format stakeholder-specific reports
+   */
+  formatForStakeholder(result: Section6Result, stakeholder: 'technical' | 'business' | 'executive'): string {
+    const { modelingAnalysis, metadata } = result;
+    
+    switch (stakeholder) {
+      case 'executive':
+        return this.formatExecutiveReport(result);
+      case 'business':
+        return this.formatBusinessReport(result);
+      case 'technical':
+      default:
+        return this.formatTechnicalReport(result);
+    }
+  }
+
+  private formatExecutiveReport(result: Section6Result): string {
+    const { modelingAnalysis, metadata } = result;
+    
+    let report = '# Executive Summary: AI/ML Modeling Opportunities\n\n';
+    
+    report += '## Business Impact\n\n';
+    if (modelingAnalysis.identifiedTasks.length > 0) {
+      const primaryTask = modelingAnalysis.identifiedTasks[0];
+      report += `**Primary Opportunity:** ${primaryTask.businessObjective}\n\n`;
+      report += `**Expected ROI:** Based on ${Section6Formatter.capitalizeFirst(primaryTask.confidenceLevel)} confidence modeling approach\n\n`;
+    }
+    
+    report += '## Investment Requirements\n\n';
+    report += `**Timeline:** ${modelingAnalysis.implementationRoadmap.estimatedTimeline}\n`;
+    report += `**Risk Level:** ${metadata.limitationsIdentified.length > 0 ? 'Medium' : 'Low'} - comprehensive risk mitigation planned\n\n`;
+    
+    report += '## Key Recommendations\n\n';
+    report += '- Proceed with AI/ML implementation based on strong data foundation\n';
+    report += '- Implement ethical AI governance from project start\n';
+    report += '- Plan for phased rollout with continuous monitoring\n';
+    
+    return report;
+  }
+
+  private formatBusinessReport(result: Section6Result): string {
+    const { modelingAnalysis } = result;
+    
+    let report = '# Business Analysis: Machine Learning Implementation\n\n';
+    
+    report += '## Identified Business Use Cases\n\n';
+    modelingAnalysis.identifiedTasks.forEach((task, index) => {
+      report += `${index + 1}. **${Section6Formatter.formatTaskType(task.taskType)}**\n`;
+      report += `   - **Business Goal:** ${task.businessObjective}\n`;
+      report += `   - **Success Metrics:** ${task.successMetrics.join(', ')}\n`;
+      report += `   - **Feasibility:** ${Section6Formatter.interpretFeasibilityScore(task.feasibilityScore)}\n\n`;
+    });
+    
+    report += '## Implementation Strategy\n\n';
+    modelingAnalysis.workflowGuidance.workflowSteps.forEach((step, index) => {
+      if (index < 3) { // Focus on first 3 steps for business audience
+        report += `**${step.stepName}:** ${step.estimatedTime}\n`;
+        report += `${step.description}\n\n`;
+      }
+    });
+    
+    report += '## Risk Considerations\n\n';
+    if (modelingAnalysis.ethicsAnalysis.biasAssessment.overallRiskLevel !== 'low') {
+      report += '- Bias risk mitigation procedures required\n';
+    }
+    report += '- Regular model performance monitoring needed\n';
+    report += '- Staff training on AI/ML tools recommended\n';
+    
+    return report;
+  }
+
+  private formatTechnicalReport(result: Section6Result): string {
+    // Technical report is essentially the full markdown report
+    return Section6Formatter.formatMarkdown(result);
+  }
+
+  private extractFeatureTypes(tasks: any[]): any {
+    if (tasks.length === 0) return { numerical: [], categorical: [], temporal: [] };
+    
+    const primaryTask = tasks[0];
+    return {
+      numerical: primaryTask.inputFeatures.filter((f: string) => 
+        /\b(score|amount|count|value|price|age|income|rate)\b/i.test(f)
+      ),
+      categorical: primaryTask.inputFeatures.filter((f: string) => 
+        /\b(category|type|class|status|group|grade)\b/i.test(f)
+      ),
+      temporal: primaryTask.inputFeatures.filter((f: string) => 
+        /\b(date|time|timestamp|created|updated)\b/i.test(f)
+      )
+    };
+  }
+
+  private extractTemporalColumns(tasks: any[]): string[] {
+    if (tasks.length === 0) return [];
+    
+    const allFeatures = tasks.flatMap(task => task.inputFeatures);
+    return allFeatures.filter((f: string) => 
+      /\b(date|time|timestamp|created|updated)\b/i.test(f)
+    );
+  }
+
+  private generatePreprocessingRecommendations(modelingAnalysis: any): any {
+    return {
+      categoricalEncoding: {
+        method: 'one_hot_encoding',
+        reasoning: 'Recommended for tree-based algorithms and linear models',
+        alternatives: ['label_encoding', 'target_encoding']
+      },
+      numericalScaling: {
+        method: 'standard_scaling',
+        reasoning: 'Recommended for algorithms sensitive to feature scale',
+        when: 'Required for SVM, neural networks, and regularized models'
+      },
+      missingValueTreatment: {
+        numerical: 'median_imputation',
+        categorical: 'mode_imputation',
+        advanced: 'Consider iterative imputation for complex patterns'
+      }
+    };
+  }
+
 }

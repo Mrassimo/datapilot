@@ -105,7 +105,7 @@ export class Section4Analyzer {
 
     try {
       // Extract data characteristics for engine processing
-      const dataCharacteristics = Section4Analyzer.extractDataCharacteristics(
+      const dataCharacteristics = this.extractDataCharacteristics(
         section1Result,
         section3Result,
       );
@@ -162,14 +162,14 @@ export class Section4Analyzer {
 
       // Generate multivariate recommendations using advanced techniques
       const multivariateRecommendations =
-        Section4Analyzer.generateSophisticatedMultivariateRecommendations(
+        this.generateSophisticatedMultivariateRecommendations(
           section3Result,
           domainContext,
         );
 
       // Create sophisticated dashboard layout using perceptual principles
       const dashboardRecommendations =
-        Section4Analyzer.generateSophisticatedDashboardRecommendations(
+        this.generateSophisticatedDashboardRecommendations(
           univariateRecommendations,
           bivariateRecommendations,
           domainContext,
@@ -177,7 +177,7 @@ export class Section4Analyzer {
         );
 
       // Generate enhanced technical guidance
-      const technicalGuidance = Section4Analyzer.generateEnhancedTechnicalGuidance(
+      const technicalGuidance = this.generateEnhancedTechnicalGuidance(
         univariateRecommendations,
         bivariateRecommendations,
         domainContext,
@@ -185,14 +185,14 @@ export class Section4Analyzer {
       );
 
       // Comprehensive accessibility assessment
-      const accessibilityAssessment = Section4Analyzer.assessEnhancedAccessibility(
+      const accessibilityAssessment = this.assessEnhancedAccessibility(
         univariateRecommendations,
         bivariateRecommendations,
         aestheticProfile,
       );
 
       // Generate overall visualization strategy based on domain insights
-      const strategy = Section4Analyzer.generateDomainAwareStrategy(
+      const strategy = this.generateDomainAwareStrategy(
         section1Result,
         section3Result,
         domainContext,
@@ -338,7 +338,7 @@ export class Section4Analyzer {
         ).length || 0,
       numericalColumns:
         section3Result.edaAnalysis?.univariateAnalysis?.filter((col) =>
-          Section4Analyzer.isNumericalType(col.detectedDataType),
+          this.isNumericalType(col.detectedDataType),
         ).length || 0,
       temporalColumns:
         section3Result.edaAnalysis?.univariateAnalysis?.filter(
@@ -381,10 +381,10 @@ export class Section4Analyzer {
       primaryObjectives,
       targetAudience: this.getDomainAudience(domainContext),
       complexity: this.determineComplexityFromDomain(domainContext),
-      interactivity: Section4Analyzer.determineInteractivityFromDomain(domainContext),
+      interactivity: this.determineInteractivityFromDomain(domainContext),
       accessibility: this.config.accessibilityLevel,
-      performance: Section4Analyzer.determinePerformanceFromData(
-        Section4Analyzer.extractDataCharacteristics(section1Result, {} as any),
+      performance: this.determinePerformanceFromData(
+        this.extractDataCharacteristics(section1Result, {} as any),
       ),
     };
   }
@@ -412,7 +412,7 @@ export class Section4Analyzer {
     }
 
     for (const columnAnalysis of section3Result.edaAnalysis.univariateAnalysis) {
-      const profile = Section4Analyzer.createSophisticatedColumnProfile(
+      const profile = this.createSophisticatedColumnProfile(
         columnAnalysis,
         domainContext,
         aestheticProfile,
@@ -476,7 +476,7 @@ export class Section4Analyzer {
     }
 
     const numericalColumns = section3Result.edaAnalysis.univariateAnalysis.filter((col) =>
-      Section4Analyzer.isNumericalType(col.detectedDataType),
+      this.isNumericalType(col.detectedDataType),
     );
 
     const categoricalColumns = section3Result.edaAnalysis.univariateAnalysis.filter(
@@ -655,7 +655,7 @@ export class Section4Analyzer {
   ): VisualizationStrategy {
     const columnCount = section1Result.overview.structuralDimensions.totalColumns || 0;
     const rowCount = section1Result.overview.structuralDimensions.totalDataRows || 0;
-    const dataSize = Section4Analyzer.determineDataSize(rowCount);
+    const dataSize = this.determineDataSize(rowCount);
 
     // Determine complexity based on data characteristics
     let complexity = ComplexityLevel.SIMPLE;
@@ -684,7 +684,7 @@ export class Section4Analyzer {
       performance = PerformanceLevel.INTENSIVE;
     }
 
-    const primaryObjectives = Section4Analyzer.determinePrimaryObjectives(section3Result);
+    const primaryObjectives = this.determinePrimaryObjectives(section3Result);
 
     return {
       approach: 'Data-driven chart selection with accessibility and performance optimization',
@@ -718,7 +718,7 @@ export class Section4Analyzer {
     }
 
     for (const columnAnalysis of section3Result.edaAnalysis.univariateAnalysis) {
-      const profile = Section4Analyzer.createColumnVisualizationProfile(columnAnalysis);
+      const profile = this.createColumnVisualizationProfile(columnAnalysis);
       profiles.push(profile);
     }
 
@@ -735,9 +735,9 @@ export class Section4Analyzer {
 
     // Generate distribution characteristics for numerical columns
     let distribution: DistributionCharacteristics | undefined;
-    if (Section4Analyzer.isNumericalType(dataType) && columnAnalysis.distributionAnalysis) {
+    if (this.isNumericalType(dataType) && columnAnalysis.distributionAnalysis) {
       distribution = {
-        shape: Section4Analyzer.mapSkewnessToShape(
+        shape: this.mapSkewnessToShape(
           columnAnalysis.distributionAnalysis.skewness || 0,
         ),
         skewness: columnAnalysis.distributionAnalysis.skewness || 0,
@@ -746,16 +746,16 @@ export class Section4Analyzer {
           count: columnAnalysis.outlierAnalysis?.summary?.totalOutliers || 0,
           percentage: columnAnalysis.outlierAnalysis?.summary?.totalPercentage || 0,
           extreme: (columnAnalysis.outlierAnalysis?.summary?.totalPercentage || 0) > 10,
-          impact: Section4Analyzer.assessOutlierImpact(
+          impact: this.assessOutlierImpact(
             columnAnalysis.outlierAnalysis?.summary?.totalPercentage || 0,
           ),
         },
-        modality: 'unimodal', // Simplified for now
+        modality: 'unimodal' as const, // Simplified for now
       };
     }
 
     // Generate chart recommendations for this column
-    const recommendations = Section4Analyzer.generateColumnChartRecommendations(
+    const recommendations = this.generateColumnChartRecommendations(
       columnAnalysis,
       dataType,
       cardinality,
@@ -772,7 +772,7 @@ export class Section4Analyzer {
       completeness,
       distribution,
       recommendations,
-      warnings: Section4Analyzer.generateColumnWarnings(columnAnalysis, cardinality, completeness),
+      warnings: this.generateColumnWarnings(columnAnalysis, cardinality, completeness),
     };
   }
 
@@ -792,27 +792,27 @@ export class Section4Analyzer {
       case EdaDataType.NUMERICAL_INTEGER:
       case EdaDataType.NUMERICAL_FLOAT:
         recommendations.push(
-          ...Section4Analyzer.generateNumericalRecommendations(columnAnalysis, distribution),
+          ...this.generateNumericalRecommendations(columnAnalysis, distribution),
         );
         break;
 
       case EdaDataType.CATEGORICAL:
         recommendations.push(
-          ...Section4Analyzer.generateCategoricalRecommendations(columnAnalysis, cardinality),
+          ...this.generateCategoricalRecommendations(columnAnalysis, cardinality),
         );
         break;
 
       case EdaDataType.DATE_TIME:
-        recommendations.push(...Section4Analyzer.generateDateTimeRecommendations(columnAnalysis));
+        recommendations.push(...this.generateDateTimeRecommendations(columnAnalysis));
         break;
 
       case EdaDataType.BOOLEAN:
-        recommendations.push(...Section4Analyzer.generateBooleanRecommendations(columnAnalysis));
+        recommendations.push(...this.generateBooleanRecommendations(columnAnalysis));
         break;
 
       case EdaDataType.TEXT_GENERAL:
       case EdaDataType.TEXT_ADDRESS:
-        recommendations.push(...Section4Analyzer.generateTextRecommendations(columnAnalysis));
+        recommendations.push(...this.generateTextRecommendations(columnAnalysis));
         break;
 
       default:
@@ -824,16 +824,16 @@ export class Section4Analyzer {
           impact: 'Suboptimal chart recommendations',
         });
         recommendations.push(
-          ...Section4Analyzer.generateCategoricalRecommendations(columnAnalysis, cardinality),
+          ...this.generateCategoricalRecommendations(columnAnalysis, cardinality),
         );
     }
 
     // Apply quality, accessibility filters, and anti-pattern detection
     const filteredRecommendations = recommendations.filter((rec) =>
-      Section4Analyzer.meetsQualityThreshold(rec, completeness),
+      this.meetsQualityThreshold(rec, completeness),
     );
 
-    const enhancedRecommendations = Section4Analyzer.applyAntiPatternDetection(
+    const enhancedRecommendations = this.applyAntiPatternDetection(
       filteredRecommendations,
       {
         cardinality,
@@ -864,12 +864,12 @@ export class Section4Analyzer {
       confidence: 0.9,
       reasoning:
         'Histograms effectively show the distribution of numerical data, revealing shape, central tendency, and spread',
-      encoding: Section4Analyzer.createNumericalHistogramEncoding(columnAnalysis),
-      interactivity: Section4Analyzer.createBasicInteractivity(),
+      encoding: this.createNumericalHistogramEncoding(columnAnalysis),
+      interactivity: this.createBasicInteractivity(),
       accessibility: Section4Analyzer.createAccessibilityGuidance(ChartType.HISTOGRAM),
       performance: Section4Analyzer.createPerformanceConsiderations(ChartType.HISTOGRAM),
-      libraryRecommendations: Section4Analyzer.getLibraryRecommendations(ChartType.HISTOGRAM),
-      dataPreparation: Section4Analyzer.createNumericalDataPreparation(columnAnalysis),
+      libraryRecommendations: this.getLibraryRecommendations(ChartType.HISTOGRAM),
+      dataPreparation: this.createNumericalDataPreparation(columnAnalysis),
       designGuidelines: Section4Analyzer.createDesignGuidelines(ChartType.HISTOGRAM),
     });
 
@@ -885,12 +885,12 @@ export class Section4Analyzer {
         outlierPercentage > 5
           ? 'Box plots excel at highlighting outliers and quartile distribution'
           : 'Box plots provide a compact view of distribution and quartiles',
-      encoding: Section4Analyzer.createBoxPlotEncoding(columnAnalysis),
-      interactivity: Section4Analyzer.createBasicInteractivity(),
+      encoding: this.createBoxPlotEncoding(columnAnalysis),
+      interactivity: this.createBasicInteractivity(),
       accessibility: Section4Analyzer.createAccessibilityGuidance(ChartType.BOX_PLOT),
       performance: Section4Analyzer.createPerformanceConsiderations(ChartType.BOX_PLOT),
-      libraryRecommendations: Section4Analyzer.getLibraryRecommendations(ChartType.BOX_PLOT),
-      dataPreparation: Section4Analyzer.createNumericalDataPreparation(columnAnalysis),
+      libraryRecommendations: this.getLibraryRecommendations(ChartType.BOX_PLOT),
+      dataPreparation: this.createNumericalDataPreparation(columnAnalysis),
       designGuidelines: Section4Analyzer.createDesignGuidelines(ChartType.BOX_PLOT),
     });
 
@@ -904,11 +904,11 @@ export class Section4Analyzer {
         reasoning:
           'Density plots provide smooth estimates of distribution shape, useful for larger datasets',
         encoding: Section4Analyzer.createDensityPlotEncoding(columnAnalysis),
-        interactivity: Section4Analyzer.createBasicInteractivity(),
+        interactivity: this.createBasicInteractivity(),
         accessibility: Section4Analyzer.createAccessibilityGuidance(ChartType.DENSITY_PLOT),
         performance: Section4Analyzer.createPerformanceConsiderations(ChartType.DENSITY_PLOT),
-        libraryRecommendations: Section4Analyzer.getLibraryRecommendations(ChartType.DENSITY_PLOT),
-        dataPreparation: Section4Analyzer.createNumericalDataPreparation(columnAnalysis),
+        libraryRecommendations: this.getLibraryRecommendations(ChartType.DENSITY_PLOT),
+        dataPreparation: this.createNumericalDataPreparation(columnAnalysis),
         designGuidelines: Section4Analyzer.createDesignGuidelines(ChartType.DENSITY_PLOT),
       });
     }
@@ -931,10 +931,10 @@ export class Section4Analyzer {
         interactivity: Section4Analyzer.createAdvancedInteractivity(),
         accessibility: Section4Analyzer.createAccessibilityGuidance(ChartType.VIOLIN_WITH_BOX),
         performance: Section4Analyzer.createPerformanceConsiderations(ChartType.VIOLIN_WITH_BOX),
-        libraryRecommendations: Section4Analyzer.getLibraryRecommendations(
+        libraryRecommendations: this.getLibraryRecommendations(
           ChartType.VIOLIN_WITH_BOX,
         ),
-        dataPreparation: Section4Analyzer.createNumericalDataPreparation(columnAnalysis),
+        dataPreparation: this.createNumericalDataPreparation(columnAnalysis),
         designGuidelines: Section4Analyzer.createDesignGuidelines(ChartType.VIOLIN_WITH_BOX),
       });
     }
@@ -961,12 +961,12 @@ export class Section4Analyzer {
         cardinality > 8
           ? 'Horizontal bar charts handle long category labels better and improve readability'
           : 'Bar charts excel at comparing categorical data frequencies',
-      encoding: Section4Analyzer.createCategoricalBarEncoding(columnAnalysis, cardinality),
-      interactivity: Section4Analyzer.createBasicInteractivity(),
+      encoding: this.createCategoricalBarEncoding(columnAnalysis, cardinality),
+      interactivity: this.createBasicInteractivity(),
       accessibility: Section4Analyzer.createAccessibilityGuidance(ChartType.BAR_CHART),
       performance: Section4Analyzer.createPerformanceConsiderations(ChartType.BAR_CHART),
-      libraryRecommendations: Section4Analyzer.getLibraryRecommendations(ChartType.BAR_CHART),
-      dataPreparation: Section4Analyzer.createCategoricalDataPreparation(columnAnalysis),
+      libraryRecommendations: this.getLibraryRecommendations(ChartType.BAR_CHART),
+      dataPreparation: this.createCategoricalDataPreparation(columnAnalysis),
       designGuidelines: Section4Analyzer.createDesignGuidelines(ChartType.BAR_CHART),
     });
 
@@ -980,11 +980,11 @@ export class Section4Analyzer {
         reasoning:
           'Pie charts work well for showing parts of a whole when there are few categories',
         encoding: Section4Analyzer.createPieChartEncoding(columnAnalysis),
-        interactivity: Section4Analyzer.createBasicInteractivity(),
+        interactivity: this.createBasicInteractivity(),
         accessibility: Section4Analyzer.createAccessibilityGuidance(ChartType.PIE_CHART),
         performance: Section4Analyzer.createPerformanceConsiderations(ChartType.PIE_CHART),
-        libraryRecommendations: Section4Analyzer.getLibraryRecommendations(ChartType.PIE_CHART),
-        dataPreparation: Section4Analyzer.createCategoricalDataPreparation(columnAnalysis),
+        libraryRecommendations: this.getLibraryRecommendations(ChartType.PIE_CHART),
+        dataPreparation: this.createCategoricalDataPreparation(columnAnalysis),
         designGuidelines: Section4Analyzer.createDesignGuidelines(ChartType.PIE_CHART),
       });
     }
@@ -999,11 +999,11 @@ export class Section4Analyzer {
         reasoning:
           'Treemaps efficiently display hierarchical data with many categories using space-filling visualization',
         encoding: Section4Analyzer.createTreemapEncoding(columnAnalysis),
-        interactivity: Section4Analyzer.createBasicInteractivity(),
+        interactivity: this.createBasicInteractivity(),
         accessibility: Section4Analyzer.createAccessibilityGuidance(ChartType.TREEMAP),
         performance: Section4Analyzer.createPerformanceConsiderations(ChartType.TREEMAP),
-        libraryRecommendations: Section4Analyzer.getLibraryRecommendations(ChartType.TREEMAP),
-        dataPreparation: Section4Analyzer.createCategoricalDataPreparation(columnAnalysis),
+        libraryRecommendations: this.getLibraryRecommendations(ChartType.TREEMAP),
+        dataPreparation: this.createCategoricalDataPreparation(columnAnalysis),
         designGuidelines: Section4Analyzer.createDesignGuidelines(ChartType.TREEMAP),
       });
     }
@@ -1025,10 +1025,10 @@ export class Section4Analyzer {
       confidence: 0.9,
       reasoning: 'Line charts are optimal for showing temporal trends and patterns over time',
       encoding: Section4Analyzer.createTimeSeriesEncoding(columnAnalysis),
-      interactivity: Section4Analyzer.createBasicInteractivity(),
+      interactivity: this.createBasicInteractivity(),
       accessibility: Section4Analyzer.createAccessibilityGuidance(ChartType.TIME_SERIES_LINE),
       performance: Section4Analyzer.createPerformanceConsiderations(ChartType.TIME_SERIES_LINE),
-      libraryRecommendations: Section4Analyzer.getLibraryRecommendations(
+      libraryRecommendations: this.getLibraryRecommendations(
         ChartType.TIME_SERIES_LINE,
       ),
       dataPreparation: Section4Analyzer.createDateTimeDataPreparation(columnAnalysis),
@@ -1052,10 +1052,10 @@ export class Section4Analyzer {
       confidence: 0.85,
       reasoning: 'Bar charts clearly show the distribution between true/false values',
       encoding: Section4Analyzer.createBooleanBarEncoding(columnAnalysis),
-      interactivity: Section4Analyzer.createBasicInteractivity(),
+      interactivity: this.createBasicInteractivity(),
       accessibility: Section4Analyzer.createAccessibilityGuidance(ChartType.BAR_CHART),
       performance: Section4Analyzer.createPerformanceConsiderations(ChartType.BAR_CHART),
-      libraryRecommendations: Section4Analyzer.getLibraryRecommendations(ChartType.BAR_CHART),
+      libraryRecommendations: this.getLibraryRecommendations(ChartType.BAR_CHART),
       dataPreparation: Section4Analyzer.createBooleanDataPreparation(columnAnalysis),
       designGuidelines: Section4Analyzer.createDesignGuidelines(ChartType.BAR_CHART),
     });
@@ -1079,10 +1079,10 @@ export class Section4Analyzer {
         reasoning:
           'Horizontal bar charts effectively display word frequency rankings from text analysis',
         encoding: Section4Analyzer.createTextFrequencyEncoding(columnAnalysis),
-        interactivity: Section4Analyzer.createBasicInteractivity(),
+        interactivity: this.createBasicInteractivity(),
         accessibility: Section4Analyzer.createAccessibilityGuidance(ChartType.HORIZONTAL_BAR),
         performance: Section4Analyzer.createPerformanceConsiderations(ChartType.HORIZONTAL_BAR),
-        libraryRecommendations: Section4Analyzer.getLibraryRecommendations(
+        libraryRecommendations: this.getLibraryRecommendations(
           ChartType.HORIZONTAL_BAR,
         ),
         dataPreparation: Section4Analyzer.createTextDataPreparation(columnAnalysis),
@@ -1174,26 +1174,22 @@ export class Section4Analyzer {
     section3Result: Section3Result,
   ): BivariateVisualizationProfile | null {
     // Get data types for both variables
-    const var1Data = Section4Analyzer.getVariableData(correlation.variable1, section3Result);
-    const var2Data = Section4Analyzer.getVariableData(correlation.variable2, section3Result);
+    const var1Data = this.getVariableData(correlation.variable1, section3Result);
+    const var2Data = this.getVariableData(correlation.variable2, section3Result);
 
     if (!var1Data || !var2Data) {
       return null;
     }
 
     // Generate chart recommendations based on data types and correlation
-    const recommendations = Section4Analyzer.generateBivariateChartRecommendations(
-      correlation,
-      var1Data,
-      var2Data,
-    );
+    const recommendations = Section4Analyzer.generateBivariateChartRecommendations(correlation);
 
     return {
       variable1: correlation.variable1,
       variable2: correlation.variable2,
-      relationshipType: Section4Analyzer.mapRelationshipType(
-        var1Data.dataType,
-        var2Data.dataType,
+      relationshipType: Section4Analyzer.determineRelationshipType(
+        (var1Data as any).dataType || (var1Data as any).type || 'numerical',
+        (var2Data as any).dataType || (var2Data as any).type || 'numerical',
         correlation.relationshipType,
       ),
       strength: correlation.strength,
@@ -1213,8 +1209,8 @@ export class Section4Analyzer {
   ): ChartRecommendation[] {
     const recommendations: ChartRecommendation[] = [];
 
-    const isVar1Numerical = Section4Analyzer.isNumericalType(var1Data.dataType);
-    const isVar2Numerical = Section4Analyzer.isNumericalType(var2Data.dataType);
+    const isVar1Numerical = this.isNumericalType(var1Data.dataType);
+    const isVar2Numerical = this.isNumericalType(var2Data.dataType);
     const isVar1Categorical = var1Data.dataType === EdaDataType.CATEGORICAL;
     const isVar2Categorical = var2Data.dataType === EdaDataType.CATEGORICAL;
 
@@ -1233,7 +1229,7 @@ export class Section4Analyzer {
         interactivity: Section4Analyzer.createAdvancedInteractivity(),
         accessibility: Section4Analyzer.createAccessibilityGuidance(ChartType.SCATTER_PLOT),
         performance: Section4Analyzer.createPerformanceConsiderations(ChartType.SCATTER_PLOT),
-        libraryRecommendations: Section4Analyzer.getLibraryRecommendations(ChartType.SCATTER_PLOT),
+        libraryRecommendations: Section4Analyzer.getOptimalLibraryRecommendations(ChartType.SCATTER_PLOT),
         dataPreparation: Section4Analyzer.createBivariateDataPreparation(),
         designGuidelines: Section4Analyzer.createDesignGuidelines(ChartType.SCATTER_PLOT),
       });
@@ -1258,7 +1254,7 @@ export class Section4Analyzer {
           interactivity: Section4Analyzer.createAdvancedInteractivity(),
           accessibility: Section4Analyzer.createAccessibilityGuidance(ChartType.REGRESSION_PLOT),
           performance: Section4Analyzer.createPerformanceConsiderations(ChartType.REGRESSION_PLOT),
-          libraryRecommendations: Section4Analyzer.getLibraryRecommendations(
+          libraryRecommendations: this.getLibraryRecommendations(
             ChartType.REGRESSION_PLOT,
           ),
           dataPreparation: Section4Analyzer.createBivariateDataPreparation(),
@@ -1284,7 +1280,7 @@ export class Section4Analyzer {
         interactivity: Section4Analyzer.createAdvancedInteractivity(),
         accessibility: Section4Analyzer.createAccessibilityGuidance(ChartType.BOX_PLOT_BY_GROUP),
         performance: Section4Analyzer.createPerformanceConsiderations(ChartType.BOX_PLOT_BY_GROUP),
-        libraryRecommendations: Section4Analyzer.getLibraryRecommendations(
+        libraryRecommendations: this.getLibraryRecommendations(
           ChartType.BOX_PLOT_BY_GROUP,
         ),
         dataPreparation: Section4Analyzer.createBivariateDataPreparation(),
@@ -1303,7 +1299,7 @@ export class Section4Analyzer {
           interactivity: Section4Analyzer.createAdvancedInteractivity(),
           accessibility: Section4Analyzer.createAccessibilityGuidance(ChartType.VIOLIN_BY_GROUP),
           performance: Section4Analyzer.createPerformanceConsiderations(ChartType.VIOLIN_BY_GROUP),
-          libraryRecommendations: Section4Analyzer.getLibraryRecommendations(
+          libraryRecommendations: this.getLibraryRecommendations(
             ChartType.VIOLIN_BY_GROUP,
           ),
           dataPreparation: Section4Analyzer.createBivariateDataPreparation(),
@@ -1327,7 +1323,7 @@ export class Section4Analyzer {
         interactivity: Section4Analyzer.createAdvancedInteractivity(),
         accessibility: Section4Analyzer.createAccessibilityGuidance(ChartType.HEATMAP),
         performance: Section4Analyzer.createPerformanceConsiderations(ChartType.HEATMAP),
-        libraryRecommendations: Section4Analyzer.getLibraryRecommendations(ChartType.HEATMAP),
+        libraryRecommendations: this.getLibraryRecommendations(ChartType.HEATMAP),
         dataPreparation: Section4Analyzer.createBivariateDataPreparation(),
         designGuidelines: Section4Analyzer.createDesignGuidelines(ChartType.HEATMAP),
       });
@@ -1348,7 +1344,7 @@ export class Section4Analyzer {
           interactivity: Section4Analyzer.createAdvancedInteractivity(),
           accessibility: Section4Analyzer.createAccessibilityGuidance(ChartType.MOSAIC_PLOT),
           performance: Section4Analyzer.createPerformanceConsiderations(ChartType.MOSAIC_PLOT),
-          libraryRecommendations: Section4Analyzer.getLibraryRecommendations(ChartType.MOSAIC_PLOT),
+          libraryRecommendations: this.getLibraryRecommendations(ChartType.MOSAIC_PLOT),
           dataPreparation: Section4Analyzer.createBivariateDataPreparation(),
           designGuidelines: Section4Analyzer.createDesignGuidelines(ChartType.MOSAIC_PLOT),
         });
@@ -1371,7 +1367,7 @@ export class Section4Analyzer {
     }
 
     const numericalColumns = section3Result.edaAnalysis.univariateAnalysis.filter((col) =>
-      Section4Analyzer.isNumericalType(col.detectedDataType),
+      this.isNumericalType(col.detectedDataType),
     );
 
     const categoricalColumns = section3Result.edaAnalysis.univariateAnalysis.filter(
@@ -1534,25 +1530,19 @@ export class Section4Analyzer {
       bivariateRecommendations.length * 20 + univariateRecommendations.length * 10;
 
     // Use Performance Optimizer to determine optimal implementation strategies
-    const performanceStrategy = Section4Analyzer.generatePerformanceStrategy(
-      totalDataPoints,
-      complexityScore,
-    );
+    const performanceStrategy = Section4Analyzer.generatePerformanceStrategy();
 
     // Domain-specific technical recommendations
     const domainTechnicalGuidance = Section4Analyzer.generateDomainTechnicalGuidance(domainContext);
 
     // Aesthetic implementation guidance
     const aestheticImplementation =
-      Section4Analyzer.generateAestheticImplementationGuidance(aestheticProfile);
+      Section4Analyzer.generateAestheticImplementationGuidance();
 
     return {
-      recommendedLibraries: Section4Analyzer.getOptimalLibraryRecommendations(
-        performanceStrategy,
-        domainContext,
-      ),
+      recommendedLibraries: Section4Analyzer.getOptimalLibraryRecommendations(ChartType.SCATTER_PLOT),
       implementationPatterns:
-        Section4Analyzer.getSophisticatedImplementationPatterns(domainContext),
+        Section4Analyzer.getSophisticatedImplementationPatterns(),
       performanceOptimizations: performanceStrategy,
       domainSpecificGuidance: domainTechnicalGuidance,
       aestheticImplementation: aestheticImplementation,
@@ -1565,12 +1555,9 @@ export class Section4Analyzer {
         domainIntelligence: 'Leverage domain-specific patterns and best practices',
         aestheticOptimization: 'Implement data-driven color theory and typography systems',
       },
-      codeExamples: Section4Analyzer.generateSophisticatedCodeExamples(
-        domainContext,
-        aestheticProfile,
-      ),
-      bestPractices: Section4Analyzer.generateAdvancedBestPractices(domainContext),
-      commonPitfalls: Section4Analyzer.getAdvancedCommonPitfalls(domainContext),
+      codeExamples: Section4Analyzer.generateSophisticatedCodeExamples(),
+      bestPractices: Section4Analyzer.generateAdvancedBestPractices(),
+      commonPitfalls: Section4Analyzer.getAdvancedCommonPitfalls(),
     } as any;
   }
 
@@ -1652,7 +1639,7 @@ export class Section4Analyzer {
     const wcagScore = accessibility.wcagCompliance?.score || avgWcagScore;
     const universalDesignScore = accessibility.universalDesign?.assessment?.overall || 80;
     const assistiveTechScore = accessibility.assistiveTechnology
-      ? Section4Analyzer.calculateAssistiveTechnologyScore(accessibility.assistiveTechnology)
+      ? Section4Analyzer.calculateAssistiveTechnologyScore()
       : 75;
     const cognitiveScore = accessibility.cognitiveAccessibility?.simplicityScore || 85;
     const inclusiveScore = accessibility.inclusiveDesign?.representationAnalysis?.score || 80;
@@ -1875,7 +1862,7 @@ export class Section4Analyzer {
   }
 
   private createDensityPlotEncoding(columnAnalysis: any): VisualEncoding {
-    return Section4Analyzer.createNumericalHistogramEncoding(columnAnalysis);
+    return this.createNumericalHistogramEncoding(columnAnalysis);
   }
 
   private createCategoricalBarEncoding(columnAnalysis: any, cardinality: number): VisualEncoding {
@@ -2224,8 +2211,8 @@ export class Section4Analyzer {
     | 'categorical_categorical'
     | 'temporal_numerical'
     | 'temporal_categorical' {
-    const isNumerical1 = Section4Analyzer.isNumericalType(dataType1);
-    const isNumerical2 = Section4Analyzer.isNumericalType(dataType2);
+    const isNumerical1 = this.isNumericalType(dataType1);
+    const isNumerical2 = this.isNumericalType(dataType2);
     const isCategorical1 = dataType1 === EdaDataType.CATEGORICAL;
     const isCategorical2 = dataType2 === EdaDataType.CATEGORICAL;
     const isTemporal1 = dataType1 === EdaDataType.DATE_TIME;
@@ -3060,8 +3047,8 @@ export class Section4Analyzer {
     aestheticProfile: any,
   ): BivariateVisualizationProfile | null {
     // Get data types for both variables
-    const var1Data = Section4Analyzer.getVariableData(correlation.variable1, section3Result);
-    const var2Data = Section4Analyzer.getVariableData(correlation.variable2, section3Result);
+    const var1Data = section3Result.edaAnalysis?.univariateAnalysis?.find((col) => col.columnName === correlation.variable1) || null;
+    const var2Data = section3Result.edaAnalysis?.univariateAnalysis?.find((col) => col.columnName === correlation.variable2) || null;
 
     if (!var1Data || !var2Data) {
       return null;
@@ -3090,9 +3077,9 @@ export class Section4Analyzer {
     return {
       variable1: correlation.variable1,
       variable2: correlation.variable2,
-      relationshipType: Section4Analyzer.mapRelationshipType(
-        var1Data.dataType,
-        var2Data.dataType,
+      relationshipType: Section4Analyzer.determineRelationshipType(
+        (var1Data as any).dataType || (var1Data as any).type || 'numerical',
+        (var2Data as any).dataType || (var2Data as any).type || 'numerical',
         correlation.relationshipType,
       ),
       strength: correlation.strength,
@@ -3102,11 +3089,6 @@ export class Section4Analyzer {
         correlation,
         domainContext,
       ),
-      domainInsights: {
-        meaning: correlation.domainMeaning,
-        implications: correlation.educationalImplications || [],
-        interventionOpportunities: correlation.interventionOpportunities || [],
-      },
     };
   }
 
@@ -3122,8 +3104,8 @@ export class Section4Analyzer {
   ): ChartRecommendation[] {
     const recommendations: ChartRecommendation[] = [];
 
-    const isVar1Numerical = Section4Analyzer.isNumericalType(var1Data.dataType);
-    const isVar2Numerical = Section4Analyzer.isNumericalType(var2Data.dataType);
+    const isVar1Numerical = this.isNumericalType(var1Data.dataType);
+    const isVar2Numerical = this.isNumericalType(var2Data.dataType);
 
     // Enhanced scatter plot for numerical vs numerical
     if (isVar1Numerical && isVar2Numerical) {
@@ -3142,7 +3124,7 @@ export class Section4Analyzer {
         interactivity: Section4Analyzer.createAdvancedInteractivity(),
         accessibility: Section4Analyzer.createAccessibilityGuidance(ChartType.SCATTER_PLOT),
         performance: Section4Analyzer.createPerformanceConsiderations(ChartType.SCATTER_PLOT),
-        libraryRecommendations: Section4Analyzer.getLibraryRecommendations(ChartType.SCATTER_PLOT),
+        libraryRecommendations: Section4Analyzer.getOptimalLibraryRecommendations(ChartType.SCATTER_PLOT),
         dataPreparation: Section4Analyzer.createSophisticatedBivariateDataPreparation(
           correlation,
           domainContext,
@@ -3160,7 +3142,7 @@ export class Section4Analyzer {
   /**
    * Create sophisticated column profile using all engines
    */
-  private static createSophisticatedColumnProfile(
+  private createSophisticatedColumnProfile(
     columnAnalysis: any,
     domainContext: any,
     aestheticProfile: any,
@@ -3181,7 +3163,7 @@ export class Section4Analyzer {
 
     // Generate enhanced distribution characteristics
     let distribution: DistributionCharacteristics | undefined;
-    if (Section4Analyzer.isNumericalType(dataType) && columnAnalysis.distributionAnalysis) {
+    if (this.isNumericalType(dataType) && columnAnalysis.distributionAnalysis) {
       distribution = Section4Analyzer.createEnhancedDistributionCharacteristics(
         columnAnalysis,
         domainContext,
@@ -3203,7 +3185,6 @@ export class Section4Analyzer {
         completeness,
         domainContext,
       ),
-      domainContext: Section4Analyzer.generateColumnDomainContext(columnAnalysis, domainContext),
     };
   }
 
@@ -3230,7 +3211,7 @@ export class Section4Analyzer {
     return baseRecommendations.map((rec) => ({
       ...rec,
       encoding: Section4Analyzer.enhanceEncodingWithAesthetics(
-        rec.encoding || {},
+        rec.encoding || { layout: { width: 400, height: 300, margins: { top: 20, right: 20, bottom: 40, left: 40 } } },
         aestheticProfile,
       ),
       designGuidelines: Section4Analyzer.createEnhancedDesignGuidelines(
@@ -3304,18 +3285,18 @@ export class Section4Analyzer {
     domainContext: any,
   ): DistributionCharacteristics {
     const base = {
-      shape: Section4Analyzer.mapSkewnessToShape(columnAnalysis.distributionAnalysis.skewness || 0),
+      shape: this.mapSkewnessToShape(columnAnalysis.distributionAnalysis.skewness || 0),
       skewness: columnAnalysis.distributionAnalysis.skewness || 0,
       kurtosis: columnAnalysis.distributionAnalysis.kurtosis || 0,
       outliers: {
         count: columnAnalysis.outlierAnalysis?.summary?.totalOutliers || 0,
         percentage: columnAnalysis.outlierAnalysis?.summary?.totalPercentage || 0,
         extreme: (columnAnalysis.outlierAnalysis?.summary?.totalPercentage || 0) > 10,
-        impact: Section4Analyzer.assessOutlierImpact(
+        impact: this.assessOutlierImpact(
           columnAnalysis.outlierAnalysis?.summary?.totalPercentage || 0,
         ) as 'low' | 'medium' | 'high',
       },
-      modality: 'unimodal',
+      modality: 'unimodal' as const,
     };
 
     // Add domain-specific distribution insights
@@ -3375,17 +3356,13 @@ export class Section4Analyzer {
     completeness: number,
     domainContext: any,
   ): VisualizationWarning[] {
-    const warnings = Section4Analyzer.generateColumnWarnings(
-      columnAnalysis,
-      cardinality,
-      completeness,
-    );
+    const warnings = Section4Analyzer.generateColumnWarnings(columnAnalysis);
 
     // Add domain-specific warnings
     if (domainContext.primaryDomain?.domain === 'education') {
       if (columnAnalysis.columnName.toLowerCase().includes('student')) {
         warnings.push({
-          type: 'privacy',
+          type: 'data_quality',
           severity: 'high',
           message: 'Student data requires privacy protection',
           recommendation: 'Use aggregate views and avoid individual student identification',
@@ -3548,12 +3525,45 @@ export class Section4Analyzer {
     return 85; // Placeholder score
   }
 
-  private static getVariableData(variable: string): any {
+  private static getDefaultVariableData(variable: string): any {
     return { name: variable, type: 'numerical', range: [0, 100] };
   }
 
   private static mapRelationshipType(correlation: any): string {
     return correlation?.strength || 'moderate';
+  }
+
+  private static determineRelationshipType(
+    dataType1: string,
+    dataType2: string,
+    _originalType: string,
+  ):
+    | 'numerical_numerical'
+    | 'numerical_categorical'
+    | 'categorical_categorical'
+    | 'temporal_numerical'
+    | 'temporal_categorical' {
+    const isNumerical1 = Section4Analyzer.isStaticNumericalType(dataType1);
+    const isNumerical2 = Section4Analyzer.isStaticNumericalType(dataType2);
+    const isCategorical1 = dataType1 === 'categorical';
+    const isCategorical2 = dataType2 === 'categorical';
+    const isTemporal1 = dataType1 === 'date_time';
+    const isTemporal2 = dataType2 === 'date_time';
+
+    if (isNumerical1 && isNumerical2) return 'numerical_numerical';
+    if (isCategorical1 && isCategorical2) return 'categorical_categorical';
+    if ((isNumerical1 && isCategorical2) || (isCategorical1 && isNumerical2))
+      return 'numerical_categorical';
+    if ((isTemporal1 && isNumerical2) || (isNumerical1 && isTemporal2)) return 'temporal_numerical';
+    if ((isTemporal1 && isCategorical2) || (isCategorical1 && isTemporal2))
+      return 'temporal_categorical';
+
+    // Default fallback
+    return 'numerical_numerical';
+  }
+
+  private static isStaticNumericalType(dataType: string): boolean {
+    return dataType === 'numerical_float' || dataType === 'numerical_integer';
   }
 
   private static isNumericalType(dataType: any): boolean {
@@ -3562,29 +3572,99 @@ export class Section4Analyzer {
 
   private static createAdvancedInteractivity(): InteractivityOptions {
     return {
-      brushing: true,
-      linking: true,
-      zooming: true,
-      filtering: true,
-      customizations: ['Dynamic querying', 'Real-time updates'],
+      level: 'advanced' as const,
+      interactions: [
+        InteractionType.HOVER,
+        InteractionType.CLICK,
+        InteractionType.BRUSH,
+        InteractionType.ZOOM,
+        InteractionType.PAN,
+        InteractionType.FILTER,
+        InteractionType.TOOLTIP,
+      ],
+      responsiveness: ResponsivenessLevel.ADAPTIVE,
+      keyboard: {
+        navigation: true,
+        shortcuts: {
+          'z': 'zoom',
+          'r': 'reset',
+          'f': 'filter',
+        },
+        focusManagement: true,
+      },
+      screenReader: {
+        ariaLabels: {
+          chart: 'Interactive data visualisation',
+          tooltip: 'Data point details',
+        },
+        alternativeText: 'Advanced interactive chart with zoom, pan, and filter capabilities',
+        dataTable: true,
+        sonification: true,
+      },
     };
   }
 
-  private static createAccessibilityGuidance(): AccessibilityGuidance {
+  private static createAccessibilityGuidance(chartType: ChartType): AccessibilityGuidance {
     return {
-      screenReader: 'Full ARIA support with descriptive labels',
-      keyboardNavigation: 'Tab-based navigation with focus indicators',
-      colorBlindness: 'Pattern and texture alternatives provided',
-      implementation: ['aria-label attributes', 'role definitions', 'live regions'],
+      level: AccessibilityLevel.GOOD,
+      wcagCompliance: 'AA' as const,
+      colorBlindness: {
+        protanopia: true,
+        deuteranopia: true,
+        tritanopia: true,
+        monochromacy: true,
+        alternativeEncodings: ['pattern', 'texture', 'shape'],
+      },
+      motorImpairment: {
+        largeClickTargets: true,
+        keyboardOnly: true,
+        customControls: true,
+        timeoutExtensions: true,
+      },
+      cognitiveAccessibility: {
+        simplicityLevel: ComplexityLevel.MODERATE,
+        progressiveDisclosure: true,
+        errorPrevention: ['Input validation', 'Clear feedback'],
+        cognitiveLoad: 'moderate' as const,
+      },
+      recommendations: [
+        'Provide ARIA labels for all chart elements',
+        'Include alternative text descriptions',
+        'Ensure keyboard navigation support',
+        'Use high contrast colours',
+      ],
     };
   }
 
-  private static createPerformanceConsiderations(): PerformanceConsiderations {
+  private static createPerformanceConsiderations(chartType: ChartType): PerformanceConsiderations {
     return {
-      largeDatasets: 'Implement data virtualization',
-      renderingOptimization: 'Use canvas for large point clouds',
-      memoryManagement: 'Implement progressive loading',
-      suggestions: ['Data aggregation', 'Lazy loading', 'Caching strategies'],
+      dataSize: DataSize.MEDIUM,
+      renderingStrategy: 'svg' as const,
+      optimizations: [
+        {
+          type: 'sampling' as const,
+          description: 'Use statistical sampling for large datasets',
+          implementation: 'Implement reservoir sampling algorithm',
+          impact: 'high' as const,
+        },
+        {
+          type: 'aggregation' as const,
+          description: 'Pre-aggregate data for faster rendering',
+          implementation: 'Use time-based or categorical aggregation',
+          impact: 'medium' as const,
+        },
+      ],
+      loadingStrategy: {
+        progressive: true,
+        chunking: true,
+        placeholders: true,
+        feedback: true,
+      },
+      memoryUsage: {
+        estimated: '100MB',
+        peak: '150MB',
+        recommendations: ['Use efficient data structures', 'Implement data virtualization', 'Cache frequently accessed data'],
+      },
     };
   }
 
@@ -3624,26 +3704,35 @@ export class Section4Analyzer {
           },
         },
         accessibility: {
-          level: AccessibilityLevel.WCAG_AA,
+          level: AccessibilityLevel.EXCELLENT,
           wcagCompliance: 'AA' as const,
           colorBlindness: {
             protanopia: true,
             deuteranopia: true,
             tritanopia: true,
             monochromacy: true,
+            alternativeEncodings: ['pattern', 'texture', 'shape'],
           },
           motorImpairment: {
-            keyboardNavigation: true,
             largeClickTargets: true,
-            reducedMotionSupport: true,
+            keyboardOnly: true,
+            customControls: false,
+            timeoutExtensions: true,
           },
           cognitiveAccessibility: {
-            clearLabels: true,
-            consistentPatterns: true,
-            minimalCognitiveLoad: true,
+            simplicityLevel: ComplexityLevel.SIMPLE,
+            progressiveDisclosure: true,
+            errorPrevention: ['Clear validation messages', 'Confirmation dialogs'],
+            cognitiveLoad: 'low' as const,
           },
           recommendations: ['Use high contrast colors', 'Include clear labels'],
         },
+        purpose: (chartRecommendation as any).purpose || ChartPurpose.DISTRIBUTION,
+        priority: (chartRecommendation as any).priority || RecommendationPriority.PRIMARY,
+        performance: Section4Analyzer.createPerformanceConsiderations(chartRecommendation.chartType),
+        libraryRecommendations: Section4Analyzer.getOptimalLibraryRecommendations(chartRecommendation.chartType),
+        dataPreparation: Section4Analyzer.createBivariateDataPreparation(),
+        designGuidelines: Section4Analyzer.createDesignGuidelines(chartRecommendation.chartType),
       },
     ];
   }
@@ -3789,22 +3878,35 @@ export class Section4Analyzer {
         scale: 'linear',
         label: 'Variable 1',
         ticks: { count: 10, format: '.2f' },
+        gridLines: true,
+        zeroLine: false,
       },
       yAxis: {
         variable: 'variable2',
         scale: 'linear',
         label: 'Variable 2',
         ticks: { count: 10, format: '.2f' },
+        gridLines: true,
+        zeroLine: false,
       },
       color: {
         variable: 'category',
-        scale: 'categorical',
-        scheme: 'tableau10',
-        legend: { position: 'right', title: 'Category' },
+        scheme: {
+          type: 'categorical' as const,
+          palette: ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd'],
+          printSafe: true,
+          colorBlindSafe: true,
+        },
+        accessibility: {
+          contrastRatio: 4.5,
+          alternativeEncoding: 'pattern' as const,
+          wcagLevel: 'AA' as const,
+          colorBlindSupport: true,
+        },
       },
       layout: {
-        type: 'cartesian',
-        responsive: true,
+        width: 'responsive',
+        height: 400,
         aspectRatio: 1.618,
         margins: { top: 20, right: 80, bottom: 40, left: 60 },
       },
@@ -3826,7 +3928,7 @@ export class Section4Analyzer {
     return 'low';
   }
 
-  private static createDesignGuidelines(): DesignGuidelines {
+  private static createDesignGuidelines(chartType: ChartType): DesignGuidelines {
     return {
       principles: [
         {
@@ -3852,27 +3954,25 @@ export class Section4Analyzer {
       ],
       typography: {
         fontFamily: ['Arial', 'sans-serif'],
-        fontSize: { title: 16, subtitle: 14, axis: 12, label: 10, annotation: 9 },
-        fontWeight: { title: 'bold', subtitle: 'medium', axis: 'normal', label: 'normal' },
+        fontSize: { title: 16, subtitle: 14, axis: 12, legend: 10, annotation: 9 },
+        fontWeight: { title: 700, subtitle: 500, axis: 400, legend: 400 },
         lineHeight: 1.5,
       },
       spacing: {
-        margin: { top: 20, right: 20, bottom: 40, left: 40 },
-        padding: { chart: 10, legend: 10 },
-        gap: { element: 8, group: 16 },
+        unit: 8,
+        hierarchy: { small: 4, medium: 8, large: 16, xlarge: 24 },
+        consistency: ['Use multiples of base unit', 'Maintain visual rhythm'],
       },
       branding: {
-        primaryColor: '#1f77b4',
-        secondaryColor: '#ff7f0e',
-        accentColor: '#2ca02c',
-        backgroundColor: '#ffffff',
-        textColor: '#333333',
+        colorAlignment: true,
+        styleConsistency: ['Use consistent fonts', 'Maintain colour palette', 'Apply uniform spacing'],
+        logoPlacement: 'bottom-right',
       },
       context: {
-        domain: 'general',
-        audience: 'technical',
-        purpose: 'analysis',
-        medium: 'screen',
+        audience: 'Data analysts and stakeholders',
+        purpose: 'Explore and understand data patterns',
+        medium: 'web' as const,
+        constraints: ['Performance limitations', 'Screen size variations'],
       },
     };
   }
@@ -3891,5 +3991,692 @@ export class Section4Analyzer {
     }
 
     return warnings;
+  }
+
+  // ===== ADDITIONAL STATIC ENCODING METHODS =====
+
+  private static createDensityPlotEncoding(columnAnalysis: any): VisualEncoding {
+    return {
+      xAxis: {
+        variable: columnAnalysis.name,
+        scale: 'linear' as const,
+        label: columnAnalysis.name,
+        gridLines: true,
+        zeroLine: false,
+      },
+      yAxis: {
+        variable: 'density',
+        scale: 'linear' as const,
+        label: 'Density',
+        gridLines: false,
+        zeroLine: true,
+      },
+      color: {
+        scheme: Section4Analyzer.getDefaultColorScheme('sequential'),
+        accessibility: {
+          contrastRatio: 4.5,
+          alternativeEncoding: 'pattern' as const,
+          wcagLevel: 'AA' as const,
+          colorBlindSupport: true,
+        },
+      },
+      layout: {
+        width: 'responsive',
+        height: 400,
+        aspectRatio: 1.6,
+        margins: { top: 20, right: 20, bottom: 40, left: 50 },
+      },
+    };
+  }
+
+  private static createViolinWithBoxEncoding(columnAnalysis: any): VisualEncoding {
+    return {
+      xAxis: {
+        variable: 'category',
+        scale: 'band' as const,
+        label: 'Category',
+        gridLines: false,
+        zeroLine: false,
+      },
+      yAxis: {
+        variable: columnAnalysis.name,
+        scale: 'linear' as const,
+        label: columnAnalysis.name,
+        gridLines: true,
+        zeroLine: false,
+      },
+      color: {
+        scheme: Section4Analyzer.getDefaultColorScheme('categorical'),
+        accessibility: {
+          contrastRatio: 4.5,
+          alternativeEncoding: 'pattern' as const,
+          wcagLevel: 'AA' as const,
+          colorBlindSupport: true,
+        },
+      },
+      layout: {
+        width: 'responsive',
+        height: 400,
+        aspectRatio: 1.2,
+        margins: { top: 20, right: 20, bottom: 40, left: 50 },
+      },
+    };
+  }
+
+  private static createPieChartEncoding(columnAnalysis: any): VisualEncoding {
+    return {
+      color: {
+        variable: columnAnalysis.name,
+        scheme: Section4Analyzer.getDefaultColorScheme('categorical'),
+        accessibility: {
+          contrastRatio: 4.5,
+          alternativeEncoding: 'pattern' as const,
+          wcagLevel: 'AA' as const,
+          colorBlindSupport: true,
+        },
+      },
+      layout: {
+        width: 400,
+        height: 400,
+        aspectRatio: 1.0,
+        margins: { top: 20, right: 80, bottom: 20, left: 20 },
+      },
+      legend: {
+        position: 'right' as const,
+        orientation: 'vertical' as const,
+        title: columnAnalysis.name,
+        interactive: true,
+      },
+    };
+  }
+
+  private static createTreemapEncoding(columnAnalysis: any): VisualEncoding {
+    return {
+      color: {
+        variable: columnAnalysis.name,
+        scheme: Section4Analyzer.getDefaultColorScheme('categorical'),
+        accessibility: {
+          contrastRatio: 4.5,
+          alternativeEncoding: 'pattern' as const,
+          wcagLevel: 'AA' as const,
+          colorBlindSupport: true,
+        },
+      },
+      size: {
+        variable: 'value',
+        range: [10, 1000],
+        scaling: 'area' as const,
+      },
+      layout: {
+        width: 'responsive',
+        height: 400,
+        aspectRatio: 1.6,
+        margins: { top: 20, right: 20, bottom: 20, left: 20 },
+      },
+    };
+  }
+
+  private static createTimeSeriesEncoding(columnAnalysis: any): VisualEncoding {
+    return {
+      xAxis: {
+        variable: columnAnalysis.name,
+        scale: 'time' as const,
+        label: 'Time',
+        gridLines: true,
+        zeroLine: false,
+      },
+      yAxis: {
+        variable: 'value',
+        scale: 'linear' as const,
+        label: 'Value',
+        gridLines: true,
+        zeroLine: false,
+      },
+      color: {
+        scheme: Section4Analyzer.getDefaultColorScheme('sequential'),
+        accessibility: {
+          contrastRatio: 4.5,
+          alternativeEncoding: 'pattern' as const,
+          wcagLevel: 'AA' as const,
+          colorBlindSupport: true,
+        },
+      },
+      layout: {
+        width: 'responsive',
+        height: 300,
+        aspectRatio: 2.0,
+        margins: { top: 20, right: 20, bottom: 40, left: 50 },
+      },
+    };
+  }
+
+  private static createBooleanBarEncoding(columnAnalysis: any): VisualEncoding {
+    return {
+      xAxis: {
+        variable: columnAnalysis.name,
+        scale: 'band' as const,
+        label: columnAnalysis.name,
+        gridLines: false,
+        zeroLine: false,
+      },
+      yAxis: {
+        variable: 'count',
+        scale: 'linear' as const,
+        label: 'Count',
+        gridLines: true,
+        zeroLine: true,
+      },
+      color: {
+        scheme: Section4Analyzer.getDefaultColorScheme('categorical'),
+        accessibility: {
+          contrastRatio: 4.5,
+          alternativeEncoding: 'pattern' as const,
+          wcagLevel: 'AA' as const,
+          colorBlindSupport: true,
+        },
+      },
+      layout: {
+        width: 'responsive',
+        height: 300,
+        aspectRatio: 1.5,
+        margins: { top: 20, right: 20, bottom: 40, left: 50 },
+      },
+    };
+  }
+
+  private static createTextFrequencyEncoding(columnAnalysis: any): VisualEncoding {
+    return {
+      xAxis: {
+        variable: 'term',
+        scale: 'band' as const,
+        label: 'Terms',
+        gridLines: false,
+        zeroLine: false,
+      },
+      yAxis: {
+        variable: 'frequency',
+        scale: 'linear' as const,
+        label: 'Frequency',
+        gridLines: true,
+        zeroLine: true,
+      },
+      color: {
+        scheme: Section4Analyzer.getDefaultColorScheme('sequential'),
+        accessibility: {
+          contrastRatio: 4.5,
+          alternativeEncoding: 'pattern' as const,
+          wcagLevel: 'AA' as const,
+          colorBlindSupport: true,
+        },
+      },
+      layout: {
+        width: 'responsive',
+        height: 400,
+        aspectRatio: 1.6,
+        margins: { top: 20, right: 20, bottom: 60, left: 50 },
+      },
+    };
+  }
+
+  private static createScatterPlotEncoding(var1: string, var2: string): VisualEncoding {
+    return {
+      xAxis: {
+        variable: var1,
+        scale: 'linear' as const,
+        label: var1,
+        gridLines: true,
+        zeroLine: false,
+      },
+      yAxis: {
+        variable: var2,
+        scale: 'linear' as const,
+        label: var2,
+        gridLines: true,
+        zeroLine: false,
+      },
+      color: {
+        scheme: Section4Analyzer.getDefaultColorScheme('categorical'),
+        accessibility: {
+          contrastRatio: 4.5,
+          alternativeEncoding: 'pattern' as const,
+          wcagLevel: 'AA' as const,
+          colorBlindSupport: true,
+        },
+      },
+      layout: {
+        width: 'responsive',
+        height: 400,
+        aspectRatio: 1.0,
+        margins: { top: 20, right: 20, bottom: 40, left: 50 },
+      },
+    };
+  }
+
+  private static createRegressionPlotEncoding(var1: string, var2: string): VisualEncoding {
+    return {
+      xAxis: {
+        variable: var1,
+        scale: 'linear' as const,
+        label: var1,
+        gridLines: true,
+        zeroLine: false,
+      },
+      yAxis: {
+        variable: var2,
+        scale: 'linear' as const,
+        label: var2,
+        gridLines: true,
+        zeroLine: false,
+      },
+      color: {
+        scheme: Section4Analyzer.getDefaultColorScheme('categorical'),
+        accessibility: {
+          contrastRatio: 4.5,
+          alternativeEncoding: 'pattern' as const,
+          wcagLevel: 'AA' as const,
+          colorBlindSupport: true,
+        },
+      },
+      layout: {
+        width: 'responsive',
+        height: 400,
+        aspectRatio: 1.0,
+        margins: { top: 20, right: 20, bottom: 40, left: 50 },
+      },
+    };
+  }
+
+  private static createGroupedBoxPlotEncoding(numVar: string, catVar: string): VisualEncoding {
+    return {
+      xAxis: {
+        variable: catVar,
+        scale: 'band' as const,
+        label: catVar,
+        gridLines: false,
+        zeroLine: false,
+      },
+      yAxis: {
+        variable: numVar,
+        scale: 'linear' as const,
+        label: numVar,
+        gridLines: true,
+        zeroLine: false,
+      },
+      color: {
+        variable: catVar,
+        scheme: Section4Analyzer.getDefaultColorScheme('categorical'),
+        accessibility: {
+          contrastRatio: 4.5,
+          alternativeEncoding: 'pattern' as const,
+          wcagLevel: 'AA' as const,
+          colorBlindSupport: true,
+        },
+      },
+      layout: {
+        width: 'responsive',
+        height: 400,
+        aspectRatio: 1.4,
+        margins: { top: 20, right: 20, bottom: 40, left: 50 },
+      },
+    };
+  }
+
+  private static createGroupedViolinEncoding(numVar: string, catVar: string): VisualEncoding {
+    return {
+      xAxis: {
+        variable: catVar,
+        scale: 'band' as const,
+        label: catVar,
+        gridLines: false,
+        zeroLine: false,
+      },
+      yAxis: {
+        variable: numVar,
+        scale: 'linear' as const,
+        label: numVar,
+        gridLines: true,
+        zeroLine: false,
+      },
+      color: {
+        variable: catVar,
+        scheme: Section4Analyzer.getDefaultColorScheme('categorical'),
+        accessibility: {
+          contrastRatio: 4.5,
+          alternativeEncoding: 'pattern' as const,
+          wcagLevel: 'AA' as const,
+          colorBlindSupport: true,
+        },
+      },
+      layout: {
+        width: 'responsive',
+        height: 400,
+        aspectRatio: 1.4,
+        margins: { top: 20, right: 20, bottom: 40, left: 50 },
+      },
+    };
+  }
+
+  private static createCategoricalHeatmapEncoding(var1: string, var2: string): VisualEncoding {
+    return {
+      xAxis: {
+        variable: var1,
+        scale: 'band' as const,
+        label: var1,
+        gridLines: false,
+        zeroLine: false,
+      },
+      yAxis: {
+        variable: var2,
+        scale: 'band' as const,
+        label: var2,
+        gridLines: false,
+        zeroLine: false,
+      },
+      color: {
+        variable: 'count',
+        scheme: Section4Analyzer.getDefaultColorScheme('sequential'),
+        accessibility: {
+          contrastRatio: 4.5,
+          alternativeEncoding: 'pattern' as const,
+          wcagLevel: 'AA' as const,
+          colorBlindSupport: true,
+        },
+      },
+      layout: {
+        width: 'responsive',
+        height: 400,
+        aspectRatio: 1.0,
+        margins: { top: 20, right: 80, bottom: 40, left: 60 },
+      },
+    };
+  }
+
+  private static createMosaicPlotEncoding(var1: string, var2: string): VisualEncoding {
+    return {
+      xAxis: {
+        variable: var1,
+        scale: 'band' as const,
+        label: var1,
+        gridLines: false,
+        zeroLine: false,
+      },
+      yAxis: {
+        variable: var2,
+        scale: 'band' as const,
+        label: var2,
+        gridLines: false,
+        zeroLine: false,
+      },
+      color: {
+        variable: 'proportion',
+        scheme: Section4Analyzer.getDefaultColorScheme('categorical'),
+        accessibility: {
+          contrastRatio: 4.5,
+          alternativeEncoding: 'pattern' as const,
+          wcagLevel: 'AA' as const,
+          colorBlindSupport: true,
+        },
+      },
+      layout: {
+        width: 'responsive',
+        height: 400,
+        aspectRatio: 1.0,
+        margins: { top: 20, right: 20, bottom: 40, left: 50 },
+      },
+    };
+  }
+
+  // ===== ADDITIONAL STATIC DATA PREPARATION METHODS =====
+
+  private static createDateTimeDataPreparation(columnAnalysis: any): DataPreparationSteps {
+    return {
+      required: [
+        {
+          step: 'Parse date/time format',
+          description: `Parse ${columnAnalysis.name} to proper datetime format`,
+          importance: 'critical' as const,
+          code: `pd.to_datetime(df['${columnAnalysis.name}'])`,
+        },
+        {
+          step: 'Handle timezone',
+          description: 'Ensure consistent timezone handling',
+          importance: 'recommended' as const,
+        },
+      ],
+      optional: [
+        {
+          step: 'Extract time components',
+          description: 'Extract year, month, day, hour components for analysis',
+          importance: 'optional' as const,
+        },
+      ],
+      qualityChecks: [
+        {
+          check: 'Date range validation',
+          description: 'Ensure dates are within expected range',
+          remediation: 'Filter out invalid dates or investigate data source',
+        },
+      ],
+      aggregations: [],
+    };
+  }
+
+  private static createBooleanDataPreparation(columnAnalysis: any): DataPreparationSteps {
+    return {
+      required: [
+        {
+          step: 'Standardise boolean values',
+          description: `Convert ${columnAnalysis.name} to consistent True/False format`,
+          importance: 'critical' as const,
+          code: `df['${columnAnalysis.name}'] = df['${columnAnalysis.name}'].astype(bool)`,
+        },
+      ],
+      optional: [
+        {
+          step: 'Create readable labels',
+          description: 'Convert to Yes/No or other readable labels for visualisation',
+          importance: 'recommended' as const,
+        },
+      ],
+      qualityChecks: [
+        {
+          check: 'Missing value handling',
+          description: 'Decide how to handle missing boolean values',
+          remediation: 'Convert to explicit category or exclude from analysis',
+        },
+      ],
+      aggregations: [
+        {
+          operation: 'count' as const,
+          variable: columnAnalysis.name,
+          purpose: 'Calculate frequency distribution',
+        },
+      ],
+    };
+  }
+
+  private static createTextDataPreparation(columnAnalysis: any): DataPreparationSteps {
+    return {
+      required: [
+        {
+          step: 'Text cleaning',
+          description: `Clean and normalise text in ${columnAnalysis.name}`,
+          importance: 'critical' as const,
+          code: `df['${columnAnalysis.name}'].str.lower().str.strip()`,
+        },
+        {
+          step: 'Handle encoding',
+          description: 'Ensure proper text encoding (UTF-8)',
+          importance: 'critical' as const,
+        },
+      ],
+      optional: [
+        {
+          step: 'Tokenisation',
+          description: 'Split text into tokens for word frequency analysis',
+          importance: 'optional' as const,
+        },
+        {
+          step: 'Remove stop words',
+          description: 'Filter out common words for better analysis',
+          importance: 'optional' as const,
+        },
+      ],
+      qualityChecks: [
+        {
+          check: 'Text length distribution',
+          description: 'Check for extremely long or short text entries',
+          remediation: 'Truncate or filter based on requirements',
+        },
+      ],
+      aggregations: [
+        {
+          operation: 'count' as const,
+          variable: columnAnalysis.name,
+          purpose: 'Calculate text frequency distribution',
+        },
+      ],
+    };
+  }
+
+  // ===== ADDITIONAL STATIC UTILITY METHODS =====
+
+  private static getDefaultColorScheme(type: 'categorical' | 'sequential' | 'diverging'): any {
+    const schemes = {
+      categorical: {
+        name: 'tableau10',
+        colors: ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd'],
+        type: 'categorical',
+      },
+      sequential: {
+        name: 'blues',
+        colors: ['#08519c', '#3182bd', '#6baed6', '#9ecae1', '#c6dbef'],
+        type: 'sequential',
+      },
+      diverging: {
+        name: 'red_blue',
+        colors: ['#d73027', '#f46d43', '#fdae61', '#abd9e9', '#74add1', '#4575b4'],
+        type: 'diverging',
+      },
+    };
+    return schemes[type];
+  }
+
+  private static getOptimalLibraryRecommendations(chartType: ChartType): LibraryRecommendation[] {
+    return [
+      {
+        name: 'D3.js',
+        type: 'javascript' as const,
+        pros: ['Highly customisable', 'Excellent performance', 'Rich ecosystem'],
+        cons: ['Steep learning curve', 'Verbose syntax'],
+        useCases: ['Custom visualisations', 'Interactive dashboards'],
+        complexity: 'high' as any,
+        documentation: 'https://d3js.org/',
+        communitySupport: 'excellent' as const,
+      },
+      {
+        name: 'Observable Plot',
+        type: 'javascript' as const,
+        pros: ['Simple API', 'Good defaults', 'Fast development'],
+        cons: ['Less customisation', 'Newer library'],
+        useCases: ['Quick prototyping', 'Standard charts'],
+        complexity: 'low' as any,
+        documentation: 'https://observablehq.com/plot/',
+        communitySupport: 'good' as const,
+      },
+    ];
+  }
+
+  private static generateDomainTechnicalGuidance(domainContext: any): any {
+    return {
+      domain: domainContext.domain || 'general',
+      recommendations: [
+        'Follow domain-specific visualisation standards',
+        'Consider audience expertise level',
+        'Apply appropriate statistical methods',
+      ],
+      considerations: [
+        'Data privacy requirements',
+        'Industry regulations',
+        'Stakeholder preferences',
+      ],
+    };
+  }
+
+  private static createBivariateProfile(correlation: any, section3Result: any): any {
+    return {
+      variables: [correlation.var1, correlation.var2],
+      correlation: correlation.coefficient,
+      strength: Math.abs(correlation.coefficient),
+      direction: correlation.coefficient > 0 ? 'positive' : 'negative',
+      significance: correlation.pValue < 0.05 ? 'significant' : 'not_significant',
+      recommendedCharts: Section4Analyzer.generateBivariateChartRecommendations(correlation),
+      dataTypes: {
+        [correlation.var1]: section3Result.univariateAnalysis[correlation.var1]?.dataType || 'unknown',
+        [correlation.var2]: section3Result.univariateAnalysis[correlation.var2]?.dataType || 'unknown',
+      },
+    };
+  }
+
+  private static generateBivariateChartRecommendations(correlation: any): ChartRecommendation[] {
+    const recommendations: ChartRecommendation[] = [];
+    
+    // Default scatter plot recommendation
+    recommendations.push({
+      chartType: ChartType.SCATTER_PLOT,
+      purpose: ChartPurpose.RELATIONSHIP,
+      priority: RecommendationPriority.PRIMARY,
+      confidence: 0.8,
+      reasoning: `Scatter plot is ideal for exploring relationship between ${correlation.var1} and ${correlation.var2}`,
+      encoding: Section4Analyzer.createScatterPlotEncoding(correlation.var1, correlation.var2),
+      interactivity: Section4Analyzer.createBasicInteractivity(),
+      accessibility: Section4Analyzer.createAccessibilityGuidance(ChartType.SCATTER_PLOT),
+      performance: Section4Analyzer.createPerformanceConsiderations(ChartType.SCATTER_PLOT),
+      libraryRecommendations: Section4Analyzer.getOptimalLibraryRecommendations(ChartType.SCATTER_PLOT),
+      dataPreparation: Section4Analyzer.createBivariateDataPreparation(),
+      designGuidelines: Section4Analyzer.createDesignGuidelines(ChartType.SCATTER_PLOT),
+    });
+
+    return recommendations;
+  }
+
+  private static detectAntiPatterns(
+    recommendation: ChartRecommendation,
+    columnData: any,
+  ): any[] {
+    const antiPatterns: any[] = [];
+
+    // Pie chart with too many categories
+    if (recommendation.chartType === ChartType.PIE_CHART && columnData.cardinality > 7) {
+      antiPatterns.push({
+        type: 'PIE_CHART_TOO_MANY_CATEGORIES',
+        severity: 'HIGH',
+        description: `Pie chart with ${columnData.cardinality} categories exceeds optimal limit of 5-7 categories`,
+        recommendation: 'Use horizontal bar chart instead for better comparability',
+        affectedChart: ChartType.PIE_CHART,
+        evidence: [`${columnData.cardinality} unique categories detected`],
+      });
+    }
+
+    // Add more anti-pattern checks as needed
+    return antiPatterns;
+  }
+
+  private static createBasicInteractivity(): InteractivityOptions {
+    return {
+      level: 'basic' as const,
+      interactions: [InteractionType.HOVER, InteractionType.TOOLTIP],
+      responsiveness: ResponsivenessLevel.RESPONSIVE,
+      keyboard: {
+        navigation: true,
+        shortcuts: {},
+        focusManagement: true,
+      },
+      screenReader: {
+        ariaLabels: {},
+        alternativeText: '',
+        dataTable: false,
+      },
+    };
   }
 }

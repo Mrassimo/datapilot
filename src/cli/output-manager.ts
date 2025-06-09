@@ -533,14 +533,14 @@ export class OutputManager {
         yaml += '\n';
         value.forEach((item) => {
           if (typeof item === 'object') {
-            yaml += `${spaces}  -\n${this.objectToYAML(item, indent + 2)}`;
+            yaml += `${spaces}  -\n${this.objectToYAML(item as Record<string, unknown>, indent + 2)}`;
           } else {
             yaml += `${spaces}  - ${item}\n`;
           }
         });
       } else if (typeof value === 'object') {
         yaml += '\n';
-        yaml += this.objectToYAML(value, indent + 1);
+        yaml += this.objectToYAML(value as Record<string, unknown>, indent + 1);
       }
     }
 

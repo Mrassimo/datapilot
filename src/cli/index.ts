@@ -529,7 +529,7 @@ export class DataPilotCLI {
               );
             },
             outputMethod: (outputManager, report, result, fileName) =>
-              outputManager.outputSection1(result, fileName),
+              outputManager.outputSection1(result as Section1Result, fileName),
           },
           filePath,
           options,
@@ -577,9 +577,9 @@ export class DataPilotCLI {
               });
               return await analyzer.analyze();
             },
-            formatterMethod: (result) => Section2Formatter.formatReport(result.qualityAudit),
+            formatterMethod: (result) => Section2Formatter.formatReport((result as Section2Result).qualityAudit),
             outputMethod: (outputManager, report, result, fileName) =>
-              outputManager.outputSection2(result),
+              outputManager.outputSection2(result as Section2Result),
           },
           filePath,
           options,
@@ -604,9 +604,9 @@ export class DataPilotCLI {
               });
               return await analyzer.analyzeFile(filePath);
             },
-            formatterMethod: (result) => Section3Formatter.formatSection3(result),
+            formatterMethod: (result) => Section3Formatter.formatSection3(result as Section3Result),
             outputMethod: (outputManager, report, result, fileName) =>
-              outputManager.outputSection3(report!, result, fileName),
+              outputManager.outputSection3(report!, result as Section3Result, fileName),
           },
           filePath,
           options,
@@ -623,8 +623,8 @@ export class DataPilotCLI {
             analyzerFactory: async (filePath, options, dependencies) => {
               const [section1Data, section3Data] = dependencies!;
               const analyzer = new Section4Analyzer({
-                accessibilityLevel: options.accessibility || 'good',
-                complexityThreshold: options.complexity || 'moderate',
+                accessibilityLevel: (options.accessibility as AccessibilityLevel) || AccessibilityLevel.GOOD,
+                complexityThreshold: (options.complexity as ComplexityLevel) || ComplexityLevel.MODERATE,
                 maxRecommendationsPerChart: options.maxRecommendations || 3,
                 includeCodeExamples: options.includeCode || false,
                 enabledRecommendations: [
@@ -636,11 +636,11 @@ export class DataPilotCLI {
                 ],
                 targetLibraries: ['d3', 'plotly', 'observable'],
               });
-              return await analyzer.analyze(section1Data, section3Data);
+              return await analyzer.analyze(section1Data as Section1Result, section3Data as Section3Result);
             },
-            formatterMethod: (result) => Section4Formatter.formatSection4(result),
+            formatterMethod: (result) => Section4Formatter.formatSection4(result as Section4Result),
             outputMethod: (outputManager, report, result, fileName) =>
-              outputManager.outputSection4(report!, result, fileName),
+              outputManager.outputSection4(report!, result as Section4Result, fileName),
           },
           filePath,
           options,
@@ -657,14 +657,14 @@ export class DataPilotCLI {
             analyzerFactory: async (filePath, options, dependencies) => {
               const [section1Data, section2Data, section3Data] = dependencies!;
               const analyzer = new Section5Analyzer({
-                targetDatabaseSystem: options.database || 'postgresql',
-                mlFrameworkTarget: options.framework || 'scikit_learn',
+                targetDatabaseSystem: (options.database as 'postgresql' | 'mysql' | 'sqlite' | 'generic_sql') || 'postgresql',
+                mlFrameworkTarget: (options.framework as 'scikit_learn' | 'pytorch' | 'tensorflow' | 'generic') || 'scikit_learn',
               });
-              return await analyzer.analyze(section1Data, section2Data, section3Data);
+              return await analyzer.analyze(section1Data as Section1Result, section2Data as Section2Result, section3Data as Section3Result);
             },
-            formatterMethod: (result) => Section5Formatter.formatMarkdown(result),
+            formatterMethod: (result) => Section5Formatter.formatMarkdown(result as Section5Result),
             outputMethod: (outputManager, report, result, fileName) =>
-              outputManager.outputSection5(report!, result, fileName),
+              outputManager.outputSection5(report!, result as Section5Result, fileName),
           },
           filePath,
           options,
@@ -683,30 +683,30 @@ export class DataPilotCLI {
 
               // Need Section 5 result as well
               const section5Analyzer = new Section5Analyzer({
-                targetDatabaseSystem: options.database || 'postgresql',
-                mlFrameworkTarget: options.framework || 'scikit_learn',
+                targetDatabaseSystem: (options.database as 'postgresql' | 'mysql' | 'sqlite' | 'generic_sql') || 'postgresql',
+                mlFrameworkTarget: (options.framework as 'scikit_learn' | 'pytorch' | 'tensorflow' | 'generic') || 'scikit_learn',
               });
               const section5Result = await section5Analyzer.analyze(
-                section1Data,
-                section2Data,
-                section3Data,
+                section1Data as Section1Result,
+                section2Data as Section2Result,
+                section3Data as Section3Result,
               );
 
               const analyzer = new Section6Analyzer({
-                focusAreas: options.focus || ['regression', 'binary_classification', 'clustering'],
+                focusAreas: (options.focus as ModelingTaskType[]) || ['regression', 'binary_classification', 'clustering'],
                 complexityPreference: options.complexity || 'moderate',
                 interpretabilityRequirement: options.interpretability || 'medium',
               });
               return await analyzer.analyze(
-                section1Data,
-                section2Data,
-                section3Data,
+                section1Data as Section1Result,
+                section2Data as Section2Result,
+                section3Data as Section3Result,
                 section5Result,
               );
             },
-            formatterMethod: (result) => Section6Formatter.formatMarkdown(result),
+            formatterMethod: (result) => Section6Formatter.formatMarkdown(result as Section6Result),
             outputMethod: (outputManager, report, result, fileName) =>
-              outputManager.outputSection6(report!, result, fileName),
+              outputManager.outputSection6(report!, result as Section6Result, fileName),
           },
           filePath,
           options,
@@ -1637,7 +1637,7 @@ export class DataPilotCLI {
 
       const parser = new CSVParser({
         autoDetect: true,
-        encoding: options.encoding || 'utf8',
+        encoding: (options.encoding as BufferEncoding) || 'utf8',
         delimiter: options.delimiter,
         maxRows: 100, // Just validate format, don't load everything
       });
@@ -2276,8 +2276,8 @@ export class DataPilotCLI {
       }
 
       // Check for empty or insufficient data
-      if (dep.datasetCharacteristics) {
-        const totalRows = dep.datasetCharacteristics.totalRows || 0;
+      if ('datasetCharacteristics' in dep && dep.datasetCharacteristics) {
+        const totalRows = (dep.datasetCharacteristics as any)?.totalRows || 0;
         if (totalRows === 0) {
           errors.push(`Dependency ${index + 1} contains no data`);
         } else if (totalRows < 10) {

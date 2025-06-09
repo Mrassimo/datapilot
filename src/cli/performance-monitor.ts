@@ -24,6 +24,15 @@ export interface PerformanceMetrics {
     rowsPerSecond: number;
     bytesPerSecond: number;
   };
+  phase?: {
+    name: string;
+    metrics: {
+      duration: number;
+      memoryDelta: number;
+      cpuTime: number;
+      rowsProcessed?: number;
+    };
+  };
 }
 
 export interface PerformanceReport {

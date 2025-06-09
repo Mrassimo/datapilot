@@ -499,6 +499,9 @@ export interface Section6Config {
   customDomainRules?: string[];
   performanceThresholds: Record<string, number>;
   businessContext?: string;
+  enableClusteringRecommendations?: boolean;
+  enableCARTAnalysis?: boolean;
+  maxRecordsForAnalysis?: number;
 }
 
 export interface Section6Progress {
@@ -577,6 +580,7 @@ export interface Section6PerformanceMetrics {
   algorithmsEvaluated: number;
   ethicsChecksPerformed: number;
   recommendationsGenerated: number;
+  recordsAnalyzed?: number;
 }
 
 export interface Section6Metadata {

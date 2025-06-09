@@ -355,7 +355,7 @@ export class Validator {
         DataPilotError.validation(
           'Cannot use both --quiet and --verbose flags',
           'CONFLICTING_OPTIONS',
-          { options: ['quiet', 'verbose'] },
+          { options: 'quiet,verbose' },
           [
             {
               action: 'Choose one option',

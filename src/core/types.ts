@@ -334,6 +334,11 @@ export interface ErrorContext {
   options?: string;
   rowCount?: number;
   value?: unknown;
+  maximum?: number;
+  minimum?: number;
+  allowedValues?: string[];
+  minLength?: number;
+  maxLength?: number;
 }
 
 export interface ErrorRecoveryStrategy {

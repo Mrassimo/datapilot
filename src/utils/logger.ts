@@ -22,6 +22,13 @@ export interface LogContext {
   memoryUsage?: number;
   errorCode?: string;
   error?: string;
+  progress?: number;
+  phase?: string;
+  rowsProcessed?: number;
+  duration?: number;
+  finalMetrics?: any;
+  cacheSize?: number;
+  completedSections?: number;
 }
 
 export interface LogEntry {

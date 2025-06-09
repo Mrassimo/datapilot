@@ -21,9 +21,41 @@ export class ArgumentParser {
    */
   parse(argv: string[]): CLIContext {
     try {
-      this.program.parse(argv);
+      // Handle empty arguments case
+      if (argv.length <= 2) {
+        return {
+          command: 'help',
+          args: [],
+          options: {},
+          startTime: Date.now(),
+          workingDirectory: process.cwd(),
+        };
+      }
 
-      // Get the parsed command and options
+      // Check for help flag to avoid process.exit
+      if (argv.includes('--help') || argv.includes('-h')) {
+        return {
+          command: 'help',
+          args: [],
+          options: {},
+          startTime: Date.now(),
+          workingDirectory: process.cwd(),
+        };
+      }
+
+      this.program.parse(argv, { from: 'user' });
+
+      // Get the parsed command and options  
+      const lastContext = this.getLastContext();
+      if (lastContext) {
+        return {
+          ...lastContext,
+          startTime: Date.now(),
+          workingDirectory: process.cwd(),
+        };
+      }
+
+      // Fallback for basic parsing
       const command = this.program.args[0] || 'help';
       const globalOptions = this.program.opts();
 
@@ -52,7 +84,7 @@ export class ArgumentParser {
         'A lightweight CLI statistical computation engine for comprehensive CSV data analysis',
       )
       .version('1.0.0')
-      .helpOption('-h, --help', 'Display help information')
+      .helpOption(false) // Disable automatic help to handle it manually
       .addHelpText(
         'after',
         `
@@ -75,7 +107,8 @@ Use --verbose for detailed confidence explanations in reports.`,
       .option('-v, --verbose', 'Enable verbose output with detailed progress')
       .option('-q, --quiet', 'Suppress all output except errors')
       .option('--no-progress', 'Disable progress indicators')
-      .option('--dry-run', 'Validate inputs without performing analysis');
+      .option('--dry-run', 'Validate inputs without performing analysis')
+      .option('-h, --help', 'Display help information');
 
     // Main command: analyze all sections
     this.program
@@ -229,14 +262,14 @@ Use --verbose for detailed confidence explanations in reports.`,
 
     // Output options
     if (rawOptions.output) {
-      if (!['txt', 'markdown', 'json', 'yaml'].includes(rawOptions.output)) {
+      if (!['txt', 'markdown', 'json', 'yaml'].includes(rawOptions.output as string)) {
         throw new ValidationError('Output format must be one of: txt, markdown, json, yaml');
       }
-      options.output = rawOptions.output;
+      options.output = rawOptions.output as 'txt' | 'markdown' | 'json' | 'yaml';
     }
 
     if (rawOptions.outputFile) {
-      options.outputFile = resolve(rawOptions.outputFile);
+      options.outputFile = resolve(rawOptions.outputFile as string);
     }
 
     // Verbosity options
@@ -249,28 +282,30 @@ Use --verbose for detailed confidence explanations in reports.`,
 
     // Analysis options
     if (rawOptions.maxRows !== undefined) {
-      if (rawOptions.maxRows <= 0) {
+      const maxRows = Number(rawOptions.maxRows);
+      if (maxRows <= 0) {
         throw new ValidationError('Max rows must be a positive number');
       }
-      options.maxRows = rawOptions.maxRows;
+      options.maxRows = maxRows;
     }
 
     options.enableHashing = !rawOptions.noHashing;
     options.includeEnvironment = !rawOptions.noEnvironment;
 
     if (rawOptions.privacy) {
-      if (!['full', 'redacted', 'minimal'].includes(rawOptions.privacy)) {
+      if (!['full', 'redacted', 'minimal'].includes(rawOptions.privacy as string)) {
         throw new ValidationError('Privacy mode must be one of: full, redacted, minimal');
       }
-      options.privacyMode = rawOptions.privacy;
+      options.privacyMode = rawOptions.privacy as 'full' | 'redacted' | 'minimal';
     }
 
     // Performance options
     if (rawOptions.maxMemory !== undefined) {
-      if (rawOptions.maxMemory <= 0) {
+      const maxMemory = Number(rawOptions.maxMemory);
+      if (maxMemory <= 0) {
         throw new ValidationError('Max memory must be a positive number');
       }
-      options.maxMemory = rawOptions.maxMemory;
+      options.maxMemory = maxMemory;
     }
 
     // Behaviour options
@@ -352,13 +387,14 @@ Use --verbose for detailed confidence explanations in reports.`,
     if (command) {
       const cmd = this.program.commands.find((c) => c.name() === command);
       if (cmd) {
-        cmd.help();
+        // Use outputHelp instead of help to avoid process.exit
+        process.stdout.write(cmd.helpInformation());
       } else {
         console.error(`Unknown command: ${command}`);
-        this.program.help();
+        process.stdout.write(this.program.helpInformation());
       }
     } else {
-      this.program.help();
+      process.stdout.write(this.program.helpInformation());
     }
   }
 }

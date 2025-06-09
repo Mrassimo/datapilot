@@ -2634,30 +2634,95 @@ export class AestheticOptimizer {
         fontSize: { desktop: 48, tablet: 36, mobile: 28, unit: 'px', fluidScaling: true },
         fontWeight: { value: 700, name: 'bold', usage: ['headings'], effectiveness: 0.9 },
         lineHeight: 1.2,
+        letterSpacing: -0.02,
+        usage: {
+          contexts: ['main-titles', 'chart-titles'],
+          maxCharacters: 50,
+          recommendedLineLength: 40,
+          visualWeight: 90
+        },
+        hierarchy: {
+          importance: 90,
+          attentionGrabbing: 95,
+          scanability: 85,
+          readability: 80
+        },
       },
       {
         level: 'h2',
         fontSize: { desktop: 36, tablet: 28, mobile: 24, unit: 'px', fluidScaling: true },
         fontWeight: { value: 700, name: 'bold', usage: ['headings'], effectiveness: 0.9 },
         lineHeight: 1.3,
+        letterSpacing: -0.01,
+        usage: {
+          contexts: ['section-titles', 'subtitles'],
+          maxCharacters: 80,
+          recommendedLineLength: 60,
+          visualWeight: 75
+        },
+        hierarchy: {
+          importance: 80,
+          attentionGrabbing: 75,
+          scanability: 85,
+          readability: 85
+        },
       },
       {
         level: 'h3',
         fontSize: { desktop: 24, tablet: 20, mobile: 18, unit: 'px', fluidScaling: true },
         fontWeight: { value: 600, name: 'semibold', usage: ['subheadings'], effectiveness: 0.8 },
         lineHeight: 1.4,
+        letterSpacing: 0,
+        usage: {
+          contexts: ['subsection-titles', 'axis-labels'],
+          maxCharacters: 60,
+          recommendedLineLength: 45,
+          visualWeight: 0.8
+        },
+        hierarchy: {
+          importance: 3,
+          attentionGrabbing: 0.7,
+          scanability: 0.8,
+          readability: 0.9
+        },
       },
       {
         level: 'body',
         fontSize: { desktop: 16, tablet: 16, mobile: 14, unit: 'px', fluidScaling: false },
         fontWeight: { value: 400, name: 'regular', usage: ['body'], effectiveness: 0.7 },
         lineHeight: 1.5,
+        letterSpacing: 0,
+        usage: {
+          contexts: ['descriptions', 'data-labels'],
+          maxCharacters: 80,
+          recommendedLineLength: 65,
+          visualWeight: 0.6
+        },
+        hierarchy: {
+          importance: 4,
+          attentionGrabbing: 0.5,
+          scanability: 0.7,
+          readability: 0.9
+        },
       },
       {
         level: 'caption',
         fontSize: { desktop: 12, tablet: 12, mobile: 11, unit: 'px', fluidScaling: false },
         fontWeight: { value: 400, name: 'regular', usage: ['captions'], effectiveness: 0.6 },
         lineHeight: 1.4,
+        letterSpacing: 0.01,
+        usage: {
+          contexts: ['footnotes', 'metadata'],
+          maxCharacters: 100,
+          recommendedLineLength: 80,
+          visualWeight: 0.4
+        },
+        hierarchy: {
+          importance: 5,
+          attentionGrabbing: 0.3,
+          scanability: 0.6,
+          readability: 0.8
+        },
       },
     ];
 
@@ -2850,6 +2915,7 @@ export class AestheticOptimizer {
     // Define spatial relationships between elements
     const spatialRelationships = this.defineSpatialRelationships(
       dataCharacteristics,
+      visualBalance,
       visualHierarchy,
     );
 
@@ -3379,18 +3445,36 @@ export class AestheticOptimizer {
     // Visual hierarchy principle
     principles.push({
       principle: 'Visual Hierarchy',
-      weight: 0.9,
+      strength: 90,
       application: 'Establish clear information priority through size, color, and position',
-      tradeoffs: ['Complexity vs clarity', 'Emphasis vs balance'],
+      visualImpact: 'High - drives user attention and comprehension',
+      implementation: {
+        techniques: ['size-variation', 'color-contrast', 'spatial-positioning'],
+        measurements: [
+          { property: 'hierarchy-levels', value: 3, unit: 'count', reasoning: 'Optimal cognitive processing' }
+        ],
+        adjustments: [
+          { element: 'hierarchy', property: 'size-ratio', value: 1.618, reasoning: 'Golden ratio for natural hierarchy' }
+        ]
+      }
     });
 
     // Proximity principle for related data
     if (fieldCount > 3) {
       principles.push({
         principle: 'Proximity',
-        weight: 0.8,
+        strength: 80,
         application: 'Group related data elements to show relationships',
-        tradeoffs: ['Grouping vs spacing', 'Clarity vs density'],
+        visualImpact: 'Medium - improves data comprehension through grouping',
+        implementation: {
+          techniques: ['white-space-grouping', 'border-enclosure', 'background-shading'],
+          measurements: [
+            { property: 'group-spacing', value: 16, unit: 'px', reasoning: 'Comfortable visual separation' }
+          ],
+          adjustments: [
+            { element: 'grouping', property: 'proximity-ratio', value: 0.5, reasoning: 'Increase grouping clarity' }
+          ]
+        }
       });
     }
 
@@ -3398,9 +3482,18 @@ export class AestheticOptimizer {
     if (recordCount > 100) {
       principles.push({
         principle: 'Alignment',
-        weight: 0.7,
+        strength: 70,
         application: 'Create visual order through consistent alignment',
-        tradeoffs: ['Structure vs flexibility', 'Order vs creativity'],
+        visualImpact: 'Medium - provides visual structure and order',
+        implementation: {
+          techniques: ['grid-alignment', 'edge-alignment', 'center-alignment'],
+          measurements: [
+            { property: 'grid-units', value: 8, unit: 'px', reasoning: 'Standard grid system alignment' }
+          ],
+          adjustments: [
+            { element: 'alignment', property: 'alignment-precision', value: 1.0, reasoning: 'Perfect grid alignment' }
+          ]
+        }
       });
     }
 
@@ -3440,6 +3533,71 @@ export class AestheticOptimizer {
       whiteSpaceRatios: { content: 0.6, whitespace: 0.4 },
       alignmentGrid: { columns: 12, rows: 8 },
       spacing: { base: 16, scale: 1.5 },
+    };
+  }
+
+  private static selectProportionSystem(dataCharacteristics: any): any {
+    return {
+      type: 'golden-ratio',
+      ratio: 1.618,
+      application: 'chart-dimensions',
+      gridSystem: { columns: 12, gutter: 16 },
+    };
+  }
+
+  private static establishRhythmAndFlow(
+    colorSystem: any,
+    typographySystem: any,
+    dataCharacteristics: any,
+  ): any {
+    return {
+      rhythm: 'consistent',
+      flow: 'natural',
+      transitions: 'smooth',
+      emphasis: 'progressive',
+    };
+  }
+
+  private static identifyTargetEmotions(domainContext: any, brandGuidelines?: any): any {
+    return {
+      primary: 'trust',
+      secondary: ['clarity', 'engagement'],
+      avoid: ['confusion', 'overwhelm'],
+    };
+  }
+
+  private static designEmotionalJourney(targetEmotions: any, domainContext: any): any {
+    return {
+      stages: ['attention', 'comprehension', 'insight'],
+      transitions: ['smooth', 'natural'],
+      touchpoints: ['first-glance', 'detailed-reading', 'action'],
+    };
+  }
+
+  private static selectPsychologicalPrinciples(targetEmotions: any): any {
+    return {
+      principles: ['gestalt', 'cognitive-load-theory'],
+      applications: ['grouping', 'hierarchy'],
+      effectiveness: 0.85,
+    };
+  }
+
+  private static setupEmotionalTesting(targetEmotions: any): any {
+    return {
+      methods: ['user-testing', 'analytics'],
+      metrics: ['engagement', 'comprehension'],
+      framework: 'A/B-testing',
+    };
+  }
+
+  private static analyzeCulturalEmotionalFactors(
+    domainContext: any,
+    targetEmotions: any,
+  ): any {
+    return {
+      culturalConsiderations: ['color-meanings', 'reading-patterns'],
+      adaptations: ['localization', 'accessibility'],
+      effectiveness: 0.9,
     };
   }
 }

@@ -191,6 +191,7 @@ export interface ColorPalette {
   diverging: HSLColor[];
   specialPurpose: Map<string, HSLColor>;
   accessibilityScore: number; // 0-100
+  harmonyType?: string; // Color harmony strategy used
 }
 
 export interface PsychologicalImpact {
@@ -1987,5 +1988,12 @@ export class ChartComposer {
     }
 
     return areas;
+  }
+
+  private static calculateVariance(values: number[]): number {
+    if (values.length === 0) return 0;
+    const mean = values.reduce((sum, val) => sum + val, 0) / values.length;
+    const squaredDiffs = values.map(val => Math.pow(val - mean, 2));
+    return squaredDiffs.reduce((sum, diff) => sum + diff, 0) / values.length;
   }
 }

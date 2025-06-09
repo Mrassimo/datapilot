@@ -24,18 +24,12 @@ describe('ArgumentParser', () => {
   });
 
   describe('Command Parsing', () => {
-    it('should parse help command and exit', () => {
-      const mockExit = jest.spyOn(process, 'exit').mockImplementation(() => {
-        throw new Error('process.exit called');
-      });
+    it('should parse help command and return help context', () => {
+      const args = ['node', 'datapilot', '--help'];
+      const result = parser.parse(args);
       
-      try {
-        const args = ['node', 'datapilot', '--help'];
-        expect(() => parser.parse(args)).toThrow('process.exit called');
-        expect(mockExit).toHaveBeenCalledWith(0);
-      } finally {
-        mockExit.mockRestore();
-      }
+      expect(result.command).toBe('help');
+      expect(result.options).toBeDefined();
     });
 
     it('should handle empty arguments and show help', () => {
