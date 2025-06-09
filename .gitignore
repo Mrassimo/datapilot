@@ -6,6 +6,13 @@ node_modules/
 dist/
 build/
 *.tsbuildinfo
+*.d.ts
+*.d.ts.map
+*.js.map
+src/**/*.js
+src/**/*.d.ts
+src/**/*.d.ts.map
+src/**/*.js.map
 
 # IDE
 .vscode/
@@ -62,13 +69,14 @@ test-results-archive/
 *_datapilot_*.txt
 *_datapilot_*.json
 test-results-*/
+test-*.js
+run-*.js
+engineering-test-results/
 
-# Output files (keep only specific ones)
-*.txt
-*.csv
-*.json
-*.yaml
-*.yml
+# Temporary output files
+test_*.txt
+*.tmp.csv
+*.tmp.json
 
 # Keep essential project files
 !package.json

@@ -317,6 +317,7 @@ export enum ErrorCategory {
   CONFIGURATION = 'configuration',
   NETWORK = 'network',
   PERMISSION = 'permission',
+  SECURITY = 'security',
 }
 
 export interface ErrorContext {
@@ -449,6 +450,26 @@ export class DataPilotError extends Error {
       context,
       suggestions,
       true,
+    );
+  }
+
+  /**
+   * Create a security error with appropriate context
+   */
+  static security(
+    message: string,
+    code: string,
+    context?: ErrorContext,
+    suggestions?: ActionableSuggestion[],
+  ): DataPilotError {
+    return new DataPilotError(
+      message,
+      code,
+      ErrorSeverity.HIGH,
+      ErrorCategory.SECURITY,
+      context,
+      suggestions,
+      false, // Security errors are typically not recoverable
     );
   }
 
