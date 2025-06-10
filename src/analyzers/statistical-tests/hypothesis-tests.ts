@@ -170,7 +170,7 @@ export function kruskalWallisTest(groups: GroupData[]): StatisticalTestResult {
   // Pool all observations with group identifiers
   const pooledData: Array<{ value: number; group: number }> = [];
   groups.forEach((group, groupIndex) => {
-    group.values!.forEach((value) => {
+    group.values.forEach((value) => {
       pooledData.push({ value, group: groupIndex });
     });
   });

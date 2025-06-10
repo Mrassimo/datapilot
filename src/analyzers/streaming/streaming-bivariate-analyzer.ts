@@ -165,14 +165,14 @@ export class StreamingBivariateAnalyzer {
           if (!categoryGroups.has(catValue)) {
             categoryGroups.set(catValue, new OnlineStatistics());
           }
-          categoryGroups.get(catValue)!.update(numValue); // Only need to update with the numerical value
+          categoryGroups.get(catValue).update(numValue); // Only need to update with the numerical value
 
           // Update samples for Kruskal-Wallis test
-          const categorySamples = this.numericalCategoricalSamples.get(pairKey)!;
+          const categorySamples = this.numericalCategoricalSamples.get(pairKey);
           if (!categorySamples.has(catValue)) {
             categorySamples.set(catValue, new ReservoirSampler<number>(30, 42)); // Smaller sample per group, seeded
           }
-          categorySamples.get(catValue)!.sample(numValue);
+          categorySamples.get(catValue).sample(numValue);
         }
       }
     }

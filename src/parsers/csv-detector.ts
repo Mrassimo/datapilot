@@ -233,11 +233,24 @@ export class CSVDetector {
 
     const headerRatio = headerIndicators / totalFields;
 
-    if (headerRatio > 0.7) {
+    // Adaptive thresholds based on field count to handle high-column datasets
+    let confidenceThreshold = 0.7;
+    let moderateThreshold = 0.5;
+    let lowThreshold = 0.3;
+
+    // For datasets with many columns (>10), lower the thresholds
+    // as it's harder to get all columns to look like headers
+    if (totalFields > 10) {
+      confidenceThreshold = Math.max(0.4, 0.7 - (totalFields - 10) * 0.02);
+      moderateThreshold = Math.max(0.25, 0.5 - (totalFields - 10) * 0.015);
+      lowThreshold = Math.max(0.15, 0.3 - (totalFields - 10) * 0.01);
+    }
+
+    if (headerRatio > confidenceThreshold) {
       return { hasHeader: true, confidence: 0.9 };
-    } else if (headerRatio > 0.5) {
+    } else if (headerRatio > moderateThreshold) {
       return { hasHeader: true, confidence: 0.7 };
-    } else if (headerRatio > 0.3) {
+    } else if (headerRatio > lowThreshold) {
       return { hasHeader: true, confidence: 0.5 };
     }
 

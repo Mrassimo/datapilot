@@ -2639,13 +2639,13 @@ export class AestheticOptimizer {
           contexts: ['main-titles', 'chart-titles'],
           maxCharacters: 50,
           recommendedLineLength: 40,
-          visualWeight: 90
+          visualWeight: 90,
         },
         hierarchy: {
           importance: 90,
           attentionGrabbing: 95,
           scanability: 85,
-          readability: 80
+          readability: 80,
         },
       },
       {
@@ -2658,13 +2658,13 @@ export class AestheticOptimizer {
           contexts: ['section-titles', 'subtitles'],
           maxCharacters: 80,
           recommendedLineLength: 60,
-          visualWeight: 75
+          visualWeight: 75,
         },
         hierarchy: {
           importance: 80,
           attentionGrabbing: 75,
           scanability: 85,
-          readability: 85
+          readability: 85,
         },
       },
       {
@@ -2677,13 +2677,13 @@ export class AestheticOptimizer {
           contexts: ['subsection-titles', 'axis-labels'],
           maxCharacters: 60,
           recommendedLineLength: 45,
-          visualWeight: 0.8
+          visualWeight: 0.8,
         },
         hierarchy: {
           importance: 3,
           attentionGrabbing: 0.7,
           scanability: 0.8,
-          readability: 0.9
+          readability: 0.9,
         },
       },
       {
@@ -2696,13 +2696,13 @@ export class AestheticOptimizer {
           contexts: ['descriptions', 'data-labels'],
           maxCharacters: 80,
           recommendedLineLength: 65,
-          visualWeight: 0.6
+          visualWeight: 0.6,
         },
         hierarchy: {
           importance: 4,
           attentionGrabbing: 0.5,
           scanability: 0.7,
-          readability: 0.9
+          readability: 0.9,
         },
       },
       {
@@ -2715,13 +2715,13 @@ export class AestheticOptimizer {
           contexts: ['footnotes', 'metadata'],
           maxCharacters: 100,
           recommendedLineLength: 80,
-          visualWeight: 0.4
+          visualWeight: 0.4,
         },
         hierarchy: {
           importance: 5,
           attentionGrabbing: 0.3,
           scanability: 0.6,
-          readability: 0.8
+          readability: 0.8,
         },
       },
     ];
@@ -3451,12 +3451,22 @@ export class AestheticOptimizer {
       implementation: {
         techniques: ['size-variation', 'color-contrast', 'spatial-positioning'],
         measurements: [
-          { property: 'hierarchy-levels', value: 3, unit: 'count', reasoning: 'Optimal cognitive processing' }
+          {
+            property: 'hierarchy-levels',
+            value: 3,
+            unit: 'count',
+            reasoning: 'Optimal cognitive processing',
+          },
         ],
         adjustments: [
-          { element: 'hierarchy', property: 'size-ratio', value: 1.618, reasoning: 'Golden ratio for natural hierarchy' }
-        ]
-      }
+          {
+            element: 'hierarchy',
+            property: 'size-ratio',
+            value: 1.618,
+            reasoning: 'Golden ratio for natural hierarchy',
+          },
+        ],
+      },
     });
 
     // Proximity principle for related data
@@ -3469,12 +3479,22 @@ export class AestheticOptimizer {
         implementation: {
           techniques: ['white-space-grouping', 'border-enclosure', 'background-shading'],
           measurements: [
-            { property: 'group-spacing', value: 16, unit: 'px', reasoning: 'Comfortable visual separation' }
+            {
+              property: 'group-spacing',
+              value: 16,
+              unit: 'px',
+              reasoning: 'Comfortable visual separation',
+            },
           ],
           adjustments: [
-            { element: 'grouping', property: 'proximity-ratio', value: 0.5, reasoning: 'Increase grouping clarity' }
-          ]
-        }
+            {
+              element: 'grouping',
+              property: 'proximity-ratio',
+              value: 0.5,
+              reasoning: 'Increase grouping clarity',
+            },
+          ],
+        },
       });
     }
 
@@ -3488,12 +3508,22 @@ export class AestheticOptimizer {
         implementation: {
           techniques: ['grid-alignment', 'edge-alignment', 'center-alignment'],
           measurements: [
-            { property: 'grid-units', value: 8, unit: 'px', reasoning: 'Standard grid system alignment' }
+            {
+              property: 'grid-units',
+              value: 8,
+              unit: 'px',
+              reasoning: 'Standard grid system alignment',
+            },
           ],
           adjustments: [
-            { element: 'alignment', property: 'alignment-precision', value: 1.0, reasoning: 'Perfect grid alignment' }
-          ]
-        }
+            {
+              element: 'alignment',
+              property: 'alignment-precision',
+              value: 1.0,
+              reasoning: 'Perfect grid alignment',
+            },
+          ],
+        },
       });
     }
 
@@ -3590,10 +3620,7 @@ export class AestheticOptimizer {
     };
   }
 
-  private static analyzeCulturalEmotionalFactors(
-    domainContext: any,
-    targetEmotions: any,
-  ): any {
+  private static analyzeCulturalEmotionalFactors(domainContext: any, targetEmotions: any): any {
     return {
       culturalConsiderations: ['color-meanings', 'reading-patterns'],
       adaptations: ['localization', 'accessibility'],

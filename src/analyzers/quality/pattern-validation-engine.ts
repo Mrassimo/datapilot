@@ -669,8 +669,8 @@ export class PatternValidationEngine {
           if (!examples.has(format.name)) {
             examples.set(format.name, new Set());
           }
-          if (examples.get(format.name)!.size < 3) {
-            examples.get(format.name)!.add(trimmedValue);
+          if (examples.get(format.name).size < 3) {
+            examples.get(format.name).add(trimmedValue);
           }
 
           formatFound = true;
@@ -685,8 +685,8 @@ export class PatternValidationEngine {
         if (!examples.has(otherKey)) {
           examples.set(otherKey, new Set());
         }
-        if (examples.get(otherKey)!.size < 3) {
-          examples.get(otherKey)!.add(trimmedValue);
+        if (examples.get(otherKey).size < 3) {
+          examples.get(otherKey).add(trimmedValue);
         }
       }
     }
@@ -765,8 +765,8 @@ export class PatternValidationEngine {
       if (!examples.has(casingType)) {
         examples.set(casingType, new Set());
       }
-      if (examples.get(casingType)!.size < 3) {
-        examples.get(casingType)!.add(trimmedValue);
+      if (examples.get(casingType).size < 3) {
+        examples.get(casingType).add(trimmedValue);
       }
     }
 
@@ -820,7 +820,7 @@ export class PatternValidationEngine {
       if (!violationsByPattern.has(violation.patternId)) {
         violationsByPattern.set(violation.patternId, []);
       }
-      violationsByPattern.get(violation.patternId)!.push(violation);
+      violationsByPattern.get(violation.patternId).push(violation);
     }
 
     // Generate report for each pattern that had violations

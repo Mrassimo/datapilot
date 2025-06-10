@@ -153,20 +153,20 @@ export class ConfigLoader {
       if (value !== undefined) {
         // Type conversion based on the config key
         if (configKey === 'maxRows' || configKey === 'maxMemory') {
-          config.defaults![configKey] = parseInt(value, 10);
+          config.defaults[configKey] = parseInt(value, 10);
         } else if (
           configKey === 'verbose' ||
           configKey === 'quiet' ||
           configKey === 'force' ||
           configKey === 'dryRun'
         ) {
-          config.defaults![configKey] = value === 'true' || value === '1';
+          config.defaults[configKey] = value === 'true' || value === '1';
         } else if (configKey === 'output') {
-          config.defaults![configKey] = value as any;
+          config.defaults[configKey] = value as any;
         } else if (configKey === 'privacyMode') {
-          config.defaults![configKey] = value as any;
+          config.defaults[configKey] = value as any;
         } else {
-          config.defaults![configKey] = value as any;
+          config.defaults[configKey] = value as any;
         }
       }
     }

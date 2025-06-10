@@ -318,6 +318,7 @@ export enum ErrorCategory {
   NETWORK = 'network',
   PERMISSION = 'permission',
   SECURITY = 'security',
+  PERFORMANCE = 'performance',
 }
 
 export interface ErrorContext {

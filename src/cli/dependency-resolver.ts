@@ -68,7 +68,7 @@ export class AnalyzerDependencyResolver implements DependencyResolver {
     try {
       // Check if already cached
       if (this.dependencies.has(sectionName)) {
-        const cached = this.dependencies.get(sectionName)!;
+        const cached = this.dependencies.get(sectionName);
         logger.debug(
           `Using cached result for ${sectionName} (cached at ${cached.timestamp.toISOString()})`,
           sectionContext,

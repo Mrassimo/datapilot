@@ -515,8 +515,8 @@ export class ResidualAnalyzer {
         correlationMap.set(pair.variable2, new Map());
       }
 
-      correlationMap.get(pair.variable1)!.set(pair.variable2, pair.correlation);
-      correlationMap.get(pair.variable2)!.set(pair.variable1, pair.correlation);
+      correlationMap.get(pair.variable1).set(pair.variable2, pair.correlation);
+      correlationMap.get(pair.variable2).set(pair.variable1, pair.correlation);
     });
 
     // Set diagonal to 1
@@ -524,7 +524,7 @@ export class ResidualAnalyzer {
       if (!correlationMap.has(v)) {
         correlationMap.set(v, new Map());
       }
-      correlationMap.get(v)!.set(v, 1);
+      correlationMap.get(v).set(v, 1);
     });
 
     // Calculate VIF for each variable

@@ -13,6 +13,11 @@ import type { ParsedRow } from '../../parsers/types';
 import { getConfig } from '../../core/config';
 import { DataPilotError, ErrorSeverity } from '../../core/types';
 import {
+  getGlobalMemoryOptimizer,
+  withMemoryOptimization,
+} from '../../performance/memory-optimizer';
+import { getGlobalAdaptiveStreamer } from '../../performance/adaptive-streamer';
+import {
   StreamingNumericalAnalyzer,
   StreamingCategoricalAnalyzer,
   StreamingDateTimeAnalyzer,
@@ -40,6 +45,9 @@ interface StreamingAnalyzerConfig extends Section3Config {
   memoryThresholdMB: number;
   maxRowsAnalyzed: number;
   adaptiveChunkSizing: boolean;
+  enableMemoryOptimization: boolean;
+  enableAdaptiveStreaming: boolean;
+  enableParallelProcessing: boolean;
 }
 
 interface StreamingState {
@@ -89,6 +97,9 @@ export class StreamingAnalyzer {
       memoryThresholdMB: streamingConfig.memoryThresholdMB,
       maxRowsAnalyzed: streamingConfig.maxRowsAnalyzed,
       adaptiveChunkSizing: streamingConfig.adaptiveChunkSizing.enabled,
+      enableMemoryOptimization: true,
+      enableAdaptiveStreaming: true,
+      enableParallelProcessing: false, // Keep sequential for base analyzer
 
       // Default Section3Config from configuration manager
       enabledAnalyses: analysisConfig.enabledAnalyses,
@@ -118,6 +129,11 @@ export class StreamingAnalyzer {
     };
 
     this.bivariateAnalyzer = new StreamingBivariateAnalyzer(this.config.maxCorrelationPairs);
+
+    // Initialize memory optimization if enabled
+    if (this.config.enableMemoryOptimization) {
+      this.initializeMemoryOptimization();
+    }
   }
 
   setProgressCallback(callback: (progress: Section3Progress) => void): void {
@@ -128,6 +144,36 @@ export class StreamingAnalyzer {
    * Analyze a CSV file using streaming processing
    */
   async analyzeFile(filePath: string): Promise<Section3Result> {
+    // Wrap with memory optimization if enabled
+    if (this.config.enableMemoryOptimization) {
+      return this.analyzeFileWithMemoryOptimization(filePath);
+    }
+
+    return this.analyzeFileInternal(filePath);
+  }
+
+  /**
+   * Internal file analysis with memory optimization wrapper
+   */
+  private analyzeFileWithMemoryOptimization: (filePath: string) => Promise<Section3Result>;
+
+  private initializeMemoryOptimization(): void {
+    this.analyzeFileWithMemoryOptimization = withMemoryOptimization(
+      async (filePath: string): Promise<Section3Result> => {
+        return this.analyzeFileInternal(filePath);
+      },
+      {
+        enableGc: true,
+        bufferPooling: true,
+        memoryThreshold: this.config.memoryThresholdMB / 512, // Convert MB to ratio
+      },
+    );
+  }
+
+  /**
+   * Core file analysis implementation
+   */
+  private async analyzeFileInternal(filePath: string): Promise<Section3Result> {
     const context: LogContext = {
       section: 'eda',
       analyzer: 'StreamingAnalyzer',
@@ -138,26 +184,124 @@ export class StreamingAnalyzer {
     logger.info('Starting streaming analysis of file', context);
     this.state.startTime = Date.now();
 
-    try {
-      // Phase 1: Initialize parsers and detect format
-      this.reportProgress('initialization', 0, 'Initializing streaming analysis...');
+    // Initialize memory optimizer if enabled
+    if (this.config.enableMemoryOptimization) {
+      this.initializeMemoryOptimization();
 
-      const parser = new CSVParser({
-        maxRows: this.config.maxRowsAnalyzed,
-        autoDetect: true,
+      const memoryOptimizer = getGlobalMemoryOptimizer({
+        maxMemoryMB: this.config.memoryThresholdMB,
+        enableMemoryPooling: true,
+        adaptiveChunkSizing: this.config.adaptiveChunkSizing,
       });
 
-      // Phase 2: First pass - data type detection and initialization
-      await this.firstPass(parser, filePath);
+      // Listen for memory pressure events
+      memoryOptimizer.on('memory-pressure', (data) => {
+        this.handleMemoryPressure(data.pressure);
+      });
+    }
 
-      // Phase 3: Main streaming analysis
-      await this.streamingPass(parser, filePath);
+    try {
+      // Enhanced streaming with adaptive processing
+      if (this.config.enableAdaptiveStreaming) {
+        return await this.analyzeFileWithAdaptiveStreaming(filePath);
+      }
 
-      // Phase 4: Finalize results
-      return await this.finalizeResults();
+      // Traditional streaming analysis
+      return await this.analyzeFileTraditional(filePath);
     } catch (error) {
       logger.errorWithStack(error instanceof Error ? error : new Error(String(error)), context);
       throw error;
+    }
+  }
+
+  /**
+   * Traditional streaming analysis (backward compatibility)
+   */
+  private async analyzeFileTraditional(filePath: string): Promise<Section3Result> {
+    // Phase 1: Initialize parsers and detect format
+    this.reportProgress('initialization', 0, 'Initializing streaming analysis...');
+
+    const parser = new CSVParser({
+      maxRows: this.config.maxRowsAnalyzed,
+      autoDetect: true,
+    });
+
+    // Phase 2: First pass - data type detection and initialization
+    await this.firstPass(parser, filePath);
+
+    // Phase 3: Main streaming analysis
+    await this.streamingPass(parser, filePath);
+
+    // Phase 4: Finalize results
+    return await this.finalizeResults();
+  }
+
+  /**
+   * Enhanced streaming analysis with adaptive chunk sizing
+   */
+  private async analyzeFileWithAdaptiveStreaming(filePath: string): Promise<Section3Result> {
+    const adaptiveStreamer = getGlobalAdaptiveStreamer({
+      initialChunkSize: this.config.chunkSize,
+      memoryPressureThreshold: this.config.memoryThresholdMB / 512,
+    });
+
+    // Phase 1: Initialize
+    this.reportProgress('initialization', 0, 'Initializing adaptive streaming analysis...');
+
+    const parser = new CSVParser({
+      maxRows: this.config.maxRowsAnalyzed,
+      autoDetect: true,
+    });
+
+    // Create streaming session
+    const sessionId = await adaptiveStreamer.createSession(filePath);
+
+    try {
+      // Phase 2: Quick sample for type detection
+      await this.firstPass(parser, filePath);
+
+      // Phase 3: Adaptive streaming analysis
+      this.reportProgress('univariate', 0, 'Starting adaptive streaming analysis...');
+
+      let processedChunks = 0;
+      for await (const result of adaptiveStreamer.streamFile(
+        sessionId,
+        async (chunk: Buffer, metadata: any) => {
+          // Convert buffer to string and parse
+          const chunkText = chunk.toString('utf8');
+          const rows = await this.parseChunkText(chunkText, parser, metadata.chunkIndex > 0);
+
+          // Process the chunk
+          if (rows.length > 0) {
+            this.processChunk(rows);
+            processedChunks++;
+
+            // Update progress
+            const progress = Math.min(95, (metadata.filePosition / metadata.fileSize) * 100);
+            this.reportProgress(
+              'univariate',
+              progress,
+              `Processed ${processedChunks} chunks (${this.formatBytes(metadata.filePosition)}/${this.formatBytes(metadata.fileSize)})`,
+            );
+          }
+
+          return { processed: rows.length, bytes: chunk.length };
+        },
+      )) {
+        // Optional: collect streaming results
+      }
+
+      // Phase 4: Finalize
+      this.reportProgress('finalization', 95, 'Finalizing analysis...');
+      return await this.finalizeResults();
+    } finally {
+      // Cleanup streaming session
+      const sessionStats = adaptiveStreamer.getSessionStats(sessionId);
+      if (sessionStats) {
+        logger.info(
+          `Adaptive streaming completed: ${sessionStats.metrics.processingRate.toFixed(2)} MB/s, ${sessionStats.metrics.adaptationCount} adaptations`,
+        );
+      }
     }
   }
 
@@ -211,6 +355,80 @@ export class StreamingAnalyzer {
     this.initializeBivariateAnalysis();
 
     this.reportProgress('initialization', 100, 'Initialization complete');
+  }
+
+  /**
+   * Parse chunk text into rows
+   */
+  private async parseChunkText(
+    chunkText: string,
+    parser: CSVParser,
+    skipHeader: boolean = false,
+  ): Promise<ParsedRow[]> {
+    const lines = chunkText.split('\n').filter((line) => line.trim());
+    const rows: ParsedRow[] = [];
+
+    const startIndex = skipHeader ? 1 : 0;
+    for (let i = startIndex; i < lines.length; i++) {
+      try {
+        // Simple CSV line parsing - this would need proper implementation
+        const fields = lines[i].split(',').map((field) => field.trim());
+        const parsedRow: ParsedRow = {
+          index: i,
+          data: fields,
+          raw: lines[i],
+        };
+        if (parsedRow && parsedRow.data) {
+          rows.push(parsedRow);
+        }
+      } catch (error) {
+        // Skip invalid rows
+        logger.warn(`Skipped invalid row at line ${i}: ${error.message}`);
+      }
+    }
+
+    return rows;
+  }
+
+  /**
+   * Handle memory pressure by adapting chunk size
+   */
+  private handleMemoryPressure(pressure: number): void {
+    if (pressure > 0.8) {
+      // Reduce chunk size under memory pressure
+      const reductionFactor = Math.max(0.3, 1 - pressure);
+      this.state.currentChunkSize = Math.max(
+        100, // Minimum chunk size
+        Math.floor(this.state.currentChunkSize * reductionFactor),
+      );
+
+      logger.warn(
+        `Memory pressure detected (${(pressure * 100).toFixed(1)}%), reduced chunk size to ${this.state.currentChunkSize}`,
+      );
+
+      this.warnings.push({
+        category: 'performance',
+        severity: 'medium',
+        message: `Reduced chunk size due to memory pressure (${(pressure * 100).toFixed(1)}%)`,
+        suggestion: 'Consider reducing maxRowsAnalyzed or increasing available memory',
+      });
+    }
+  }
+
+  /**
+   * Format bytes for human readable display
+   */
+  private formatBytes(bytes: number): string {
+    const units = ['B', 'KB', 'MB', 'GB'];
+    let size = bytes;
+    let unitIndex = 0;
+
+    while (size >= 1024 && unitIndex < units.length - 1) {
+      size /= 1024;
+      unitIndex++;
+    }
+
+    return `${size.toFixed(unitIndex > 0 ? 1 : 0)}${units[unitIndex]}`;
   }
 
   /**

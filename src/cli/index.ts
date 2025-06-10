@@ -24,8 +24,9 @@ import {
 } from '../analyzers/visualization/types';
 import { Section5Analyzer, Section5Formatter } from '../analyzers/engineering';
 import { Section6Analyzer, Section6Formatter } from '../analyzers/modeling';
-import { ModelingTaskType } from '../analyzers/modeling/types';
+import type { ModelingTaskType } from '../analyzers/modeling/types';
 import { CSVParser } from '../parsers/csv-parser';
+import { UniversalAnalyzer } from './universal-analyzer';
 import type { LogContext } from '../utils/logger';
 import { logger, LogLevel, LogUtils } from '../utils/logger';
 import { DataPilotError, ErrorSeverity, ErrorCategory } from '../core/types';
@@ -347,7 +348,7 @@ export class DataPilotCLI {
         let outputFiles: string[] = [];
         try {
           outputFiles = config.outputMethod(
-            this.outputManager!,
+            this.outputManager,
             report,
             result,
             filePath.split('/').pop(),
@@ -410,6 +411,176 @@ export class DataPilotCLI {
 
       throw error;
     });
+  }
+
+  /**
+   * Determine if universal analyzer should be used based on file extension
+   */
+  private shouldUseUniversalAnalyzer(filePath: string): boolean {
+    const extension = filePath.toLowerCase().split('.').pop();
+    // Use universal analyzer for non-CSV formats
+    return ['json', 'jsonl', 'ndjson', 'xlsx', 'xls', 'xlsm', 'tsv', 'tab'].includes(
+      extension || '',
+    );
+  }
+
+  /**
+   * Execute command using universal analyzer for multi-format support
+   */
+  private async executeUniversalCommand(
+    command: string,
+    filePath: string,
+    options: CLIOptions,
+    startTime: number,
+  ): Promise<CLIResult> {
+    try {
+      const analyzer = new UniversalAnalyzer();
+
+      this.progressReporter.startPhase(
+        'universal-analysis',
+        `Starting ${command} analysis with multi-format support...`,
+      );
+
+      // Run universal analysis
+      const result = await analyzer.analyzeFile(filePath, { ...options, command });
+
+      const processingTime = Date.now() - startTime;
+      this.progressReporter.completePhase('Universal analysis completed', processingTime);
+
+      // Convert universal result to CLI format
+      if (result.success) {
+        // Generate appropriate output files based on command
+        const outputFiles = this.generateUniversalOutput(result, command, filePath, options);
+
+        this.progressReporter.showSummary({
+          processingTime,
+          rowsProcessed: result.metadata?.parserStats?.rowsProcessed || 0,
+          warnings: 0, // Universal analyzer handles warnings internally
+          errors: 0,
+        });
+
+        return {
+          success: true,
+          exitCode: 0,
+          outputFiles,
+          stats: {
+            processingTime,
+            rowsProcessed: result.metadata?.parserStats?.rowsProcessed || 0,
+            warnings: 0,
+            errors: 0,
+          },
+        };
+      } else {
+        throw new Error(result.error || 'Universal analysis failed');
+      }
+    } catch (error) {
+      this.progressReporter.errorPhase('Universal analysis failed');
+      throw error;
+    }
+  }
+
+  /**
+   * Generate output files for universal analysis results
+   */
+  private generateUniversalOutput(
+    result: any,
+    command: string,
+    filePath: string,
+    options: CLIOptions,
+  ): string[] {
+    if (!this.outputManager) {
+      return [];
+    }
+
+    const fileName =
+      filePath
+        .split('/')
+        .pop()
+        ?.replace(/\.[^/.]+$/, '') || 'analysis';
+    const outputFiles: string[] = [];
+
+    try {
+      // Generate format-agnostic output
+      const format = result.metadata?.originalFormat || 'unknown';
+      const analysisData = result.data;
+
+      // Create markdown report
+      const report = this.formatUniversalReport(analysisData, command, format, fileName);
+      const reportFile = `${fileName}_${command}_${format}_analysis.md`;
+      this.writeToFile(reportFile, report);
+      outputFiles.push(reportFile);
+
+      // Generate JSON output if requested
+      if (options.output === 'json') {
+        const jsonFile = `${fileName}_${command}_${format}_analysis.json`;
+        this.writeToFile(jsonFile, JSON.stringify(result, null, 2));
+        outputFiles.push(jsonFile);
+      }
+
+      return outputFiles;
+    } catch (error) {
+      logger.warn('Failed to generate universal output files', { error: error.message });
+      return [];
+    }
+  }
+
+  /**
+   * Format universal analysis report
+   */
+  private formatUniversalReport(
+    analysisData: any,
+    command: string,
+    format: string,
+    fileName: string,
+  ): string {
+    const timestamp = new Date().toISOString();
+
+    let report = `# 🤖 DataPilot Multi-Format Analysis Report\n\n`;
+    report += `**File**: ${fileName}\n`;
+    report += `**Format**: ${format.toUpperCase()}\n`;
+    report += `**Analysis Type**: ${command}\n`;
+    report += `**Generated**: ${timestamp}\n`;
+    report += `**DataPilot Version**: 1.1.0 (Multi-Format Edition)\n\n`;
+
+    report += `---\n\n`;
+
+    // Add format-specific information
+    report += `## 📊 Format Analysis\n\n`;
+    report += `DataPilot successfully detected and processed your **${format.toUpperCase()}** file using the universal parser system. `;
+    report += `The analysis pipeline was automatically adapted to handle the specific characteristics of this format.\n\n`;
+
+    // Add analysis results based on command
+    if (analysisData) {
+      report += `## 📈 Analysis Results\n\n`;
+
+      // Format the results based on available sections
+      Object.keys(analysisData).forEach((sectionKey) => {
+        const sectionData = analysisData[sectionKey];
+        if (sectionData && typeof sectionData === 'object') {
+          report += `### ${sectionKey.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase())}\n\n`;
+
+          // Basic formatting of section data
+          if (sectionData.summary) {
+            report += `${sectionData.summary}\n\n`;
+          } else {
+            report += `Analysis completed successfully. Detailed results available in JSON format.\n\n`;
+          }
+        }
+      });
+    }
+
+    report += `---\n\n`;
+    report += `## 🎯 Multi-Format Support\n\n`;
+    report += `This analysis was performed using DataPilot's universal parser system, which supports:\n`;
+    report += `- **CSV**: Comma-separated values with auto-detection\n`;
+    report += `- **TSV**: Tab-separated values\n`;
+    report += `- **JSON**: Single objects, arrays, and JSON Lines (JSONL)\n`;
+    report += `- **Excel**: .xlsx, .xls, and .xlsm formats\n\n`;
+
+    report += `The same comprehensive statistical analysis is available regardless of your data format.\n\n`;
+    report += `**Generated by DataPilot v1.1.0** - Universal Data Analysis Engine\n`;
+
+    return report;
   }
 
   /**
@@ -496,6 +667,13 @@ export class DataPilotCLI {
     options: CLIOptions,
     startTime: number,
   ): Promise<CLIResult> {
+    // Check if universal analyzer should be used (for multi-format support)
+    const shouldUseUniversal = options.format || this.shouldUseUniversalAnalyzer(filePath);
+
+    if (shouldUseUniversal) {
+      return await this.executeUniversalCommand(command, filePath, options, startTime);
+    }
+
     // Clear dependency resolver for each command
     if (this.dependencyResolver) {
       this.dependencyResolver.clear();
@@ -577,7 +755,8 @@ export class DataPilotCLI {
               });
               return await analyzer.analyze();
             },
-            formatterMethod: (result) => Section2Formatter.formatReport((result as Section2Result).qualityAudit),
+            formatterMethod: (result) =>
+              Section2Formatter.formatReport((result as Section2Result).qualityAudit),
             outputMethod: (outputManager, report, result, fileName) =>
               outputManager.outputSection2(result as Section2Result),
           },
@@ -606,7 +785,7 @@ export class DataPilotCLI {
             },
             formatterMethod: (result) => Section3Formatter.formatSection3(result as Section3Result),
             outputMethod: (outputManager, report, result, fileName) =>
-              outputManager.outputSection3(report!, result as Section3Result, fileName),
+              outputManager.outputSection3(report, result as Section3Result, fileName),
           },
           filePath,
           options,
@@ -621,10 +800,12 @@ export class DataPilotCLI {
             message: 'Starting visualization intelligence analysis...',
             dependencies: ['section1', 'section3'],
             analyzerFactory: async (filePath, options, dependencies) => {
-              const [section1Data, section3Data] = dependencies!;
+              const [section1Data, section3Data] = dependencies;
               const analyzer = new Section4Analyzer({
-                accessibilityLevel: (options.accessibility as AccessibilityLevel) || AccessibilityLevel.GOOD,
-                complexityThreshold: (options.complexity as ComplexityLevel) || ComplexityLevel.MODERATE,
+                accessibilityLevel:
+                  (options.accessibility as AccessibilityLevel) || AccessibilityLevel.GOOD,
+                complexityThreshold:
+                  (options.complexity as ComplexityLevel) || ComplexityLevel.MODERATE,
                 maxRecommendationsPerChart: options.maxRecommendations || 3,
                 includeCodeExamples: options.includeCode || false,
                 enabledRecommendations: [
@@ -636,11 +817,14 @@ export class DataPilotCLI {
                 ],
                 targetLibraries: ['d3', 'plotly', 'observable'],
               });
-              return await analyzer.analyze(section1Data as Section1Result, section3Data as Section3Result);
+              return await analyzer.analyze(
+                section1Data as Section1Result,
+                section3Data as Section3Result,
+              );
             },
             formatterMethod: (result) => Section4Formatter.formatSection4(result as Section4Result),
             outputMethod: (outputManager, report, result, fileName) =>
-              outputManager.outputSection4(report!, result as Section4Result, fileName),
+              outputManager.outputSection4(report, result as Section4Result, fileName),
           },
           filePath,
           options,
@@ -655,16 +839,24 @@ export class DataPilotCLI {
             message: 'Starting data engineering analysis...',
             dependencies: ['section1', 'section2', 'section3'],
             analyzerFactory: async (filePath, options, dependencies) => {
-              const [section1Data, section2Data, section3Data] = dependencies!;
+              const [section1Data, section2Data, section3Data] = dependencies;
               const analyzer = new Section5Analyzer({
-                targetDatabaseSystem: (options.database as 'postgresql' | 'mysql' | 'sqlite' | 'generic_sql') || 'postgresql',
-                mlFrameworkTarget: (options.framework as 'scikit_learn' | 'pytorch' | 'tensorflow' | 'generic') || 'scikit_learn',
+                targetDatabaseSystem:
+                  (options.database as 'postgresql' | 'mysql' | 'sqlite' | 'generic_sql') ||
+                  'postgresql',
+                mlFrameworkTarget:
+                  (options.framework as 'scikit_learn' | 'pytorch' | 'tensorflow' | 'generic') ||
+                  'scikit_learn',
               });
-              return await analyzer.analyze(section1Data as Section1Result, section2Data as Section2Result, section3Data as Section3Result);
+              return await analyzer.analyze(
+                section1Data as Section1Result,
+                section2Data as Section2Result,
+                section3Data as Section3Result,
+              );
             },
             formatterMethod: (result) => Section5Formatter.formatMarkdown(result as Section5Result),
             outputMethod: (outputManager, report, result, fileName) =>
-              outputManager.outputSection5(report!, result as Section5Result, fileName),
+              outputManager.outputSection5(report, result as Section5Result, fileName),
           },
           filePath,
           options,
@@ -679,12 +871,16 @@ export class DataPilotCLI {
             message: 'Starting predictive modeling analysis...',
             dependencies: ['section1', 'section2', 'section3'],
             analyzerFactory: async (filePath, options, dependencies) => {
-              const [section1Data, section2Data, section3Data] = dependencies!;
+              const [section1Data, section2Data, section3Data] = dependencies;
 
               // Need Section 5 result as well
               const section5Analyzer = new Section5Analyzer({
-                targetDatabaseSystem: (options.database as 'postgresql' | 'mysql' | 'sqlite' | 'generic_sql') || 'postgresql',
-                mlFrameworkTarget: (options.framework as 'scikit_learn' | 'pytorch' | 'tensorflow' | 'generic') || 'scikit_learn',
+                targetDatabaseSystem:
+                  (options.database as 'postgresql' | 'mysql' | 'sqlite' | 'generic_sql') ||
+                  'postgresql',
+                mlFrameworkTarget:
+                  (options.framework as 'scikit_learn' | 'pytorch' | 'tensorflow' | 'generic') ||
+                  'scikit_learn',
               });
               const section5Result = await section5Analyzer.analyze(
                 section1Data as Section1Result,
@@ -693,7 +889,11 @@ export class DataPilotCLI {
               );
 
               const analyzer = new Section6Analyzer({
-                focusAreas: (options.focus as ModelingTaskType[]) || ['regression', 'binary_classification', 'clustering'],
+                focusAreas: (options.focus as ModelingTaskType[]) || [
+                  'regression',
+                  'binary_classification',
+                  'clustering',
+                ],
                 complexityPreference: options.complexity || 'moderate',
                 interpretabilityRequirement: options.interpretability || 'medium',
               });
@@ -706,7 +906,7 @@ export class DataPilotCLI {
             },
             formatterMethod: (result) => Section6Formatter.formatMarkdown(result as Section6Result),
             outputMethod: (outputManager, report, result, fileName) =>
-              outputManager.outputSection6(report!, result as Section6Result, fileName),
+              outputManager.outputSection6(report, result as Section6Result, fileName),
           },
           filePath,
           options,
@@ -1289,7 +1489,7 @@ export class DataPilotCLI {
           report: string | null,
           result: any,
           fileName?: string,
-        ) => outputManager.outputSection3(report!, result, fileName),
+        ) => outputManager.outputSection3(report, result, fileName),
       };
 
       const section3Result = await this.executeGenericAnalysis(
@@ -1340,7 +1540,7 @@ export class DataPilotCLI {
           report: string | null,
           result: any,
           fileName?: string,
-        ) => outputManager.outputSection4(report!, result, fileName),
+        ) => outputManager.outputSection4(report, result, fileName),
       };
 
       const section4Result = await this.executeGenericAnalysis(
@@ -1381,7 +1581,7 @@ export class DataPilotCLI {
           report: string | null,
           result: any,
           fileName?: string,
-        ) => outputManager.outputSection5(report!, result, fileName),
+        ) => outputManager.outputSection5(report, result, fileName),
       };
 
       const section5Result = await this.executeGenericAnalysis(
@@ -1435,7 +1635,7 @@ export class DataPilotCLI {
           report: string | null,
           result: any,
           fileName?: string,
-        ) => outputManager.outputSection6(report!, result, fileName),
+        ) => outputManager.outputSection6(report, result, fileName),
       };
 
       const section6Result = await this.executeGenericAnalysis(
@@ -1526,7 +1726,7 @@ export class DataPilotCLI {
     report += `# ${fileName.charAt(0).toUpperCase() + fileName.slice(1)} Dataset\n\n`;
     report += `**Analysis Target**: \`${filePath.split('/').pop()}\`\n`;
     report += `**Report Generated**: ${timestamp}\n`;
-    report += `**DataPilot Version**: v1.0.2 (TypeScript Edition)\n`;
+    report += `**DataPilot Version**: v1.0.3 (TypeScript Edition)\n`;
     report += `**Analysis Mode**: Complete 6-Section Pipeline\n`;
     report += `**Total Processing Time**: ${this.formatTime(processingTime)}\n\n`;
 
@@ -1583,7 +1783,7 @@ export class DataPilotCLI {
     report += `5. **Begin Modeling**: Follow Section 6 ML guidance for predictive analytics\n\n`;
 
     report += `---\n\n`;
-    report += `**Generated by DataPilot v1.0.2**\n`;
+    report += `**Generated by DataPilot v1.0.3**\n`;
     report += `*Making data analysis accessible, comprehensive, and actionable*\n\n`;
     report += `> 📋 **Note**: This is a summary report. Detailed findings and recommendations `;
     report += `can be found in the individual section reports listed above.`;

@@ -76,7 +76,7 @@ export class UniquenessAnalyzer {
       if (!rowHashes.has(rowHash)) {
         rowHashes.set(rowHash, []);
       }
-      rowHashes.get(rowHash)!.push(rowIdx);
+      rowHashes.get(rowHash).push(rowIdx);
     }
 
     // Find duplicates

@@ -71,12 +71,14 @@ export class Section6Analyzer {
   /**
    * Analyze CSV file directly (for testing and simple usage)
    */
-  async analyze(filePath: string): Promise<Section6Result & {
-    taskIdentification: any;
-    algorithmRecommendations: any;
-    preprocessingRecommendations: any;
-  }>;
-  
+  async analyze(filePath: string): Promise<
+    Section6Result & {
+      taskIdentification: any;
+      algorithmRecommendations: any;
+      preprocessingRecommendations: any;
+    }
+  >;
+
   /**
    * Main analysis method for Section 6 (with dependencies)
    */
@@ -106,10 +108,10 @@ export class Section6Analyzer {
     // Handle the main dependency-based analysis
     return this.analyzeWithDependencies(
       section1ResultOrFilePath,
-      section2Result!,
-      section3Result!,
-      section5Result!,
-      progressCallback
+      section2Result,
+      section3Result,
+      section5Result,
+      progressCallback,
     );
   }
 
@@ -127,7 +129,7 @@ export class Section6Analyzer {
       mockResults.section1Result,
       mockResults.section2Result,
       mockResults.section3Result,
-      mockResults.section5Result
+      mockResults.section5Result,
     );
 
     // Transform result to match test expectations
@@ -145,27 +147,27 @@ export class Section6Analyzer {
   } {
     // Create minimal mock results that match the actual interfaces
     const columns = this.inferColumnsFromFilePath(filePath);
-    
+
     // Mock Section 1 Result - minimal structure that satisfies the interface
     const section1Result = {
       overview: {
         structuralDimensions: {
           totalDataRows: 100,
-          columnInventory: columns
-        }
-      }
+          columnInventory: columns,
+        },
+      },
     } as Section1Result;
 
-    // Mock Section 2 Result - minimal structure  
+    // Mock Section 2 Result - minimal structure
     const section2Result = {
       qualityAudit: {
         completeness: {
-          score: { score: 90, interpretation: 'Good' as const }
+          score: { score: 90, interpretation: 'Good' as const },
         },
         validity: {
-          score: { score: 85, interpretation: 'Good' as const }
-        }
-      }
+          score: { score: 85, interpretation: 'Good' as const },
+        },
+      },
     } as Section2Result;
 
     // Mock Section 3 Result - minimal structure
@@ -173,19 +175,19 @@ export class Section6Analyzer {
       edaAnalysis: {
         bivariateAnalysis: {
           numericalVsNumerical: {
-            correlationPairs: [] // Will be populated based on actual interface
-          }
-        }
-      }
+            correlationPairs: [], // Will be populated based on actual interface
+          },
+        },
+      },
     } as Section3Result;
 
     // Mock Section 5 Result - minimal structure
     const section5Result = {
       engineeringAnalysis: {
         mlReadiness: {
-          overallScore: 75
-        } as MLReadinessAssessment
-      }
+          overallScore: 75,
+        } as MLReadinessAssessment,
+      },
     } as Section5Result;
 
     return { section1Result, section2Result, section3Result, section5Result };
@@ -199,37 +201,41 @@ export class Section6Analyzer {
     const baseColumns: ColumnInventory[] = [];
 
     // Create column structures that match the actual ColumnInventory interface
-    if (fileName.includes('regression') || fileName.includes('price') || fileName.includes('target')) {
+    if (
+      fileName.includes('regression') ||
+      fileName.includes('price') ||
+      fileName.includes('target')
+    ) {
       baseColumns.push(
         { index: 0, name: 'feature1', originalIndex: 0 },
         { index: 1, name: 'feature2', originalIndex: 1 },
-        { index: 2, name: 'price', originalIndex: 2 }
+        { index: 2, name: 'price', originalIndex: 2 },
       );
     } else if (fileName.includes('classification') || fileName.includes('approved')) {
       baseColumns.push(
         { index: 0, name: 'age', originalIndex: 0 },
         { index: 1, name: 'income', originalIndex: 1 },
         { index: 2, name: 'education', originalIndex: 2 },
-        { index: 3, name: 'approved', originalIndex: 3 }
+        { index: 3, name: 'approved', originalIndex: 3 },
       );
     } else if (fileName.includes('clustering') || fileName.includes('customer')) {
       baseColumns.push(
         { index: 0, name: 'customer_id', originalIndex: 0 },
         { index: 1, name: 'purchase_frequency', originalIndex: 1 },
         { index: 2, name: 'avg_amount', originalIndex: 2 },
-        { index: 3, name: 'tenure', originalIndex: 3 }
+        { index: 3, name: 'tenure', originalIndex: 3 },
       );
     } else if (fileName.includes('time') || fileName.includes('date')) {
       baseColumns.push(
         { index: 0, name: 'date', originalIndex: 0 },
         { index: 1, name: 'value', originalIndex: 1 },
-        { index: 2, name: 'trend', originalIndex: 2 }
+        { index: 2, name: 'trend', originalIndex: 2 },
       );
     } else {
       // Default structure for generic tests
       baseColumns.push(
         { index: 0, name: 'x', originalIndex: 0 },
-        { index: 1, name: 'y', originalIndex: 1 }
+        { index: 1, name: 'y', originalIndex: 1 },
       );
     }
 
@@ -244,46 +250,58 @@ export class Section6Analyzer {
 
     // Create taskIdentification structure
     const taskIdentification = {
-      primaryTask: modelingAnalysis.identifiedTasks[0] ? {
-        type: modelingAnalysis.identifiedTasks[0].taskType,
-        targetVariable: modelingAnalysis.identifiedTasks[0].targetVariable,
-        confidence: this.mapConfidenceToNumber(modelingAnalysis.identifiedTasks[0].confidenceLevel),
-        subtype: this.getTaskSubtype(modelingAnalysis.identifiedTasks[0]),
-        reasoning: modelingAnalysis.identifiedTasks[0].justification.join('; ')
-      } : null,
-      alternativeTasks: modelingAnalysis.identifiedTasks.slice(1).map(task => ({
+      primaryTask: modelingAnalysis.identifiedTasks[0]
+        ? {
+            type: modelingAnalysis.identifiedTasks[0].taskType,
+            targetVariable: modelingAnalysis.identifiedTasks[0].targetVariable,
+            confidence: this.mapConfidenceToNumber(
+              modelingAnalysis.identifiedTasks[0].confidenceLevel,
+            ),
+            subtype: this.getTaskSubtype(modelingAnalysis.identifiedTasks[0]),
+            reasoning: modelingAnalysis.identifiedTasks[0].justification.join('; '),
+          }
+        : null,
+      alternativeTasks: modelingAnalysis.identifiedTasks.slice(1).map((task) => ({
         type: task.taskType,
         confidence: this.mapConfidenceToNumber(task.confidenceLevel),
-        reasoning: task.justification.join('; ')
+        reasoning: task.justification.join('; '),
       })),
       identifiedFeatures: this.extractFeatureTypes(modelingAnalysis.identifiedTasks),
-      temporalColumns: this.extractTemporalColumns(modelingAnalysis.identifiedTasks)
+      temporalColumns: this.extractTemporalColumns(modelingAnalysis.identifiedTasks),
     };
 
     // Create algorithmRecommendations structure
     const algorithmRecommendations = {
-      primary: modelingAnalysis.algorithmRecommendations[0] ? {
-        algorithm: this.mapAlgorithmName(modelingAnalysis.algorithmRecommendations[0].algorithmName),
-        suitabilityScore: modelingAnalysis.algorithmRecommendations[0].suitabilityScore / 100,
-        reasoning: modelingAnalysis.algorithmRecommendations[0].reasoningNotes.join('; '),
-        frameworks: modelingAnalysis.algorithmRecommendations[0].implementationFrameworks.map(fw => ({
-          name: fw,
-          suitable: true
-        })),
-        hyperparameters: this.mapHyperparameters(modelingAnalysis.algorithmRecommendations[0].hyperparameters)
-      } : null,
-      alternatives: modelingAnalysis.algorithmRecommendations.slice(1).map(alg => ({
+      primary: modelingAnalysis.algorithmRecommendations[0]
+        ? {
+            algorithm: this.mapAlgorithmName(
+              modelingAnalysis.algorithmRecommendations[0].algorithmName,
+            ),
+            suitabilityScore: modelingAnalysis.algorithmRecommendations[0].suitabilityScore / 100,
+            reasoning: modelingAnalysis.algorithmRecommendations[0].reasoningNotes.join('; '),
+            frameworks: modelingAnalysis.algorithmRecommendations[0].implementationFrameworks.map(
+              (fw) => ({
+                name: fw,
+                suitable: true,
+              }),
+            ),
+            hyperparameters: this.mapHyperparameters(
+              modelingAnalysis.algorithmRecommendations[0].hyperparameters,
+            ),
+          }
+        : null,
+      alternatives: modelingAnalysis.algorithmRecommendations.slice(1).map((alg) => ({
         algorithm: this.mapAlgorithmName(alg.algorithmName),
-        suitabilityScore: alg.suitabilityScore / 100
+        suitabilityScore: alg.suitabilityScore / 100,
       })),
-      comparison: modelingAnalysis.algorithmRecommendations.map(alg => ({
+      comparison: modelingAnalysis.algorithmRecommendations.map((alg) => ({
         algorithm: this.mapAlgorithmName(alg.algorithmName),
         pros: alg.strengths,
         cons: alg.weaknesses,
         complexity: alg.complexity,
         interpretability: alg.interpretability,
-        suitabilityScore: alg.suitabilityScore
-      }))
+        suitabilityScore: alg.suitabilityScore,
+      })),
     };
 
     // Create preprocessingRecommendations structure
@@ -291,8 +309,8 @@ export class Section6Analyzer {
       categoricalEncoding: {
         method: 'one_hot_encoding',
         reasoning: 'Recommended for tree-based algorithms and linear models',
-        alternatives: ['label_encoding', 'target_encoding']
-      }
+        alternatives: ['label_encoding', 'target_encoding'],
+      },
     };
 
     return {
@@ -306,13 +324,13 @@ export class Section6Analyzer {
       stakeholderRecommendations: {
         technical: { detail: 'high' },
         business: { detail: 'medium' },
-        executive: { detail: 'low' }
+        executive: { detail: 'low' },
       },
       summary: {
         recordsAnalyzed: 100,
-        primaryTaskType: modelingAnalysis.identifiedTasks[0]?.taskType || 'unknown'
+        primaryTaskType: modelingAnalysis.identifiedTasks[0]?.taskType || 'unknown',
       },
-      warnings: result.warnings.map(w => this.createStringLikeWarning(w))
+      warnings: result.warnings.map((w) => this.createStringLikeWarning(w)),
     };
   }
 
@@ -1338,18 +1356,23 @@ export class Section6Analyzer {
 
     return {
       valid: errors.length === 0,
-      errors
+      errors,
     };
   }
 
   // Helper methods for test result transformation
   private mapConfidenceToNumber(confidence: ConfidenceLevel): number {
     switch (confidence) {
-      case 'very_high': return 0.95;
-      case 'high': return 0.85;
-      case 'medium': return 0.7;
-      case 'low': return 0.5;
-      default: return 0.5;
+      case 'very_high':
+        return 0.95;
+      case 'high':
+        return 0.85;
+      case 'medium':
+        return 0.7;
+      case 'low':
+        return 0.5;
+      default:
+        return 0.5;
     }
   }
 
@@ -1362,28 +1385,26 @@ export class Section6Analyzer {
 
   private extractFeatureTypes(tasks: ModelingTask[]): any {
     if (tasks.length === 0) return { numerical: [], categorical: [], temporal: [] };
-    
+
     const primaryTask = tasks[0];
     return {
-      numerical: primaryTask.inputFeatures.filter((f: string) => 
-        /\b(score|amount|count|value|price|age|income|rate|x[0-9]|feature[0-9])\b/i.test(f)
+      numerical: primaryTask.inputFeatures.filter((f: string) =>
+        /\b(score|amount|count|value|price|age|income|rate|x[0-9]|feature[0-9])\b/i.test(f),
       ),
-      categorical: primaryTask.inputFeatures.filter((f: string) => 
-        /\b(category|type|class|status|group|grade|education|approved)\b/i.test(f)
+      categorical: primaryTask.inputFeatures.filter((f: string) =>
+        /\b(category|type|class|status|group|grade|education|approved)\b/i.test(f),
       ),
-      temporal: primaryTask.inputFeatures.filter((f: string) => 
-        /\b(date|time|timestamp|created|updated)\b/i.test(f)
-      )
+      temporal: primaryTask.inputFeatures.filter((f: string) =>
+        /\b(date|time|timestamp|created|updated)\b/i.test(f),
+      ),
     };
   }
 
   private extractTemporalColumns(tasks: ModelingTask[]): string[] {
     if (tasks.length === 0) return [];
-    
-    const allFeatures = tasks.flatMap(task => task.inputFeatures);
-    return allFeatures.filter((f: string) => 
-      /\b(date|time|timestamp|created|updated)\b/i.test(f)
-    );
+
+    const allFeatures = tasks.flatMap((task) => task.inputFeatures);
+    return allFeatures.filter((f: string) => /\b(date|time|timestamp|created|updated)\b/i.test(f));
   }
 
   private mapAlgorithmName(algorithmName: string): string {
@@ -1400,23 +1421,23 @@ export class Section6Analyzer {
       'K-Means Clustering': 'kmeans',
       'Hierarchical Clustering': 'hierarchical',
       'ARIMA (AutoRegressive Integrated Moving Average)': 'arima',
-      'Isolation Forest': 'isolation_forest'
+      'Isolation Forest': 'isolation_forest',
     };
-    
+
     return nameMap[algorithmName] || algorithmName.toLowerCase().replace(/\s+/g, '_');
   }
 
   private mapHyperparameters(hyperparameters: any[]): Record<string, any> {
     const result: Record<string, any> = {};
-    
-    hyperparameters.forEach(hp => {
+
+    hyperparameters.forEach((hp) => {
       result[hp.parameterName] = {
         default: hp.defaultValue,
         range: hp.recommendedRange,
-        importance: hp.importance
+        importance: hp.importance,
       };
     });
-    
+
     return result;
   }
 
@@ -1424,12 +1445,12 @@ export class Section6Analyzer {
     // Create a warning object that behaves like a string for tests
     const warningString = warning.message;
     const result = Object.assign(new String(warningString), warning);
-    
+
     // Add includes method for test compatibility
-    result.includes = function(searchString: string) {
+    result.includes = function (searchString: string) {
       return warningString.includes(searchString);
     };
-    
+
     return result;
   }
 }

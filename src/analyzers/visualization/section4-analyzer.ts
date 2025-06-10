@@ -105,10 +105,7 @@ export class Section4Analyzer {
 
     try {
       // Extract data characteristics for engine processing
-      const dataCharacteristics = this.extractDataCharacteristics(
-        section1Result,
-        section3Result,
-      );
+      const dataCharacteristics = this.extractDataCharacteristics(section1Result, section3Result);
       const columnNames =
         section1Result.overview.structuralDimensions.columnInventory?.map((col) => col.name) || [];
 
@@ -161,20 +158,18 @@ export class Section4Analyzer {
       );
 
       // Generate multivariate recommendations using advanced techniques
-      const multivariateRecommendations =
-        this.generateSophisticatedMultivariateRecommendations(
-          section3Result,
-          domainContext,
-        );
+      const multivariateRecommendations = this.generateSophisticatedMultivariateRecommendations(
+        section3Result,
+        domainContext,
+      );
 
       // Create sophisticated dashboard layout using perceptual principles
-      const dashboardRecommendations =
-        this.generateSophisticatedDashboardRecommendations(
-          univariateRecommendations,
-          bivariateRecommendations,
-          domainContext,
-          aestheticProfile,
-        );
+      const dashboardRecommendations = this.generateSophisticatedDashboardRecommendations(
+        univariateRecommendations,
+        bivariateRecommendations,
+        domainContext,
+        aestheticProfile,
+      );
 
       // Generate enhanced technical guidance
       const technicalGuidance = this.generateEnhancedTechnicalGuidance(
@@ -737,9 +732,7 @@ export class Section4Analyzer {
     let distribution: DistributionCharacteristics | undefined;
     if (this.isNumericalType(dataType) && columnAnalysis.distributionAnalysis) {
       distribution = {
-        shape: this.mapSkewnessToShape(
-          columnAnalysis.distributionAnalysis.skewness || 0,
-        ),
+        shape: this.mapSkewnessToShape(columnAnalysis.distributionAnalysis.skewness || 0),
         skewness: columnAnalysis.distributionAnalysis.skewness || 0,
         kurtosis: columnAnalysis.distributionAnalysis.kurtosis || 0,
         outliers: {
@@ -833,14 +826,11 @@ export class Section4Analyzer {
       this.meetsQualityThreshold(rec, completeness),
     );
 
-    const enhancedRecommendations = this.applyAntiPatternDetection(
-      filteredRecommendations,
-      {
-        cardinality,
-        completeness,
-        dataType,
-      },
-    );
+    const enhancedRecommendations = this.applyAntiPatternDetection(filteredRecommendations, {
+      cardinality,
+      completeness,
+      dataType,
+    });
 
     return enhancedRecommendations
       .slice(0, this.config.maxRecommendationsPerChart)
@@ -931,9 +921,7 @@ export class Section4Analyzer {
         interactivity: Section4Analyzer.createAdvancedInteractivity(),
         accessibility: Section4Analyzer.createAccessibilityGuidance(ChartType.VIOLIN_WITH_BOX),
         performance: Section4Analyzer.createPerformanceConsiderations(ChartType.VIOLIN_WITH_BOX),
-        libraryRecommendations: this.getLibraryRecommendations(
-          ChartType.VIOLIN_WITH_BOX,
-        ),
+        libraryRecommendations: this.getLibraryRecommendations(ChartType.VIOLIN_WITH_BOX),
         dataPreparation: this.createNumericalDataPreparation(columnAnalysis),
         designGuidelines: Section4Analyzer.createDesignGuidelines(ChartType.VIOLIN_WITH_BOX),
       });
@@ -1028,9 +1016,7 @@ export class Section4Analyzer {
       interactivity: this.createBasicInteractivity(),
       accessibility: Section4Analyzer.createAccessibilityGuidance(ChartType.TIME_SERIES_LINE),
       performance: Section4Analyzer.createPerformanceConsiderations(ChartType.TIME_SERIES_LINE),
-      libraryRecommendations: this.getLibraryRecommendations(
-        ChartType.TIME_SERIES_LINE,
-      ),
+      libraryRecommendations: this.getLibraryRecommendations(ChartType.TIME_SERIES_LINE),
       dataPreparation: Section4Analyzer.createDateTimeDataPreparation(columnAnalysis),
       designGuidelines: Section4Analyzer.createDesignGuidelines(ChartType.TIME_SERIES_LINE),
     });
@@ -1082,9 +1068,7 @@ export class Section4Analyzer {
         interactivity: this.createBasicInteractivity(),
         accessibility: Section4Analyzer.createAccessibilityGuidance(ChartType.HORIZONTAL_BAR),
         performance: Section4Analyzer.createPerformanceConsiderations(ChartType.HORIZONTAL_BAR),
-        libraryRecommendations: this.getLibraryRecommendations(
-          ChartType.HORIZONTAL_BAR,
-        ),
+        libraryRecommendations: this.getLibraryRecommendations(ChartType.HORIZONTAL_BAR),
         dataPreparation: Section4Analyzer.createTextDataPreparation(columnAnalysis),
         designGuidelines: Section4Analyzer.createDesignGuidelines(ChartType.HORIZONTAL_BAR),
       });
@@ -1188,8 +1172,8 @@ export class Section4Analyzer {
       variable1: correlation.variable1,
       variable2: correlation.variable2,
       relationshipType: Section4Analyzer.determineRelationshipType(
-        (var1Data as any).dataType || (var1Data as any).type || 'numerical',
-        (var2Data as any).dataType || (var2Data as any).type || 'numerical',
+        var1Data.dataType || var1Data.type || 'numerical',
+        var2Data.dataType || var2Data.type || 'numerical',
         correlation.relationshipType,
       ),
       strength: correlation.strength,
@@ -1229,7 +1213,9 @@ export class Section4Analyzer {
         interactivity: Section4Analyzer.createAdvancedInteractivity(),
         accessibility: Section4Analyzer.createAccessibilityGuidance(ChartType.SCATTER_PLOT),
         performance: Section4Analyzer.createPerformanceConsiderations(ChartType.SCATTER_PLOT),
-        libraryRecommendations: Section4Analyzer.getOptimalLibraryRecommendations(ChartType.SCATTER_PLOT),
+        libraryRecommendations: Section4Analyzer.getOptimalLibraryRecommendations(
+          ChartType.SCATTER_PLOT,
+        ),
         dataPreparation: Section4Analyzer.createBivariateDataPreparation(),
         designGuidelines: Section4Analyzer.createDesignGuidelines(ChartType.SCATTER_PLOT),
       });
@@ -1254,9 +1240,7 @@ export class Section4Analyzer {
           interactivity: Section4Analyzer.createAdvancedInteractivity(),
           accessibility: Section4Analyzer.createAccessibilityGuidance(ChartType.REGRESSION_PLOT),
           performance: Section4Analyzer.createPerformanceConsiderations(ChartType.REGRESSION_PLOT),
-          libraryRecommendations: this.getLibraryRecommendations(
-            ChartType.REGRESSION_PLOT,
-          ),
+          libraryRecommendations: this.getLibraryRecommendations(ChartType.REGRESSION_PLOT),
           dataPreparation: Section4Analyzer.createBivariateDataPreparation(),
           designGuidelines: Section4Analyzer.createDesignGuidelines(ChartType.REGRESSION_PLOT),
         });
@@ -1280,9 +1264,7 @@ export class Section4Analyzer {
         interactivity: Section4Analyzer.createAdvancedInteractivity(),
         accessibility: Section4Analyzer.createAccessibilityGuidance(ChartType.BOX_PLOT_BY_GROUP),
         performance: Section4Analyzer.createPerformanceConsiderations(ChartType.BOX_PLOT_BY_GROUP),
-        libraryRecommendations: this.getLibraryRecommendations(
-          ChartType.BOX_PLOT_BY_GROUP,
-        ),
+        libraryRecommendations: this.getLibraryRecommendations(ChartType.BOX_PLOT_BY_GROUP),
         dataPreparation: Section4Analyzer.createBivariateDataPreparation(),
         designGuidelines: Section4Analyzer.createDesignGuidelines(ChartType.BOX_PLOT_BY_GROUP),
       });
@@ -1299,9 +1281,7 @@ export class Section4Analyzer {
           interactivity: Section4Analyzer.createAdvancedInteractivity(),
           accessibility: Section4Analyzer.createAccessibilityGuidance(ChartType.VIOLIN_BY_GROUP),
           performance: Section4Analyzer.createPerformanceConsiderations(ChartType.VIOLIN_BY_GROUP),
-          libraryRecommendations: this.getLibraryRecommendations(
-            ChartType.VIOLIN_BY_GROUP,
-          ),
+          libraryRecommendations: this.getLibraryRecommendations(ChartType.VIOLIN_BY_GROUP),
           dataPreparation: Section4Analyzer.createBivariateDataPreparation(),
           designGuidelines: Section4Analyzer.createDesignGuidelines(ChartType.VIOLIN_BY_GROUP),
         });
@@ -1536,13 +1516,13 @@ export class Section4Analyzer {
     const domainTechnicalGuidance = Section4Analyzer.generateDomainTechnicalGuidance(domainContext);
 
     // Aesthetic implementation guidance
-    const aestheticImplementation =
-      Section4Analyzer.generateAestheticImplementationGuidance();
+    const aestheticImplementation = Section4Analyzer.generateAestheticImplementationGuidance();
 
     return {
-      recommendedLibraries: Section4Analyzer.getOptimalLibraryRecommendations(ChartType.SCATTER_PLOT),
-      implementationPatterns:
-        Section4Analyzer.getSophisticatedImplementationPatterns(),
+      recommendedLibraries: Section4Analyzer.getOptimalLibraryRecommendations(
+        ChartType.SCATTER_PLOT,
+      ),
+      implementationPatterns: Section4Analyzer.getSophisticatedImplementationPatterns(),
       performanceOptimizations: performanceStrategy,
       domainSpecificGuidance: domainTechnicalGuidance,
       aestheticImplementation: aestheticImplementation,
@@ -3047,8 +3027,14 @@ export class Section4Analyzer {
     aestheticProfile: any,
   ): BivariateVisualizationProfile | null {
     // Get data types for both variables
-    const var1Data = section3Result.edaAnalysis?.univariateAnalysis?.find((col) => col.columnName === correlation.variable1) || null;
-    const var2Data = section3Result.edaAnalysis?.univariateAnalysis?.find((col) => col.columnName === correlation.variable2) || null;
+    const var1Data =
+      section3Result.edaAnalysis?.univariateAnalysis?.find(
+        (col) => col.columnName === correlation.variable1,
+      ) || null;
+    const var2Data =
+      section3Result.edaAnalysis?.univariateAnalysis?.find(
+        (col) => col.columnName === correlation.variable2,
+      ) || null;
 
     if (!var1Data || !var2Data) {
       return null;
@@ -3124,7 +3110,9 @@ export class Section4Analyzer {
         interactivity: Section4Analyzer.createAdvancedInteractivity(),
         accessibility: Section4Analyzer.createAccessibilityGuidance(ChartType.SCATTER_PLOT),
         performance: Section4Analyzer.createPerformanceConsiderations(ChartType.SCATTER_PLOT),
-        libraryRecommendations: Section4Analyzer.getOptimalLibraryRecommendations(ChartType.SCATTER_PLOT),
+        libraryRecommendations: Section4Analyzer.getOptimalLibraryRecommendations(
+          ChartType.SCATTER_PLOT,
+        ),
         dataPreparation: Section4Analyzer.createSophisticatedBivariateDataPreparation(
           correlation,
           domainContext,
@@ -3211,7 +3199,13 @@ export class Section4Analyzer {
     return baseRecommendations.map((rec) => ({
       ...rec,
       encoding: Section4Analyzer.enhanceEncodingWithAesthetics(
-        rec.encoding || { layout: { width: 400, height: 300, margins: { top: 20, right: 20, bottom: 40, left: 40 } } },
+        rec.encoding || {
+          layout: {
+            width: 400,
+            height: 300,
+            margins: { top: 20, right: 20, bottom: 40, left: 40 },
+          },
+        },
         aestheticProfile,
       ),
       designGuidelines: Section4Analyzer.createEnhancedDesignGuidelines(
@@ -3586,9 +3580,9 @@ export class Section4Analyzer {
       keyboard: {
         navigation: true,
         shortcuts: {
-          'z': 'zoom',
-          'r': 'reset',
-          'f': 'filter',
+          z: 'zoom',
+          r: 'reset',
+          f: 'filter',
         },
         focusManagement: true,
       },
@@ -3663,7 +3657,11 @@ export class Section4Analyzer {
       memoryUsage: {
         estimated: '100MB',
         peak: '150MB',
-        recommendations: ['Use efficient data structures', 'Implement data virtualization', 'Cache frequently accessed data'],
+        recommendations: [
+          'Use efficient data structures',
+          'Implement data virtualization',
+          'Cache frequently accessed data',
+        ],
       },
     };
   }
@@ -3729,8 +3727,12 @@ export class Section4Analyzer {
         },
         purpose: (chartRecommendation as any).purpose || ChartPurpose.DISTRIBUTION,
         priority: (chartRecommendation as any).priority || RecommendationPriority.PRIMARY,
-        performance: Section4Analyzer.createPerformanceConsiderations(chartRecommendation.chartType),
-        libraryRecommendations: Section4Analyzer.getOptimalLibraryRecommendations(chartRecommendation.chartType),
+        performance: Section4Analyzer.createPerformanceConsiderations(
+          chartRecommendation.chartType,
+        ),
+        libraryRecommendations: Section4Analyzer.getOptimalLibraryRecommendations(
+          chartRecommendation.chartType,
+        ),
         dataPreparation: Section4Analyzer.createBivariateDataPreparation(),
         designGuidelines: Section4Analyzer.createDesignGuidelines(chartRecommendation.chartType),
       },
@@ -3965,7 +3967,11 @@ export class Section4Analyzer {
       },
       branding: {
         colorAlignment: true,
-        styleConsistency: ['Use consistent fonts', 'Maintain colour palette', 'Apply uniform spacing'],
+        styleConsistency: [
+          'Use consistent fonts',
+          'Maintain colour palette',
+          'Apply uniform spacing',
+        ],
         logoPlacement: 'bottom-right',
       },
       context: {
@@ -4612,15 +4618,17 @@ export class Section4Analyzer {
       significance: correlation.pValue < 0.05 ? 'significant' : 'not_significant',
       recommendedCharts: Section4Analyzer.generateBivariateChartRecommendations(correlation),
       dataTypes: {
-        [correlation.var1]: section3Result.univariateAnalysis[correlation.var1]?.dataType || 'unknown',
-        [correlation.var2]: section3Result.univariateAnalysis[correlation.var2]?.dataType || 'unknown',
+        [correlation.var1]:
+          section3Result.univariateAnalysis[correlation.var1]?.dataType || 'unknown',
+        [correlation.var2]:
+          section3Result.univariateAnalysis[correlation.var2]?.dataType || 'unknown',
       },
     };
   }
 
   private static generateBivariateChartRecommendations(correlation: any): ChartRecommendation[] {
     const recommendations: ChartRecommendation[] = [];
-    
+
     // Default scatter plot recommendation
     recommendations.push({
       chartType: ChartType.SCATTER_PLOT,
@@ -4632,7 +4640,9 @@ export class Section4Analyzer {
       interactivity: Section4Analyzer.createBasicInteractivity(),
       accessibility: Section4Analyzer.createAccessibilityGuidance(ChartType.SCATTER_PLOT),
       performance: Section4Analyzer.createPerformanceConsiderations(ChartType.SCATTER_PLOT),
-      libraryRecommendations: Section4Analyzer.getOptimalLibraryRecommendations(ChartType.SCATTER_PLOT),
+      libraryRecommendations: Section4Analyzer.getOptimalLibraryRecommendations(
+        ChartType.SCATTER_PLOT,
+      ),
       dataPreparation: Section4Analyzer.createBivariateDataPreparation(),
       designGuidelines: Section4Analyzer.createDesignGuidelines(ChartType.SCATTER_PLOT),
     });
@@ -4640,10 +4650,7 @@ export class Section4Analyzer {
     return recommendations;
   }
 
-  private static detectAntiPatterns(
-    recommendation: ChartRecommendation,
-    columnData: any,
-  ): any[] {
+  private static detectAntiPatterns(recommendation: ChartRecommendation, columnData: any): any[] {
     const antiPatterns: any[] = [];
 
     // Pie chart with too many categories

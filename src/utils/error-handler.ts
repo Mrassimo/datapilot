@@ -456,7 +456,7 @@ export class ErrorHandler {
       }
     }
 
-    throw lastError!;
+    throw lastError;
   }
 
   private getDefaultRecoveryStrategy(error: DataPilotError): ErrorRecoveryStrategy | null {
@@ -529,7 +529,7 @@ export class ErrorUtils {
     fallbackValue?: T,
   ): T {
     if (actualCount >= minimumRequired) {
-      return fallbackValue as T; // Not actually an error
+      return fallbackValue; // Not actually an error
     }
 
     const error = globalErrorHandler.createInsufficientDataError(
@@ -544,7 +544,7 @@ export class ErrorUtils {
         throw error; // Force fallback
       },
       fallbackValue,
-    ) as T;
+    );
   }
 
   /**

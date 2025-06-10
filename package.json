@@ -1,7 +1,7 @@
 {
   "name": "datapilot-cli",
-  "version": "1.0.9",
-  "description": "Enterprise-grade streaming CSV analysis with comprehensive statistical insights - zero dependencies, memory-efficient, cross-platform",
+  "version": "1.1.0",
+  "description": "Enterprise-grade streaming multi-format data analysis with comprehensive statistical insights - supports CSV, JSON, Excel, TSV, Parquet - memory-efficient, cross-platform",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
@@ -37,7 +37,15 @@
   "keywords": [
     "data-analysis",
     "csv",
+    "json",
+    "excel",
+    "tsv",
+    "parquet",
+    "multi-format",
     "csv-parser",
+    "json-parser",
+    "excel-parser",
+    "parquet-parser",
     "statistics",
     "statistical-analysis",
     "cli",
@@ -70,7 +78,7 @@
   "pkg": {
     "targets": [
       "node18-win-x64",
-      "node18-macos-x64", 
+      "node18-macos-x64",
       "node18-linux-x64"
     ],
     "outputPath": "binaries",
@@ -79,11 +87,15 @@
     ]
   },
   "dependencies": {
-    "commander": "^11.1.0"
+    "commander": "^11.1.0",
+    "exceljs": "^4.4.0",
+    "hyparquet": "^1.4.0",
+    "uuid": "^9.0.1"
   },
   "devDependencies": {
     "@types/jest": "^29.5.11",
     "@types/node": "^20.10.5",
+    "@types/uuid": "^9.0.7",
     "@typescript-eslint/eslint-plugin": "^6.15.0",
     "@typescript-eslint/parser": "^6.15.0",
     "eslint": "^8.56.0",

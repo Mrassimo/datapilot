@@ -1,0 +1,511 @@
+{
+  "metadata": {
+    "version": "1.0.0",
+    "generatedAt": "2025-06-10T06:20:35.421Z",
+    "command": "datapilot modeling",
+    "analysisType": "Predictive Modeling & Advanced Analytics Guidance"
+  },
+  "modelingAnalysis": {
+    "identifiedTasks": [],
+    "algorithmRecommendations": [],
+    "workflowGuidance": {
+      "workflowSteps": [
+        {
+          "stepNumber": 1,
+          "stepName": "Data Preparation and Validation",
+          "description": "Prepare the dataset for modeling by applying transformations from Section 5 and validating data quality",
+          "inputs": [
+            "Raw dataset",
+            "Section 5 transformation recommendations",
+            "Quality audit results"
+          ],
+          "outputs": [
+            "Clean dataset",
+            "Transformed features",
+            "Data validation report"
+          ],
+          "estimatedTime": "2-4 hours",
+          "difficulty": "intermediate",
+          "tools": [
+            "pandas",
+            "scikit-learn preprocessing",
+            "NumPy"
+          ],
+          "considerations": [
+            "Apply feature engineering recommendations from Section 5",
+            "Handle missing values according to imputation strategy",
+            "Scale numerical features if required by chosen algorithms",
+            "Encode categorical variables appropriately"
+          ],
+          "commonPitfalls": [
+            "Data leakage through improper scaling before train/test split",
+            "Inconsistent handling of missing values between train and test sets",
+            "Forgetting to save transformation parameters for production use"
+          ]
+        },
+        {
+          "stepNumber": 2,
+          "stepName": "Data Splitting Strategy",
+          "description": "Split data into training, validation, and test sets for unbiased evaluation",
+          "inputs": [
+            "Prepared dataset",
+            "Target variable",
+            "Temporal indicators (if applicable)"
+          ],
+          "outputs": [
+            "Training set",
+            "Validation set",
+            "Test set",
+            "Split documentation"
+          ],
+          "estimatedTime": "15-30 minutes",
+          "difficulty": "beginner",
+          "tools": [
+            "scikit-learn train_test_split",
+            "pandas",
+            "stratification tools"
+          ],
+          "considerations": [
+            "Ensure representative sampling across classes",
+            "Document split ratios and random seeds for reproducibility",
+            "Verify class balance in each split for classification tasks"
+          ],
+          "commonPitfalls": [
+            "Inadequate stratification for imbalanced classes",
+            "Test set too small for reliable performance estimates",
+            "Information leakage between splits"
+          ]
+        },
+        {
+          "stepNumber": 3,
+          "stepName": "Baseline Model Implementation",
+          "description": "Implement simple baseline models to establish performance benchmarks",
+          "inputs": [
+            "Training set",
+            "Validation set",
+            "Algorithm recommendations"
+          ],
+          "outputs": [
+            "Baseline model(s)",
+            "Baseline performance metrics",
+            "Model comparison framework"
+          ],
+          "estimatedTime": "1-2 hours",
+          "difficulty": "intermediate",
+          "tools": [
+            "scikit-learn",
+            "statsmodels",
+            "evaluation metrics"
+          ],
+          "considerations": [
+            "Start with simplest recommended algorithm (e.g., Linear/Logistic Regression)",
+            "Establish clear evaluation metrics and benchmarks",
+            "Document all hyperparameters and assumptions"
+          ],
+          "commonPitfalls": [
+            "Skipping baseline models and jumping to complex algorithms",
+            "Using inappropriate evaluation metrics for the task",
+            "Over-optimizing baseline models instead of treating them as benchmarks"
+          ]
+        },
+        {
+          "stepNumber": 4,
+          "stepName": "Hyperparameter Optimization",
+          "description": "Systematically tune hyperparameters for best-performing algorithms",
+          "inputs": [
+            "Trained models",
+            "Validation set",
+            "Hyperparameter search spaces"
+          ],
+          "outputs": [
+            "Optimized models",
+            "Hyperparameter tuning results",
+            "Cross-validation scores"
+          ],
+          "estimatedTime": "4-8 hours",
+          "difficulty": "advanced",
+          "tools": [
+            "GridSearchCV",
+            "RandomizedSearchCV",
+            "Optuna/Hyperopt"
+          ],
+          "considerations": [
+            "Use cross-validation within training set for hyperparameter tuning",
+            "Focus on most important hyperparameters first",
+            "Monitor for diminishing returns vs computational cost"
+          ],
+          "commonPitfalls": [
+            "Tuning on test set (causes overfitting)",
+            "Excessive hyperparameter tuning leading to overfitting",
+            "Ignoring computational budget constraints"
+          ]
+        },
+        {
+          "stepNumber": 5,
+          "stepName": "Model Evaluation and Interpretation",
+          "description": "Comprehensive evaluation of final models and interpretation of results",
+          "inputs": [
+            "Optimized models",
+            "Test set",
+            "Evaluation frameworks"
+          ],
+          "outputs": [
+            "Final model performance",
+            "Model interpretations",
+            "Feature importance analysis"
+          ],
+          "estimatedTime": "2-4 hours",
+          "difficulty": "intermediate",
+          "tools": [
+            "Model evaluation metrics",
+            "SHAP/LIME",
+            "visualization libraries"
+          ],
+          "considerations": [
+            "Evaluate models on held-out test set",
+            "Generate model interpretation and explanations",
+            "Assess model robustness and stability"
+          ],
+          "commonPitfalls": [
+            "Using validation performance as final performance estimate",
+            "Inadequate model interpretation and explanation",
+            "Ignoring model assumptions and limitations"
+          ]
+        },
+        {
+          "stepNumber": 6,
+          "stepName": "Documentation and Reporting",
+          "description": "Document methodology, results, and recommendations for stakeholders",
+          "inputs": [
+            "Model results",
+            "Performance metrics",
+            "Interpretations",
+            "Business context"
+          ],
+          "outputs": [
+            "Technical report",
+            "Executive summary",
+            "Model documentation",
+            "Deployment recommendations"
+          ],
+          "estimatedTime": "2-4 hours",
+          "difficulty": "intermediate",
+          "tools": [
+            "Jupyter notebooks",
+            "Documentation tools",
+            "Visualization libraries"
+          ],
+          "considerations": [
+            "Document all methodological decisions and rationale",
+            "Create clear visualizations for stakeholder communication",
+            "Provide actionable business recommendations"
+          ],
+          "commonPitfalls": [
+            "Inadequate documentation of methodology",
+            "Technical jargon in business-facing reports",
+            "Missing discussion of limitations and assumptions"
+          ]
+        }
+      ],
+      "bestPractices": [
+        {
+          "category": "Cross-Validation",
+          "practice": "Always use cross-validation for model selection and hyperparameter tuning",
+          "reasoning": "Provides more robust estimates of model performance and reduces overfitting to validation set",
+          "implementation": "Use stratified k-fold for classification, regular k-fold for regression, time series split for temporal data",
+          "relatedSteps": [
+            3,
+            4,
+            5
+          ]
+        },
+        {
+          "category": "Feature Engineering",
+          "practice": "Apply feature transformations consistently across train/validation/test sets",
+          "reasoning": "Prevents data leakage and ensures model can be deployed reliably",
+          "implementation": "Fit transformers on training data only, then apply to all sets. Save transformation parameters.",
+          "relatedSteps": [
+            1,
+            2
+          ]
+        },
+        {
+          "category": "Model Selection",
+          "practice": "Start simple and increase complexity gradually",
+          "reasoning": "Simple models are more interpretable and often sufficient. Complex models risk overfitting.",
+          "implementation": "Begin with linear/logistic regression baseline, then try tree-based and ensemble methods",
+          "relatedSteps": [
+            3,
+            4
+          ]
+        },
+        {
+          "category": "Model Evaluation",
+          "practice": "Use multiple evaluation metrics appropriate for your problem",
+          "reasoning": "Single metrics can be misleading. Different metrics highlight different aspects of performance.",
+          "implementation": "Use R², RMSE, MAE, and MAPE for regression",
+          "relatedSteps": [
+            6
+          ]
+        },
+        {
+          "category": "Model Interpretability",
+          "practice": "Prioritize model interpretability based on business requirements",
+          "reasoning": "Interpretable models build trust and enable better decision-making",
+          "implementation": "Use SHAP values, feature importance plots, and decision tree visualization",
+          "relatedSteps": [
+            6
+          ]
+        },
+        {
+          "category": "Documentation",
+          "practice": "Document all modeling decisions and assumptions",
+          "reasoning": "Enables reproducibility and helps future model maintenance",
+          "implementation": "Record data preprocessing steps, model hyperparameters, and evaluation methodology",
+          "relatedSteps": [
+            8
+          ]
+        }
+      ],
+      "dataSplittingStrategy": {
+        "strategy": "random",
+        "trainPercent": 70,
+        "validationPercent": 15,
+        "testPercent": 15,
+        "reasoning": "Random sampling provides unbiased representation for regression tasks",
+        "implementation": "Use random sampling with fixed seed for reproducibility",
+        "considerations": [
+          "Set random seed for reproducible splits",
+          "Verify training set covers full range of target variable",
+          "Consider blocking by important grouping variables if applicable"
+        ]
+      },
+      "crossValidationApproach": {
+        "method": "k_fold",
+        "folds": 5,
+        "reasoning": "K-fold cross-validation provides robust performance estimates for regression tasks",
+        "implementation": "Use KFold from scikit-learn with random shuffling",
+        "expectedBenefit": "Stable performance estimates across different data subsets"
+      },
+      "hyperparameterTuning": {
+        "method": "grid_search",
+        "searchSpace": [],
+        "optimizationMetric": "neg_mean_squared_error",
+        "budgetConstraints": [
+          {
+            "constraintType": "time",
+            "limit": "4 hours",
+            "reasoning": "Balance between thorough search and practical time limits"
+          },
+          {
+            "constraintType": "computational",
+            "limit": "Single machine with available cores",
+            "reasoning": "Optimize for typical development environment resources"
+          }
+        ]
+      },
+      "evaluationFramework": {
+        "primaryMetrics": [],
+        "secondaryMetrics": [],
+        "interpretationGuidelines": [],
+        "benchmarkComparisons": [],
+        "businessImpactAssessment": [],
+        "robustnessTests": []
+      },
+      "interpretationGuidance": {
+        "globalInterpretation": {
+          "methods": [],
+          "overallModelBehavior": "",
+          "keyPatterns": [],
+          "featureRelationships": [],
+          "modelLimitations": []
+        },
+        "localInterpretation": {
+          "methods": [],
+          "exampleExplanations": [],
+          "explanationReliability": "",
+          "useCases": []
+        },
+        "featureImportance": {
+          "importanceMethod": "permutation",
+          "featureRankings": [],
+          "stabilityAnalysis": "",
+          "businessRelevance": []
+        },
+        "modelBehaviorAnalysis": {
+          "decisionBoundaries": "",
+          "nonlinearEffects": [],
+          "interactionEffects": [],
+          "predictionConfidence": ""
+        },
+        "visualizationStrategies": []
+      }
+    },
+    "evaluationFramework": {
+      "primaryMetrics": [],
+      "secondaryMetrics": [],
+      "interpretationGuidelines": [],
+      "benchmarkComparisons": [],
+      "businessImpactAssessment": [],
+      "robustnessTests": []
+    },
+    "interpretationGuidance": {
+      "globalInterpretation": {
+        "methods": [],
+        "overallModelBehavior": "",
+        "keyPatterns": [],
+        "featureRelationships": [],
+        "modelLimitations": []
+      },
+      "localInterpretation": {
+        "methods": [],
+        "exampleExplanations": [],
+        "explanationReliability": "",
+        "useCases": []
+      },
+      "featureImportance": {
+        "importanceMethod": "permutation",
+        "featureRankings": [],
+        "stabilityAnalysis": "",
+        "businessRelevance": []
+      },
+      "modelBehaviorAnalysis": {
+        "decisionBoundaries": "",
+        "nonlinearEffects": [],
+        "interactionEffects": [],
+        "predictionConfidence": ""
+      },
+      "visualizationStrategies": []
+    },
+    "ethicsAnalysis": {
+      "biasAssessment": {
+        "potentialBiasSources": [],
+        "sensitiveAttributes": [],
+        "biasTests": [],
+        "overallRiskLevel": "low",
+        "mitigationStrategies": [
+          "Implement comprehensive bias testing framework",
+          "Use fairness-aware machine learning algorithms",
+          "Regular monitoring of model outcomes across demographic groups"
+        ]
+      },
+      "fairnessMetrics": [],
+      "ethicalConsiderations": [
+        {
+          "consideration": "Ensure proper consent for data use in modeling",
+          "domain": "consent",
+          "riskLevel": "medium",
+          "requirements": [
+            "Verify data collection consent covers modeling use",
+            "Implement opt-out mechanisms",
+            "Regular consent renewal procedures"
+          ],
+          "implementation": [
+            "Review original data collection agreements",
+            "Implement granular consent management",
+            "Provide clear data usage explanations"
+          ]
+        },
+        {
+          "consideration": "Establish clear accountability for model decisions",
+          "domain": "accountability",
+          "riskLevel": "high",
+          "requirements": [
+            "Define roles and responsibilities for model governance",
+            "Implement model monitoring and alerting",
+            "Establish escalation procedures for problematic outcomes"
+          ],
+          "implementation": [
+            "Create model governance committee",
+            "Implement automated bias monitoring",
+            "Regular model performance audits"
+          ]
+        }
+      ],
+      "transparencyRequirements": [
+        {
+          "requirement": "Document model architecture, training process, and key assumptions",
+          "level": "model_level",
+          "implementation": "Create comprehensive model documentation including hyperparameters, training data, and performance metrics",
+          "audience": [
+            "Data Scientists",
+            "Model Validators",
+            "Auditors"
+          ],
+          "complianceNeed": true
+        },
+        {
+          "requirement": "Maintain comprehensive audit trail of model development and deployment",
+          "level": "system_level",
+          "implementation": "Implement MLOps practices with version control, experiment tracking, and deployment monitoring",
+          "audience": [
+            "IT Operations",
+            "Compliance Teams",
+            "External Auditors"
+          ],
+          "complianceNeed": true
+        }
+      ],
+      "governanceRecommendations": [
+        {
+          "area": "Governance Structure",
+          "recommendation": "Establish cross-functional model governance committee",
+          "priority": "immediate",
+          "implementation": "Form committee with representatives from data science, legal, compliance, and business units",
+          "stakeholders": [
+            "Chief Data Officer",
+            "Legal Team",
+            "Compliance",
+            "Business Leaders"
+          ]
+        },
+        {
+          "area": "Model Auditing",
+          "recommendation": "Establish regular model performance and bias auditing schedule",
+          "priority": "short_term",
+          "implementation": "Quarterly comprehensive model audits including bias testing, performance evaluation, and impact assessment",
+          "stakeholders": [
+            "Internal Audit",
+            "Data Science Team",
+            "Legal"
+          ]
+        }
+      ],
+      "riskMitigation": [
+        {
+          "riskType": "Lack of Transparency",
+          "mitigationStrategy": "Implement comprehensive model explainability framework",
+          "implementation": "Deploy SHAP/LIME explanations, feature importance analysis, and model documentation",
+          "monitoring": "Regular review of explanation quality and stakeholder feedback",
+          "effectiveness": "Medium - improves understanding but may not fully resolve black box concerns"
+        }
+      ]
+    },
+    "implementationRoadmap": {
+      "phases": [],
+      "estimatedTimeline": "4-8 weeks",
+      "resourceRequirements": [],
+      "riskFactors": [],
+      "successCriteria": []
+    }
+  },
+  "warnings": [],
+  "performanceMetrics": {
+    "analysisTimeMs": 5,
+    "tasksIdentified": 0,
+    "algorithmsEvaluated": 0,
+    "ethicsChecksPerformed": 7,
+    "recommendationsGenerated": 0
+  },
+  "analysisMetadata": {
+    "analysisApproach": "Comprehensive modeling guidance with specialized focus on interpretability",
+    "complexityLevel": "moderate",
+    "recommendationConfidence": "low",
+    "primaryFocus": [
+      "regression",
+      "binary_classification",
+      "clustering"
+    ],
+    "limitationsIdentified": []
+  }
+}

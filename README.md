@@ -4,12 +4,13 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js Version](https://img.shields.io/node/v/datapilot-cli.svg)](https://nodejs.org)
 
-> **Enterprise-grade streaming CSV analysis with comprehensive statistical insights**
+> **Enterprise-grade streaming multi-format data analysis with comprehensive statistical insights**
 
-DataPilot is a sophisticated command-line tool that transforms CSV files into comprehensive statistical reports. With zero dependencies and memory-efficient streaming processing, it handles datasets of any size while providing deep insights across six analytical dimensions.
+DataPilot is a sophisticated command-line tool that transforms data files into comprehensive statistical reports. With universal format support (CSV, JSON, Excel, TSV, Parquet) and memory-efficient streaming processing, it handles datasets of any size while providing deep insights across six analytical dimensions.
 
 ## ✨ Key Features
 
+- 📁 **Universal Format Support**: CSV, JSON, Excel (.xlsx/.xls), TSV, Parquet, JSONL with auto-detection
 - 🔍 **6-Section Analysis Pipeline**: Overview → Quality → EDA → Visualization → Engineering → Modeling
 - 🚀 **Streaming Processing**: Handle files up to 100GB with constant <512MB memory usage
 - 📊 **Comprehensive Reports**: Human-readable insights in Markdown, JSON, or YAML formats
@@ -61,36 +62,112 @@ npm link
 
 ### Basic Usage
 ```bash
-# Complete analysis (all 6 sections)
-datapilot all data.csv
+# Complete analysis (all 6 sections) - works with any supported format
+datapilot all data.csv           # CSV files
+datapilot all data.json          # JSON/JSONL files  
+datapilot all data.xlsx          # Excel files
+datapilot all data.tsv           # Tab-separated files
 
-# Individual sections
-datapilot overview data.csv       # Section 1: File overview & metadata
-datapilot quality data.csv        # Section 2: Data quality assessment
-datapilot eda data.csv           # Section 3: Exploratory data analysis
+# Individual sections (auto-detects format)
+datapilot overview data.xlsx      # Section 1: File overview & metadata
+datapilot quality data.json       # Section 2: Data quality assessment
+datapilot eda data.tsv            # Section 3: Exploratory data analysis
 datapilot visualization data.csv  # Section 4: Chart recommendations
-datapilot engineering data.csv   # Section 5: ML engineering insights
-datapilot modeling data.csv      # Section 6: Predictive modeling guidance
+datapilot engineering data.xlsx   # Section 5: ML engineering insights
+datapilot modeling data.json      # Section 6: Predictive modeling guidance
 
-# Quick file information
-datapilot info data.csv          # Basic file stats
-datapilot validate data.csv      # CSV format validation
+# Quick file information (universal)
+datapilot info data.xlsx         # Basic file stats (any format)
+datapilot validate data.json     # Format validation
 ```
 
 ### Advanced Options
 ```bash
+# Format-specific options
+datapilot all data.xlsx --sheet "Sales Data"              # Excel: specific sheet
+datapilot all data.xlsx --sheet-index 2                   # Excel: sheet by index
+datapilot all data.json --flatten-objects                 # JSON: flatten nested objects
+datapilot all data.txt --format tsv --delimiter "\t"      # Force format detection
+datapilot all data.csv --delimiter ";" --quote "'"        # CSV: custom delimiters
+
 # Output control
-datapilot all data.csv --format json --output report.json
-datapilot all data.csv --format yaml --output analysis.yaml
-datapilot all data.csv --quiet --output results/
+datapilot all data.json --format json --output report.json
+datapilot all data.xlsx --format yaml --output analysis.yaml
+datapilot all data.tsv --quiet --output results/
 
 # Performance tuning
-datapilot all huge-file.csv --verbose --progress
-datapilot all data.csv --chunk-size 50000 --memory-limit 1gb
+datapilot all huge-file.xlsx --verbose --progress
+datapilot all data.json --chunk-size 50000 --memory-limit 1gb
 
 # Configuration
-datapilot all data.csv --config production.datapilotrc
-datapilot all data.csv --preset high-performance
+datapilot all data.xlsx --config production.datapilotrc
+datapilot all data.json --preset high-performance
+```
+
+## 📁 Supported File Formats
+
+| Format | Extensions | Features | Notes |
+|--------|------------|----------|-------|
+| **CSV** | `.csv` | Auto-delimiter detection, custom quotes | Full backward compatibility |
+| **TSV** | `.tsv`, `.tab` | Tab-separated values, header detection | Optimized for data exports |
+| **JSON** | `.json`, `.jsonl`, `.ndjson` | Nested objects, arrays, JSON Lines | Auto-flattening of complex structures |
+| **Excel** | `.xlsx`, `.xls`, `.xlsm` | Multiple sheets, cell formatting | Sheet selection, metadata preservation |
+| **Parquet** | `.parquet` | Columnar storage, schema detection | High-performance analytics format |
+
+### Format Detection
+DataPilot automatically detects file formats based on:
+- **File extension** (primary indicator)
+- **Content analysis** (structure validation)  
+- **Confidence scoring** (reliability assessment)
+
+```bash
+# Automatic detection (recommended)
+datapilot all my-data.xlsx                    # Auto-detects Excel
+datapilot all logs.jsonl                      # Auto-detects JSON Lines
+datapilot all analytics.parquet               # Auto-detects Parquet
+
+# Manual format override (when needed)
+datapilot all ambiguous-file.txt --format tsv # Force TSV parsing
+datapilot all data.backup --format json       # Force JSON parsing
+datapilot all big-data.bin --format parquet   # Force Parquet parsing
+```
+
+### Format-Specific Features
+
+**Excel Integration**
+```bash
+# Select specific worksheet
+datapilot all workbook.xlsx --sheet "Q4 Results"
+datapilot all workbook.xlsx --sheet-index 0
+
+# Get available sheets
+datapilot info workbook.xlsx  # Lists all sheets with row/column counts
+```
+
+**JSON Processing**  
+```bash
+# Handle nested objects
+datapilot all complex.json --flatten-objects   # Flatten nested structures
+datapilot all api-data.json --json-path "$.data.records"  # Extract specific path
+```
+
+**TSV Options**
+```bash  
+# Custom separators (if not auto-detected)
+datapilot all data.tsv --delimiter "\t"
+datapilot all data.txt --format tsv --quote "'"
+```
+
+**Parquet Analytics**
+```bash
+# High-performance columnar processing
+datapilot all large-dataset.parquet --max-rows 1000000
+
+# Column selection for performance
+datapilot all analytics.parquet --columns "id,sales,region"
+
+# Row pagination for massive files
+datapilot all huge-data.parquet --row-start 0 --row-end 10000
 ```
 
 ## 📊 Analysis Sections Explained
@@ -106,31 +183,43 @@ datapilot all data.csv --preset high-performance
 
 ## 🎯 Use Cases & Examples
 
+### Multi-Format Support
+```bash
+# Analyze any supported data format - automatic detection
+datapilot all sales-data.json         # JSON/JSONL files
+datapilot all quarterly-report.xlsx   # Excel spreadsheets  
+datapilot all server-logs.tsv         # Tab-separated files
+datapilot all customer-data.csv       # Traditional CSV files
+
+# Force specific format if auto-detection needs override
+datapilot all data.txt --format tsv
+```
+
 ### Business Analytics
 ```bash
-# Analyze sales data for insights
-datapilot all sales-2024.csv
+# Analyze sales data for insights (works with any format)
+datapilot all sales-2024.xlsx
 # Output: Revenue trends, seasonal patterns, top products, forecasting recommendations
 ```
 
 ### Data Quality Auditing
 ```bash
-# Check data quality before analysis
-datapilot quality customer-database.csv
+# Check data quality before analysis (JSON example)
+datapilot quality customer-database.json
 # Output: Completeness scores, outlier detection, consistency issues
 ```
 
 ### ML Pipeline Preparation
 ```bash
-# Prepare dataset for machine learning
-datapilot engineering features.csv
+# Prepare dataset for machine learning (Excel example)
+datapilot engineering features.xlsx --sheet "Training Data"
 # Output: Feature selection, encoding strategies, scaling recommendations
 ```
 
 ### Research Data Analysis
 ```bash
-# Comprehensive statistical analysis
-datapilot eda experiment-results.csv
+# Comprehensive statistical analysis (TSV example)
+datapilot eda experiment-results.tsv
 # Output: Distributions, correlations, hypothesis tests, statistical significance
 ```
 

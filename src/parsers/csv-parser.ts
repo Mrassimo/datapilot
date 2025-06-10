@@ -411,7 +411,11 @@ export class CSVParser {
           if (isFirstChunk) {
             isFirstChunk = false;
             // Check for UTF-8 BOM (EF BB BF)
-            if (typeof chunkStr === 'string' && chunkStr.length > 0 && chunkStr.charCodeAt(0) === 0xfeff) {
+            if (
+              typeof chunkStr === 'string' &&
+              chunkStr.length > 0 &&
+              chunkStr.charCodeAt(0) === 0xfeff
+            ) {
               chunkStr = chunkStr.slice(1);
               logger.debug('Stripped UTF-8 BOM from first chunk');
             }

@@ -222,7 +222,12 @@ export type PerformancePreset =
 // Configuration Validation Rules
 export interface ConfigValidationRule<T> {
   field: keyof T;
-  validator: (value: any, context?: any) => boolean | { isValid: boolean; message?: string; suggestedValue?: any; relatedFields?: string[] };
+  validator: (
+    value: any,
+    context?: any,
+  ) =>
+    | boolean
+    | { isValid: boolean; message?: string; suggestedValue?: any; relatedFields?: string[] };
   message: string;
   required?: boolean;
   severity?: 'error' | 'warning';
@@ -378,7 +383,7 @@ export const DEFAULT_CONFIG: DataPilotConfig = {
     missingValueQualityThreshold: 20,
     multivariateThreshold: 1000,
     maxDimensionsForPCA: 10,
-    clusteringMethods: ['kmeans', 'hierarchical']
+    clusteringMethods: ['kmeans', 'hierarchical'],
   },
 
   streaming: {
@@ -510,7 +515,7 @@ export class ConfigManager {
         batchSize: 50,
         performanceMonitoringInterval: 1000,
         memoryCleanupInterval: 5000,
-        emergencyMemoryThresholdMultiplier: 0.9
+        emergencyMemoryThresholdMultiplier: 0.9,
       },
       streaming: {
         memoryThresholdMB: 50,
@@ -521,7 +526,7 @@ export class ConfigManager {
           maxChunkSize: 200,
           reductionFactor: 0.5,
           expansionFactor: 1.1,
-          targetMemoryUtilization: 0.8
+          targetMemoryUtilization: 0.8,
         },
         memoryManagement: {
           cleanupInterval: 20,
@@ -529,8 +534,8 @@ export class ConfigManager {
           forceGarbageCollection: true,
           gcFrequency: 1000,
           memoryLeakDetection: true,
-          autoGarbageCollect: true
-        }
+          autoGarbageCollect: true,
+        },
       },
     });
 
@@ -547,7 +552,7 @@ export class ConfigManager {
         batchSize: 500,
         performanceMonitoringInterval: 5000,
         memoryCleanupInterval: 10000,
-        emergencyMemoryThresholdMultiplier: 0.95
+        emergencyMemoryThresholdMultiplier: 0.95,
       },
       streaming: {
         memoryThresholdMB: 500,
@@ -558,7 +563,7 @@ export class ConfigManager {
           maxChunkSize: 2000,
           reductionFactor: 0.7,
           expansionFactor: 1.1,
-          targetMemoryUtilization: 0.85
+          targetMemoryUtilization: 0.85,
         },
         memoryManagement: {
           cleanupInterval: 20,
@@ -566,8 +571,8 @@ export class ConfigManager {
           forceGarbageCollection: true,
           gcFrequency: 5000,
           memoryLeakDetection: true,
-          autoGarbageCollect: true
-        }
+          autoGarbageCollect: true,
+        },
       },
     });
 
@@ -584,7 +589,7 @@ export class ConfigManager {
         batchSize: 25,
         performanceMonitoringInterval: 500,
         memoryCleanupInterval: 2000,
-        emergencyMemoryThresholdMultiplier: 0.8
+        emergencyMemoryThresholdMultiplier: 0.8,
       },
       analysis: {
         maxCategoricalLevels: 20,
@@ -598,7 +603,7 @@ export class ConfigManager {
         missingValueQualityThreshold: 20,
         multivariateThreshold: 500,
         maxDimensionsForPCA: 5,
-        clusteringMethods: ['kmeans']
+        clusteringMethods: ['kmeans'],
       },
     });
 
@@ -615,7 +620,7 @@ export class ConfigManager {
         batchSize: 10,
         performanceMonitoringInterval: 250,
         memoryCleanupInterval: 1000,
-        emergencyMemoryThresholdMultiplier: 0.7
+        emergencyMemoryThresholdMultiplier: 0.7,
       },
       statistical: {
         significanceLevel: 0.1, // Less strict for testing
@@ -623,12 +628,21 @@ export class ConfigManager {
           normalityTests: 0.1,
           correlationTests: 0.1,
           hypothesisTests: 0.1,
-          outlierDetection: 0.2
+          outlierDetection: 0.2,
         },
         confidenceLevel: 0.9,
         correlationThresholds: { weak: 0.2, moderate: 0.5, strong: 0.8, veryStrong: 0.9 },
-        outlierThresholds: { zScoreThreshold: 3.0, modifiedZScoreThreshold: 3.5, iqrMultiplier: 1.5 },
-        normalityThresholds: { shapiroWilkMinSample: 3, shapiroWilkMaxSample: 5000, jarqueBeraThreshold: 0.1, ksTestThreshold: 0.1 }
+        outlierThresholds: {
+          zScoreThreshold: 3.0,
+          modifiedZScoreThreshold: 3.5,
+          iqrMultiplier: 1.5,
+        },
+        normalityThresholds: {
+          shapiroWilkMinSample: 3,
+          shapiroWilkMaxSample: 5000,
+          jarqueBeraThreshold: 0.1,
+          ksTestThreshold: 0.1,
+        },
       },
     });
   }
@@ -732,7 +746,10 @@ export class ConfigManager {
           field: 'qualityWeights',
           validator: (weights) => {
             if (typeof weights !== 'object') return false;
-            const sum = Object.values(weights as Record<string, number>).reduce((a: number, b: number) => a + b, 0);
+            const sum = Object.values(weights as Record<string, number>).reduce(
+              (a: number, b: number) => a + b,
+              0,
+            );
             return Math.abs(sum - 1.0) < 0.01;
           },
           message: 'qualityWeights must sum to 1.0',

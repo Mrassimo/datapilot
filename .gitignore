@@ -129,4 +129,7 @@ test-datasets/large/yellow_tripdata_2023-01.csv
 # Miscellaneous
 .grunt/
 .lock-wscript
-.node_repl_historybinaries/
+.node_repl_history
+
+# Compiled binaries
+binaries/

@@ -1076,7 +1076,7 @@ export class Section2Analyzer {
       countryColumns.forEach(({ header, index }) => {
         const violations = this.validateAgainstReferenceList(
           index,
-          externalRefs.countryCodesList!,
+          externalRefs.countryCodesList,
           'Country Code Standard',
         );
 
@@ -1106,7 +1106,7 @@ export class Section2Analyzer {
       currencyColumns.forEach(({ header, index }) => {
         const violations = this.validateAgainstReferenceList(
           index,
-          externalRefs.currencyCodesList!,
+          externalRefs.currencyCodesList,
           'Currency Code Standard',
         );
 
@@ -1131,7 +1131,7 @@ export class Section2Analyzer {
       productColumns.forEach(({ header, index }) => {
         const violations = this.validateAgainstReferenceList(
           index,
-          externalRefs.productMasterList!,
+          externalRefs.productMasterList,
           'Product Master List',
         );
 
@@ -1415,7 +1415,7 @@ export class Section2Analyzer {
           });
         } else {
           // Subsequent occurrence - check for conflicts
-          const entityInfo = entityValueMap.get(normalizedEntity)!;
+          const entityInfo = entityValueMap.get(normalizedEntity);
           entityInfo.totalOccurrences++;
 
           // Compare with first occurrence (O(m) where m is number of columns)

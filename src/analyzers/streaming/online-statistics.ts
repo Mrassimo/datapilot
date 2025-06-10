@@ -252,8 +252,24 @@ export class P2Quantile {
 
   getQuantile(): number {
     if (!this.initialized) {
-      // Fallback for small datasets
+      // Fallback for small datasets with proper median calculation
       const sorted = [...this.markers.slice(0, this.count)].sort((a, b) => a - b);
+
+      if (this.quantile === 0.5) {
+        // Special handling for median to ensure correct even-length calculation
+        if (sorted.length === 0) return 0;
+        if (sorted.length % 2 === 1) {
+          // Odd length: return middle element
+          return sorted[Math.floor(sorted.length / 2)];
+        } else {
+          // Even length: return average of two middle elements
+          const mid1 = sorted[sorted.length / 2 - 1];
+          const mid2 = sorted[sorted.length / 2];
+          return (mid1 + mid2) / 2;
+        }
+      }
+
+      // For other quantiles, use interpolation
       const index = this.quantile * (sorted.length - 1);
       const lower = Math.floor(index);
       const upper = Math.ceil(index);

@@ -42,13 +42,32 @@ export interface CLIOptions {
   focus?: string[];
   interpretability?: 'low' | 'medium' | 'high';
 
+  // Format options
+  format?: string;
+  encoding?: string;
+  delimiter?: string;
+  quote?: string;
+  hasHeader?: boolean;
+
+  // JSON-specific options
+  jsonPath?: string;
+  arrayMode?: 'records' | 'values';
+  flattenObjects?: boolean;
+
+  // Excel-specific options
+  sheetName?: string;
+  sheetIndex?: number;
+
+  // Parquet-specific options
+  columns?: string[];
+  rowStart?: number;
+  rowEnd?: number;
+
   // Behaviour options
   force?: boolean;
   dryRun?: boolean;
   showProgress?: boolean;
   command?: string;
-  encoding?: string;
-  delimiter?: string;
 
   // Index signature for additional properties
   [key: string]: unknown;
@@ -67,6 +86,11 @@ export interface CLIResult {
   success: boolean;
   exitCode: number;
   message?: string;
+  error?: string;
+  data?: any;
+  format?: string;
+  metadata?: any;
+  suggestions?: string[];
   outputFiles?: string[];
   stats?: {
     processingTime: number;

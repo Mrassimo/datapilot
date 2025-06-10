@@ -182,7 +182,7 @@ export class StreamingNumericalAnalyzer implements StreamingColumnAnalyzer {
       range: this.stats.getRange(),
       sum: Number(this.stats.getSum().toFixed(6)),
       mean: Number(this.stats.getMean().toFixed(6)),
-      median: Number(this.quantiles.get(50)!.getQuantile().toFixed(6)),
+      median: Number(this.quantiles.get(50).getQuantile().toFixed(6)),
       modes,
       standardDeviation: Number(this.stats.getStandardDeviation().toFixed(6)),
       variance: Number(this.stats.getVariance().toFixed(6)),
@@ -206,9 +206,9 @@ export class StreamingNumericalAnalyzer implements StreamingColumnAnalyzer {
       };
     }
 
-    const q1 = this.quantiles.get(25)!.getQuantile();
-    const q3 = this.quantiles.get(75)!.getQuantile();
-    const median = this.quantiles.get(50)!.getQuantile();
+    const q1 = this.quantiles.get(25).getQuantile();
+    const q3 = this.quantiles.get(75).getQuantile();
+    const median = this.quantiles.get(50).getQuantile();
 
     // Calculate MAD from reservoir sample
     const sample = this.reservoir.getSample();
@@ -219,14 +219,14 @@ export class StreamingNumericalAnalyzer implements StreamingColumnAnalyzer {
         : 0;
 
     return {
-      percentile1st: Number(this.quantiles.get(1)!.getQuantile().toFixed(6)),
-      percentile5th: Number(this.quantiles.get(5)!.getQuantile().toFixed(6)),
-      percentile10th: Number(this.quantiles.get(10)!.getQuantile().toFixed(6)),
+      percentile1st: Number(this.quantiles.get(1).getQuantile().toFixed(6)),
+      percentile5th: Number(this.quantiles.get(5).getQuantile().toFixed(6)),
+      percentile10th: Number(this.quantiles.get(10).getQuantile().toFixed(6)),
       quartile1st: Number(q1.toFixed(6)),
       quartile3rd: Number(q3.toFixed(6)),
-      percentile90th: Number(this.quantiles.get(90)!.getQuantile().toFixed(6)),
-      percentile95th: Number(this.quantiles.get(95)!.getQuantile().toFixed(6)),
-      percentile99th: Number(this.quantiles.get(99)!.getQuantile().toFixed(6)),
+      percentile90th: Number(this.quantiles.get(90).getQuantile().toFixed(6)),
+      percentile95th: Number(this.quantiles.get(95).getQuantile().toFixed(6)),
+      percentile99th: Number(this.quantiles.get(99).getQuantile().toFixed(6)),
       interquartileRange: Number((q3 - q1).toFixed(6)),
       medianAbsoluteDeviation: Number(mad.toFixed(6)),
     };
@@ -361,8 +361,8 @@ export class StreamingNumericalAnalyzer implements StreamingColumnAnalyzer {
       };
     }
 
-    const q1 = this.quantiles.get(25)!.getQuantile();
-    const q3 = this.quantiles.get(75)!.getQuantile();
+    const q1 = this.quantiles.get(25).getQuantile();
+    const q3 = this.quantiles.get(75).getQuantile();
     const iqr = q3 - q1;
 
     const lowerFence = q1 - 1.5 * iqr;
@@ -389,7 +389,7 @@ export class StreamingNumericalAnalyzer implements StreamingColumnAnalyzer {
       stdDev > 0 ? sample.filter((val) => Math.abs((val - mean) / stdDev) > 3) : [];
 
     // Modified Z-score (using MAD)
-    const median = this.quantiles.get(50)!.getQuantile();
+    const median = this.quantiles.get(50).getQuantile();
     const absoluteDeviations = sample.map((val) => Math.abs(val - median));
     const mad =
       absoluteDeviations.sort((a, b) => a - b)[Math.floor(absoluteDeviations.length / 2)] || 0;

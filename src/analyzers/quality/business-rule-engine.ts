@@ -1131,7 +1131,7 @@ export class BusinessRuleEngine {
       if (!violationsByRule.has(violation.ruleId)) {
         violationsByRule.set(violation.ruleId, []);
       }
-      violationsByRule.get(violation.ruleId)!.push(violation);
+      violationsByRule.get(violation.ruleId).push(violation);
     }
 
     const crossFieldValidations: CrossFieldValidation[] = [];

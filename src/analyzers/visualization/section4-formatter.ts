@@ -144,7 +144,9 @@ ${recommendationsText}${warningsText}`;
     // Format library recommendations
     const libraryText = (rec.libraryRecommendations || [])
       .slice(0, 2)
-      .map((lib) => `**${lib.name}** (${lib.complexity}): ${(lib.pros || []).slice(0, 2).join(', ')}`)
+      .map(
+        (lib) => `**${lib.name}** (${lib.complexity}): ${(lib.pros || []).slice(0, 2).join(', ')}`,
+      )
       .join(' | ');
 
     // Format accessibility features
@@ -188,9 +190,7 @@ ${encodingDetails}
 
     if (encoding.color && encoding.color.scheme) {
       const wcagLevel = encoding.color.accessibility?.wcagLevel || 'AA';
-      details.push(
-        `* **Color:** ${encoding.color.scheme.type} palette (${wcagLevel} compliant)`,
-      );
+      details.push(`* **Color:** ${encoding.color.scheme.type} palette (${wcagLevel} compliant)`);
     }
 
     if (encoding.layout) {

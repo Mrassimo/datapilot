@@ -45,7 +45,7 @@ export class ArgumentParser {
 
       this.program.parse(argv);
 
-      // Get the parsed command and options  
+      // Get the parsed command and options
       const lastContext = this.getLastContext();
       if (lastContext) {
         return {
