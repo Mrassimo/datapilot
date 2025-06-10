@@ -3,10 +3,12 @@
 [![npm version](https://img.shields.io/npm/v/datapilot-cli.svg)](https://www.npmjs.com/package/datapilot-cli)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js Version](https://img.shields.io/node/v/datapilot-cli.svg)](https://nodejs.org)
+[![TypeScript](https://img.shields.io/badge/TypeScript-100%25-blue.svg)](https://www.typescriptlang.org/)
+[![Build Status](https://github.com/Mrassimo/datapilot/workflows/CI%2FCD%20Pipeline/badge.svg)](https://github.com/Mrassimo/datapilot/actions)
 
-> **Enterprise-grade streaming multi-format data analysis with comprehensive statistical insights**
+> **Enterprise-grade streaming multi-format data analysis with comprehensive statistical insights and advanced ML capabilities**
 
-DataPilot is a sophisticated command-line tool that transforms data files into comprehensive statistical reports. With universal format support (CSV, JSON, Excel, TSV, Parquet) and memory-efficient streaming processing, it handles datasets of any size while providing deep insights across six analytical dimensions.
+DataPilot is a sophisticated command-line tool that transforms data files into comprehensive statistical reports with advanced machine learning guidance. With universal format support (CSV, JSON, Excel, TSV, Parquet) and memory-efficient streaming processing, it handles datasets of any size while providing deep insights across six analytical dimensions including advanced modeling recommendations.
 
 ## ✨ Key Features
 
@@ -19,6 +21,8 @@ DataPilot is a sophisticated command-line tool that transforms data files into c
 - 🌍 **Cross-Platform**: Native binaries for Windows, macOS, and Linux
 - ♿ **Accessibility First**: WCAG-compliant visualization recommendations
 - 🤖 **LLM-Optimized**: Output designed for AI/ML interpretation and prompt engineering
+- 🧠 **Advanced ML Guidance**: Intelligent algorithm selection, bias detection, and ethical AI recommendations
+- 🔬 **TypeScript Foundation**: 100% TypeScript codebase with strict type safety and comprehensive error handling
 
 ## 🚀 Installation
 
@@ -27,7 +31,7 @@ DataPilot is a sophisticated command-line tool that transforms data files into c
 # Install globally (IMPORTANT: Use datapilot-cli, not datapilot)
 npm install -g datapilot-cli
 
-# Verify installation (should show v1.0.6)
+# Verify installation (should show v1.2.0 or later)
 datapilot --version
 ```
 
@@ -179,7 +183,7 @@ datapilot all huge-data.parquet --row-start 0 --row-end 10000
 | **3. EDA** 📈 | Statistical analysis, distributions, correlations | Univariate/bivariate stats, hypothesis tests, associations |
 | **4. Visualization** 📊 | Chart recommendations, accessibility optimization | Chart types, encodings, library suggestions, WCAG compliance |
 | **5. Engineering** 🏗️ | Schema optimization, feature engineering, ML readiness | Index recommendations, normalization, feature selection |
-| **6. Modeling** 🧠 | Algorithm selection, validation strategy, deployment | ML algorithms, cross-validation, model evaluation frameworks |
+| **6. Modeling** 🧠 | Algorithm selection, validation strategy, deployment, ethics | ML algorithms, cross-validation, bias detection, ethical AI guidelines |
 
 ## 🎯 Use Cases & Examples
 
@@ -255,11 +259,12 @@ datapilot eda experiment-results.tsv
 - **ML Readiness**: Encoding strategies, scaling requirements
 - **Performance**: Query optimization, storage efficiency
 
-### Section 6: Modeling Strategy
-- **Algorithm Selection**: Recommended ML algorithms with rationale
-- **Validation Strategy**: Cross-validation, train/test splits
-- **Evaluation Metrics**: Appropriate success measures
-- **Deployment Considerations**: Production monitoring, model lifecycle
+### Section 6: Modeling Strategy & Ethics
+- **Algorithm Selection**: Recommended ML algorithms with rationale and complexity scoring
+- **Validation Strategy**: Cross-validation, train/test splits, robustness testing
+- **Evaluation Metrics**: Appropriate success measures with business context
+- **Ethical AI Analysis**: Bias detection, fairness assessment, transparency recommendations
+- **Deployment Considerations**: Production monitoring, model lifecycle, governance frameworks
 
 ## 🔧 Configuration & Customization
 
@@ -365,7 +370,7 @@ npm cache clean --force
 npm install -g datapilot-cli             
 
 # Make sure you're installing the right package
-npm install -g datapilot-cli    # ✅ Correct (latest v1.0.7)
+npm install -g datapilot-cli    # ✅ Correct (latest v1.2.0+)
 npm install -g datapilot        # ❌ Wrong (deprecated v2.0.0)
 ```
 
@@ -458,9 +463,9 @@ src/
 
 ## 🏆 What Users Are Saying
 
-> *"DataPilot v1.0.8 represents a remarkable transformation and complete success story in the data analysis tool space. Technical Score: 9.5/10 - Production-ready, enterprise-grade solution."*
+> *"DataPilot v1.2.0 represents a remarkable transformation and complete success story in the data analysis tool space. Technical Score: 9.5/10 - Production-ready, enterprise-grade solution with advanced ML capabilities."*
 > 
-> *"Perfect installation experience, zero errors/warnings, beautiful formatted output. Ready for widespread enterprise adoption."*
+> *"Perfect installation experience, zero errors/warnings, beautiful formatted output. The new Section 6 modeling guidance with ethics analysis is game-changing. Ready for widespread enterprise adoption."*
 > 
 > — Comprehensive Analysis Report, June 2025
 

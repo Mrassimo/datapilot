@@ -1,30 +1,196 @@
 # Programmatic API Usage
 
-DataPilot can be used programmatically in Node.js applications.
+DataPilot can be used programmatically in Node.js applications, providing access to all six analysis sections including the new advanced modeling capabilities.
 
 ## Installation
 
 ```bash
-npm install @datapilot/cli
+npm install datapilot-cli
 ```
 
 ## Basic Usage
 
 ```javascript
-const { analyze } = require('@datapilot/cli/api');
+const { analyze } = require('datapilot-cli/api');
 
-// Analyze a CSV file
+// Analyze a CSV file with all sections
 async function analyzeData() {
   try {
     const results = await analyze('data.csv', {
-      sections: [1, 2, 3],
+      sections: [1, 2, 3, 4, 5, 6], // All sections including new modeling
       format: 'json'
     });
     
     console.log('Quality Score:', results.quality.compositeScore);
     console.log('Row Count:', results.overview.structuralDimensions.rowCount);
+    
+    // New Section 6 modeling results
+    if (results.modeling) {
+      console.log('Recommended Algorithms:', results.modeling.algorithmSelection.selectedAlgorithms);
+      console.log('Ethics Risk Level:', results.modeling.ethicsAnalysis.overallRiskLevel);
+    }
   } catch (error) {
     console.error('Analysis failed:', error);
+  }
+}
+```
+
+## Section 6: Advanced Modeling API
+
+The new Section 6 provides comprehensive ML guidance through programmatic access:
+
+```javascript
+// Access modeling recommendations
+const modelingResults = results.modeling;
+
+// Algorithm recommendations
+const algorithms = modelingResults.algorithmSelection.selectedAlgorithms;
+console.log('Top Algorithm:', algorithms[0].algorithm);
+console.log('Confidence Score:', algorithms[0].confidence);
+console.log('Rationale:', algorithms[0].rationale);
+
+// Ethics and bias analysis
+const ethics = modelingResults.ethicsAnalysis;
+console.log('Bias Risk Level:', ethics.biasRisk.overallRiskLevel);
+console.log('Sensitive Attributes:', ethics.biasRisk.sensitiveAttributes);
+console.log('Mitigation Strategies:', ethics.mitigationStrategies);
+
+// Advanced characterization
+const advanced = modelingResults.advancedCharacterization;
+console.log('Complexity Score:', advanced.overallComplexityScore);
+console.log('Intrinsic Dimensionality:', advanced.intrinsicDimensionality);
+console.log('Modeling Challenges:', advanced.modelingChallenges);
+
+// Workflow guidance
+const workflow = modelingResults.workflowGuidance;
+workflow.steps.forEach((step, index) => {
+  console.log(`Step ${index + 1}: ${step.title}`);
+  console.log(`Description: ${step.description}`);
+  console.log(`Estimated Time: ${step.estimatedTime}`);
+});
+```
+
+## TypeScript Support
+
+DataPilot v1.2.0 includes comprehensive TypeScript definitions:
+
+```typescript
+import { analyze, AnalysisResults, ModelingResults } from 'datapilot-cli/api';
+
+interface AnalysisOptions {
+  sections: number[];
+  format: 'json' | 'markdown' | 'yaml';
+  outputFile?: string;
+  verbose?: boolean;
+}
+
+async function analyzeWithTypes(filePath: string): Promise<AnalysisResults> {
+  const results = await analyze(filePath, {
+    sections: [1, 2, 3, 4, 5, 6],
+    format: 'json'
+  });
+  
+  // Type-safe access to modeling results
+  const modeling: ModelingResults = results.modeling;
+  
+  return results;
+}
+```
+
+## Individual Section Analysis
+
+Access specific analysis sections independently:
+
+```javascript
+const { analyzers } = require('datapilot-cli/api');
+
+// Section 6: Modeling analysis only
+async function getModelingGuidance(filePath) {
+  // First need prerequisites (sections 1-3)
+  const overview = await analyzers.section1.analyze(filePath);
+  const quality = await analyzers.section2.analyze(filePath, { section1Results: overview });
+  const eda = await analyzers.section3.analyze(filePath, { section1Results: overview });
+  
+  // Now run Section 6 modeling
+  const modeling = await analyzers.section6.analyze(filePath, {
+    section1Results: overview,
+    section2Results: quality,
+    section3Results: eda
+  });
+  
+  return {
+    algorithms: modeling.algorithmSelection,
+    ethics: modeling.ethicsAnalysis,
+    workflow: modeling.workflowGuidance
+  };
+}
+```
+
+## Configuration API
+
+Programmatically configure analysis parameters:
+
+```javascript
+const { ConfigManager } = require('datapilot-cli/core');
+
+// Create custom configuration
+const config = ConfigManager.getInstance({
+  modeling: {
+    maxFeaturesAutoSelection: 50,
+    algorithmScoringWeights: {
+      performance: 0.5,
+      interpretability: 0.3,
+      scalability: 0.2
+    },
+    crossValidation: {
+      defaultFolds: 10,
+      minSampleSize: 100
+    }
+  },
+  statistical: {
+    significanceLevel: 0.01,
+    confidenceLevel: 0.99
+  }
+});
+
+// Use custom config in analysis
+const results = await analyze('data.csv', {
+  sections: [6],
+  config: config.getConfig()
+});
+```
+
+## Error Handling
+
+Comprehensive error handling for modeling analysis:
+
+```javascript
+const { DataPilotError, ErrorSeverity } = require('datapilot-cli/core');
+
+async function robustAnalysis(filePath) {
+  try {
+    const results = await analyze(filePath, { sections: [1, 2, 3, 4, 5, 6] });
+    return results;
+  } catch (error) {
+    if (error instanceof DataPilotError) {
+      switch (error.severity) {
+        case ErrorSeverity.CRITICAL:
+          console.error('Critical error - analysis cannot continue:', error.message);
+          throw error;
+        case ErrorSeverity.HIGH:
+          console.warn('High severity error:', error.message);
+          // Continue with partial analysis
+          return await analyze(filePath, { sections: [1, 2, 3] });
+        case ErrorSeverity.MEDIUM:
+          console.warn('Medium severity warning:', error.message);
+          // Return results with warnings
+          return error.partialResults;
+        default:
+          console.log('Minor issue:', error.message);
+          return error.partialResults;
+      }
+    }
+    throw error;
   }
 }
 ```
