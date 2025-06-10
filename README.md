@@ -23,12 +23,14 @@ DataPilot is a sophisticated command-line tool that transforms CSV files into co
 
 ### Option 1: NPM Package (Recommended)
 ```bash
-# Install globally
+# Install globally (IMPORTANT: Use datapilot-cli, not datapilot)
 npm install -g datapilot-cli
 
-# Verify installation
+# Verify installation (should show v1.0.6)
 datapilot --version
 ```
+
+> ⚠️ **Important**: Install `datapilot-cli`, NOT `datapilot` (which is deprecated)
 
 ### Option 2: Pre-built Binaries
 Download platform-specific binaries from [GitHub Releases](https://github.com/Mrassimo/datapilot/releases):
@@ -242,11 +244,16 @@ ai-insights visualize --input analysis.json --charts recommended
 
 **Installation Problems**
 ```bash
-# If global install fails
-npm config get prefix  # Check npm global path
-npm install -g datapilot-cli --force
+# If you're getting an old version (like 1.0.2), try:
+npm uninstall -g datapilot datapilot-cli  # Remove any existing versions
+npm cache clean --force                   # Clear npm cache
+npm install -g datapilot-cli             # Fresh install
 
-# Alternative: Use npx
+# Make sure you're installing the right package
+npm install -g datapilot-cli    # ✅ Correct (latest v1.0.6)
+npm install -g datapilot        # ❌ Wrong (deprecated v2.0.0)
+
+# Alternative: Use npx (always gets latest)
 npx datapilot-cli --version
 ```
 
