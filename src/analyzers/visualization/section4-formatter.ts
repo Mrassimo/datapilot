@@ -142,20 +142,20 @@ ${recommendationsText}${warningsText}`;
     const encodingDetails = this.formatVisualEncoding(rec.encoding);
 
     // Format library recommendations
-    const libraryText = rec.libraryRecommendations
+    const libraryText = (rec.libraryRecommendations || [])
       .slice(0, 2)
-      .map((lib) => `**${lib.name}** (${lib.complexity}): ${lib.pros.slice(0, 2).join(', ')}`)
+      .map((lib) => `**${lib.name}** (${lib.complexity}): ${(lib.pros || []).slice(0, 2).join(', ')}`)
       .join(' | ');
 
     // Format accessibility features
     const accessibilityFeatures = [
-      rec.accessibility.colorBlindness.protanopia ||
-      rec.accessibility.colorBlindness.deuteranopia ||
-      rec.accessibility.colorBlindness.tritanopia
+      rec.accessibility?.colorBlindness?.protanopia ||
+      rec.accessibility?.colorBlindness?.deuteranopia ||
+      rec.accessibility?.colorBlindness?.tritanopia
         ? '🎨 Color-blind friendly'
         : '',
-      rec.accessibility.wcagCompliance === 'AA' ? '♿ WCAG AA compliant' : '',
-      rec.interactivity.keyboard.navigation ? '⌨️ Keyboard accessible' : '',
+      rec.accessibility?.wcagCompliance === 'AA' ? '♿ WCAG AA compliant' : '',
+      rec.interactivity?.keyboard?.navigation ? '⌨️ Keyboard accessible' : '',
     ]
       .filter(Boolean)
       .join(' | ');
@@ -169,8 +169,8 @@ ${encodingDetails}
 
 **Accessibility & Performance:**
 * **Features:** ${accessibilityFeatures || 'Standard accessibility features'}
-* **Interactivity:** ${rec.interactivity.level} (${rec.interactivity.interactions.join(', ')})
-* **Performance:** ${rec.performance.renderingStrategy} rendering, ${rec.performance.dataSize} dataset optimization
+* **Interactivity:** ${rec.interactivity?.level || 'basic'} (${(rec.interactivity?.interactions || []).join(', ')})
+* **Performance:** ${rec.performance?.renderingStrategy || 'standard'} rendering, ${rec.performance?.dataSize || 'medium'} dataset optimization
 
 **Recommended Libraries:** ${libraryText || 'Standard visualization libraries'}`;
   }
@@ -186,9 +186,10 @@ ${encodingDetails}
       details.push(`* **Y-Axis:** ${encoding.yAxis.variable} (${encoding.yAxis.scale} scale)`);
     }
 
-    if (encoding.color) {
+    if (encoding.color && encoding.color.scheme) {
+      const wcagLevel = encoding.color.accessibility?.wcagLevel || 'AA';
       details.push(
-        `* **Color:** ${encoding.color.scheme.type} palette (${encoding.color.accessibility.wcagLevel} compliant)`,
+        `* **Color:** ${encoding.color.scheme.type} palette (${wcagLevel} compliant)`,
       );
     }
 
@@ -261,8 +262,8 @@ ${recommendationsText}`;
 
     for (const rec of recommendations) {
       const complexityBadge = this.getComplexityBadge(rec.complexity);
-      const variablesList = rec.variables.map((v) => `\`${v}\``).join(', ');
-      const alternativesList = rec.alternatives
+      const variablesList = (rec.variables || []).map((v) => `\`${v}\``).join(', ');
+      const alternativesList = (rec.alternatives || [])
         .map((alt) => this.getChartTypeDisplayName(alt))
         .join(', ');
 
