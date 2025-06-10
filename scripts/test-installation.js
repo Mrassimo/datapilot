@@ -64,7 +64,7 @@ console.log(`✅ Created: ${testFile}`);
 // Test analysis
 console.log('\n🔬 Running test analysis...');
 try {
-  execSync(`datapilot analyze "${testFile}" --sections 1 --quiet`, { stdio: 'inherit' });
+  execSync(`datapilot overview "${testFile}" --quiet`, { stdio: 'inherit' });
   console.log('✅ Analysis completed successfully!');
 } catch (error) {
   console.log('❌ Analysis failed');
