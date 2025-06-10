@@ -32,12 +32,15 @@
     "src/analyzers/eda/**/*",
     "src/analyzers/streaming/**/*",
     "src/analyzers/statistical-tests/**/*",
+    "src/analyzers/modeling/**/*",
+    "src/analyzers/visualization/**/*",
+    "src/analyzers/engineering/**/*",
+    "src/analyzers/multivariate/**/*",
     "src/cli/**/*",
-    "src/core/types.ts",
-    "src/core/confidence-standards.ts",
-    "src/utils/logger.ts",
-    "src/utils/error-handler.ts",
-    "src/utils/retry.ts"
+    "src/core/**/*",
+    "src/utils/**/*",
+    "src/security/**/*",
+    "src/monitoring/**/*"
   ],
   "exclude": [
     "node_modules", 

@@ -418,7 +418,11 @@ export class StreamingAnalyzer {
   /**
    * Format bytes for human readable display
    */
-  private formatBytes(bytes: number): string {
+  private formatBytes(bytes: number | undefined): string {
+    if (bytes === undefined || bytes === null || isNaN(bytes)) {
+      return '0B';
+    }
+    
     const units = ['B', 'KB', 'MB', 'GB'];
     let size = bytes;
     let unitIndex = 0;

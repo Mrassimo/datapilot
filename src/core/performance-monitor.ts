@@ -317,7 +317,8 @@ export class PerformanceMonitor {
     const chunkSize = this.adaptiveThresholds.get('chunkSize');
     const memoryThreshold = this.adaptiveThresholds.get('memoryThresholdMB');
     if (chunkSize || memoryThreshold) {
-      adaptiveUpdates.performance = {};
+      const baseConfig = configManager.getConfig();
+      adaptiveUpdates.performance = { ...baseConfig.performance };
       if (chunkSize) {
         adaptiveUpdates.performance.chunkSize = chunkSize.currentValue;
       }
@@ -325,7 +326,9 @@ export class PerformanceMonitor {
 
     // Apply streaming adaptations
     if (memoryThreshold) {
+      const baseConfig = configManager.getConfig();
       adaptiveUpdates.streaming = {
+        ...baseConfig.streaming,
         memoryThresholdMB: memoryThreshold.currentValue,
       };
     }
@@ -334,7 +337,8 @@ export class PerformanceMonitor {
     const maxCorrelationPairs = this.adaptiveThresholds.get('maxCorrelationPairs');
     const samplingThreshold = this.adaptiveThresholds.get('samplingThreshold');
     if (maxCorrelationPairs || samplingThreshold) {
-      adaptiveUpdates.analysis = {};
+      const baseConfig = configManager.getConfig();
+      adaptiveUpdates.analysis = { ...baseConfig.analysis };
       if (maxCorrelationPairs) {
         adaptiveUpdates.analysis.maxCorrelationPairs = maxCorrelationPairs.currentValue;
       }
@@ -346,7 +350,9 @@ export class PerformanceMonitor {
     // Apply statistical adaptations
     const significanceLevel = this.adaptiveThresholds.get('significanceLevel');
     if (significanceLevel) {
+      const baseConfig = configManager.getConfig();
       adaptiveUpdates.statistical = {
+        ...baseConfig.statistical,
         significanceLevel: significanceLevel.currentValue,
       };
     }
@@ -490,8 +496,8 @@ export function monitorPerformance(
       const result = method.apply(this, args) as unknown;
 
       // Handle async methods
-      if (result && typeof result.then === 'function') {
-        return result.catch((error: Error) => {
+      if (result && typeof result === 'object' && 'then' in result && typeof (result as any).then === 'function') {
+        return (result as Promise<unknown>).catch((error: Error) => {
           monitor.recordOperation('error');
           throw error;
         });
@@ -534,25 +540,60 @@ export class ResourceDetector {
       recommendedConfig = {
         performance: {
           maxRows: 50000,
-          chunkSize: 8 * 1024,
-          batchSize: 100,
-          maxCollectedRowsMultivariate: 500,
+          maxFieldSize: 512 * 1024,
           memoryThresholdBytes: 256 * 1024 * 1024, // 256MB
+          chunkSize: 8 * 1024,
+          sampleSize: 512 * 1024,
+          adaptiveChunkSizing: true,
+          maxCollectedRowsMultivariate: 500,
+          batchSize: 100,
+          performanceMonitoringInterval: 10,
+          memoryCleanupInterval: 20,
+          emergencyMemoryThresholdMultiplier: 1.5,
         },
         streaming: {
           memoryThresholdMB: 50,
           maxRowsAnalyzed: 50000,
+          adaptiveChunkSizing: {
+            enabled: true,
+            minChunkSize: 50,
+            maxChunkSize: 1000,
+            reductionFactor: 0.5,
+            expansionFactor: 1.1,
+            targetMemoryUtilization: 0.7,
+          },
+          memoryManagement: {
+            cleanupInterval: 10,
+            emergencyThresholdMultiplier: 1.2,
+            forceGarbageCollection: true,
+            gcFrequency: 500,
+            memoryLeakDetection: true,
+            autoGarbageCollect: true,
+          },
         },
         analysis: {
+          maxCategoricalLevels: 20,
           maxCorrelationPairs: 20,
           samplingThreshold: 5000,
+          outlierMethods: ['iqr'],
+          normalityTests: ['shapiro'],
+          enableMultivariate: false,
+          enabledAnalyses: ['univariate'],
+          highCardinalityThreshold: 80,
+          missingValueQualityThreshold: 20,
+          multivariateThreshold: 500,
+          maxDimensionsForPCA: 3,
+          clusteringMethods: ['kmeans'],
         },
       };
     }
     // Medium memory system (1-4GB available)
     else if (availableMemoryMB < 4096) {
+      const configManager = getConfig();
+      const baseConfig = configManager.getConfig();
       recommendedConfig = {
         performance: {
+          ...baseConfig.performance,
           maxRows: 200000,
           chunkSize: 32 * 1024,
           batchSize: 500,
@@ -560,10 +601,12 @@ export class ResourceDetector {
           memoryThresholdBytes: 512 * 1024 * 1024, // 512MB
         },
         streaming: {
+          ...baseConfig.streaming,
           memoryThresholdMB: 100,
           maxRowsAnalyzed: 200000,
         },
         analysis: {
+          ...baseConfig.analysis,
           maxCorrelationPairs: 50,
           samplingThreshold: 10000,
         },
@@ -571,8 +614,11 @@ export class ResourceDetector {
     }
     // High memory system (4GB+ available)
     else {
+      const configManager = getConfig();
+      const baseConfig = configManager.getConfig();
       recommendedConfig = {
         performance: {
+          ...baseConfig.performance,
           maxRows: 1000000,
           chunkSize: 64 * 1024,
           batchSize: 1000,
@@ -580,10 +626,12 @@ export class ResourceDetector {
           memoryThresholdBytes: 1024 * 1024 * 1024, // 1GB
         },
         streaming: {
+          ...baseConfig.streaming,
           memoryThresholdMB: 200,
           maxRowsAnalyzed: 1000000,
         },
         analysis: {
+          ...baseConfig.analysis,
           maxCorrelationPairs: 100,
           samplingThreshold: 20000,
         },

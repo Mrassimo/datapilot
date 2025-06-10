@@ -5,66 +5,229 @@ on:
     branches: [ main, develop ]
   pull_request:
     branches: [ main ]
+  release:
+    types: [ published ]
+
+env:
+  NODE_VERSION: '18'
 
 jobs:
   test:
+    name: Test & Lint
     runs-on: ubuntu-latest
-    
     strategy:
       matrix:
-        node-version: [18.x, 20.x]
+        node-version: [18, 20]
     
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Use Node.js ${{ matrix.node-version }}
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js ${{ matrix.node-version }}
       uses: actions/setup-node@v4
       with:
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
-    
+        
     - name: Install dependencies
       run: npm ci
-    
-    - name: Run TypeScript checks
-      run: npm run typecheck
-    
+      
     - name: Run linting
       run: npm run lint
-    
-    - name: Run tests
-      run: npm test
-    
-    - name: Build
-      run: npm run build
-    
-    - name: Test CLI functionality
-      run: |
-        node dist/cli/index.js --version
-        node dist/cli/index.js info examples/sample.csv
+      
+    - name: Run type checking
+      run: npm run typecheck
+      
+    - name: Run tests with coverage
+      run: npm run test:coverage
+      
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        files: ./coverage/lcov.info
+        fail_ci_if_error: false
 
-  publish:
-    needs: test
+  build:
+    name: Build & Test Installation
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    needs: test
     
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Use Node.js
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '20.x'
-        registry-url: 'https://registry.npmjs.org'
+        node-version: ${{ env.NODE_VERSION }}
         cache: 'npm'
-    
+        
     - name: Install dependencies
       run: npm ci
-    
-    - name: Build
+      
+    - name: Build project
       run: npm run build
+      
+    - name: Test installation
+      run: npm run test:installation
+      
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: dist
+        path: dist/
+
+  e2e-test:
+    name: E2E Testing
+    runs-on: ubuntu-latest
+    needs: build
     
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Download build artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: dist
+        path: dist/
+        
+    - name: Make CLI executable
+      run: chmod +x dist/cli/index.js
+      
+    - name: Run E2E tests
+      run: npm test -- --testPathPattern="e2e|integration"
+      
+    - name: Test CLI with real datasets
+      run: |
+        node dist/cli/index.js examples/sample.csv --output test-output.md
+        [ -f test-output.md ] && echo "✅ CLI test passed" || exit 1
+
+  cross-platform:
+    name: Cross-Platform Testing
+    runs-on: ${{ matrix.os }}
+    needs: build
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Build project
+      run: npm run build
+      
+    - name: Test installation
+      run: npm run test:installation
+      
+    - name: Run core tests
+      run: npm test -- --testPathPattern="analyzers|parsers|cli"
+
+  security-scan:
+    name: Security Scanning
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Run security audit
+      run: npm audit --audit-level moderate
+      
+    - name: Run CodeQL Analysis
+      uses: github/codeql-action/init@v3
+      with:
+        languages: javascript
+        
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v3
+
+  publish:
+    name: Publish to NPM
+    runs-on: ubuntu-latest
+    needs: [test, build, e2e-test, cross-platform, security-scan]
+    if: github.event_name == 'release' && github.event.action == 'published'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        registry-url: 'https://registry.npmjs.org'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Build project
+      run: npm run build
+      
     - name: Publish to NPM
       run: npm publish
       env:
         NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  build-binaries:
+    name: Build Cross-Platform Binaries
+    runs-on: ubuntu-latest
+    needs: [test, build, e2e-test]
+    if: github.event_name == 'release' && github.event.action == 'published'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Build all platform binaries
+      run: npm run build:all-platforms
+      
+    - name: Upload binaries to release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          binaries/datapilot-win.exe
+          binaries/datapilot-macos
+          binaries/datapilot-linux
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

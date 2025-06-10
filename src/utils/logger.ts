@@ -18,6 +18,7 @@ export interface LogContext {
   filePath?: string;
   rowIndex?: number;
   operation?: string;
+  operationName?: string;
   timestamp?: Date;
   memoryUsage?: number;
   errorCode?: string;
@@ -29,6 +30,22 @@ export interface LogContext {
   finalMetrics?: any;
   cacheSize?: number;
   completedSections?: number;
+  // Additional properties for graceful degradation
+  context?: any;
+  level?: any;
+  parameters?: Record<string, any>;
+  // Additional properties for health checker
+  expiredHandles?: number;
+  // Additional properties for security
+  environment?: string;
+  warnings?: any[];
+  features?: any[];
+  userId?: string;
+  updatedKeys?: string[];
+  // Additional properties for file access controller
+  handleId?: string;
+  // Make it extensible for other use cases
+  [key: string]: any;
 }
 
 export interface LogEntry {

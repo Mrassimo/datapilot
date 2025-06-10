@@ -188,11 +188,37 @@ export function exampleCustomConfiguration() {
         outlierDetection: 0.001,
       },
       confidenceLevel: 0.999,
+      correlationThresholds: {
+        weak: 0.3,
+        moderate: 0.5,
+        strong: 0.7,
+        veryStrong: 0.9,
+      },
+      outlierThresholds: {
+        zScoreThreshold: 3.0,
+        modifiedZScoreThreshold: 3.5,
+        iqrMultiplier: 1.5,
+      },
+      normalityThresholds: {
+        shapiroWilkMinSample: 3,
+        shapiroWilkMaxSample: 5000,
+        jarqueBeraThreshold: 0.001,
+        ksTestThreshold: 0.001,
+      },
     },
     analysis: {
+      maxCategoricalLevels: 50,
       maxCorrelationPairs: 200, // More comprehensive analysis
+      samplingThreshold: 10000,
       outlierMethods: ['iqr', 'zscore', 'modified_zscore'],
       normalityTests: ['shapiro', 'jarque_bera', 'ks_test'],
+      enableMultivariate: true,
+      enabledAnalyses: ['univariate', 'bivariate', 'correlations'],
+      highCardinalityThreshold: 80,
+      missingValueQualityThreshold: 20,
+      multivariateThreshold: 1000,
+      maxDimensionsForPCA: 10,
+      clusteringMethods: ['kmeans', 'hierarchical'],
     },
   };
 
@@ -203,17 +229,50 @@ export function exampleCustomConfiguration() {
   const memoryConstrainedConfig: Partial<DataPilotConfig> = {
     performance: {
       maxRows: 50000,
+      maxFieldSize: 1024 * 1024,
+      memoryThresholdBytes: 128 * 1024 * 1024,
       chunkSize: 8 * 1024,
+      sampleSize: 1024 * 1024,
+      adaptiveChunkSizing: true,
+      maxCollectedRowsMultivariate: 100,
       batchSize: 100,
+      performanceMonitoringInterval: 10,
+      memoryCleanupInterval: 20,
+      emergencyMemoryThresholdMultiplier: 1.5,
     },
     streaming: {
       memoryThresholdMB: 50,
       maxRowsAnalyzed: 50000,
+      adaptiveChunkSizing: {
+        enabled: true,
+        minChunkSize: 50,
+        maxChunkSize: 2000,
+        reductionFactor: 0.6,
+        expansionFactor: 1.1,
+        targetMemoryUtilization: 0.8,
+      },
+      memoryManagement: {
+        cleanupInterval: 20,
+        emergencyThresholdMultiplier: 1.5,
+        forceGarbageCollection: true,
+        gcFrequency: 1000,
+        memoryLeakDetection: false,
+        autoGarbageCollect: false,
+      },
     },
     analysis: {
+      maxCategoricalLevels: 20,
       maxCorrelationPairs: 20,
       samplingThreshold: 2000,
+      outlierMethods: ['iqr'],
+      normalityTests: ['shapiro'],
       enableMultivariate: false, // Disable memory-intensive analysis
+      enabledAnalyses: ['univariate'],
+      highCardinalityThreshold: 80,
+      missingValueQualityThreshold: 20,
+      multivariateThreshold: 500,
+      maxDimensionsForPCA: 3,
+      clusteringMethods: ['kmeans'],
     },
   };
 

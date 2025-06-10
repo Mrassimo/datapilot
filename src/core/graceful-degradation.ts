@@ -4,7 +4,8 @@
  */
 
 import { logger } from '../utils/logger';
-import { DataPilotError, ErrorSeverity, ErrorCategory } from '../utils/error-handler';
+import type { DataPilotError, ErrorCategory } from '../utils/error-handler';
+import { ErrorSeverity } from '../utils/error-handler';
 
 export enum DegradationLevel {
   NONE = 0,
@@ -41,7 +42,12 @@ export interface DegradationTrigger {
 }
 
 export interface DegradationAction {
-  type: 'disable_feature' | 'reduce_scope' | 'simplify_algorithm' | 'skip_optional' | 'use_sampling';
+  type:
+    | 'disable_feature'
+    | 'reduce_scope'
+    | 'simplify_algorithm'
+    | 'skip_optional'
+    | 'use_sampling';
   target: string;
   parameters?: Record<string, any>;
   impact: string;
@@ -98,7 +104,8 @@ export class GracefulDegradationEngine {
     }
 
     // Check processing time
-    if (context.processingTimeMs > 300000) { // 5 minutes
+    if (context.processingTimeMs > 300000) {
+      // 5 minutes
       return DegradationLevel.MODERATE;
     }
 
@@ -126,7 +133,7 @@ export class GracefulDegradationEngine {
    */
   applyDegradation<T>(
     context: DegradationContext,
-    analysisFunction: () => Promise<T>
+    analysisFunction: () => Promise<T>,
   ): Promise<PartialAnalysisResult<T>> {
     return this.executeWithDegradation(context, analysisFunction);
   }
@@ -136,7 +143,7 @@ export class GracefulDegradationEngine {
    */
   private async executeWithDegradation<T>(
     context: DegradationContext,
-    analysisFunction: () => Promise<T>
+    analysisFunction: () => Promise<T>,
   ): Promise<PartialAnalysisResult<T>> {
     const targetLevel = this.assessDegradationNeeds(context);
     this.currentLevel = targetLevel;
@@ -164,7 +171,7 @@ export class GracefulDegradationEngine {
       };
     } catch (error) {
       logger.error('Analysis failed with degradation', { error, level: this.currentLevel });
-      
+
       return this.handleCompleteFailure(error as Error, context);
     }
   }
@@ -174,7 +181,7 @@ export class GracefulDegradationEngine {
    */
   private async attemptAnalysisWithFallbacks<T>(
     analysisFunction: () => Promise<T>,
-    context: DegradationContext
+    context: DegradationContext,
   ): Promise<Partial<T>> {
     const maxAttempts = 3;
     let currentAttempt = 0;
@@ -183,15 +190,15 @@ export class GracefulDegradationEngine {
     while (currentAttempt < maxAttempts) {
       try {
         logger.debug(`Analysis attempt ${currentAttempt + 1}/${maxAttempts}`);
-        
+
         const result = await analysisFunction();
         logger.info(`Analysis succeeded on attempt ${currentAttempt + 1}`);
-        
+
         return result;
       } catch (error) {
         lastError = error as Error;
         currentAttempt++;
-        
+
         logger.warn(`Analysis attempt ${currentAttempt} failed`, { error });
 
         if (currentAttempt < maxAttempts) {
@@ -210,7 +217,7 @@ export class GracefulDegradationEngine {
    */
   private applyPreAnalysisStrategies(level: DegradationLevel, context: DegradationContext): void {
     const strategies = this.getStrategiesForLevel(level);
-    
+
     for (const strategy of strategies) {
       if (this.shouldApplyStrategy(strategy, context)) {
         this.applyStrategy(strategy);
@@ -229,7 +236,10 @@ export class GracefulDegradationEngine {
       return false;
     }
 
-    if (trigger.processingTimeThresholdMs && context.processingTimeMs < trigger.processingTimeThresholdMs) {
+    if (
+      trigger.processingTimeThresholdMs &&
+      context.processingTimeMs < trigger.processingTimeThresholdMs
+    ) {
       return false;
     }
 
@@ -287,7 +297,7 @@ export class GracefulDegradationEngine {
     if (this.currentLevel < DegradationLevel.EMERGENCY) {
       this.currentLevel++;
       logger.info(`Escalating degradation to level: ${DegradationLevel[this.currentLevel]}`);
-      
+
       this.applyPreAnalysisStrategies(this.currentLevel, context);
     }
   }
@@ -295,8 +305,11 @@ export class GracefulDegradationEngine {
   /**
    * Handle complete analysis failure
    */
-  private handleCompleteFailure<T>(error: Error, context: DegradationContext): PartialAnalysisResult<T> {
-    logger.error('Complete analysis failure', { error });
+  private handleCompleteFailure<T>(
+    error: Error,
+    context: DegradationContext,
+  ): PartialAnalysisResult<T> {
+    logger.error('Complete analysis failure', { error: error.message });
 
     return {
       result: {} as Partial<T>,
@@ -442,7 +455,7 @@ export class GracefulDegradationEngine {
   }
 
   private getStrategiesForLevel(level: DegradationLevel): DegradationStrategy[] {
-    return Array.from(this.strategies.values()).filter(s => s.level <= level);
+    return Array.from(this.strategies.values()).filter((s) => s.level <= level);
   }
 
   private getCompletedSections<T>(result: Partial<T>): string[] {
@@ -465,7 +478,7 @@ export class GracefulDegradationEngine {
       return 'Analysis completed successfully with full features.';
     }
 
-    const messages = this.appliedStrategies.map(s => s.userMessage);
+    const messages = this.appliedStrategies.map((s) => s.userMessage);
     return `Analysis completed with adaptations: ${messages.join('; ')}.`;
   }
 
@@ -497,7 +510,10 @@ export class GracefulDegradationEngine {
     return options;
   }
 
-  private generateEmergencyRecoveryOptions(error: Error, context: DegradationContext): RecoveryOption[] {
+  private generateEmergencyRecoveryOptions(
+    error: Error,
+    context: DegradationContext,
+  ): RecoveryOption[] {
     return [
       {
         description: 'Try with a smaller data sample',

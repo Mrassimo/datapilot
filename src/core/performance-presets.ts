@@ -4,6 +4,7 @@
  */
 
 import type { DataPilotConfig } from './config';
+import { DEFAULT_CONFIG } from './config';
 
 export interface PerformancePreset {
   name: string;
@@ -27,35 +28,39 @@ export const LARGE_FILE_PRESET: PerformancePreset = {
   expectedPerformance: '500K-1M rows/minute',
   config: {
     performance: {
+      ...DEFAULT_CONFIG.performance,
       maxRows: 10000000, // 10M rows
       chunkSize: 16 * 1024, // 16KB chunks for memory efficiency
       batchSize: 250, // Smaller batches
       memoryThresholdBytes: 256 * 1024 * 1024, // 256MB conservative threshold
-      maxFileSize: 10 * 1024 * 1024 * 1024, // 10GB
-      timeoutMs: 1800000, // 30 minutes timeout
+      maxFieldSize: 10 * 1024 * 1024 * 1024, // 10GB
     },
     streaming: {
+      ...DEFAULT_CONFIG.streaming,
       memoryThresholdMB: 128, // Very conservative memory limit
       maxRowsAnalyzed: 10000000, // Process all rows
-      maxCollectedRowsMultivariate: 1000, // Minimal multivariate data collection
-      enableAdaptiveChunking: true,
       adaptiveChunkSizing: {
         enabled: true,
         minChunkSize: 4 * 1024, // 4KB minimum
         maxChunkSize: 32 * 1024, // 32KB maximum
         reductionFactor: 0.5, // Aggressive memory pressure response
-        memoryPressureThreshold: 0.7, // Trigger at 70% memory usage
+        expansionFactor: 1.1,
+        targetMemoryUtilization: 0.7, // Trigger at 70% memory usage
       },
     },
     analysis: {
       maxCategoricalLevels: 20, // Reduced categorical analysis
       maxCorrelationPairs: 10, // Limited correlations
       samplingThreshold: 50000, // Aggressive sampling
+      outlierMethods: ['iqr'],
+      normalityTests: ['shapiro'],
+      enableMultivariate: false, // Disable memory-intensive multivariate
+      enabledAnalyses: ['univariate'],
+      highCardinalityThreshold: 80,
+      missingValueQualityThreshold: 20,
       multivariateThreshold: 2000, // Reduce multivariate threshold
       maxDimensionsForPCA: 5, // Limited PCA dimensions
       clusteringMethods: ['kmeans'], // Simple clustering only
-      enableMultivariate: false, // Disable memory-intensive multivariate
-      enableAdvancedStatistics: false, // Disable advanced stats
     },
     output: {
       includeVisualizationRecommendations: false, // Disable viz recommendations
@@ -93,37 +98,39 @@ export const ULTRA_LARGE_FILE_PRESET: PerformancePreset = {
   expectedPerformance: '200-500K rows/minute',
   config: {
     performance: {
+      ...DEFAULT_CONFIG.performance,
       maxRows: 50000000, // 50M rows
       chunkSize: 8 * 1024, // 8KB chunks
       batchSize: 100, // Very small batches
       memoryThresholdBytes: 128 * 1024 * 1024, // 128MB ultra-conservative
-      maxFileSize: 100 * 1024 * 1024 * 1024, // 100GB
-      timeoutMs: 7200000, // 2 hours timeout
+      maxFieldSize: 100 * 1024 * 1024 * 1024, // 100GB
     },
     streaming: {
+      ...DEFAULT_CONFIG.streaming,
       memoryThresholdMB: 64, // Ultra-conservative memory limit
       maxRowsAnalyzed: 50000000, // Process all rows
-      maxCollectedRowsMultivariate: 0, // No multivariate data collection
-      enableAdaptiveChunking: true,
       adaptiveChunkSizing: {
         enabled: true,
         minChunkSize: 2 * 1024, // 2KB minimum
         maxChunkSize: 16 * 1024, // 16KB maximum
         reductionFactor: 0.3, // Very aggressive reduction
-        memoryPressureThreshold: 0.6, // Trigger at 60% memory usage
+        expansionFactor: 1.1,
+        targetMemoryUtilization: 0.6, // Trigger at 60% memory usage
       },
     },
     analysis: {
       maxCategoricalLevels: 10, // Minimal categorical analysis
       maxCorrelationPairs: 0, // No correlations
       samplingThreshold: 10000, // Heavy sampling
+      outlierMethods: ['iqr'],
+      normalityTests: ['shapiro'],
+      enableMultivariate: false,
+      enabledAnalyses: ['univariate'],
+      highCardinalityThreshold: 80,
+      missingValueQualityThreshold: 20,
       multivariateThreshold: 0, // No multivariate
       maxDimensionsForPCA: 0, // No PCA
       clusteringMethods: [], // No clustering
-      enableMultivariate: false,
-      enableAdvancedStatistics: false,
-      enableSampling: true, // Force sampling for all analyses
-      sampleSize: 10000, // Fixed 10K sample
     },
     output: {
       includeVisualizationRecommendations: false,
@@ -161,21 +168,20 @@ export const SPEED_OPTIMIZED_PRESET: PerformancePreset = {
   expectedPerformance: '1-2M rows/minute',
   config: {
     performance: {
+      ...DEFAULT_CONFIG.performance,
       maxRows: 5000000, // 5M rows
       chunkSize: 128 * 1024, // Large 128KB chunks for speed
       batchSize: 1000, // Large batches
       memoryThresholdBytes: 512 * 1024 * 1024, // 512MB threshold
-      parallelProcessing: true, // Enable parallel processing
-      maxFileSize: 5 * 1024 * 1024 * 1024, // 5GB
-      timeoutMs: 600000, // 10 minutes timeout
+      maxFieldSize: 5 * 1024 * 1024 * 1024, // 5GB
     },
     streaming: {
+      ...DEFAULT_CONFIG.streaming,
       memoryThresholdMB: 256,
       maxRowsAnalyzed: 5000000,
-      maxCollectedRowsMultivariate: 5000, // More multivariate data
-      enableAdaptiveChunking: false, // Fixed chunking for speed
     },
     analysis: {
+      ...DEFAULT_CONFIG.analysis,
       maxCategoricalLevels: 50, // Full categorical analysis
       maxCorrelationPairs: 50, // More correlations
       samplingThreshold: 100000, // Less aggressive sampling
@@ -183,8 +189,6 @@ export const SPEED_OPTIMIZED_PRESET: PerformancePreset = {
       maxDimensionsForPCA: 10,
       clusteringMethods: ['kmeans', 'hierarchical'],
       enableMultivariate: true,
-      enableAdvancedStatistics: true,
-      useParallelComputation: true, // Parallel statistical computation
     },
     output: {
       includeVisualizationRecommendations: true,
@@ -219,37 +223,39 @@ export const MEMORY_CONSTRAINED_PRESET: PerformancePreset = {
   expectedPerformance: '100-300K rows/minute',
   config: {
     performance: {
+      ...DEFAULT_CONFIG.performance,
       maxRows: 1000000, // 1M rows
       chunkSize: 4 * 1024, // Tiny 4KB chunks
       batchSize: 50, // Very small batches
       memoryThresholdBytes: 64 * 1024 * 1024, // 64MB threshold
-      maxFileSize: 1024 * 1024 * 1024, // 1GB
-      timeoutMs: 1200000, // 20 minutes timeout
+      maxFieldSize: 1024 * 1024 * 1024, // 1GB
     },
     streaming: {
+      ...DEFAULT_CONFIG.streaming,
       memoryThresholdMB: 32, // Very low memory threshold
       maxRowsAnalyzed: 1000000,
-      maxCollectedRowsMultivariate: 100, // Minimal collection
-      enableAdaptiveChunking: true,
       adaptiveChunkSizing: {
         enabled: true,
         minChunkSize: 1024, // 1KB minimum
         maxChunkSize: 8 * 1024, // 8KB maximum
         reductionFactor: 0.25, // Very aggressive reduction
-        memoryPressureThreshold: 0.5, // Trigger at 50% memory usage
+        expansionFactor: 1.1,
+        targetMemoryUtilization: 0.5, // Trigger at 50% memory usage
       },
     },
     analysis: {
       maxCategoricalLevels: 5, // Very limited categorical
       maxCorrelationPairs: 5, // Minimal correlations
       samplingThreshold: 5000, // Aggressive sampling
+      outlierMethods: ['iqr'],
+      normalityTests: ['shapiro'],
+      enableMultivariate: false, // Disable for memory
+      enabledAnalyses: ['univariate'],
+      highCardinalityThreshold: 80,
+      missingValueQualityThreshold: 20,
       multivariateThreshold: 500,
       maxDimensionsForPCA: 3,
       clusteringMethods: ['kmeans'], // Single clustering method
-      enableMultivariate: false, // Disable for memory
-      enableAdvancedStatistics: false,
-      enableSampling: true,
-      sampleSize: 5000, // Small sample
     },
     output: {
       includeVisualizationRecommendations: false,
@@ -292,7 +298,7 @@ export const PERFORMANCE_PRESETS: Record<string, PerformancePreset> = {
 export function selectOptimalPreset(
   fileSizeBytes: number,
   availableMemoryMB: number,
-  userPriority: 'speed' | 'memory' | 'quality' | 'auto' = 'auto'
+  userPriority: 'speed' | 'memory' | 'quality' | 'auto' = 'auto',
 ): PerformancePreset {
   const fileSizeGB = fileSizeBytes / (1024 * 1024 * 1024);
 
@@ -332,7 +338,7 @@ export function selectOptimalPreset(
  */
 export function applyPerformancePreset(
   baseConfig: Partial<DataPilotConfig>,
-  preset: PerformancePreset
+  preset: PerformancePreset,
 ): DataPilotConfig {
   // Deep merge preset config with base config
   const mergedConfig = {
@@ -364,7 +370,7 @@ export function applyPerformancePreset(
 export function getPerformanceRecommendations(
   fileSizeBytes: number,
   availableMemoryMB: number,
-  currentConfig?: Partial<DataPilotConfig>
+  currentConfig?: Partial<DataPilotConfig>,
 ): {
   recommendedPreset: PerformancePreset;
   optimizations: string[];
@@ -397,19 +403,29 @@ export function getPerformanceRecommendations(
   // Estimate processing metrics
   const rowsPerGB = 10000000; // Estimate 10M rows per GB
   const estimatedRows = fileSizeGB * rowsPerGB;
-  const processingSpeed = preset.name === 'speed-optimized' ? 1500000 : 
-                         preset.name === 'large-files' ? 750000 :
-                         preset.name === 'ultra-large-files' ? 350000 : 150000;
+  const processingSpeed =
+    preset.name === 'speed-optimized'
+      ? 1500000
+      : preset.name === 'large-files'
+        ? 750000
+        : preset.name === 'ultra-large-files'
+          ? 350000
+          : 150000;
 
   const estimatedMetrics = {
     processingTimeMinutes: Math.ceil(estimatedRows / processingSpeed / 60),
     memoryUsageMB: Math.min(
       parseInt(preset.targetMemoryUsage.replace(/[<>]/g, '').replace('MB', '')),
-      availableMemoryMB * 0.8
+      availableMemoryMB * 0.8,
     ),
-    qualityScore: preset.name === 'speed-optimized' ? 95 :
-                  preset.name === 'large-files' ? 80 :
-                  preset.name === 'ultra-large-files' ? 60 : 70,
+    qualityScore:
+      preset.name === 'speed-optimized'
+        ? 95
+        : preset.name === 'large-files'
+          ? 80
+          : preset.name === 'ultra-large-files'
+            ? 60
+            : 70,
   };
 
   return {

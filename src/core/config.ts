@@ -198,6 +198,19 @@ export interface ModelingConfig {
   };
 }
 
+export interface OutputConfig {
+  /** Include visualization recommendations */
+  includeVisualizationRecommendations: boolean;
+  /** Include engineering insights */
+  includeEngineeringInsights: boolean;
+  /** Verbose output */
+  verboseOutput: boolean;
+  /** Progress reporting */
+  progressReporting: boolean;
+  /** Output format */
+  format?: 'json' | 'markdown' | 'yaml';
+}
+
 // Environment-specific configuration types
 export type EnvironmentMode = 'development' | 'production' | 'ci' | 'test';
 
@@ -210,6 +223,7 @@ export interface EnvironmentConfig {
   streaming: Partial<StreamingConfig>;
   visualization: Partial<VisualizationConfig>;
   modeling: Partial<ModelingConfig>;
+  output: Partial<OutputConfig>;
 }
 
 // Performance Preset Types with Discriminated Unions
@@ -255,6 +269,7 @@ export interface DataPilotConfig {
   streaming: StreamingConfig;
   visualization: VisualizationConfig;
   modeling: ModelingConfig;
+  output: OutputConfig;
 
   // Environment and deployment settings
   environment?: EnvironmentConfig;
@@ -439,6 +454,14 @@ export const DEFAULT_CONFIG: DataPilotConfig = {
     },
   },
 
+  output: {
+    includeVisualizationRecommendations: true,
+    includeEngineeringInsights: true,
+    verboseOutput: false,
+    progressReporting: true,
+    format: 'json',
+  },
+
   // Environment configuration
   environment: {
     mode: 'development',
@@ -449,6 +472,7 @@ export const DEFAULT_CONFIG: DataPilotConfig = {
     streaming: {},
     visualization: {},
     modeling: {},
+    output: {},
   },
 
   // Feature flags
@@ -867,6 +891,10 @@ export class ConfigManager {
     return { ...this.config.modeling };
   }
 
+  getOutputConfig(): OutputConfig {
+    return { ...this.config.output };
+  }
+
   /**
    * Update configuration dynamically
    */
@@ -903,6 +931,10 @@ export class ConfigManager {
 
   updateModelingConfig(updates: Partial<ModelingConfig>): void {
     this.config.modeling = { ...this.config.modeling, ...updates };
+  }
+
+  updateOutputConfig(updates: Partial<OutputConfig>): void {
+    this.config.output = { ...this.config.output, ...updates };
   }
 
   /**

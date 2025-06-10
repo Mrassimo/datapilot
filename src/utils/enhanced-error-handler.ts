@@ -67,7 +67,7 @@ export class EnhancedErrorHandler extends EventEmitter {
 
   constructor(options: ErrorHandlerOptions = {}) {
     super();
-    
+
     this.options = {
       enableRecovery: options.enableRecovery ?? true,
       maxRetries: options.maxRetries || 3,
@@ -75,7 +75,7 @@ export class EnhancedErrorHandler extends EventEmitter {
       trackMetrics: options.trackMetrics ?? true,
       enableCircuitBreaker: options.enableCircuitBreaker ?? true,
       enableResourceTracking: options.enableResourceTracking ?? true,
-      contextEnrichment: options.contextEnrichment ?? true
+      contextEnrichment: options.contextEnrichment ?? true,
     };
 
     this.errorMetrics = {
@@ -85,7 +85,7 @@ export class EnhancedErrorHandler extends EventEmitter {
       recoverySuccessRate: 0,
       averageRecoveryTime: 0,
       frequentErrors: [],
-      recentErrors: []
+      recentErrors: [],
     };
 
     this.initializeDefaultStrategies();
@@ -97,7 +97,7 @@ export class EnhancedErrorHandler extends EventEmitter {
   async handleError(
     error: Error,
     context: ErrorContext,
-    originalOperation?: () => Promise<any>
+    originalOperation?: () => Promise<any>,
   ): Promise<{ success: boolean; result?: any; finalError?: Error }> {
     const enrichedContext = this.enrichContext(error, context);
     const startTime = performance.now();
@@ -110,7 +110,7 @@ export class EnhancedErrorHandler extends EventEmitter {
       if (this.options.enableCircuitBreaker) {
         const circuitBreaker = getGlobalCircuitBreakerManager();
         const operationName = `${enrichedContext.component}.${enrichedContext.operation}`;
-        
+
         if (!circuitBreaker.getCircuitBreaker(operationName, async () => {}).isAvailable()) {
           this.emit('circuit-breaker-blocked', { context: enrichedContext, error });
           return { success: false, finalError: error };
@@ -119,16 +119,20 @@ export class EnhancedErrorHandler extends EventEmitter {
 
       // Attempt recovery if enabled
       if (this.options.enableRecovery) {
-        const recoveryResult = await this.attemptRecovery(error, enrichedContext, originalOperation);
-        
+        const recoveryResult = await this.attemptRecovery(
+          error,
+          enrichedContext,
+          originalOperation,
+        );
+
         if (recoveryResult.success) {
           const recoveryTime = performance.now() - startTime;
-          this.emit('recovery-success', { 
-            context: enrichedContext, 
+          this.emit('recovery-success', {
+            context: enrichedContext,
             recoveryTime,
-            strategy: recoveryResult.strategy 
+            strategy: recoveryResult.strategy,
           });
-          
+
           return { success: true, result: recoveryResult.result };
         }
       }
@@ -136,7 +140,6 @@ export class EnhancedErrorHandler extends EventEmitter {
       // Recovery failed or disabled
       this.emit('error-unrecoverable', { context: enrichedContext, error });
       return { success: false, finalError: error };
-
     } catch (handlingError) {
       logger.error(`Error in error handler: ${handlingError.message}`, enrichedContext);
       return { success: false, finalError: error };
@@ -148,21 +151,21 @@ export class EnhancedErrorHandler extends EventEmitter {
    */
   wrapFunction<T extends (...args: any[]) => Promise<any>>(
     fn: T,
-    context: Partial<ErrorContext>
+    context: Partial<ErrorContext>,
   ): T {
     return (async (...args: any[]) => {
       const fullContext: ErrorContext = {
         operation: fn.name || 'anonymous',
         component: 'wrapped-function',
         startTime: performance.now(),
-        ...context
+        ...context,
       };
 
       try {
         return await fn(...args);
       } catch (error) {
         const result = await this.handleError(error as Error, fullContext, () => fn(...args));
-        
+
         if (result.success) {
           return result.result;
         } else {
@@ -177,8 +180,8 @@ export class EnhancedErrorHandler extends EventEmitter {
    */
   addRecoveryStrategy(strategy: RecoveryStrategy): void {
     // Insert strategy in priority order
-    const insertIndex = this.recoveryStrategies.findIndex(s => s.priority > strategy.priority);
-    
+    const insertIndex = this.recoveryStrategies.findIndex((s) => s.priority > strategy.priority);
+
     if (insertIndex === -1) {
       this.recoveryStrategies.push(strategy);
     } else {
@@ -194,24 +197,23 @@ export class EnhancedErrorHandler extends EventEmitter {
   private async attemptRecovery(
     error: Error,
     context: ErrorContext,
-    originalOperation?: () => Promise<any>
+    originalOperation?: () => Promise<any>,
   ): Promise<{ success: boolean; result?: any; strategy?: string }> {
-    
     for (const strategy of this.recoveryStrategies) {
       if (strategy.canRecover(error, context)) {
         const maxRetries = strategy.maxRetries || this.options.maxRetries;
         const currentRetries = context.retryCount || 0;
-        
+
         if (currentRetries >= maxRetries) {
           continue; // Skip this strategy if max retries exceeded
         }
 
         try {
           logger.info(`Attempting recovery with strategy: ${strategy.name}`, context);
-          
+
           const recoveryResult = await strategy.recover(error, {
             ...context,
-            retryCount: currentRetries + 1
+            retryCount: currentRetries + 1,
           });
 
           // If recovery succeeded and we have the original operation, try it again
@@ -225,14 +227,16 @@ export class EnhancedErrorHandler extends EventEmitter {
             }
           }
 
-          return { 
-            success: true, 
-            result: recoveryResult, 
-            strategy: strategy.name 
+          return {
+            success: true,
+            result: recoveryResult,
+            strategy: strategy.name,
           };
-
         } catch (recoveryError) {
-          logger.warn(`Recovery strategy ${strategy.name} failed: ${recoveryError.message}`, context);
+          logger.warn(
+            `Recovery strategy ${strategy.name} failed: ${recoveryError.message}`,
+            context,
+          );
           continue;
         }
       }
@@ -253,7 +257,7 @@ export class EnhancedErrorHandler extends EventEmitter {
       ...context,
       memoryUsage: process.memoryUsage().heapUsed,
       stackTrace: error.stack,
-      startTime: context.startTime || performance.now()
+      startTime: context.startTime || performance.now(),
     };
 
     // Add system resource information
@@ -262,7 +266,7 @@ export class EnhancedErrorHandler extends EventEmitter {
       const resourceStats = leakDetector.getResourceStats();
       enriched.metadata = {
         ...enriched.metadata,
-        resourceStats
+        resourceStats,
       };
     }
 
@@ -281,11 +285,13 @@ export class EnhancedErrorHandler extends EventEmitter {
 
     // Update category counts
     const category = this.categorizeError(error);
-    this.errorMetrics.errorsByCategory[category] = (this.errorMetrics.errorsByCategory[category] || 0) + 1;
+    this.errorMetrics.errorsByCategory[category] =
+      (this.errorMetrics.errorsByCategory[category] || 0) + 1;
 
     // Update severity counts
     const severity = this.getSeverity(error);
-    this.errorMetrics.errorsBySeverity[severity] = (this.errorMetrics.errorsBySeverity[severity] || 0) + 1;
+    this.errorMetrics.errorsBySeverity[severity] =
+      (this.errorMetrics.errorsBySeverity[severity] || 0) + 1;
 
     // Track frequent errors
     const errorKey = `${error.name}: ${error.message}`;
@@ -296,7 +302,7 @@ export class EnhancedErrorHandler extends EventEmitter {
       timestamp: Date.now(),
       error: errorKey,
       context,
-      recovered: false // Will be updated if recovery succeeds
+      recovered: false, // Will be updated if recovery succeeds
     });
 
     // Maintain recent errors limit
@@ -328,7 +334,7 @@ export class EnhancedErrorHandler extends EventEmitter {
 
     // Categorize based on error type and message
     const message = error.message.toLowerCase();
-    
+
     if (message.includes('memory') || message.includes('heap')) {
       return ErrorCategory.MEMORY;
     } else if (message.includes('timeout') || message.includes('network')) {
@@ -338,7 +344,7 @@ export class EnhancedErrorHandler extends EventEmitter {
     } else if (message.includes('parse') || message.includes('invalid')) {
       return ErrorCategory.PARSING;
     }
-    
+
     return ErrorCategory.ANALYSIS;
   }
 
@@ -352,7 +358,7 @@ export class EnhancedErrorHandler extends EventEmitter {
 
     // Determine severity based on error characteristics
     const message = error.message.toLowerCase();
-    
+
     if (message.includes('critical') || message.includes('fatal')) {
       return ErrorSeverity.CRITICAL;
     } else if (message.includes('memory') || message.includes('worker')) {
@@ -360,7 +366,7 @@ export class EnhancedErrorHandler extends EventEmitter {
     } else if (message.includes('timeout') || message.includes('retry')) {
       return ErrorSeverity.MEDIUM;
     }
-    
+
     return ErrorSeverity.LOW;
   }
 
@@ -374,23 +380,25 @@ export class EnhancedErrorHandler extends EventEmitter {
       description: 'Recover from memory pressure by triggering GC and reducing chunk size',
       priority: 1,
       canRecover: (error, context) => {
-        return error.message.toLowerCase().includes('memory') ||
-               error.message.toLowerCase().includes('heap');
+        return (
+          error.message.toLowerCase().includes('memory') ||
+          error.message.toLowerCase().includes('heap')
+        );
       },
       recover: async (error, context) => {
         // Force garbage collection
         if (global.gc) {
           global.gc();
         }
-        
+
         // Reduce memory usage in context metadata
         if (context.metadata) {
           context.metadata.memoryRecoveryApplied = true;
         }
-        
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Brief pause
+
+        await new Promise((resolve) => setTimeout(resolve, 1000)); // Brief pause
         return true;
-      }
+      },
     });
 
     // Worker failure recovery
@@ -399,19 +407,21 @@ export class EnhancedErrorHandler extends EventEmitter {
       description: 'Recover from worker failures by creating new workers',
       priority: 2,
       canRecover: (error, context) => {
-        return error.message.toLowerCase().includes('worker') ||
-               context.component?.toLowerCase().includes('worker');
+        return (
+          error.message.toLowerCase().includes('worker') ||
+          context.component?.toLowerCase().includes('worker')
+        );
       },
       recover: async (error, context) => {
         logger.warn('Attempting worker recovery', context);
-        
+
         // Signal to create new worker (implementation would depend on specific worker pool)
         if (context.metadata) {
           context.metadata.workerRecoveryApplied = true;
         }
-        
+
         return true;
-      }
+      },
     });
 
     // File system recovery
@@ -422,20 +432,22 @@ export class EnhancedErrorHandler extends EventEmitter {
       maxRetries: 5,
       canRecover: (error, context) => {
         const message = error.message.toLowerCase();
-        return message.includes('enoent') || 
-               message.includes('eacces') || 
-               message.includes('emfile') ||
-               message.includes('file');
+        return (
+          message.includes('enoent') ||
+          message.includes('eacces') ||
+          message.includes('emfile') ||
+          message.includes('file')
+        );
       },
       recover: async (error, context) => {
         const retryCount = context.retryCount || 0;
         const delay = Math.min(1000 * Math.pow(2, retryCount), 10000); // Exponential backoff, max 10s
-        
+
         logger.info(`File system recovery attempt ${retryCount + 1}, waiting ${delay}ms`, context);
-        await new Promise(resolve => setTimeout(resolve, delay));
-        
+        await new Promise((resolve) => setTimeout(resolve, delay));
+
         return true;
-      }
+      },
     });
 
     // Network/timeout recovery
@@ -445,19 +457,21 @@ export class EnhancedErrorHandler extends EventEmitter {
       priority: 4,
       canRecover: (error, context) => {
         const message = error.message.toLowerCase();
-        return message.includes('timeout') || 
-               message.includes('network') || 
-               message.includes('connection');
+        return (
+          message.includes('timeout') ||
+          message.includes('network') ||
+          message.includes('connection')
+        );
       },
       recover: async (error, context) => {
         const retryCount = context.retryCount || 0;
         const delay = Math.min(2000 * Math.pow(2, retryCount), 30000); // Exponential backoff, max 30s
-        
+
         logger.info(`Network recovery attempt ${retryCount + 1}, waiting ${delay}ms`, context);
-        await new Promise(resolve => setTimeout(resolve, delay));
-        
+        await new Promise((resolve) => setTimeout(resolve, delay));
+
         return true;
-      }
+      },
     });
 
     // Generic retry strategy (lowest priority)
@@ -469,19 +483,22 @@ export class EnhancedErrorHandler extends EventEmitter {
       canRecover: (error, context) => {
         // Don't retry validation errors or programming errors
         const message = error.message.toLowerCase();
-        return !message.includes('validation') && 
-               !message.includes('type') &&
-               !message.includes('syntax');
+        return (
+          !message.includes('validation') &&
+          !message.includes('type') &&
+          !message.includes('syntax')
+        );
       },
       recover: async (error, context) => {
         const retryCount = context.retryCount || 0;
-        const delay = this.options.retryDelays[Math.min(retryCount, this.options.retryDelays.length - 1)];
-        
+        const delay =
+          this.options.retryDelays[Math.min(retryCount, this.options.retryDelays.length - 1)];
+
         logger.info(`Generic retry attempt ${retryCount + 1}, waiting ${delay}ms`, context);
-        await new Promise(resolve => setTimeout(resolve, delay));
-        
+        await new Promise((resolve) => setTimeout(resolve, delay));
+
         return true;
-      }
+      },
     });
   }
 
@@ -491,7 +508,7 @@ export class EnhancedErrorHandler extends EventEmitter {
   getMetrics(): ErrorMetrics {
     return {
       ...this.errorMetrics,
-      recentErrors: [...this.recentErrors]
+      recentErrors: [...this.recentErrors],
     };
   }
 
@@ -506,9 +523,9 @@ export class EnhancedErrorHandler extends EventEmitter {
       recoverySuccessRate: 0,
       averageRecoveryTime: 0,
       frequentErrors: [],
-      recentErrors: []
+      recentErrors: [],
     };
-    
+
     this.errorHistory.clear();
     this.recentErrors = [];
   }
@@ -522,13 +539,14 @@ export class EnhancedErrorHandler extends EventEmitter {
     recoveryRate: number;
     recommendations: string[];
   } {
-    const recentErrorCount = this.recentErrors.filter(e => 
-      Date.now() - e.timestamp < 300000 // Last 5 minutes
+    const recentErrorCount = this.recentErrors.filter(
+      (e) => Date.now() - e.timestamp < 300000, // Last 5 minutes
     ).length;
-    
+
     const errorRate = recentErrorCount; // Errors per 5 minutes
-    const recoveredCount = this.recentErrors.filter(e => e.recovered).length;
-    const recoveryRate = this.recentErrors.length > 0 ? recoveredCount / this.recentErrors.length : 1;
+    const recoveredCount = this.recentErrors.filter((e) => e.recovered).length;
+    const recoveryRate =
+      this.recentErrors.length > 0 ? recoveredCount / this.recentErrors.length : 1;
 
     let status: 'healthy' | 'degraded' | 'unhealthy' = 'healthy';
     const recommendations: string[] = [];
@@ -548,14 +566,16 @@ export class EnhancedErrorHandler extends EventEmitter {
 
     const topErrors = this.errorMetrics.frequentErrors.slice(0, 3);
     if (topErrors.length > 0 && topErrors[0].count > 5) {
-      recommendations.push(`Frequent error pattern: ${topErrors[0].message} (${topErrors[0].count} occurrences)`);
+      recommendations.push(
+        `Frequent error pattern: ${topErrors[0].message} (${topErrors[0].count} occurrences)`,
+      );
     }
 
     return {
       status,
       errorRate,
       recoveryRate,
-      recommendations
+      recommendations,
     };
   }
 
@@ -591,18 +611,18 @@ export function shutdownGlobalEnhancedErrorHandler(): void {
  * Decorator for automatic error handling
  */
 export function withErrorHandling<T extends (...args: any[]) => Promise<any>>(
-  context: Partial<ErrorContext>
+  context: Partial<ErrorContext>,
 ) {
   return function (target: any, propertyName: string, descriptor: PropertyDescriptor) {
     const method = descriptor.value;
     const errorHandler = getGlobalEnhancedErrorHandler();
-    
+
     descriptor.value = errorHandler.wrapFunction(method, {
       operation: propertyName,
       component: target.constructor.name,
-      ...context
+      ...context,
     });
-    
+
     return descriptor;
   };
 }

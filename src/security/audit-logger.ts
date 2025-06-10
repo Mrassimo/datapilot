@@ -158,11 +158,11 @@ export class SecurityAuditLogger {
       outcome?: SecurityEvent['outcome'];
       riskScore?: number;
       context?: LogContext;
-    } = {}
+    } = {},
   ): Promise<string> {
     const eventId = this.generateEventId();
     const timestamp = new Date().toISOString();
-    
+
     const event: SecurityEvent = {
       id: eventId,
       timestamp,
@@ -182,15 +182,15 @@ export class SecurityAuditLogger {
     try {
       // Store in memory
       this.events.push(event);
-      
+
       // Check if we should log based on severity
       if (this.shouldLogEvent(event)) {
         await this.writeEventToLog(event);
       }
-      
+
       // Check alert rules
       await this.checkAlertRules(event);
-      
+
       // Log to application logger
       logger.info('Security event logged', {
         eventId,
@@ -200,7 +200,7 @@ export class SecurityAuditLogger {
         riskScore: event.riskScore,
         ...options.context,
       });
-      
+
       return eventId;
     } catch (error) {
       logger.error('Failed to log security event', {
@@ -221,7 +221,7 @@ export class SecurityAuditLogger {
     outcome: SecurityEvent['outcome'],
     userId?: string,
     data: Record<string, unknown> = {},
-    context?: LogContext
+    context?: LogContext,
   ): Promise<string> {
     return this.logSecurityEvent(
       'authentication',
@@ -233,7 +233,7 @@ export class SecurityAuditLogger {
         operation,
         outcome,
         context,
-      }
+      },
     );
   }
 
@@ -246,7 +246,7 @@ export class SecurityAuditLogger {
     outcome: SecurityEvent['outcome'],
     userId?: string,
     data: Record<string, unknown> = {},
-    context?: LogContext
+    context?: LogContext,
   ): Promise<string> {
     return this.logSecurityEvent(
       'file_access',
@@ -259,7 +259,7 @@ export class SecurityAuditLogger {
         outcome,
         userId,
         context,
-      }
+      },
     );
   }
 
@@ -270,7 +270,7 @@ export class SecurityAuditLogger {
     policyName: string,
     violationType: string,
     data: Record<string, unknown> = {},
-    context?: LogContext
+    context?: LogContext,
   ): Promise<string> {
     return this.logSecurityEvent(
       'policy_violation',
@@ -281,7 +281,7 @@ export class SecurityAuditLogger {
         outcome: 'blocked',
         riskScore: 8,
         context,
-      }
+      },
     );
   }
 
@@ -292,7 +292,7 @@ export class SecurityAuditLogger {
     attackType: string,
     source: string,
     data: Record<string, unknown> = {},
-    context?: LogContext
+    context?: LogContext,
   ): Promise<string> {
     return this.logSecurityEvent(
       'intrusion_attempt',
@@ -303,7 +303,7 @@ export class SecurityAuditLogger {
         outcome: 'blocked',
         riskScore: 10,
         context,
-      }
+      },
     );
   }
 
@@ -312,7 +312,7 @@ export class SecurityAuditLogger {
    */
   addAlertRule(rule: AlertRule): void {
     this.alertRules.set(rule.id, rule);
-    
+
     logger.info('Security alert rule added', {
       ruleId: rule.id,
       ruleName: rule.name,
@@ -325,11 +325,11 @@ export class SecurityAuditLogger {
    */
   removeAlertRule(ruleId: string): boolean {
     const removed = this.alertRules.delete(ruleId);
-    
+
     if (removed) {
       logger.info('Security alert rule removed', { ruleId });
     }
-    
+
     return removed;
   }
 
@@ -348,32 +348,32 @@ export class SecurityAuditLogger {
     limit?: number;
   }): SecurityEvent[] {
     let filtered = [...this.events];
-    
+
     if (filter) {
-      filtered = filtered.filter(event => {
+      filtered = filtered.filter((event) => {
         if (filter.type && event.type !== filter.type) return false;
         if (filter.severity && event.severity !== filter.severity) return false;
         if (filter.outcome && event.outcome !== filter.outcome) return false;
         if (filter.userId && event.userId !== filter.userId) return false;
         if (filter.filePath && event.filePath !== filter.filePath) return false;
         if (filter.minRiskScore && event.riskScore < filter.minRiskScore) return false;
-        
+
         const eventTime = new Date(event.timestamp);
         if (filter.startTime && eventTime < filter.startTime) return false;
         if (filter.endTime && eventTime > filter.endTime) return false;
-        
+
         return true;
       });
     }
-    
+
     // Sort by timestamp (newest first)
     filtered.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-    
+
     // Apply limit
     if (filter?.limit) {
       filtered = filtered.slice(0, filter.limit);
     }
-    
+
     return filtered;
   }
 
@@ -388,34 +388,42 @@ export class SecurityAuditLogger {
     averageRiskScore: number;
     topRiskEvents: SecurityEvent[];
   } {
-    const events = timeRange 
+    const events = timeRange
       ? this.getEvents({ startTime: timeRange.start, endTime: timeRange.end })
       : this.events;
-    
+
     const eventsBySeverity: Record<SecurityEventSeverity, number> = {
-      low: 0, medium: 0, high: 0, critical: 0
+      low: 0,
+      medium: 0,
+      high: 0,
+      critical: 0,
     };
-    
+
     const eventsByType: Record<SecurityEventType, number> = {
-      authentication: 0, authorization: 0, file_access: 0, input_validation: 0,
-      configuration_change: 0, policy_violation: 0, intrusion_attempt: 0,
-      data_integrity: 0, system_security: 0, compliance: 0
+      authentication: 0,
+      authorization: 0,
+      file_access: 0,
+      input_validation: 0,
+      configuration_change: 0,
+      policy_violation: 0,
+      intrusion_attempt: 0,
+      data_integrity: 0,
+      system_security: 0,
+      compliance: 0,
     };
-    
+
     const eventsByOutcome: Record<string, number> = {};
     let totalRiskScore = 0;
-    
+
     for (const event of events) {
       eventsBySeverity[event.severity]++;
       eventsByType[event.type]++;
       eventsByOutcome[event.outcome] = (eventsByOutcome[event.outcome] || 0) + 1;
       totalRiskScore += event.riskScore;
     }
-    
-    const topRiskEvents = events
-      .sort((a, b) => b.riskScore - a.riskScore)
-      .slice(0, 10);
-    
+
+    const topRiskEvents = events.sort((a, b) => b.riskScore - a.riskScore).slice(0, 10);
+
     return {
       totalEvents: events.length,
       eventsBySeverity,
@@ -432,10 +440,10 @@ export class SecurityAuditLogger {
   async exportAuditLog(
     filePath: string,
     format: 'json' | 'csv' = 'json',
-    filter?: Parameters<typeof SecurityAuditLogger.prototype.getEvents>[0]
+    filter?: Parameters<typeof SecurityAuditLogger.prototype.getEvents>[0],
   ): Promise<void> {
     const events = this.getEvents(filter);
-    
+
     try {
       if (format === 'json') {
         await fs.writeFile(filePath, JSON.stringify(events, null, 2), 'utf8');
@@ -443,7 +451,7 @@ export class SecurityAuditLogger {
         const csvContent = this.eventsToCSV(events);
         await fs.writeFile(filePath, csvContent, 'utf8');
       }
-      
+
       logger.info('Audit log exported', {
         filePath,
         format,
@@ -465,14 +473,12 @@ export class SecurityAuditLogger {
   async clearOldEvents(): Promise<number> {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - this.config.retentionDays);
-    
+
     const initialCount = this.events.length;
-    this.events = this.events.filter(event => 
-      new Date(event.timestamp) > cutoffDate
-    );
-    
+    this.events = this.events.filter((event) => new Date(event.timestamp) > cutoffDate);
+
     const removedCount = initialCount - this.events.length;
-    
+
     if (removedCount > 0) {
       logger.info('Cleared old security events', {
         removedCount,
@@ -480,7 +486,7 @@ export class SecurityAuditLogger {
         cutoffDate: cutoffDate.toISOString(),
       });
     }
-    
+
     return removedCount;
   }
 
@@ -490,15 +496,15 @@ export class SecurityAuditLogger {
     if (!this.config.enabled) {
       return;
     }
-    
+
     try {
       // Ensure log directory exists
       const logDir = dirname(this.config.logFilePath);
       await fs.mkdir(logDir, { recursive: true });
-      
+
       // Initialize write stream
       await this.createLogStream();
-      
+
       logger.info('Security audit logging initialized', {
         logFilePath: this.config.logFilePath,
         minSeverity: this.config.minSeverity,
@@ -515,10 +521,10 @@ export class SecurityAuditLogger {
     if (this.writeStream) {
       this.writeStream.end();
     }
-    
+
     this.currentLogFile = this.config.logFilePath;
     this.writeStream = createWriteStream(this.currentLogFile, { flags: 'a' });
-    
+
     this.writeStream.on('error', (error) => {
       logger.error('Security audit log write error', {
         error: error.message,
@@ -538,7 +544,7 @@ export class SecurityAuditLogger {
       action: 'escalate',
       enabled: true,
     });
-    
+
     // Failed authentication attempts
     this.addAlertRule({
       id: 'failed-auth',
@@ -549,7 +555,7 @@ export class SecurityAuditLogger {
       action: 'notify',
       enabled: true,
     });
-    
+
     // Suspicious file access
     this.addAlertRule({
       id: 'suspicious-file-access',
@@ -566,7 +572,10 @@ export class SecurityAuditLogger {
     return randomBytes(8).toString('hex');
   }
 
-  private calculateSeverity(type: SecurityEventType, data: Record<string, unknown>): SecurityEventSeverity {
+  private calculateSeverity(
+    type: SecurityEventType,
+    data: Record<string, unknown>,
+  ): SecurityEventSeverity {
     // Default severity based on event type
     const typeSeverity: Record<SecurityEventType, SecurityEventSeverity> = {
       authentication: 'medium',
@@ -580,18 +589,18 @@ export class SecurityAuditLogger {
       system_security: 'high',
       compliance: 'medium',
     };
-    
+
     let severity = typeSeverity[type] || 'medium';
-    
+
     // Adjust based on data content
     if (data.blocked || data.quarantined) {
       severity = 'high';
     }
-    
+
     if (data.attackDetected || data.maliciousContent) {
       severity = 'critical';
     }
-    
+
     return severity;
   }
 
@@ -608,17 +617,17 @@ export class SecurityAuditLogger {
       system_security: 7,
       compliance: 5,
     };
-    
+
     const severityMultiplier: Record<SecurityEventSeverity, number> = {
       low: 0.5,
       medium: 1.0,
       high: 1.5,
       critical: 2.0,
     };
-    
+
     const baseScore = baseScores[type] || 5;
     const multiplier = severityMultiplier[severity] || 1.0;
-    
+
     return Math.min(10, Math.round(baseScore * multiplier));
   }
 
@@ -626,11 +635,14 @@ export class SecurityAuditLogger {
     if (!this.config.enabled) {
       return false;
     }
-    
+
     const severityLevels: Record<SecurityEventSeverity, number> = {
-      low: 1, medium: 2, high: 3, critical: 4
+      low: 1,
+      medium: 2,
+      high: 3,
+      critical: 4,
     };
-    
+
     return severityLevels[event.severity] >= severityLevels[this.config.minSeverity];
   }
 
@@ -638,11 +650,11 @@ export class SecurityAuditLogger {
     if (!this.writeStream) {
       return;
     }
-    
+
     const logEntry = JSON.stringify(event) + '\n';
-    
+
     return new Promise((resolve, reject) => {
-      this.writeStream!.write(logEntry, (error) => {
+      this.writeStream.write(logEntry, (error) => {
         if (error) {
           reject(error);
         } else {
@@ -657,40 +669,43 @@ export class SecurityAuditLogger {
       if (!rule.enabled || !rule.eventTypes.includes(event.type)) {
         continue;
       }
-      
+
       const severityLevels: Record<SecurityEventSeverity, number> = {
-        low: 1, medium: 2, high: 3, critical: 4
+        low: 1,
+        medium: 2,
+        high: 3,
+        critical: 4,
       };
-      
+
       if (severityLevels[event.severity] < severityLevels[rule.minSeverity]) {
         continue;
       }
-      
+
       // Check pattern if specified
       if (rule.pattern && !rule.pattern.test(JSON.stringify(event.data))) {
         continue;
       }
-      
+
       // Check threshold
       const key = `${rule.id}_${event.type}`;
       const now = Date.now();
       const windowMs = rule.threshold.timeWindowMinutes * 60 * 1000;
-      
+
       const countData = this.alertCounts.get(key) || { count: 0, timestamp: now };
-      
+
       // Reset count if outside time window
       if (now - countData.timestamp > windowMs) {
         countData.count = 0;
         countData.timestamp = now;
       }
-      
+
       countData.count++;
       this.alertCounts.set(key, countData);
-      
+
       // Trigger alert if threshold exceeded
       if (countData.count >= rule.threshold.count) {
         await this.triggerAlert(rule, event, countData.count);
-        
+
         // Reset counter after triggering
         countData.count = 0;
         countData.timestamp = now;
@@ -705,23 +720,18 @@ export class SecurityAuditLogger {
       triggerEvent: event,
       count,
       action: rule.action,
-      timestamp: new Date().toISOString(),
+      timestamp: new Date(),
     };
-    
+
     logger.warn('Security alert triggered', alertData);
-    
+
     // Log the alert as a security event
-    await this.logSecurityEvent(
-      'system_security',
-      `Security alert: ${rule.name}`,
-      alertData,
-      {
-        severity: 'high',
-        outcome: 'warning',
-        riskScore: 8,
-      }
-    );
-    
+    await this.logSecurityEvent('system_security', `Security alert: ${rule.name}`, alertData, {
+      severity: 'high',
+      outcome: 'warning',
+      riskScore: 8,
+    });
+
     // TODO: Implement additional alert actions (email, webhook, etc.)
     switch (rule.action) {
       case 'notify':
@@ -738,16 +748,16 @@ export class SecurityAuditLogger {
 
   private sanitiseEventData(data: Record<string, unknown>): Record<string, unknown> {
     const sanitised = { ...data };
-    
+
     // Remove sensitive fields
     const sensitiveFields = ['password', 'token', 'key', 'secret', 'credential'];
-    
+
     for (const field of sensitiveFields) {
       if (field in sanitised) {
         sanitised[field] = '[REDACTED]';
       }
     }
-    
+
     return sanitised;
   }
 
@@ -758,14 +768,24 @@ export class SecurityAuditLogger {
 
   private eventsToCSV(events: SecurityEvent[]): string {
     const headers = [
-      'id', 'timestamp', 'type', 'severity', 'source', 'userId',
-      'ipAddress', 'filePath', 'operation', 'description', 'outcome', 'riskScore'
+      'id',
+      'timestamp',
+      'type',
+      'severity',
+      'source',
+      'userId',
+      'ipAddress',
+      'filePath',
+      'operation',
+      'description',
+      'outcome',
+      'riskScore',
     ];
-    
+
     const csvRows = [headers.join(',')];
-    
+
     for (const event of events) {
-      const row = headers.map(header => {
+      const row = headers.map((header) => {
         const value = event[header as keyof SecurityEvent];
         if (typeof value === 'string') {
           return `"${value.replace(/"/g, '""')}"`; // Escape quotes
@@ -774,14 +794,14 @@ export class SecurityAuditLogger {
       });
       csvRows.push(row.join(','));
     }
-    
+
     return csvRows.join('\n');
   }
 
   private startCleanupTimer(): void {
     // Run cleanup every hour
     this.logRotationTimer = setInterval(() => {
-      this.clearOldEvents().catch(error => {
+      this.clearOldEvents().catch((error) => {
         logger.error('Security audit cleanup failed', {
           error: error instanceof Error ? error.message : 'Unknown error',
         });
@@ -796,10 +816,10 @@ export class SecurityAuditLogger {
     if (this.logRotationTimer) {
       clearInterval(this.logRotationTimer);
     }
-    
+
     if (this.writeStream) {
       return new Promise((resolve) => {
-        this.writeStream!.end(() => {
+        this.writeStream.end(() => {
           logger.info('Security audit logger shutdown complete');
           resolve();
         });
@@ -820,24 +840,24 @@ export function getSecurityAuditLogger(): SecurityAuditLogger {
  */
 export class SecurityMonitor {
   private auditLogger: SecurityAuditLogger;
-  
+
   constructor() {
     this.auditLogger = getSecurityAuditLogger();
   }
-  
+
   /**
    * Monitor function execution for security events
    */
   async monitorExecution<T>(
     operation: string,
     fn: () => Promise<T>,
-    context?: LogContext
+    context?: LogContext,
   ): Promise<T> {
     const startTime = Date.now();
-    
+
     try {
       const result = await fn();
-      
+
       await this.auditLogger.logSecurityEvent(
         'system_security',
         `Operation completed: ${operation}`,
@@ -849,9 +869,9 @@ export class SecurityMonitor {
           severity: 'low',
           outcome: 'success',
           context,
-        }
+        },
       );
-      
+
       return result;
     } catch (error) {
       await this.auditLogger.logSecurityEvent(
@@ -866,9 +886,9 @@ export class SecurityMonitor {
           severity: 'medium',
           outcome: 'failure',
           context,
-        }
+        },
       );
-      
+
       throw error;
     }
   }

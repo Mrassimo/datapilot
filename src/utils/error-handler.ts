@@ -6,6 +6,10 @@ import type { ErrorContext, ErrorRecoveryStrategy } from '../core/types';
 import { DataPilotError, ErrorSeverity, ErrorCategory, ActionableSuggestion } from '../core/types';
 import { logger } from './logger';
 
+// Re-export core error types for external use
+export { DataPilotError, ErrorSeverity, ErrorCategory, ActionableSuggestion } from '../core/types';
+export type { ErrorContext, ErrorRecoveryStrategy } from '../core/types';
+
 export interface ErrorHandlerConfig {
   maxRetries: number;
   retryDelayMs: number;
@@ -324,6 +328,21 @@ export class ErrorHandler {
    */
   getStats(): ErrorStats {
     return { ...this.stats };
+  }
+
+  /**
+   * Get error statistics (alias for compatibility)
+   */
+  getErrorStatistics(): {
+    totalErrors: number;
+    byCategory: Record<string, number>;
+    bySeverity: Record<string, number>;
+  } {
+    return {
+      totalErrors: this.stats.totalErrors,
+      byCategory: this.stats.errorsByCategory as Record<string, number>,
+      bySeverity: this.stats.errorsBySeverity as Record<string, number>,
+    };
   }
 
   /**

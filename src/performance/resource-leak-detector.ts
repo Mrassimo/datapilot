@@ -19,11 +19,11 @@ interface ResourceTracker {
 
 interface LeakDetectionOptions {
   trackingEnabled?: boolean;
-  maxAge?: number;           // Max age before considering leaked (ms)
-  checkInterval?: number;    // How often to check for leaks (ms)
-  maxResources?: number;     // Max tracked resources before warning
+  maxAge?: number; // Max age before considering leaked (ms)
+  checkInterval?: number; // How often to check for leaks (ms)
+  maxResources?: number; // Max tracked resources before warning
   enableStackTrace?: boolean;
-  resourceTypes?: string[];  // Types to track
+  resourceTypes?: string[]; // Types to track
 }
 
 interface LeakReport {
@@ -47,14 +47,14 @@ export class ResourceLeakDetector extends EventEmitter {
 
   constructor(options: LeakDetectionOptions = {}) {
     super();
-    
+
     this.options = {
       trackingEnabled: options.trackingEnabled ?? true,
       maxAge: options.maxAge || 300000, // 5 minutes
       checkInterval: options.checkInterval || 30000, // 30 seconds
       maxResources: options.maxResources || 10000,
       enableStackTrace: options.enableStackTrace ?? true,
-      resourceTypes: options.resourceTypes || ['worker', 'buffer', 'timer', 'stream', 'handle']
+      resourceTypes: options.resourceTypes || ['worker', 'buffer', 'timer', 'stream', 'handle'],
     };
 
     if (this.options.trackingEnabled) {
@@ -71,14 +71,14 @@ export class ResourceLeakDetector extends EventEmitter {
     }
 
     const stackTrace = this.options.enableStackTrace ? this.captureStackTrace() : '';
-    
+
     const tracker: ResourceTracker = {
       id,
       type,
       createdAt: Date.now(),
       stackTrace,
       metadata,
-      isReleased: false
+      isReleased: false,
     };
 
     this.trackedResources.set(id, tracker);
@@ -88,7 +88,7 @@ export class ResourceLeakDetector extends EventEmitter {
     if (this.trackedResources.size > this.options.maxResources) {
       this.emit('resource-limit-exceeded', {
         currentCount: this.trackedResources.size,
-        maxResources: this.options.maxResources
+        maxResources: this.options.maxResources,
       });
     }
 
@@ -103,15 +103,15 @@ export class ResourceLeakDetector extends EventEmitter {
     if (tracker && !tracker.isReleased) {
       tracker.isReleased = true;
       tracker.releasedAt = Date.now();
-      
+
       // Update count
       const currentCount = this.resourceCounts.get(tracker.type) || 0;
       this.resourceCounts.set(tracker.type, Math.max(0, currentCount - 1));
-      
-      this.emit('resource-released', { 
-        id, 
-        type: tracker.type, 
-        lifespan: tracker.releasedAt - tracker.createdAt 
+
+      this.emit('resource-released', {
+        id,
+        type: tracker.type,
+        lifespan: tracker.releasedAt - tracker.createdAt,
       });
 
       // Remove from tracking after a delay to catch double-releases
@@ -127,10 +127,10 @@ export class ResourceLeakDetector extends EventEmitter {
   checkForLeaks(): LeakReport[] {
     const now = Date.now();
     const leaksByType = new Map<string, ResourceTracker[]>();
-    
+
     // Identify leaked resources
     for (const tracker of this.trackedResources.values()) {
-      if (!tracker.isReleased && (now - tracker.createdAt) > this.options.maxAge) {
+      if (!tracker.isReleased && now - tracker.createdAt > this.options.maxAge) {
         const leaks = leaksByType.get(tracker.type) || [];
         leaks.push(tracker);
         leaksByType.set(tracker.type, leaks);
@@ -139,10 +139,10 @@ export class ResourceLeakDetector extends EventEmitter {
 
     // Generate leak reports
     const reports: LeakReport[] = [];
-    
+
     for (const [type, leaks] of leaksByType) {
-      const oldestLeak = leaks.reduce((oldest, current) => 
-        current.createdAt < oldest.createdAt ? current : oldest
+      const oldestLeak = leaks.reduce((oldest, current) =>
+        current.createdAt < oldest.createdAt ? current : oldest,
       );
 
       const report: LeakReport = {
@@ -151,10 +151,10 @@ export class ResourceLeakDetector extends EventEmitter {
         oldestLeak: {
           id: oldestLeak.id,
           age: now - oldestLeak.createdAt,
-          stackTrace: oldestLeak.stackTrace
+          stackTrace: oldestLeak.stackTrace,
         },
         totalMemoryImpact: this.estimateMemoryImpact(type, leaks.length),
-        recommendations: this.generateRecommendations(type, leaks.length)
+        recommendations: this.generateRecommendations(type, leaks.length),
       };
 
       reports.push(report);
@@ -163,9 +163,11 @@ export class ResourceLeakDetector extends EventEmitter {
     // Emit leak events
     if (reports.length > 0) {
       this.emit('leaks-detected', reports);
-      
+
       for (const report of reports) {
-        logger.warn(`Resource leak detected: ${report.leakedCount} ${report.resourceType} resources leaked`);
+        logger.warn(
+          `Resource leak detected: ${report.leakedCount} ${report.resourceType} resources leaked`,
+        );
       }
     }
 
@@ -190,8 +192,9 @@ export class ResourceLeakDetector extends EventEmitter {
     for (const tracker of this.trackedResources.values()) {
       if (!tracker.isReleased) {
         const age = now - tracker.createdAt;
-        
-        if (age > this.options.maxAge * 0.8) { // 80% of max age
+
+        if (age > this.options.maxAge * 0.8) {
+          // 80% of max age
           potentialLeaks++;
         }
 
@@ -200,7 +203,7 @@ export class ResourceLeakDetector extends EventEmitter {
           oldestResource = {
             id: tracker.id,
             type: tracker.type,
-            age
+            age,
           };
         }
       }
@@ -211,7 +214,7 @@ export class ResourceLeakDetector extends EventEmitter {
       byType: Object.fromEntries(this.resourceCounts),
       potentialLeaks,
       oldestResource,
-      memoryUsage: process.memoryUsage().heapUsed
+      memoryUsage: process.memoryUsage().heapUsed,
     };
   }
 
@@ -220,20 +223,20 @@ export class ResourceLeakDetector extends EventEmitter {
    */
   forceCleanupAll(): number {
     const cleanedCount = this.trackedResources.size;
-    
+
     for (const [id, tracker] of this.trackedResources) {
       if (!tracker.isReleased) {
         this.emit('resource-force-cleanup', {
           id: tracker.id,
           type: tracker.type,
-          age: Date.now() - tracker.createdAt
+          age: Date.now() - tracker.createdAt,
         });
       }
     }
 
     this.trackedResources.clear();
     this.resourceCounts.clear();
-    
+
     logger.warn(`Force cleaned ${cleanedCount} tracked resources`);
     return cleanedCount;
   }
@@ -270,16 +273,16 @@ export class ResourceLeakDetector extends EventEmitter {
     for (const tracker of this.trackedResources.values()) {
       if (!tracker.isReleased) {
         const age = now - tracker.createdAt;
-        
+
         if (age > this.options.maxAge) {
           const severity = this.calculateLeakSeverity(age, tracker.type);
-          
+
           leaks.push({
             resourceId: tracker.id,
             type: tracker.type,
             age,
             stackTrace: tracker.stackTrace,
-            severity
+            severity,
           });
 
           typeCounts.set(tracker.type, (typeCounts.get(tracker.type) || 0) + 1);
@@ -298,10 +301,10 @@ export class ResourceLeakDetector extends EventEmitter {
       summary: {
         totalLeaks: leaks.length,
         leakRate,
-        criticalTypes
+        criticalTypes,
       },
       details: leaks.sort((a, b) => b.age - a.age), // Sort by age, oldest first
-      recommendations: this.generateSystemRecommendations(leaks, criticalTypes)
+      recommendations: this.generateSystemRecommendations(leaks, criticalTypes),
     };
   }
 
@@ -339,11 +342,11 @@ export class ResourceLeakDetector extends EventEmitter {
    */
   private estimateMemoryImpact(type: string, count: number): number {
     const estimates: { [key: string]: number } = {
-      worker: 50 * 1024 * 1024,    // 50MB per worker
-      buffer: 1024 * 1024,         // 1MB per buffer (average)
-      timer: 1024,                 // 1KB per timer
-      stream: 64 * 1024,           // 64KB per stream
-      handle: 4 * 1024             // 4KB per handle
+      worker: 50 * 1024 * 1024, // 50MB per worker
+      buffer: 1024 * 1024, // 1MB per buffer (average)
+      timer: 1024, // 1KB per timer
+      stream: 64 * 1024, // 64KB per stream
+      handle: 4 * 1024, // 4KB per handle
     };
 
     return (estimates[type] || 1024) * count;
@@ -392,10 +395,10 @@ export class ResourceLeakDetector extends EventEmitter {
    */
   private calculateLeakSeverity(age: number, type: string): 'low' | 'medium' | 'high' | 'critical' {
     const ageHours = age / (1000 * 60 * 60);
-    
+
     // Critical resources (workers, large buffers) are more severe
     const isCriticalType = ['worker', 'buffer'].includes(type);
-    
+
     if (ageHours > 24 || (isCriticalType && ageHours > 4)) {
       return 'critical';
     } else if (ageHours > 4 || (isCriticalType && ageHours > 1)) {
@@ -403,7 +406,7 @@ export class ResourceLeakDetector extends EventEmitter {
     } else if (ageHours > 1) {
       return 'medium';
     }
-    
+
     return 'low';
   }
 
@@ -414,21 +417,29 @@ export class ResourceLeakDetector extends EventEmitter {
     const recommendations: string[] = [];
 
     if (leaks.length > 10) {
-      recommendations.push('High number of resource leaks detected - review resource management patterns');
+      recommendations.push(
+        'High number of resource leaks detected - review resource management patterns',
+      );
     }
 
     if (criticalTypes.length > 0) {
-      recommendations.push(`Critical leak types detected: ${criticalTypes.join(', ')} - prioritize fixing these`);
+      recommendations.push(
+        `Critical leak types detected: ${criticalTypes.join(', ')} - prioritize fixing these`,
+      );
     }
 
-    const severeCounts = leaks.filter(l => l.severity === 'critical' || l.severity === 'high').length;
+    const severeCounts = leaks.filter(
+      (l) => l.severity === 'critical' || l.severity === 'high',
+    ).length;
     if (severeCounts > 5) {
-      recommendations.push('Multiple severe leaks detected - consider implementing automated resource cleanup');
+      recommendations.push(
+        'Multiple severe leaks detected - consider implementing automated resource cleanup',
+      );
     }
 
     recommendations.push('Enable stack traces in production for better leak debugging');
     recommendations.push('Implement resource limits to prevent runaway resource usage');
-    
+
     return recommendations;
   }
 
@@ -437,7 +448,7 @@ export class ResourceLeakDetector extends EventEmitter {
    */
   setTrackingEnabled(enabled: boolean): void {
     this.options.trackingEnabled = enabled;
-    
+
     if (enabled) {
       this.startLeakDetection();
     } else {
@@ -460,7 +471,9 @@ export class ResourceLeakDetector extends EventEmitter {
  */
 let globalResourceLeakDetector: ResourceLeakDetector | null = null;
 
-export function getGlobalResourceLeakDetector(options?: LeakDetectionOptions): ResourceLeakDetector {
+export function getGlobalResourceLeakDetector(
+  options?: LeakDetectionOptions,
+): ResourceLeakDetector {
   if (!globalResourceLeakDetector) {
     globalResourceLeakDetector = new ResourceLeakDetector(options);
   }
@@ -479,19 +492,21 @@ export function shutdownGlobalResourceLeakDetector(): void {
  */
 export function trackResource<T extends (...args: any[]) => any>(
   resourceType: string,
-  getResourceId?: (result: ReturnType<T>) => string
+  getResourceId?: (result: ReturnType<T>) => string,
 ) {
   return function (target: any, propertyName: string, descriptor: PropertyDescriptor) {
     const method = descriptor.value;
-    
+
     descriptor.value = function (...args: any[]) {
       const result = method.apply(this, args);
       const detector = getGlobalResourceLeakDetector();
-      
+
       if (result && typeof result === 'object') {
-        const resourceId = getResourceId ? getResourceId(result) : `${resourceType}-${Date.now()}-${Math.random()}`;
+        const resourceId = getResourceId
+          ? getResourceId(result)
+          : `${resourceType}-${Date.now()}-${Math.random()}`;
         detector.trackResource(resourceId, resourceType, { method: propertyName, args });
-        
+
         // Try to auto-detect release (works for EventEmitters)
         if (typeof result.on === 'function') {
           result.on('close', () => detector.releaseResource(resourceId));
@@ -499,10 +514,10 @@ export function trackResource<T extends (...args: any[]) => any>(
           result.on('exit', () => detector.releaseResource(resourceId));
         }
       }
-      
+
       return result;
     };
-    
+
     return descriptor;
   };
 }

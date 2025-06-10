@@ -47,14 +47,14 @@ export interface ValidationError {
 export class InputValidator {
   private static readonly FILE_SIZE_LIMITS = {
     maxFileSize: 10 * 1024 * 1024 * 1024, // 10GB
-    maxMemoryFile: 100 * 1024 * 1024      // 100MB for in-memory processing
+    maxMemoryFile: 100 * 1024 * 1024, // 100MB for in-memory processing
   };
 
   private static readonly SECURITY_PATTERNS = {
     pathTraversal: /\.\.[\/\\]/,
     sqlInjection: /(union|select|insert|update|delete|drop|create|alter|exec|execute)/i,
     scriptInjection: /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi,
-    commandInjection: /[;&|`$(){}\[\]]/
+    commandInjection: /[;&|`$(){}\[\]]/,
   };
 
   /**
@@ -73,7 +73,7 @@ export class InputValidator {
           message: 'File path must be a non-empty string',
           severity: 'error',
           value: filePath,
-          expectedType: 'string'
+          expectedType: 'string',
         });
         return { isValid: false, errors, warnings, sanitizedValue: null };
       }
@@ -87,7 +87,7 @@ export class InputValidator {
           field: 'filePath',
           message: 'Path traversal detected in file path',
           severity: 'error',
-          value: filePath
+          value: filePath,
         });
       }
 
@@ -98,20 +98,20 @@ export class InputValidator {
           field: 'filePath',
           message: 'Relative path converted to absolute',
           severity: 'warning',
-          value: filePath
+          value: filePath,
         });
       }
 
       // Check file existence and permissions
       try {
         const stats = await fs.stat(sanitizedPath);
-        
+
         if (!stats.isFile()) {
           errors.push({
             field: 'filePath',
             message: 'Path does not point to a regular file',
             severity: 'error',
-            value: sanitizedPath
+            value: sanitizedPath,
           });
         }
 
@@ -121,7 +121,7 @@ export class InputValidator {
             field: 'filePath',
             message: `File size (${stats.size}) exceeds maximum limit (${this.FILE_SIZE_LIMITS.maxFileSize})`,
             severity: 'error',
-            value: stats.size
+            value: stats.size,
           });
         }
 
@@ -130,31 +130,30 @@ export class InputValidator {
             field: 'filePath',
             message: 'File is large and will require streaming processing',
             severity: 'warning',
-            value: stats.size
+            value: stats.size,
           });
         }
-
       } catch (fsError: any) {
         if (fsError.code === 'ENOENT') {
           errors.push({
             field: 'filePath',
             message: 'File does not exist',
             severity: 'error',
-            value: sanitizedPath
+            value: sanitizedPath,
           });
         } else if (fsError.code === 'EACCES') {
           errors.push({
             field: 'filePath',
             message: 'Permission denied accessing file',
             severity: 'error',
-            value: sanitizedPath
+            value: sanitizedPath,
           });
         } else {
           errors.push({
             field: 'filePath',
             message: `File system error: ${fsError.message}`,
             severity: 'error',
-            value: sanitizedPath
+            value: sanitizedPath,
           });
         }
       }
@@ -163,15 +162,14 @@ export class InputValidator {
         isValid: errors.length === 0,
         errors,
         warnings,
-        sanitizedValue: sanitizedPath
+        sanitizedValue: sanitizedPath,
       };
-
     } catch (error: any) {
       errors.push({
         field: 'filePath',
         message: `Validation error: ${error.message}`,
         severity: 'error',
-        value: filePath
+        value: filePath,
       });
 
       return { isValid: false, errors, warnings, sanitizedValue: null };
@@ -189,11 +187,13 @@ export class InputValidator {
         default: Math.max(2, require('os').cpus().length - 1),
         min: 1,
         max: 32,
-        rules: [{
-          validate: (value: number) => Number.isInteger(value),
-          message: 'maxWorkers must be an integer',
-          severity: 'error'
-        }]
+        rules: [
+          {
+            validate: (value: number) => Number.isInteger(value),
+            message: 'maxWorkers must be an integer',
+            severity: 'error',
+          },
+        ],
       },
       memoryLimitMB: {
         type: 'number',
@@ -201,24 +201,26 @@ export class InputValidator {
         default: 256,
         min: 64,
         max: 8192,
-        rules: [{
-          validate: (value: number) => value % 64 === 0,
-          message: 'memoryLimitMB should be a multiple of 64',
-          severity: 'warning'
-        }]
+        rules: [
+          {
+            validate: (value: number) => value % 64 === 0,
+            message: 'memoryLimitMB should be a multiple of 64',
+            severity: 'warning',
+          },
+        ],
       },
       taskTimeout: {
         type: 'number',
         required: false,
         default: 30000,
         min: 1000,
-        max: 300000
+        max: 300000,
       },
       enableMemoryMonitoring: {
         type: 'boolean',
         required: false,
-        default: true
-      }
+        default: true,
+      },
     };
 
     return this.validateObject(config, schema, 'workerPoolConfig');
@@ -235,31 +237,33 @@ export class InputValidator {
         default: 64 * 1024,
         min: 1024,
         max: 64 * 1024 * 1024,
-        rules: [{
-          validate: (value: number) => (value & (value - 1)) === 0,
-          message: 'chunkSize should be a power of 2 for optimal performance',
-          severity: 'warning'
-        }]
+        rules: [
+          {
+            validate: (value: number) => (value & (value - 1)) === 0,
+            message: 'chunkSize should be a power of 2 for optimal performance',
+            severity: 'warning',
+          },
+        ],
       },
       memoryThresholdMB: {
         type: 'number',
         required: false,
         default: 512,
         min: 64,
-        max: 16384
+        max: 16384,
       },
       maxRowsAnalyzed: {
         type: 'number',
         required: false,
         default: 1000000,
         min: 1000,
-        max: 100000000
+        max: 100000000,
       },
       enableAdaptiveStreaming: {
         type: 'boolean',
         required: false,
-        default: true
-      }
+        default: true,
+      },
     };
 
     return this.validateObject(config, schema, 'streamingConfig');
@@ -278,7 +282,7 @@ export class InputValidator {
         message: 'Value is not a valid Buffer',
         severity: 'error',
         value: typeof buffer,
-        expectedType: 'Buffer'
+        expectedType: 'Buffer',
       });
       return { isValid: false, errors, warnings, sanitizedValue: null };
     }
@@ -288,7 +292,7 @@ export class InputValidator {
         field: 'buffer',
         message: `Buffer size (${buffer.length}) exceeds maximum (${maxSize})`,
         severity: 'error',
-        value: buffer.length
+        value: buffer.length,
       });
     }
 
@@ -297,7 +301,7 @@ export class InputValidator {
         field: 'buffer',
         message: 'Buffer is empty',
         severity: 'warning',
-        value: buffer.length
+        value: buffer.length,
       });
     }
 
@@ -305,7 +309,7 @@ export class InputValidator {
       isValid: errors.length === 0,
       errors,
       warnings,
-      sanitizedValue: buffer
+      sanitizedValue: buffer,
     };
   }
 
@@ -318,40 +322,44 @@ export class InputValidator {
         type: 'string',
         required: false,
         default: ',',
-        rules: [{
-          validate: (value: string) => value.length === 1,
-          message: 'Delimiter must be a single character',
-          severity: 'error'
-        }]
+        rules: [
+          {
+            validate: (value: string) => value.length === 1,
+            message: 'Delimiter must be a single character',
+            severity: 'error',
+          },
+        ],
       },
       quote: {
         type: 'string',
         required: false,
         default: '"',
-        rules: [{
-          validate: (value: string) => value.length === 1,
-          message: 'Quote character must be a single character',
-          severity: 'error'
-        }]
+        rules: [
+          {
+            validate: (value: string) => value.length === 1,
+            message: 'Quote character must be a single character',
+            severity: 'error',
+          },
+        ],
       },
       encoding: {
         type: 'string',
         required: false,
         default: 'utf8',
-        enum: ['utf8', 'ascii', 'latin1', 'utf16le', 'base64', 'hex']
+        enum: ['utf8', 'ascii', 'latin1', 'utf16le', 'base64', 'hex'],
       },
       hasHeader: {
         type: 'boolean',
         required: false,
-        default: true
+        default: true,
       },
       maxRows: {
         type: 'number',
         required: false,
         default: 1000000,
         min: 1,
-        max: 100000000
-      }
+        max: 100000000,
+      },
     };
 
     return this.validateObject(options, schema, 'csvOptions');
@@ -363,7 +371,7 @@ export class InputValidator {
   static validateNumericArray(data: any, fieldName: string = 'data'): ValidationResult {
     const errors: ValidationError[] = [];
     const warnings: ValidationError[] = [];
-    let sanitizedData = data;
+    const sanitizedData = data;
 
     if (!Array.isArray(data)) {
       errors.push({
@@ -371,7 +379,7 @@ export class InputValidator {
         message: 'Value must be an array',
         severity: 'error',
         value: typeof data,
-        expectedType: 'array'
+        expectedType: 'array',
       });
       return { isValid: false, errors, warnings, sanitizedValue: null };
     }
@@ -381,7 +389,7 @@ export class InputValidator {
         field: fieldName,
         message: 'Array is empty',
         severity: 'warning',
-        value: data.length
+        value: data.length,
       });
       return { isValid: true, errors, warnings, sanitizedValue: [] };
     }
@@ -392,7 +400,7 @@ export class InputValidator {
 
     for (let i = 0; i < data.length; i++) {
       const value = data[i];
-      
+
       if (typeof value === 'number' && isFinite(value)) {
         sanitizedArray.push(value);
       } else if (typeof value === 'string') {
@@ -417,14 +425,14 @@ export class InputValidator {
           field: fieldName,
           message: `Too many invalid numeric values (${invalidCount}/${data.length})`,
           severity: 'error',
-          value: invalidCount
+          value: invalidCount,
         });
       } else {
         warnings.push({
           field: fieldName,
           message: `Skipped ${invalidCount} invalid numeric values`,
           severity: 'warning',
-          value: invalidCount
+          value: invalidCount,
         });
       }
     }
@@ -433,14 +441,18 @@ export class InputValidator {
       isValid: errors.length === 0 && sanitizedArray.length > 0,
       errors,
       warnings,
-      sanitizedValue: sanitizedArray
+      sanitizedValue: sanitizedArray,
     };
   }
 
   /**
    * Generic object validation against schema
    */
-  static validateObject(obj: any, schema: ValidationSchema, objectName: string = 'object'): ValidationResult {
+  static validateObject(
+    obj: any,
+    schema: ValidationSchema,
+    objectName: string = 'object',
+  ): ValidationResult {
     const errors: ValidationError[] = [];
     const warnings: ValidationError[] = [];
     const sanitizedValue: any = {};
@@ -451,7 +463,7 @@ export class InputValidator {
         message: 'Value must be an object',
         severity: 'error',
         value: typeof obj,
-        expectedType: 'object'
+        expectedType: 'object',
       });
       return { isValid: false, errors, warnings, sanitizedValue: null };
     }
@@ -468,7 +480,7 @@ export class InputValidator {
             field: fieldPath,
             message: `Required field '${fieldName}' is missing`,
             severity: 'error',
-            value: value
+            value: value,
           });
           continue;
         } else if (fieldSchema.default !== undefined) {
@@ -485,7 +497,7 @@ export class InputValidator {
           message: `Field '${fieldName}' must be of type ${fieldSchema.type}`,
           severity: 'error',
           value: typeof value,
-          expectedType: fieldSchema.type
+          expectedType: fieldSchema.type,
         });
         continue;
       }
@@ -497,7 +509,7 @@ export class InputValidator {
             field: fieldPath,
             message: `Field '${fieldName}' must be >= ${fieldSchema.min}`,
             severity: 'error',
-            value: value
+            value: value,
           });
           continue;
         }
@@ -506,7 +518,7 @@ export class InputValidator {
             field: fieldPath,
             message: `Field '${fieldName}' must be <= ${fieldSchema.max}`,
             severity: 'error',
-            value: value
+            value: value,
           });
           continue;
         }
@@ -519,7 +531,7 @@ export class InputValidator {
             field: fieldPath,
             message: `Field '${fieldName}' does not match required pattern`,
             severity: 'error',
-            value: value
+            value: value,
           });
           continue;
         }
@@ -531,7 +543,7 @@ export class InputValidator {
           field: fieldPath,
           message: `Field '${fieldName}' must be one of: ${fieldSchema.enum.join(', ')}`,
           severity: 'error',
-          value: value
+          value: value,
         });
         continue;
       }
@@ -539,7 +551,7 @@ export class InputValidator {
       // Custom rule validation
       if (fieldSchema.rules) {
         let sanitizedFieldValue = value;
-        
+
         for (const rule of fieldSchema.rules) {
           if (!rule.validate(value)) {
             if (rule.severity === 'error') {
@@ -547,24 +559,24 @@ export class InputValidator {
                 field: fieldPath,
                 message: rule.message,
                 severity: 'error',
-                value: value
+                value: value,
               });
             } else {
               warnings.push({
                 field: fieldPath,
                 message: rule.message,
                 severity: 'warning',
-                value: value
+                value: value,
               });
             }
           }
-          
+
           // Apply sanitization if available
           if (rule.sanitize) {
             sanitizedFieldValue = rule.sanitize(sanitizedFieldValue);
           }
         }
-        
+
         value = sanitizedFieldValue;
       }
 
@@ -575,7 +587,7 @@ export class InputValidator {
       isValid: errors.length === 0,
       errors,
       warnings,
-      sanitizedValue: errors.length === 0 ? sanitizedValue : null
+      sanitizedValue: errors.length === 0 ? sanitizedValue : null,
     };
   }
 
@@ -623,18 +635,18 @@ export class InputValidator {
    */
   static validateAndThrow(result: ValidationResult, operation: string): any {
     if (!result.isValid) {
-      const errorMessages = result.errors.map(e => `${e.field}: ${e.message}`).join('; ');
+      const errorMessages = result.errors.map((e) => `${e.field}: ${e.message}`).join('; ');
       throw new DataPilotError(
         `Validation failed for ${operation}: ${errorMessages}`,
         'VALIDATION_ERROR',
         ErrorSeverity.HIGH,
-        ErrorCategory.VALIDATION
+        ErrorCategory.VALIDATION,
       );
     }
 
     // Log warnings
     if (result.warnings.length > 0) {
-      const warningMessages = result.warnings.map(w => `${w.field}: ${w.message}`).join('; ');
+      const warningMessages = result.warnings.map((w) => `${w.field}: ${w.message}`).join('; ');
       logger.warn(`Validation warnings for ${operation}: ${warningMessages}`);
     }
 

@@ -7,9 +7,11 @@ import { resolve, normalize, join } from 'path';
 import { DataPilotError, ErrorSeverity, ErrorCategory } from '../utils/error-handler';
 
 export interface ValidationResult {
-  valid: boolean;
-  sanitized?: string;
-  errors: string[];
+  isValid: boolean;
+  valid: boolean; // Backwards compatibility
+  sanitizedValue?: string;
+  sanitized?: string; // Backwards compatibility
+  errors: (string | DataPilotError)[];
   warnings: string[];
 }
 
@@ -27,10 +29,10 @@ const DEFAULT_SECURITY_CONFIG: SecurityConfig = {
   maxPathLength: 1000,
   allowedDirectories: [], // Empty means allow current working directory
   blockedPatterns: [
-    /\.\./,           // Path traversal
-    /[<>:"|?*]/,      // Windows invalid chars
-    /[\x00-\x1f]/,    // Control characters
-    /^\s|\s$/,        // Leading/trailing spaces
+    /\.\./, // Path traversal
+    /[<>:"|?*]/, // Windows invalid chars
+    /[\x00-\x1f]/, // Control characters
+    /^\s|\s$/, // Leading/trailing spaces
   ],
 };
 
@@ -51,7 +53,12 @@ export class InputValidator {
     // Basic validation
     if (!inputPath || typeof inputPath !== 'string') {
       errors.push('File path is required and must be a string');
-      return { valid: false, errors, warnings };
+      return { 
+        isValid: false, 
+        valid: false, 
+        errors, 
+        warnings 
+      };
     }
 
     if (inputPath.length > this.config.maxPathLength) {
@@ -73,12 +80,14 @@ export class InputValidator {
       // Check file extension
       const extension = this.getFileExtension(resolvedPath);
       if (!this.config.allowedExtensions.includes(extension)) {
-        errors.push(`File extension '${extension}' not allowed. Allowed: ${this.config.allowedExtensions.join(', ')}`);
+        errors.push(
+          `File extension '${extension}' not allowed. Allowed: ${this.config.allowedExtensions.join(', ')}`,
+        );
       }
 
       // Check if path stays within allowed directories
       if (this.config.allowedDirectories.length > 0) {
-        const isAllowed = this.config.allowedDirectories.some(allowedDir => {
+        const isAllowed = this.config.allowedDirectories.some((allowedDir) => {
           const normalizedAllowed = resolve(allowedDir);
           return resolvedPath.startsWith(normalizedAllowed);
         });
@@ -88,15 +97,25 @@ export class InputValidator {
         }
       }
 
+      const isValid = errors.length === 0;
       return {
-        valid: errors.length === 0,
+        isValid,
+        valid: isValid,
+        sanitizedValue: resolvedPath,
         sanitized: resolvedPath,
         errors,
         warnings,
       };
     } catch (error) {
-      errors.push(`Path resolution failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      return { valid: false, errors, warnings };
+      errors.push(
+        `Path resolution failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+      return { 
+        isValid: false, 
+        valid: false, 
+        errors, 
+        warnings 
+      };
     }
   }
 
@@ -109,7 +128,7 @@ export class InputValidator {
 
     if (!header || typeof header !== 'string') {
       errors.push('CSV header is required');
-      return { valid: false, errors, warnings };
+      return { isValid: false, valid: false, errors, warnings };
     }
 
     // Check for control characters
@@ -137,8 +156,11 @@ export class InputValidator {
       }
     }
 
+    const isValid = errors.length === 0;
     return {
-      valid: errors.length === 0,
+      isValid,
+      valid: isValid,
+      sanitizedValue: header.trim(),
       sanitized: header.trim(),
       errors,
       warnings,
@@ -161,8 +183,11 @@ export class InputValidator {
       errors.push('Field contains null bytes');
     }
 
+    const isValid = errors.length === 0;
     return {
-      valid: errors.length === 0,
+      isValid,
+      valid: isValid,
+      sanitizedValue: field,
       sanitized: field,
       errors,
       warnings,
@@ -178,16 +203,16 @@ export class InputValidator {
 
     if (!config || typeof config !== 'object') {
       errors.push('Configuration must be an object');
-      return { valid: false, errors, warnings };
+      return { isValid: false, valid: false, errors, warnings };
     }
 
     // Check for dangerous configuration values
     const dangerousKeys = ['eval', 'function', 'require', 'import', '__proto__', 'constructor'];
-    
+
     const checkObject = (obj: any, path = ''): void => {
       for (const key in obj) {
         const fullPath = path ? `${path}.${key}` : key;
-        
+
         if (dangerousKeys.includes(key.toLowerCase())) {
           warnings.push(`Potentially dangerous configuration key: ${fullPath}`);
         }
@@ -200,9 +225,51 @@ export class InputValidator {
 
     checkObject(config);
 
+    const isValid = errors.length === 0;
     return {
-      valid: errors.length === 0,
+      isValid,
+      valid: isValid,
+      sanitizedValue: config,
       sanitized: config,
+      errors,
+      warnings,
+    };
+  }
+
+  /**
+   * Validate CLI input options
+   */
+  validateCLIInput(options: Record<string, unknown>, context?: any): ValidationResult {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+    const sanitizedOptions: Record<string, unknown> = {};
+
+    for (const [key, value] of Object.entries(options)) {
+      // Check for dangerous keys
+      if (['eval', 'function', 'require', 'import', '__proto__', 'constructor'].includes(key.toLowerCase())) {
+        errors.push(`Dangerous CLI option key: ${key}`);
+        continue;
+      }
+
+      // Sanitize string values
+      if (typeof value === 'string') {
+        // Check for script injection
+        if (/<script|javascript:|data:/.test(value)) {
+          errors.push(`Potentially dangerous value in CLI option: ${key}`);
+          continue;
+        }
+        sanitizedOptions[key] = value.trim();
+      } else {
+        sanitizedOptions[key] = value;
+      }
+    }
+
+    const isValid = errors.length === 0;
+    return {
+      isValid,
+      valid: isValid,
+      sanitizedValue: sanitizedOptions as any,
+      sanitized: sanitizedOptions as any,
       errors,
       warnings,
     };
@@ -211,34 +278,32 @@ export class InputValidator {
   /**
    * Comprehensive security validation
    */
-  validateInput(input: {
-    filePath?: string;
-    config?: any;
-    csvHeader?: string;
-  }): ValidationResult {
+  validateInput(input: { filePath?: string; config?: any; csvHeader?: string }): ValidationResult {
     const allErrors: string[] = [];
     const allWarnings: string[] = [];
 
     if (input.filePath) {
       const pathResult = this.validateFilePath(input.filePath);
-      allErrors.push(...pathResult.errors);
+      allErrors.push(...pathResult.errors.map(e => typeof e === 'string' ? e : e.message));
       allWarnings.push(...pathResult.warnings);
     }
 
     if (input.config) {
       const configResult = this.validateConfig(input.config);
-      allErrors.push(...configResult.errors);
+      allErrors.push(...configResult.errors.map(e => typeof e === 'string' ? e : e.message));
       allWarnings.push(...configResult.warnings);
     }
 
     if (input.csvHeader) {
       const headerResult = this.validateCSVHeader(input.csvHeader);
-      allErrors.push(...headerResult.errors);
+      allErrors.push(...headerResult.errors.map(e => typeof e === 'string' ? e : e.message));
       allWarnings.push(...headerResult.warnings);
     }
 
+    const isValid = allErrors.length === 0;
     return {
-      valid: allErrors.length === 0,
+      isValid,
+      valid: isValid,
       errors: allErrors,
       warnings: allWarnings,
     };
@@ -252,3 +317,35 @@ export class InputValidator {
 
 // Global validator instance
 export const globalInputValidator = new InputValidator();
+
+/**
+ * Factory function for easy access
+ */
+export function getInputValidator(): InputValidator {
+  return globalInputValidator;
+}
+
+/**
+ * External data validator for additional security checks
+ */
+export class ExternalDataValidator {
+  private validator: InputValidator;
+
+  constructor() {
+    this.validator = new InputValidator();
+  }
+
+  /**
+   * Validate external data sources
+   */
+  validateDataSource(source: string, context?: any): ValidationResult {
+    return this.validator.validateFilePath(source);
+  }
+
+  /**
+   * Sanitize external input
+   */
+  sanitizeInput(input: string): string {
+    return input.replace(/[<>:"|?*\x00-\x1f]/g, '').trim();
+  }
+}

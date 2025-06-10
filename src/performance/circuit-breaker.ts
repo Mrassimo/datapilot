@@ -8,18 +8,18 @@ import { performance } from 'perf_hooks';
 import { logger } from '../utils/logger';
 
 export enum CircuitState {
-  CLOSED = 'closed',     // Normal operation
-  OPEN = 'open',         // Failing, blocking requests
-  HALF_OPEN = 'half-open' // Testing if service recovered
+  CLOSED = 'closed', // Normal operation
+  OPEN = 'open', // Failing, blocking requests
+  HALF_OPEN = 'half-open', // Testing if service recovered
 }
 
 interface CircuitBreakerOptions {
-  failureThreshold?: number;    // Number of failures before opening
-  resetTimeout?: number;        // Time before trying half-open
-  monitoringPeriod?: number;    // Window for failure counting
-  successThreshold?: number;    // Successes needed to close from half-open
-  timeoutMs?: number;          // Timeout for individual calls
-  volumeThreshold?: number;     // Minimum calls before evaluating failure rate
+  failureThreshold?: number; // Number of failures before opening
+  resetTimeout?: number; // Time before trying half-open
+  monitoringPeriod?: number; // Window for failure counting
+  successThreshold?: number; // Successes needed to close from half-open
+  timeoutMs?: number; // Timeout for individual calls
+  volumeThreshold?: number; // Minimum calls before evaluating failure rate
 }
 
 interface CircuitBreakerMetrics {
@@ -43,14 +43,14 @@ export class CircuitBreaker<T extends (...args: any[]) => Promise<any>> extends 
   private stateChangeTime = Date.now();
   private recentCalls: { success: boolean; timestamp: number }[] = [];
   private resetTimer?: NodeJS.Timeout;
-  
+
   private readonly options: Required<CircuitBreakerOptions>;
   private readonly operation: T;
   private readonly name: string;
 
   constructor(operation: T, name: string, options: CircuitBreakerOptions = {}) {
     super();
-    
+
     this.operation = operation;
     this.name = name;
     this.options = {
@@ -59,7 +59,7 @@ export class CircuitBreaker<T extends (...args: any[]) => Promise<any>> extends 
       monitoringPeriod: options.monitoringPeriod || 60000, // 1 minute
       successThreshold: options.successThreshold || 3,
       timeoutMs: options.timeoutMs || 30000, // 30 seconds
-      volumeThreshold: options.volumeThreshold || 10
+      volumeThreshold: options.volumeThreshold || 10,
     };
   }
 
@@ -68,7 +68,7 @@ export class CircuitBreaker<T extends (...args: any[]) => Promise<any>> extends 
    */
   async execute(...args: Parameters<T>): Promise<ReturnType<T>> {
     this.cleanupOldCalls();
-    
+
     if (this.state === CircuitState.OPEN) {
       this.emit('circuit-open-rejection', { name: this.name, args });
       throw new CircuitBreakerOpenError(`Circuit breaker ${this.name} is OPEN`);
@@ -80,10 +80,10 @@ export class CircuitBreaker<T extends (...args: any[]) => Promise<any>> extends 
     try {
       // Add timeout protection
       const result = await this.executeWithTimeout(args);
-      
+
       const executionTime = performance.now() - startTime;
       this.onSuccess(executionTime);
-      
+
       return result;
     } catch (error) {
       const executionTime = performance.now() - startTime;
@@ -98,15 +98,19 @@ export class CircuitBreaker<T extends (...args: any[]) => Promise<any>> extends 
   private async executeWithTimeout(args: Parameters<T>): Promise<ReturnType<T>> {
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
-        reject(new CircuitBreakerTimeoutError(`Operation ${this.name} timed out after ${this.options.timeoutMs}ms`));
+        reject(
+          new CircuitBreakerTimeoutError(
+            `Operation ${this.name} timed out after ${this.options.timeoutMs}ms`,
+          ),
+        );
       }, this.options.timeoutMs);
 
       this.operation(...args)
-        .then(result => {
+        .then((result) => {
           clearTimeout(timeout);
           resolve(result);
         })
-        .catch(error => {
+        .catch((error) => {
           clearTimeout(timeout);
           reject(error);
         });
@@ -125,7 +129,7 @@ export class CircuitBreaker<T extends (...args: any[]) => Promise<any>> extends 
       name: this.name,
       executionTime,
       state: this.state,
-      metrics: this.getMetrics()
+      metrics: this.getMetrics(),
     });
 
     if (this.state === CircuitState.HALF_OPEN) {
@@ -148,7 +152,7 @@ export class CircuitBreaker<T extends (...args: any[]) => Promise<any>> extends 
       error: error.message,
       executionTime,
       state: this.state,
-      metrics: this.getMetrics()
+      metrics: this.getMetrics(),
     });
 
     if (this.state === CircuitState.CLOSED || this.state === CircuitState.HALF_OPEN) {
@@ -162,12 +166,14 @@ export class CircuitBreaker<T extends (...args: any[]) => Promise<any>> extends 
    * Determine if circuit should open based on failure criteria
    */
   private shouldOpenCircuit(): boolean {
-    const recentFailures = this.recentCalls.filter(call => !call.success).length;
+    const recentFailures = this.recentCalls.filter((call) => !call.success).length;
     const failureRate = this.recentCalls.length > 0 ? recentFailures / this.recentCalls.length : 0;
-    
+
     // Need minimum volume and either threshold failures or high failure rate
-    return this.recentCalls.length >= this.options.volumeThreshold &&
-           (recentFailures >= this.options.failureThreshold || failureRate > 0.5);
+    return (
+      this.recentCalls.length >= this.options.volumeThreshold &&
+      (recentFailures >= this.options.failureThreshold || failureRate > 0.5)
+    );
   }
 
   /**
@@ -179,12 +185,12 @@ export class CircuitBreaker<T extends (...args: any[]) => Promise<any>> extends 
     this.stateChangeTime = Date.now();
 
     logger.info(`Circuit breaker ${this.name} transitioned from ${oldState} to ${newState}`);
-    
+
     this.emit('state-change', {
       name: this.name,
       oldState,
       newState,
-      metrics: this.getMetrics()
+      metrics: this.getMetrics(),
     });
 
     if (newState === CircuitState.OPEN) {
@@ -216,7 +222,7 @@ export class CircuitBreaker<T extends (...args: any[]) => Promise<any>> extends 
     this.failureCount = 0;
     this.successCount = 0;
     this.recentCalls = [];
-    
+
     if (this.resetTimer) {
       clearTimeout(this.resetTimer);
       this.resetTimer = undefined;
@@ -228,7 +234,7 @@ export class CircuitBreaker<T extends (...args: any[]) => Promise<any>> extends 
    */
   private cleanupOldCalls(): void {
     const cutoff = Date.now() - this.options.monitoringPeriod;
-    this.recentCalls = this.recentCalls.filter(call => call.timestamp > cutoff);
+    this.recentCalls = this.recentCalls.filter((call) => call.timestamp > cutoff);
   }
 
   /**
@@ -243,8 +249,8 @@ export class CircuitBreaker<T extends (...args: any[]) => Promise<any>> extends 
    */
   getMetrics(): CircuitBreakerMetrics {
     this.cleanupOldCalls();
-    
-    const recentFailures = this.recentCalls.filter(call => !call.success).length;
+
+    const recentFailures = this.recentCalls.filter((call) => !call.success).length;
     const failureRate = this.recentCalls.length > 0 ? recentFailures / this.recentCalls.length : 0;
 
     return {
@@ -255,7 +261,7 @@ export class CircuitBreaker<T extends (...args: any[]) => Promise<any>> extends 
       lastFailureTime: this.lastFailureTime,
       lastSuccessTime: this.lastSuccessTime,
       stateChangeTime: this.stateChangeTime,
-      failureRate
+      failureRate,
     };
   }
 
@@ -281,7 +287,7 @@ export class CircuitBreaker<T extends (...args: any[]) => Promise<any>> extends 
       clearTimeout(this.resetTimer);
       this.resetTimer = undefined;
     }
-    
+
     this.emit('shutdown', { name: this.name });
   }
 }
@@ -315,20 +321,20 @@ export class CircuitBreakerManager extends EventEmitter {
   getCircuitBreaker<T extends (...args: any[]) => Promise<any>>(
     name: string,
     operation: T,
-    options?: CircuitBreakerOptions
+    options?: CircuitBreakerOptions,
   ): CircuitBreaker<T> {
     let breaker = this.breakers.get(name) as CircuitBreaker<T>;
-    
+
     if (!breaker) {
       breaker = new CircuitBreaker(operation, name, options);
       this.breakers.set(name, breaker);
-      
+
       // Forward events
       breaker.on('state-change', (data) => this.emit('breaker-state-change', data));
       breaker.on('failure', (data) => this.emit('breaker-failure', data));
       breaker.on('success', (data) => this.emit('breaker-success', data));
     }
-    
+
     return breaker;
   }
 
@@ -337,11 +343,11 @@ export class CircuitBreakerManager extends EventEmitter {
    */
   getAllMetrics(): { [name: string]: CircuitBreakerMetrics } {
     const metrics: { [name: string]: CircuitBreakerMetrics } = {};
-    
+
     for (const [name, breaker] of this.breakers) {
       metrics[name] = breaker.getMetrics();
     }
-    
+
     return metrics;
   }
 
@@ -357,19 +363,19 @@ export class CircuitBreakerManager extends EventEmitter {
   } {
     const metrics = this.getAllMetrics();
     const breakers = Object.values(metrics);
-    
-    const openCount = breakers.filter(b => b.state === CircuitState.OPEN).length;
-    const halfOpenCount = breakers.filter(b => b.state === CircuitState.HALF_OPEN).length;
-    const closedCount = breakers.filter(b => b.state === CircuitState.CLOSED).length;
-    
+
+    const openCount = breakers.filter((b) => b.state === CircuitState.OPEN).length;
+    const halfOpenCount = breakers.filter((b) => b.state === CircuitState.HALF_OPEN).length;
+    const closedCount = breakers.filter((b) => b.state === CircuitState.CLOSED).length;
+
     const overallHealth = breakers.length > 0 ? (closedCount / breakers.length) * 100 : 100;
-    
+
     return {
       totalBreakers: breakers.length,
       openBreakers: openCount,
       halfOpenBreakers: halfOpenCount,
       closedBreakers: closedCount,
-      overallHealth
+      overallHealth,
     };
   }
 
@@ -380,7 +386,7 @@ export class CircuitBreakerManager extends EventEmitter {
     for (const breaker of this.breakers.values()) {
       breaker.forceState(CircuitState.CLOSED);
     }
-    
+
     logger.warn('Forced all circuit breakers to CLOSED state');
     this.emit('emergency-reset');
   }
@@ -392,7 +398,7 @@ export class CircuitBreakerManager extends EventEmitter {
     for (const breaker of this.breakers.values()) {
       breaker.shutdown();
     }
-    
+
     this.breakers.clear();
     this.emit('shutdown');
   }

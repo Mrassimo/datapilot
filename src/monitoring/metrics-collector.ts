@@ -6,7 +6,8 @@
 import { EventEmitter } from 'events';
 import { performance } from 'perf_hooks';
 import { getConfig } from '../core/config';
-import { logger, LogContext } from '../utils/logger';
+import type { LogContext } from '../utils/logger';
+import { logger } from '../utils/logger';
 import { getPerformanceMonitor } from '../core/performance-monitor';
 import { globalMemoryManager } from '../utils/memory-manager';
 import { globalErrorHandler } from '../utils/error-handler';
@@ -47,7 +48,7 @@ export enum MetricType {
   COUNTER = 'counter',
   GAUGE = 'gauge',
   HISTOGRAM = 'histogram',
-  SUMMARY = 'summary'
+  SUMMARY = 'summary',
 }
 
 export interface MetricConfig {
@@ -136,7 +137,7 @@ export class MetricsCollector extends EventEmitter {
   private aggregationInterval?: NodeJS.Timeout;
   private startTime = Date.now();
   private sectionMetrics: Map<string, SectionMetrics> = new Map();
-  
+
   // Request tracking
   private requestCount = 0;
   private errorCount = 0;
@@ -144,7 +145,7 @@ export class MetricsCollector extends EventEmitter {
   private dataProcessingStats = {
     rowsProcessed: 0,
     filesProcessed: 0,
-    bytesProcessed: 0
+    bytesProcessed: 0,
   };
 
   private constructor() {
@@ -167,17 +168,17 @@ export class MetricsCollector extends EventEmitter {
     this.configs.set(config.name, {
       retention: 24 * 60 * 60 * 1000, // 24 hours default
       aggregationWindow: 5 * 60 * 1000, // 5 minutes default
-      ...config
+      ...config,
     });
 
     this.metrics.set(config.name, {
       metric: config.name,
       values: [],
-      retention: config.retention || 24 * 60 * 60 * 1000
+      retention: config.retention || 24 * 60 * 60 * 1000,
     });
 
     logger.debug(`Registered metric: ${config.name} (${config.type})`, {
-      operation: 'registerMetric'
+      operation: 'registerMetric',
     });
   }
 
@@ -188,7 +189,7 @@ export class MetricsCollector extends EventEmitter {
     name: string,
     value: number,
     labels?: Record<string, string>,
-    timestamp?: number
+    timestamp?: number,
   ): void {
     const timeSeries = this.metrics.get(name);
     if (!timeSeries) {
@@ -199,7 +200,7 @@ export class MetricsCollector extends EventEmitter {
     const metricValue: MetricValue = {
       value,
       timestamp: timestamp || Date.now(),
-      labels
+      labels,
     };
 
     timeSeries.values.push(metricValue);
@@ -273,7 +274,7 @@ export class MetricsCollector extends EventEmitter {
     sectionName: string,
     duration: number,
     success: boolean,
-    context?: LogContext
+    context?: LogContext,
   ): void {
     const metrics = this.sectionMetrics.get(sectionName) || {
       executionCount: 0,
@@ -282,7 +283,7 @@ export class MetricsCollector extends EventEmitter {
       maxDuration: 0,
       errorCount: 0,
       successRate: 100,
-      lastExecution: 0
+      lastExecution: 0,
     };
 
     metrics.executionCount++;
@@ -295,20 +296,27 @@ export class MetricsCollector extends EventEmitter {
       metrics.errorCount++;
     }
 
-    metrics.successRate = ((metrics.executionCount - metrics.errorCount) / metrics.executionCount) * 100;
+    metrics.successRate =
+      ((metrics.executionCount - metrics.errorCount) / metrics.executionCount) * 100;
 
     this.sectionMetrics.set(sectionName, metrics);
 
     // Record as standard metrics
     this.recordHistogram('section_duration_ms', duration, { section: sectionName });
-    this.incrementCounter('section_executions_total', 1, { section: sectionName, success: success.toString() });
-
-    logger.debug(`Recorded section execution: ${sectionName} (${duration.toFixed(2)}ms, success: ${success})`, {
-      ...context,
-      operation: 'recordSectionExecution',
+    this.incrementCounter('section_executions_total', 1, {
       section: sectionName,
-      duration
+      success: success.toString(),
     });
+
+    logger.debug(
+      `Recorded section execution: ${sectionName} (${duration.toFixed(2)}ms, success: ${success})`,
+      {
+        ...context,
+        operation: 'recordSectionExecution',
+        section: sectionName,
+        duration,
+      },
+    );
   }
 
   /**
@@ -317,11 +325,11 @@ export class MetricsCollector extends EventEmitter {
   recordDataProcessing(
     rowsProcessed: number,
     bytesProcessed: number,
-    fileProcessed: boolean = false
+    fileProcessed: boolean = false,
   ): void {
     this.dataProcessingStats.rowsProcessed += rowsProcessed;
     this.dataProcessingStats.bytesProcessed += bytesProcessed;
-    
+
     if (fileProcessed) {
       this.dataProcessingStats.filesProcessed++;
     }
@@ -345,7 +353,7 @@ export class MetricsCollector extends EventEmitter {
   recordRequest(responseTime: number, success: boolean): void {
     this.requestCount++;
     this.responseTimes.push(responseTime);
-    
+
     if (!success) {
       this.errorCount++;
     }
@@ -358,7 +366,7 @@ export class MetricsCollector extends EventEmitter {
     // Record as standard metrics
     this.incrementCounter('requests_total', 1, { success: success.toString() });
     this.recordHistogram('request_duration_ms', responseTime);
-    
+
     const errorRate = (this.errorCount / this.requestCount) * 100;
     this.setGauge('error_rate_percent', errorRate);
   }
@@ -372,16 +380,18 @@ export class MetricsCollector extends EventEmitter {
     const uptimeSeconds = uptimeMs / 1000;
 
     // Calculate averages
-    const avgResponseTime = this.responseTimes.length > 0
-      ? this.responseTimes.reduce((a, b) => a + b, 0) / this.responseTimes.length
-      : 0;
+    const avgResponseTime =
+      this.responseTimes.length > 0
+        ? this.responseTimes.reduce((a, b) => a + b, 0) / this.responseTimes.length
+        : 0;
 
     const p95ResponseTime = this.calculatePercentile(this.responseTimes, 0.95);
     const p99ResponseTime = this.calculatePercentile(this.responseTimes, 0.99);
 
     const requestsPerSecond = uptimeSeconds > 0 ? this.requestCount / uptimeSeconds : 0;
     const errorRate = this.requestCount > 0 ? (this.errorCount / this.requestCount) * 100 : 0;
-    const processingRate = uptimeSeconds > 0 ? this.dataProcessingStats.rowsProcessed / uptimeSeconds : 0;
+    const processingRate =
+      uptimeSeconds > 0 ? this.dataProcessingStats.rowsProcessed / uptimeSeconds : 0;
 
     return {
       timestamp: Date.now(),
@@ -394,19 +404,19 @@ export class MetricsCollector extends EventEmitter {
           heapTotal: memoryUsage.heapTotal,
           heapUsed: memoryUsage.heapUsed,
           external: memoryUsage.external,
-          rss: memoryUsage.rss
+          rss: memoryUsage.rss,
         },
         cpu: {
           usage: process.cpuUsage().user / 1000000, // Convert to seconds
-          loadAverage: []
+          loadAverage: [],
         },
         process: {
           pid: process.pid,
           ppid: process.ppid || 0,
           platform: process.platform,
           arch: process.arch,
-          version: process.version
-        }
+          version: process.version,
+        },
       },
       application: {
         requestsTotal: this.requestCount,
@@ -414,7 +424,7 @@ export class MetricsCollector extends EventEmitter {
         responseTimeMs: {
           avg: avgResponseTime,
           p95: p95ResponseTime,
-          p99: p99ResponseTime
+          p99: p99ResponseTime,
         },
         errorsTotal: this.errorCount,
         errorRate,
@@ -422,7 +432,7 @@ export class MetricsCollector extends EventEmitter {
           rowsProcessed: this.dataProcessingStats.rowsProcessed,
           filesProcessed: this.dataProcessingStats.filesProcessed,
           bytesProcessed: this.dataProcessingStats.bytesProcessed,
-          processingRate
+          processingRate,
         },
         sections: {
           section1: this.sectionMetrics.get('section1') || this.getDefaultSectionMetrics(),
@@ -430,9 +440,9 @@ export class MetricsCollector extends EventEmitter {
           section3: this.sectionMetrics.get('section3') || this.getDefaultSectionMetrics(),
           section4: this.sectionMetrics.get('section4') || this.getDefaultSectionMetrics(),
           section5: this.sectionMetrics.get('section5') || this.getDefaultSectionMetrics(),
-          section6: this.sectionMetrics.get('section6') || this.getDefaultSectionMetrics()
-        }
-      }
+          section6: this.sectionMetrics.get('section6') || this.getDefaultSectionMetrics(),
+        },
+      },
     };
   }
 
@@ -442,12 +452,12 @@ export class MetricsCollector extends EventEmitter {
   getMetricSummary(name: string): MetricSummary | undefined {
     const timeSeries = this.metrics.get(name);
     const config = this.configs.get(name);
-    
+
     if (!timeSeries || !config) {
       return undefined;
     }
 
-    const values = timeSeries.values.map(v => v.value);
+    const values = timeSeries.values.map((v) => v.value);
     if (values.length === 0) {
       return undefined;
     }
@@ -470,9 +480,9 @@ export class MetricsCollector extends EventEmitter {
         p95: this.calculatePercentile(sortedValues, 0.95),
         p99: this.calculatePercentile(sortedValues, 0.99),
         sum,
-        count: values.length
+        count: values.length,
       },
-      lastUpdated: timeSeries.values[timeSeries.values.length - 1]?.timestamp || 0
+      lastUpdated: timeSeries.values[timeSeries.values.length - 1]?.timestamp || 0,
     };
   }
 
@@ -481,7 +491,7 @@ export class MetricsCollector extends EventEmitter {
    */
   getAllMetricSummaries(): MetricSummary[] {
     return Array.from(this.configs.keys())
-      .map(name => this.getMetricSummary(name))
+      .map((name) => this.getMetricSummary(name))
       .filter((summary): summary is MetricSummary => summary !== undefined);
   }
 
@@ -539,11 +549,11 @@ export class MetricsCollector extends EventEmitter {
         requests: {
           total: this.requestCount,
           errors: this.errorCount,
-          errorRate: this.requestCount > 0 ? (this.errorCount / this.requestCount) * 100 : 0
+          errorRate: this.requestCount > 0 ? (this.errorCount / this.requestCount) * 100 : 0,
         },
         dataProcessing: this.dataProcessingStats,
-        sections: Object.fromEntries(this.sectionMetrics.entries())
-      }
+        sections: Object.fromEntries(this.sectionMetrics.entries()),
+      },
     };
   }
 
@@ -564,10 +574,13 @@ export class MetricsCollector extends EventEmitter {
       try {
         await this.collectSystemMetrics();
       } catch (error) {
-        logger.error(`Error collecting system metrics: ${error instanceof Error ? error.message : 'Unknown error'}`, {
-          operation: 'collectSystemMetrics',
-          error: error instanceof Error ? error.stack : String(error)
-        });
+        logger.error(
+          `Error collecting system metrics: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          {
+            operation: 'collectSystemMetrics',
+            error: error instanceof Error ? error.stack : String(error),
+          },
+        );
       }
     }, intervalMs);
 
@@ -576,10 +589,13 @@ export class MetricsCollector extends EventEmitter {
       try {
         this.aggregateMetrics();
       } catch (error) {
-        logger.error(`Error aggregating metrics: ${error instanceof Error ? error.message : 'Unknown error'}`, {
-          operation: 'aggregateMetrics',
-          error: error instanceof Error ? error.stack : String(error)
-        });
+        logger.error(
+          `Error aggregating metrics: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          {
+            operation: 'aggregateMetrics',
+            error: error instanceof Error ? error.stack : String(error),
+          },
+        );
       }
     }, intervalMs * 2);
   }
@@ -619,7 +635,7 @@ export class MetricsCollector extends EventEmitter {
     this.dataProcessingStats = {
       rowsProcessed: 0,
       filesProcessed: 0,
-      bytesProcessed: 0
+      bytesProcessed: 0,
     };
     this.sectionMetrics.clear();
     this.startTime = Date.now();
@@ -649,11 +665,17 @@ export class MetricsCollector extends EventEmitter {
     // Collect performance metrics
     const performanceMonitor = getPerformanceMonitor();
     const performanceSummary = performanceMonitor.getPerformanceSummary();
-    
+
     if (performanceSummary.currentMetrics) {
       this.setGauge('cpu_usage_seconds', performanceSummary.currentMetrics.cpuTime || 0);
-      this.setGauge('processing_rate_rows_per_second', performanceSummary.currentMetrics.processingRate || 0);
-      this.setGauge('throughput_operations_per_second', performanceSummary.currentMetrics.throughput || 0);
+      this.setGauge(
+        'processing_rate_rows_per_second',
+        performanceSummary.currentMetrics.processingRate || 0,
+      );
+      this.setGauge(
+        'throughput_operations_per_second',
+        performanceSummary.currentMetrics.throughput || 0,
+      );
     }
 
     // Collect error metrics
@@ -678,20 +700,20 @@ export class MetricsCollector extends EventEmitter {
 
   private cleanupTimeSeries(timeSeries: TimeSeries): void {
     const cutoff = Date.now() - timeSeries.retention;
-    timeSeries.values = timeSeries.values.filter(value => value.timestamp > cutoff);
+    timeSeries.values = timeSeries.values.filter((value) => value.timestamp > cutoff);
   }
 
   private calculatePercentile(sortedValues: number[], percentile: number): number {
     if (sortedValues.length === 0) return 0;
-    
+
     const index = percentile * (sortedValues.length - 1);
     const lower = Math.floor(index);
     const upper = Math.ceil(index);
-    
+
     if (lower === upper) {
       return sortedValues[lower];
     }
-    
+
     const weight = index - lower;
     return sortedValues[lower] * (1 - weight) + sortedValues[upper] * weight;
   }
@@ -704,7 +726,7 @@ export class MetricsCollector extends EventEmitter {
       maxDuration: 0,
       errorCount: 0,
       successRate: 100,
-      lastExecution: 0
+      lastExecution: 0,
     };
   }
 
@@ -715,28 +737,28 @@ export class MetricsCollector extends EventEmitter {
       type: MetricType.COUNTER,
       description: 'Total number of requests processed',
       unit: 'requests',
-      labels: ['success']
+      labels: ['success'],
     });
 
     this.registerMetric({
       name: 'rows_processed_total',
       type: MetricType.COUNTER,
       description: 'Total number of data rows processed',
-      unit: 'rows'
+      unit: 'rows',
     });
 
     this.registerMetric({
       name: 'bytes_processed_total',
       type: MetricType.COUNTER,
       description: 'Total number of bytes processed',
-      unit: 'bytes'
+      unit: 'bytes',
     });
 
     this.registerMetric({
       name: 'files_processed_total',
       type: MetricType.COUNTER,
       description: 'Total number of files processed',
-      unit: 'files'
+      unit: 'files',
     });
 
     this.registerMetric({
@@ -744,7 +766,7 @@ export class MetricsCollector extends EventEmitter {
       type: MetricType.COUNTER,
       description: 'Total number of section executions',
       unit: 'executions',
-      labels: ['section', 'success']
+      labels: ['section', 'success'],
     });
 
     // Gauge metrics
@@ -752,77 +774,77 @@ export class MetricsCollector extends EventEmitter {
       name: 'memory_heap_used_bytes',
       type: MetricType.GAUGE,
       description: 'Current heap memory usage in bytes',
-      unit: 'bytes'
+      unit: 'bytes',
     });
 
     this.registerMetric({
       name: 'memory_heap_total_bytes',
       type: MetricType.GAUGE,
       description: 'Total heap memory available in bytes',
-      unit: 'bytes'
+      unit: 'bytes',
     });
 
     this.registerMetric({
       name: 'memory_external_bytes',
       type: MetricType.GAUGE,
       description: 'External memory usage in bytes',
-      unit: 'bytes'
+      unit: 'bytes',
     });
 
     this.registerMetric({
       name: 'memory_rss_bytes',
       type: MetricType.GAUGE,
       description: 'Resident set size in bytes',
-      unit: 'bytes'
+      unit: 'bytes',
     });
 
     this.registerMetric({
       name: 'cpu_usage_seconds',
       type: MetricType.GAUGE,
       description: 'CPU usage in seconds',
-      unit: 'seconds'
+      unit: 'seconds',
     });
 
     this.registerMetric({
       name: 'processing_rate_rows_per_second',
       type: MetricType.GAUGE,
       description: 'Current data processing rate in rows per second',
-      unit: 'rows/second'
+      unit: 'rows/second',
     });
 
     this.registerMetric({
       name: 'throughput_operations_per_second',
       type: MetricType.GAUGE,
       description: 'Current operation throughput per second',
-      unit: 'operations/second'
+      unit: 'operations/second',
     });
 
     this.registerMetric({
       name: 'error_rate_percent',
       type: MetricType.GAUGE,
       description: 'Current error rate as percentage',
-      unit: 'percent'
+      unit: 'percent',
     });
 
     this.registerMetric({
       name: 'errors_total',
       type: MetricType.GAUGE,
       description: 'Total number of errors encountered',
-      unit: 'errors'
+      unit: 'errors',
     });
 
     this.registerMetric({
       name: 'critical_errors_total',
       type: MetricType.GAUGE,
       description: 'Total number of critical errors',
-      unit: 'errors'
+      unit: 'errors',
     });
 
     this.registerMetric({
       name: 'recovered_errors_total',
       type: MetricType.GAUGE,
       description: 'Total number of recovered errors',
-      unit: 'errors'
+      unit: 'errors',
     });
 
     // Histogram metrics
@@ -831,7 +853,7 @@ export class MetricsCollector extends EventEmitter {
       type: MetricType.HISTOGRAM,
       description: 'Request duration in milliseconds',
       unit: 'milliseconds',
-      buckets: [1, 5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000]
+      buckets: [1, 5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000],
     });
 
     this.registerMetric({
@@ -840,7 +862,7 @@ export class MetricsCollector extends EventEmitter {
       description: 'Section execution duration in milliseconds',
       unit: 'milliseconds',
       labels: ['section'],
-      buckets: [10, 50, 100, 500, 1000, 5000, 10000, 30000, 60000]
+      buckets: [10, 50, 100, 500, 1000, 5000, 10000, 30000, 60000],
     });
 
     logger.info('Default metrics registered', { operation: 'initializeDefaultMetrics' });
@@ -848,8 +870,8 @@ export class MetricsCollector extends EventEmitter {
 
   private initializeSectionMetrics(): void {
     const sections = ['section1', 'section2', 'section3', 'section4', 'section5', 'section6'];
-    
-    sections.forEach(section => {
+
+    sections.forEach((section) => {
       this.sectionMetrics.set(section, this.getDefaultSectionMetrics());
     });
   }
@@ -868,18 +890,18 @@ export class MetricsUtils {
    * Create a timing decorator for automatic duration tracking
    */
   static timing(metricName: string, labels?: Record<string, string>) {
-    return function(target: any, propertyName: string, descriptor: PropertyDescriptor) {
+    return function (target: any, propertyName: string, descriptor: PropertyDescriptor) {
       const method = descriptor.value;
-      
-      descriptor.value = async function(...args: any[]) {
+
+      descriptor.value = async function (...args: any[]) {
         const endTimer = globalMetricsCollector.startTimer(metricName);
-        
+
         try {
           const result = await method.apply(this, args);
-          endTimer({ ...labels, success: 'true' });
+          endTimer();
           return result;
         } catch (error) {
-          endTimer({ ...labels, success: 'false' });
+          endTimer();
           throw error;
         }
       };
@@ -890,10 +912,10 @@ export class MetricsUtils {
    * Create a counter decorator for automatic counting
    */
   static counter(metricName: string, labels?: Record<string, string>) {
-    return function(target: any, propertyName: string, descriptor: PropertyDescriptor) {
+    return function (target: any, propertyName: string, descriptor: PropertyDescriptor) {
       const method = descriptor.value;
-      
-      descriptor.value = async function(...args: any[]) {
+
+      descriptor.value = async function (...args: any[]) {
         try {
           const result = await method.apply(this, args);
           globalMetricsCollector.incrementCounter(metricName, 1, { ...labels, success: 'true' });
@@ -914,16 +936,16 @@ export class MetricsUtils {
     rowCount: number,
     byteCount: number,
     duration: number,
-    success: boolean
+    success: boolean,
   ): void {
     globalMetricsCollector.recordDataProcessing(rowCount, byteCount, operationType === 'file');
     globalMetricsCollector.recordHistogram('data_operation_duration_ms', duration, {
       operation: operationType,
-      success: success.toString()
+      success: success.toString(),
     });
     globalMetricsCollector.incrementCounter('data_operations_total', 1, {
       operation: operationType,
-      success: success.toString()
+      success: success.toString(),
     });
   }
 }

@@ -4,14 +4,14 @@
  */
 
 export { InputValidator, getInputValidator, ExternalDataValidator } from './input-validator';
-export { 
+export {
   FileAccessController,
   getFileAccessController,
   SecureFileOperations,
   type FileAccessPolicy,
   type FileOperation,
   type SecureFileHandle,
-  type AuditLogEntry
+  type AuditLogEntry,
 } from './file-access-controller';
 export {
   SecurityConfigManager,
@@ -20,7 +20,7 @@ export {
   SecurityProfiles,
   type SecurityPolicy,
   type SecurityConfiguration,
-  DEFAULT_SECURITY_POLICY
+  DEFAULT_SECURITY_POLICY,
 } from './security-config';
 export {
   SecurityAuditLogger,
@@ -30,7 +30,7 @@ export {
   type SecurityEventType,
   type SecurityEventSeverity,
   type AuditConfiguration,
-  type AlertRule
+  type AlertRule,
 } from './audit-logger';
 
 import { getInputValidator } from './input-validator';
@@ -51,28 +51,28 @@ export async function initializeSecurity(options?: {
 }): Promise<void> {
   try {
     logger.info('Initializing DataPilot Security Framework', options);
-    
+
     // Initialize security configuration
     const securityConfig = getSecurityConfig();
     if (options?.environment) {
       securityConfig.applyEnvironmentOverrides(options.environment);
     }
-    
+
     // Validate security configuration
     const validation = securityConfig.validateConfiguration();
     if (!validation.isValid) {
       throw new DataPilotError(
         `Security configuration validation failed: ${validation.errors.join(', ')}`,
-        'SECURITY_CONFIG_INVALID'
+        'SECURITY_CONFIG_INVALID',
       );
     }
-    
+
     if (validation.warnings.length > 0) {
       logger.warn('Security configuration warnings', {
         warnings: validation.warnings,
       });
     }
-    
+
     // Initialize audit logging
     const auditLogger = getSecurityAuditLogger();
     await auditLogger.logSecurityEvent(
@@ -85,9 +85,9 @@ export async function initializeSecurity(options?: {
       {
         severity: 'low',
         outcome: 'success',
-      }
+      },
     );
-    
+
     // Enable advanced features if requested
     if (options?.enableAdvancedThreatDetection) {
       securityConfig.updateSecurityFeatures({
@@ -96,12 +96,11 @@ export async function initializeSecurity(options?: {
         enableIntrusionDetection: true,
       });
     }
-    
+
     logger.info('DataPilot Security Framework initialized successfully', {
       environment: options?.environment,
-      features: securityConfig.getSecurityFeatures(),
+      features: Object.keys(securityConfig.getSecurityFeatures()),
     });
-    
   } catch (error) {
     logger.error('Failed to initialize security framework', {
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -117,14 +116,14 @@ export class SecureDataPilot {
   private inputValidator = getInputValidator();
   private fileController = getFileAccessController();
   private auditLogger = getSecurityAuditLogger();
-  
+
   /**
    * Securely validate and process a file path
    */
   async validateAndProcessFile(
     filePath: string,
     operation: 'read' | 'write' | 'analyze',
-    context?: LogContext
+    context?: LogContext,
   ): Promise<{
     isValid: boolean;
     sanitizedPath?: string;
@@ -139,71 +138,70 @@ export class SecureDataPilot {
         'success',
         context?.userId,
         { originalPath: filePath },
-        context
+        context,
       );
-      
+
       // Validate the file path
-      const validation = this.inputValidator.validateFilePath(filePath, context);
-      
+      const validation = this.inputValidator.validateFilePath(filePath);
+
       if (!validation.isValid) {
         await this.auditLogger.logFileAccessEvent(
           filePath,
           operation,
           'blocked',
           context?.userId,
-          { 
+          {
             reason: 'Validation failed',
-            errors: validation.errors.map(e => e.message),
+            errors: validation.errors.map((e) => typeof e === 'string' ? e : e.message),
           },
-          context
+          context,
         );
-        
+
         return {
           isValid: false,
-          errors: validation.errors.map(e => e.message),
+          errors: validation.errors.map((e) => typeof e === 'string' ? e : e.message),
         };
       }
-      
+
       // Create secure file handle
       const handle = await this.fileController.createSecureHandle(
         validation.sanitizedValue as string,
         operation === 'analyze' ? 'read' : operation,
         undefined,
-        context
+        context,
       );
-      
+
       return {
         isValid: true,
         sanitizedPath: validation.sanitizedValue as string,
         securityHandle: handle,
         errors: [],
       };
-      
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      
+
       await this.auditLogger.logFileAccessEvent(
         filePath,
         operation,
         'failure',
         context?.userId,
         { error: errorMessage },
-        context
+        context,
       );
-      
+
       return {
         isValid: false,
         errors: [errorMessage],
       };
     }
   }
-  
+
   /**
    * Securely validate CLI options
    */
   validateCLIOptions(
     options: Record<string, unknown>,
-    context?: LogContext
+    context?: LogContext,
   ): {
     isValid: boolean;
     sanitizedOptions?: Record<string, unknown>;
@@ -212,7 +210,7 @@ export class SecureDataPilot {
   } {
     try {
       const validation = this.inputValidator.validateCLIInput(options, context);
-      
+
       // Log validation attempt
       this.auditLogger.logSecurityEvent(
         'input_validation',
@@ -226,19 +224,18 @@ export class SecureDataPilot {
           severity: validation.isValid ? 'low' : 'medium',
           outcome: validation.isValid ? 'success' : 'failure',
           context,
-        }
+        },
       );
-      
+
       return {
         isValid: validation.isValid,
-        sanitizedOptions: validation.sanitizedValue as Record<string, unknown>,
-        errors: validation.errors.map(e => e.message),
-        warnings: validation.warnings.map(w => w.message),
+        sanitizedOptions: (validation.sanitizedValue as unknown) as Record<string, unknown> | undefined,
+        errors: validation.errors.map((e) => typeof e === 'string' ? e : e.message),
+        warnings: validation.warnings,
       };
-      
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      
+
       this.auditLogger.logSecurityEvent(
         'input_validation',
         'CLI options validation failed',
@@ -247,9 +244,9 @@ export class SecureDataPilot {
           severity: 'high',
           outcome: 'failure',
           context,
-        }
+        },
       );
-      
+
       return {
         isValid: false,
         errors: [errorMessage],
@@ -257,7 +254,7 @@ export class SecureDataPilot {
       };
     }
   }
-  
+
   /**
    * Get security status and statistics
    */
@@ -270,22 +267,22 @@ export class SecureDataPilot {
     const fileStats = this.fileController.getStatistics();
     const auditStats = this.auditLogger.getStatistics();
     const recentEvents = this.auditLogger.getEvents({ limit: 10 });
-    
+
     const warnings: string[] = [];
-    
+
     // Check for security issues
     if (fileStats.quarantinedFiles > 0) {
       warnings.push(`${fileStats.quarantinedFiles} files are quarantined`);
     }
-    
+
     if (auditStats.eventsBySeverity.critical > 0) {
       warnings.push(`${auditStats.eventsBySeverity.critical} critical security events`);
     }
-    
+
     if (auditStats.averageRiskScore > 7) {
       warnings.push('High average risk score detected');
     }
-    
+
     return {
       isHealthy: warnings.length === 0,
       statistics: {
@@ -319,14 +316,14 @@ export function getSecureDataPilot(): SecureDataPilot {
 export function securityMonitor(operation: string) {
   return function (target: any, propertyName: string, descriptor: PropertyDescriptor) {
     const method = descriptor.value;
-    
+
     descriptor.value = async function (...args: any[]) {
       const auditLogger = getSecurityAuditLogger();
       const startTime = Date.now();
-      
+
       try {
         const result = await method.apply(this, args);
-        
+
         await auditLogger.logSecurityEvent(
           'system_security',
           `Method execution: ${operation}`,
@@ -339,9 +336,9 @@ export function securityMonitor(operation: string) {
           {
             severity: 'low',
             outcome: 'success',
-          }
+          },
         );
-        
+
         return result;
       } catch (error) {
         await auditLogger.logSecurityEvent(
@@ -356,13 +353,13 @@ export function securityMonitor(operation: string) {
           {
             severity: 'medium',
             outcome: 'failure',
-          }
+          },
         );
-        
+
         throw error;
       }
     };
-    
+
     return descriptor;
   };
 }
@@ -376,11 +373,11 @@ export const SecurityUtils = {
    */
   sanitizeErrorMessage(error: Error | string, hideSystemPaths: boolean = true): string {
     const message = typeof error === 'string' ? error : error.message;
-    
+
     if (!hideSystemPaths) {
       return message;
     }
-    
+
     // Remove system paths and sensitive information
     return message
       .replace(/\/[^\s]+\/[^\s]+/g, '[PATH]') // Remove Unix paths
@@ -388,7 +385,7 @@ export const SecurityUtils = {
       .replace(/\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/g, '[IP]') // Remove IP addresses
       .replace(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g, '[EMAIL]'); // Remove emails
   },
-  
+
   /**
    * Generate secure random string
    */
@@ -396,7 +393,7 @@ export const SecurityUtils = {
     const crypto = require('crypto');
     return crypto.randomBytes(length).toString('hex');
   },
-  
+
   /**
    * Hash sensitive data
    */

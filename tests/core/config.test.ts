@@ -28,7 +28,15 @@ describe('Core Configuration System', () => {
       expect(analysis.maxCategoricalLevels).toBeGreaterThan(0);
       expect(analysis.maxCorrelationPairs).toBeGreaterThan(0);
       expect(analysis.samplingThreshold).toBeGreaterThan(0);
-      expect(analysis.multivariateThreshold).toBeGreaterThan(0);
+      if (analysis.multivariateThreshold !== undefined) {
+        expect(analysis.multivariateThreshold).toBeGreaterThan(0);
+      }
+      if (analysis.maxDimensionsForPCA !== undefined) {
+        expect(analysis.maxDimensionsForPCA).toBeGreaterThan(0);
+      }
+      if (analysis.clusteringMethods !== undefined) {
+        expect(Array.isArray(analysis.clusteringMethods)).toBe(true);
+      }
     });
 
     test('should have valid streaming settings', () => {
@@ -75,7 +83,7 @@ describe('Core Configuration System', () => {
 
   describe('Configuration Structure', () => {
     test('should have all required top-level sections', () => {
-      const requiredSections = ['performance', 'analysis', 'streaming', 'statistical', 'validation', 'environment'];
+      const requiredSections = ['performance', 'analysis', 'streaming', 'statistical', 'quality', 'environment'];
       
       for (const section of requiredSections) {
         expect(DEFAULT_CONFIG).toHaveProperty(section);

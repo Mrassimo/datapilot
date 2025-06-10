@@ -87,9 +87,9 @@ class HealthChecker {
     checks.push(await this.checkDependencies());
 
     // Calculate summary
-    const passing = checks.filter(c => c.status === 'pass').length;
-    const failing = checks.filter(c => c.status === 'fail').length;
-    const warnings = checks.filter(c => c.status === 'warn').length;
+    const passing = checks.filter((c) => c.status === 'pass').length;
+    const failing = checks.filter((c) => c.status === 'fail').length;
+    const warnings = checks.filter((c) => c.status === 'warn').length;
 
     // Determine overall status
     let status: 'healthy' | 'degraded' | 'unhealthy';
@@ -120,17 +120,17 @@ class HealthChecker {
    * Get detailed monitoring metrics
    */
   getMetrics(): MonitoringMetrics {
-    const memoryUsage = globalMemoryManager.getMemoryUsage();
+    const memoryUsage = globalMemoryManager.getMemoryStats();
     const errorStats = globalErrorHandler.getErrorStatistics();
     const cpuUsage = process.cpuUsage();
 
     return {
       memory: {
-        heapUsed: memoryUsage.heapUsedMB,
-        heapTotal: memoryUsage.heapTotalMB,
-        external: memoryUsage.externalMB,
-        rss: memoryUsage.rssMB,
-        percentUsed: memoryUsage.percentUsed,
+        heapUsed: Math.round(memoryUsage.current.heapUsed / (1024 * 1024)),
+        heapTotal: Math.round(memoryUsage.current.heapTotal / (1024 * 1024)),
+        external: Math.round(memoryUsage.current.external / (1024 * 1024)),
+        rss: Math.round(memoryUsage.current.rss / (1024 * 1024)),
+        percentUsed: Math.round((memoryUsage.current.heapUsed / memoryUsage.current.heapTotal) * 100),
       },
       performance: {
         uptime: Date.now() - this.startTime,
@@ -157,7 +157,7 @@ class HealthChecker {
    */
   recordRequest(success: boolean, responseTime: number): void {
     this.requestCount++;
-    
+
     if (success) {
       this.successfulRequests++;
     } else {
@@ -165,7 +165,7 @@ class HealthChecker {
     }
 
     this.responseTimes.push(responseTime);
-    
+
     // Keep only last 1000 response times
     if (this.responseTimes.length > 1000) {
       this.responseTimes.shift();
@@ -177,10 +177,10 @@ class HealthChecker {
    */
   private async checkMemoryHealth(): Promise<HealthCheck> {
     const start = Date.now();
-    
+
     try {
-      const memoryUsage = globalMemoryManager.getMemoryUsage();
-      const percentUsed = memoryUsage.percentUsed;
+      const memoryUsage = globalMemoryManager.getMemoryStats();
+      const percentUsed = Math.round((memoryUsage.current.heapUsed / memoryUsage.current.heapTotal) * 100);
 
       let status: 'pass' | 'fail' | 'warn';
       let message: string;
@@ -202,8 +202,8 @@ class HealthChecker {
         message,
         duration: Date.now() - start,
         metadata: {
-          heapUsedMB: memoryUsage.heapUsedMB,
-          heapTotalMB: memoryUsage.heapTotalMB,
+          heapUsedMB: Math.round(memoryUsage.current.heapUsed / (1024 * 1024)),
+          heapTotalMB: Math.round(memoryUsage.current.heapTotal / (1024 * 1024)),
           percentUsed,
         },
       };
@@ -222,7 +222,7 @@ class HealthChecker {
    */
   private async checkErrorRate(): Promise<HealthCheck> {
     const start = Date.now();
-    
+
     try {
       const errorStats = globalErrorHandler.getErrorStatistics();
       const last24hErrors = this.getErrorsLast24h();
@@ -268,7 +268,7 @@ class HealthChecker {
    */
   private async checkPerformance(): Promise<HealthCheck> {
     const start = Date.now();
-    
+
     try {
       const avgResponseTime = this.getAverageResponseTime();
       const eventLoopDelay = this.measureEventLoopDelay();
@@ -313,12 +313,12 @@ class HealthChecker {
    */
   private async checkDependencies(): Promise<HealthCheck> {
     const start = Date.now();
-    
+
     try {
       // Test file system access
       const fs = await import('fs');
       const tmpDir = require('os').tmpdir();
-      
+
       // Try to write a test file
       await fs.promises.writeFile(`${tmpDir}/datapilot-health-check`, 'test');
       await fs.promises.unlink(`${tmpDir}/datapilot-health-check`);
@@ -347,8 +347,9 @@ class HealthChecker {
    * Simple readiness check
    */
   isReady(): boolean {
-    const memoryUsage = globalMemoryManager.getMemoryUsage();
-    return memoryUsage.percentUsed < 90;
+    const memoryUsage = globalMemoryManager.getMemoryStats();
+    const percentUsed = Math.round((memoryUsage.current.heapUsed / memoryUsage.current.heapTotal) * 100);
+    return percentUsed < 90;
   }
 
   /**
@@ -367,7 +368,7 @@ class HealthChecker {
 
   private getAverageResponseTime(): number {
     if (this.responseTimes.length === 0) return 0;
-    
+
     const sum = this.responseTimes.reduce((a, b) => a + b, 0);
     return Math.round(sum / this.responseTimes.length);
   }

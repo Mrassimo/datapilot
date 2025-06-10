@@ -64,11 +64,41 @@ console.log(`✅ Created: ${testFile}`);
 // Test analysis
 console.log('\n🔬 Running test analysis...');
 try {
-  execSync(`datapilot overview "${testFile}" --quiet`, { stdio: 'inherit' });
-  console.log('✅ Analysis completed successfully!');
+  // Test basic functionality
+  execSync(`datapilot "${testFile}" --format json --sections 1,2 --output test-output.json`, { stdio: 'inherit' });
+  
+  // Verify output file exists
+  const outputFile = path.join(process.cwd(), 'test-output.json');
+  if (fs.existsSync(outputFile)) {
+    const output = JSON.parse(fs.readFileSync(outputFile, 'utf8'));
+    if (output.section1 && output.section2) {
+      console.log('✅ Analysis completed successfully!');
+      console.log(`✅ Generated ${Object.keys(output).length} analysis sections`);
+      fs.unlinkSync(outputFile); // Cleanup output
+    } else {
+      console.log('❌ Analysis output incomplete');
+    }
+  } else {
+    console.log('❌ No output file generated');
+  }
 } catch (error) {
   console.log('❌ Analysis failed');
   console.log('Error:', error.message);
+  
+  // Try alternative method (direct node execution)
+  console.log('\n🔄 Trying direct execution...');
+  try {
+    const cliPath = path.resolve('./dist/cli/index.js');
+    if (fs.existsSync(cliPath)) {
+      execSync(`node "${cliPath}" "${testFile}" --format json --sections 1,2`, { stdio: 'inherit' });
+      console.log('✅ Direct execution successful!');
+    } else {
+      console.log('❌ CLI not built. Run "npm run build" first.');
+    }
+  } catch (directError) {
+    console.log('❌ Direct execution also failed');
+    console.log('Error:', directError.message);
+  }
 }
 
 // Cleanup
