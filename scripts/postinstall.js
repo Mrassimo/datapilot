@@ -14,20 +14,23 @@ const platform = os.platform();
 const isWindows = platform === 'win32';
 
 console.log('📚 Quick Start:');
-console.log('  datapilot --version              # Check version (should show v1.0.7)');
+console.log('  datapilot --version              # Check version (should show v1.0.8)');
 console.log('  datapilot --help                 # Show all commands');
 console.log('  datapilot overview data.csv      # Quick file overview');
 console.log('  datapilot all data.csv           # Complete analysis (all 6 sections)\n');
 
+// PATH troubleshooting for all platforms
+console.log('🔧 If "datapilot: command not found":');
+console.log('  - Use npx instead: npx datapilot-cli --version');
+console.log('  - Or check PATH: npm config get prefix');
+console.log('  - Add npm global bin to your PATH environment variable');
+
 // Windows-specific notes
 if (isWindows) {
-  console.log('💡 Windows Users:');
-  console.log('  - If "datapilot" command is not found, try:');
-  console.log('    npx datapilot-cli --version');
-  console.log('  - Or restart your PowerShell/Command Prompt');
-  console.log('  - Check npm global bin is in PATH:');
-  console.log('    npm config get prefix');
-  console.log('    (Should be in your PATH environment variable)\n');
+  console.log('\n💡 Windows PATH Setup:');
+  console.log('  1. Run: npm config get prefix');
+  console.log('  2. Add the returned path to your PATH environment variable');
+  console.log('  3. Restart PowerShell/Command Prompt');
 }
 
 // Proxy configuration help

@@ -38,10 +38,15 @@ Download platform-specific binaries from [GitHub Releases](https://github.com/Mr
 - **macOS**: `datapilot-macos` (53MB) 
 - **Linux**: `datapilot-linux` (48MB)
 
-### Option 3: NPX (No Installation)
+### Option 3: NPX (No Installation, Recommended for PATH Issues)
 ```bash
+# Always gets latest version, no PATH configuration needed
 npx datapilot-cli all data.csv
+npx datapilot-cli --version
+npx datapilot-cli --help
 ```
+
+> 💡 **Tip**: If you have trouble with `datapilot: command not found` after global install, use `npx datapilot-cli` instead
 
 ### Option 4: From Source
 ```bash
@@ -243,18 +248,43 @@ ai-insights visualize --input analysis.json --charts recommended
 ### Common Issues
 
 **Installation Problems**
+
+***"datapilot: command not found" after npm install***
 ```bash
-# If you're getting an old version (like 1.0.2), try:
-npm uninstall -g datapilot datapilot-cli  # Remove any existing versions
-npm cache clean --force                   # Clear npm cache
-npm install -g datapilot-cli             # Fresh install
+# Check if npm global bin is in your PATH
+npm config get prefix
+echo $PATH | grep $(npm config get prefix)
+
+# If not in PATH, add npm global bin to your shell profile:
+# For bash/zsh (~/.bashrc or ~/.zshrc):
+echo 'export PATH="$(npm config get prefix)/bin:$PATH"' >> ~/.bashrc
+source ~/.bashrc
+
+# For fish shell (~/.config/fish/config.fish):
+echo 'set -gx PATH (npm config get prefix)/bin $PATH' >> ~/.config/fish/config.fish
+
+# Windows (run as administrator):
+npm config get prefix
+# Add the returned path + \node_modules\.bin to your PATH environment variable
+```
+
+***Getting old version (like 1.0.2) instead of latest***
+```bash
+# Remove any existing versions and clear cache
+npm uninstall -g datapilot datapilot-cli  
+npm cache clean --force                   
+npm install -g datapilot-cli             
 
 # Make sure you're installing the right package
-npm install -g datapilot-cli    # ✅ Correct (latest v1.0.6)
+npm install -g datapilot-cli    # ✅ Correct (latest v1.0.7)
 npm install -g datapilot        # ❌ Wrong (deprecated v2.0.0)
+```
 
-# Alternative: Use npx (always gets latest)
+***Alternative: Use npx (always works, no PATH issues)***
+```bash
+# NPX always gets the latest version and doesn't require PATH setup
 npx datapilot-cli --version
+npx datapilot-cli all data.csv
 ```
 
 **Large File Processing**
