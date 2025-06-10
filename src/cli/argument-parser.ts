@@ -43,7 +43,7 @@ export class ArgumentParser {
         };
       }
 
-      this.program.parse(argv, { from: 'user' });
+      this.program.parse(argv);
 
       // Get the parsed command and options  
       const lastContext = this.getLastContext();
@@ -56,7 +56,9 @@ export class ArgumentParser {
       }
 
       // Fallback for basic parsing
-      const command = this.program.args[0] || 'help';
+      // Check if we have any remaining args after parsing
+      const remainingArgs = this.program.args;
+      const command = remainingArgs.length > 0 ? remainingArgs[0] : 'help';
       const globalOptions = this.program.opts();
 
       return {
@@ -223,6 +225,7 @@ Use --verbose for detailed confidence explanations in reports.`,
         command: commandName,
         file,
         options,
+        args: [file], // Include the file in args for compatibility
       };
     };
   }
