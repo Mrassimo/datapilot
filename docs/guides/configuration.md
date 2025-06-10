@@ -73,52 +73,62 @@ Configuration files can be in JSON or YAML format.
 }
 ```
 
-## Presets
+## Performance Presets
 
-DataPilot includes built-in presets for common scenarios:
+DataPilot includes optimized presets for different file sizes and use cases:
 
-### low-memory
-```json
-{
-  "performance": {
-    "maxRows": 100000,
-    "memoryThresholdMB": 256
-  },
-  "streaming": {
-    "memoryThresholdMB": 128,
-    "maxRowsAnalyzed": 50000
-  }
-}
+### speed-optimized (Default)
+For fast processing with full features (100MB-5GB files):
+```bash
+datapilot analyze data.csv --preset speed-optimized
 ```
 
-### high-performance
-```json
-{
-  "performance": {
-    "maxRows": 10000000,
-    "memoryThresholdMB": 4096,
-    "adaptiveChunkSizing": true
-  }
-}
+### large-files 
+For 1-10GB files with minimal memory usage (<512MB):
+```bash
+datapilot analyze huge.csv --preset large-files
 ```
 
-### minimal-analysis
-```json
-{
-  "analysis": {
-    "enableMultivariate": false
-  },
-  "defaultSections": [1, 2]
-}
+### ultra-large-files
+For 10-100GB files with extreme optimization (<256MB):
+```bash
+datapilot analyze massive.csv --preset ultra-large-files
 ```
 
-### ci-cd
+### memory-constrained
+For environments with very limited memory (<128MB):
+```bash
+datapilot analyze data.csv --preset memory-constrained
+```
+
+### Custom Configuration Examples
+
+#### CI/CD Pipeline
 ```json
 {
   "quiet": true,
   "outputFormat": "json",
   "performance": {
-    "maxRows": 1000000
+    "maxRows": 1000000,
+    "memoryThresholdBytes": 512000000
+  },
+  "analysis": {
+    "maxCorrelationPairs": 25
+  }
+}
+```
+
+#### Development Environment
+```json
+{
+  "verbose": true,
+  "defaultSections": [1, 2, 3],
+  "performance": {
+    "maxRows": 100000
+  },
+  "analysis": {
+    "enableMultivariate": true,
+    "maxCorrelationPairs": 50
   }
 }
 ```
