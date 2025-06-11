@@ -1,6 +1,6 @@
 {
   "name": "datapilot-cli",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Enterprise-grade streaming multi-format data analysis with comprehensive statistical insights - supports CSV, JSON, Excel, TSV, Parquet - memory-efficient, cross-platform",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

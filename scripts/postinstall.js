@@ -25,7 +25,7 @@ const platform = os.platform();
 const isWindows = platform === 'win32';
 
 console.log('📚 Quick Start:');
-console.log('  datapilot --version              # Check version (should show v1.2.0)');
+console.log('  datapilot --version              # Check version (should show v1.2.1)');
 console.log('  datapilot --help                 # Show all commands');
 console.log('  datapilot overview data.csv      # Quick file overview');
 console.log('  datapilot all data.csv           # Complete analysis (all 6 sections)\n');
