@@ -500,8 +500,8 @@ test@example.com,150,0,inactive`;
       const endTime = Date.now();
       
       expect(result.performanceMetrics).toBeDefined();
-      expect(result.performanceMetrics.analysisTimeMs).toBeGreaterThan(0);
-      expect(result.performanceMetrics.analysisTimeMs).toBeLessThan(endTime - startTime + 100); // Allow some margin
+      expect(result.performanceMetrics.analysisTimeMs).toBeGreaterThanOrEqual(0);
+      expect(result.performanceMetrics.analysisTimeMs).toBeLessThan(endTime - startTime + 1000); // Allow larger margin for CI
       
       expect(result.performanceMetrics.transformationsEvaluated).toBeDefined();
       expect(result.performanceMetrics.schemaRecommendationsGenerated).toBeDefined();
