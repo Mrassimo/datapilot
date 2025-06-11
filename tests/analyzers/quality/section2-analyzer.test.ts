@@ -292,7 +292,7 @@ describe('Section2Analyzer', () => {
       const result = await analyzer.analyze();
       const markdown = Section2Formatter.formatReport(result.qualityAudit);
 
-      expect(markdown).toContain('Section 2: Comprehensive Data Quality & Integrity Audit Report');
+      expect(markdown).toContain('## Section 2: Data Quality');
       expect(markdown).toContain('2.1. Overall Data Quality Cockpit');
       expect(markdown).toContain('2.2. Completeness Dimension');
       expect(markdown).toContain('2.6. Uniqueness Dimension');
