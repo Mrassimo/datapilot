@@ -1,4 +1,4 @@
-import { CLI } from '../../src/cli';
+import { DataPilotCLI as CLI } from '../../src/cli';
 import { writeFileSync, unlinkSync, mkdtempSync, existsSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';

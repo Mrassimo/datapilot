@@ -4,6 +4,7 @@
  */
 
 export const asyncBufferFromFile = jest.fn();
+export const asyncBufferFromUrl = jest.fn();
 export const parquetReadObjects = jest.fn();
 export const parquetMetadataAsync = jest.fn();
 export const parquetSchema = jest.fn();
@@ -11,6 +12,7 @@ export const parquetSchema = jest.fn();
 // Default export (if needed)
 export default {
   asyncBufferFromFile,
+  asyncBufferFromUrl,
   parquetReadObjects,
   parquetMetadataAsync,
   parquetSchema

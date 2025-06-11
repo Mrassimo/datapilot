@@ -1,4 +1,4 @@
-import { OutlierAnalyzer } from '../../../src/analyzers/multivariate/outlier-analyzer';
+import { MultivariateOutlierAnalyzer as OutlierAnalyzer } from '../../../src/analyzers/multivariate/outlier-analyzer';
 import { writeFileSync, unlinkSync, mkdtempSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';

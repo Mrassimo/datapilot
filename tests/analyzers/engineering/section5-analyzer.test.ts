@@ -30,7 +30,22 @@ describe('Section5Analyzer - Data Engineering Insights', () => {
       writeFileSync(tempFile, csvData, 'utf8');
       
       const analyzer = new Section5Analyzer();
-      const result = await analyzer.analyze(tempFile);
+      
+      // Mock section results
+      const mockSection1Result = {
+        fileMetadata: { size: 1000, encoding: 'utf-8' },
+        structuralAnalysis: { headers: ['id', 'name', 'age', 'email', 'salary', 'department'], rowCount: 3 }
+      } as any;
+      
+      const mockSection2Result = {
+        qualityProfile: { completeness: 100, uniqueness: 80 }
+      } as any;
+      
+      const mockSection3Result = {
+        univariateAnalysis: [], bivariateAnalysis: []
+      } as any;
+      
+      const result = analyzer.analyze(mockSection1Result, mockSection2Result, mockSection3Result);
       
       expect(result.schemaAnalysis).toBeDefined();
       expect(result.schemaAnalysis.recommendedSchema).toBeDefined();

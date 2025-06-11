@@ -26,6 +26,15 @@ export interface WorkerResult<R = any> {
   memoryUsage?: number;
 }
 
+export interface WorkerStats {
+  totalWorkers: number;
+  availableWorkers: number;
+  busyWorkers: number;
+  queuedTasks: number;
+  activeTasksCount: number;
+  maxWorkers: number;
+}
+
 export interface WorkerPoolOptions {
   maxWorkers?: number;
   idleTimeout?: number;
@@ -344,7 +353,7 @@ export class WorkerPool extends EventEmitter {
   /**
    * Get pool statistics
    */
-  getStats() {
+  getStats(): WorkerStats {
     return {
       totalWorkers: this.workers.size,
       availableWorkers: this.availableWorkers.length,
