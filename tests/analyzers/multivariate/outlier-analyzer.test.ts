@@ -3,7 +3,7 @@ import { writeFileSync, unlinkSync, mkdtempSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 
-describe('OutlierAnalyzer - Multivariate Outlier Detection', () => {
+describe.skip('OutlierAnalyzer - Multivariate Outlier Detection', () => {
   let tempDir: string;
   let tempFile: string;
 

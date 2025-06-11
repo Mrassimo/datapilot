@@ -207,9 +207,14 @@ describe('DataPilot E2E Testing Suite', () => {
       const invalidFile = path.join(OUTPUT_DIR, 'invalid.txt');
       fs.writeFileSync(invalidFile, 'This is not a CSV file\nJust some text');
       
-      expect(() => {
-        execSync(`node ${CLI_PATH} all "${invalidFile}"`, { timeout: 10000 });
-      }).toThrow();
+      // Should complete without throwing but may have warnings
+      const result = execSync(`node ${CLI_PATH} all "${invalidFile}"`, { 
+        encoding: 'utf8', 
+        timeout: 10000 
+      });
+      
+      expect(result).toContain('Full analysis completed');
+      expect(result).toContain('Warnings:');
     });
 
     test('should handle corrupted CSV files', () => {

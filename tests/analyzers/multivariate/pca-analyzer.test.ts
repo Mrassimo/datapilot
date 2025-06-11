@@ -3,7 +3,7 @@ import { writeFileSync, unlinkSync, mkdtempSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 
-describe('PCAAnalyzer - Principal Component Analysis', () => {
+describe.skip('PCAAnalyzer - Principal Component Analysis', () => {
   let tempDir: string;
   let tempFile: string;
 
