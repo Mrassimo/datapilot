@@ -11,6 +11,7 @@ import type {
   DataQualityScore,
 } from './types';
 import { DataType } from '../../core/types';
+import { logger } from '../../utils/logger';
 
 export interface UniquenessAnalyzerInput {
   data: (string | null | undefined)[][];
@@ -54,7 +55,7 @@ export class UniquenessAnalyzer {
     // 5. Calculate overall score
     const score = this.calculateUniquenessScore(exactDuplicates, keyUniqueness, columnUniqueness);
 
-    console.log(`Uniqueness analysis completed in ${(performance.now() - start).toFixed(2)}ms`);
+    logger.debug(`Uniqueness analysis completed in ${(performance.now() - start).toFixed(2)}ms`, { operation: 'uniqueness-analysis' });
 
     return {
       exactDuplicates,

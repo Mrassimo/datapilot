@@ -24,6 +24,7 @@ import { EdaDataType } from '../eda/types';
 import { PCAAnalyzer } from './pca-analyzer';
 import { ClusteringAnalyzer } from './clustering-analyzer';
 import { MultivariateOutlierAnalyzer } from './outlier-analyzer';
+import { logger } from '../../utils/logger';
 
 /**
  * Normality testing utilities
@@ -751,13 +752,10 @@ export class MultivariateOrchestrator {
       }
 
       // Extract numerical data for correlation analysis
-      console.log('DEBUG: Data sample:', data.slice(0, 2));
-      console.log('DEBUG: Numerical column indices:', numericalColumnIndices);
-      console.log('DEBUG: Headers:', headers);
-      console.log('DEBUG: Column types:', columnTypes);
+      logger.debug('Multivariate analysis setup', { operation: 'multivariate-analysis', dataSample: data.length, numericalColumnIndices, headers, columnTypes });
 
       const numericData = this.extractNumericData(data, numericalColumnIndices);
-      console.log('DEBUG: Extracted numeric data length:', numericData.length);
+      logger.debug(`Extracted numeric data length: ${numericData.length}`, { operation: 'multivariate-analysis' });
 
       if (!numericData || numericData.length === 0) {
         const analysisTime = Date.now() - startTime;
@@ -930,12 +928,7 @@ export class MultivariateOrchestrator {
   ): number[][] {
     const numericData: number[][] = [];
 
-    console.log(
-      'DEBUG: Attempting to extract data for',
-      numericalColumnIndices.length,
-      'numerical columns',
-    );
-    console.log('DEBUG: Numerical column indices:', numericalColumnIndices);
+    logger.debug(`Attempting to extract data for ${numericalColumnIndices.length} numerical columns`, { operation: 'multivariate-analysis', numericalColumnIndices });
 
     let totalRows = 0;
     let validRows = 0;
@@ -953,7 +946,7 @@ export class MultivariateOrchestrator {
 
         // Check bounds
         if (colIndex >= row.length) {
-          console.log('DEBUG: Column index', colIndex, 'out of bounds for row length', row.length);
+          logger.debug(`Column index ${colIndex} out of bounds for row length ${row.length}`, { operation: 'multivariate-analysis' });
           hasAllValidValues = false;
           break;
         }
@@ -988,19 +981,10 @@ export class MultivariateOrchestrator {
       }
     }
 
-    console.log('DEBUG: Processing summary:');
-    console.log('  - Total rows processed:', totalRows);
-    console.log('  - Rows with missing values in numerical columns:', rowsWithMissingValues);
-    console.log('  - Valid complete rows extracted:', validRows);
-    console.log(
-      '  - Final extracted data dimensions:',
-      numericData.length,
-      'x',
-      numericData.length > 0 ? numericData[0].length : 0,
-    );
+    logger.debug('Multivariate data processing summary', { operation: 'multivariate-analysis', totalRows, rowsWithMissingValues, validRows, dimensions: `${numericData.length}x${numericData.length > 0 ? numericData[0].length : 0}` });
 
     if (numericData.length > 0) {
-      console.log('DEBUG: Sample extracted row:', numericData[0].slice(0, 3), '...');
+      logger.debug('Sample extracted row', { operation: 'multivariate-analysis', sample: numericData[0].slice(0, 3) });
     }
 
     return numericData;

@@ -12,6 +12,7 @@ import type {
   DataQualityScore,
 } from './types';
 import { DataType } from '../../core/types';
+import { logger } from '../../utils/logger';
 
 export interface ValidityAnalyzerInput {
   data: (string | null | undefined)[][];
@@ -80,7 +81,7 @@ export class ValidityAnalyzer {
       businessRules,
     );
 
-    console.log(`Validity analysis completed in ${(performance.now() - start).toFixed(2)}ms`);
+    logger.debug(`Validity analysis completed in ${(performance.now() - start).toFixed(2)}ms`, { operation: 'validity-analysis' });
 
     return {
       typeConformance,

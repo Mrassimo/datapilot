@@ -11,6 +11,7 @@ import type {
   DataQualityScore,
 } from './types';
 import { DataType } from '../../core/types';
+import { logger } from '../../utils/logger';
 
 export interface CompletenessAnalyzerInput {
   data: (string | null | undefined)[][];
@@ -50,7 +51,7 @@ export class CompletenessAnalyzer {
     // 4. Calculate overall score
     const score = this.calculateCompletenessScore(datasetLevel, columnLevel);
 
-    console.log(`Completeness analysis completed in ${(performance.now() - start).toFixed(2)}ms`);
+    logger.debug(`Completeness analysis completed in ${(performance.now() - start).toFixed(2)}ms`, { operation: 'completeness-analysis' });
 
     return {
       datasetLevel,
@@ -66,7 +67,7 @@ export class CompletenessAnalyzer {
     let rowsWithMissing = 0;
 
     // Debug: Log data structure for troubleshooting
-    console.debug(`Completeness Analysis Debug:`, {
+    logger.debug('Completeness Analysis Debug', { operation: 'completeness-analysis',
       rowCount: this.rowCount,
       columnCount: this.columnCount,
       dataLength: this.data.length,
@@ -81,7 +82,7 @@ export class CompletenessAnalyzer {
 
       // Ensure we have a valid row
       if (!currentRow || !Array.isArray(currentRow)) {
-        console.warn(`Invalid row structure at index ${rowIdx}:`, currentRow);
+        logger.warn(`Invalid row structure at index ${rowIdx}`, { operation: 'completeness-analysis', currentRow });
         continue;
       }
 
@@ -93,7 +94,7 @@ export class CompletenessAnalyzer {
 
           // Debug: Log first few missing values found
           if (missingCount <= 5) {
-            console.debug(`Missing value found at [${rowIdx}, ${colIdx}]:`, {
+            logger.debug(`Missing value found at [${rowIdx}, ${colIdx}]`, { operation: 'completeness-analysis',
               value: cellValue,
               type: typeof cellValue,
               stringValue: String(cellValue),

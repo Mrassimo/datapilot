@@ -180,7 +180,7 @@ export class UniversalAnalyzer {
           },
           parserStats: parser.getStats(),
           timestamp: new Date().toISOString(),
-          version: '1.1.0', // Multi-format support version
+          version: '1.2.0', // Multi-format support version
         },
       };
     } catch (error) {

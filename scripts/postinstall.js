@@ -6,6 +6,17 @@
 
 const os = require('os');
 const path = require('path');
+const fs = require('fs');
+
+// Set executable permissions on the CLI binary
+try {
+  const binPath = path.join(__dirname, '..', 'dist', 'cli', 'index.js');
+  if (fs.existsSync(binPath)) {
+    fs.chmodSync(binPath, 0o755);
+  }
+} catch (error) {
+  // Ignore permission errors - some systems might not allow this
+}
 
 console.log('\n🎉 DataPilot installed successfully!\n');
 
@@ -14,7 +25,7 @@ const platform = os.platform();
 const isWindows = platform === 'win32';
 
 console.log('📚 Quick Start:');
-console.log('  datapilot --version              # Check version (should show v1.0.9)');
+console.log('  datapilot --version              # Check version (should show v1.2.0)');
 console.log('  datapilot --help                 # Show all commands');
 console.log('  datapilot overview data.csv      # Quick file overview');
 console.log('  datapilot all data.csv           # Complete analysis (all 6 sections)\n');

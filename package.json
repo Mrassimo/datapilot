@@ -29,6 +29,7 @@
     "typecheck": "tsc --noEmit",
     "clean": "node scripts/clean.js",
     "prebuild": "npm run clean",
+    "postbuild": "chmod +x dist/cli/index.js || true",
     "postinstall": "node scripts/postinstall.js || true",
     "test:installation": "node scripts/test-installation.js",
     "test:package": "npm pack && npm install -g datapilot-cli-*.tgz && npm run test:installation && npm uninstall -g datapilot-cli",
