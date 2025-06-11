@@ -92,6 +92,7 @@ export interface CLIResult {
   metadata?: any;
   suggestions?: string[];
   outputFiles?: string[];
+  output?: string; // CLI output text
   stats?: {
     processingTime: number;
     rowsProcessed: number;

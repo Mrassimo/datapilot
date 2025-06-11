@@ -96,6 +96,13 @@ export class DataPilotCLI {
   }
 
   /**
+   * Set progress callback for test purposes
+   */
+  setProgressCallback(callback: (progress: { message: string; progress: number }) => void): void {
+    this.progressReporter.setProgressCallback?.(callback);
+  }
+
+  /**
    * Register section resolvers for dependency injection
    */
   private registerSectionResolvers(filePath: string, options: CLIOptions): void {

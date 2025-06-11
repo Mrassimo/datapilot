@@ -11,6 +11,7 @@ export class ProgressReporter {
   private spinnerInterval?: NodeJS.Timeout;
   private spinnerFrames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
   private spinnerIndex = 0;
+  private progressCallback?: (progress: { message: string; progress: number }) => void;
 
   constructor(quiet: boolean = false, verbose: boolean = false) {
     this.quiet = quiet;
@@ -18,9 +19,20 @@ export class ProgressReporter {
   }
 
   /**
+   * Set progress callback for external listeners (e.g., tests)
+   */
+  setProgressCallback(callback: (progress: { message: string; progress: number }) => void): void {
+    this.progressCallback = callback;
+  }
+
+  /**
    * Start progress reporting for a phase
    */
   startPhase(phase: string, message: string): void {
+    if (this.progressCallback) {
+      this.progressCallback({ message: `Starting ${phase}: ${message}`, progress: 0 });
+    }
+
     if (this.quiet) return;
 
     this.currentPhase = phase;
@@ -38,6 +50,10 @@ export class ProgressReporter {
    * Update progress within a phase
    */
   updateProgress(state: ProgressState): void {
+    if (this.progressCallback) {
+      this.progressCallback({ message: state.message, progress: state.progress });
+    }
+
     if (this.quiet) return;
 
     if (this.verbose) {
@@ -58,6 +74,10 @@ export class ProgressReporter {
    * Complete current phase
    */
   completePhase(message: string, timeElapsed: number): void {
+    if (this.progressCallback) {
+      this.progressCallback({ message: `Complete: ${message}`, progress: 100 });
+    }
+
     if (this.quiet) return;
 
     this.stopSpinner();
