@@ -99,6 +99,7 @@
     "hyparquet": "^1.4.0",
     "uuid": "^9.0.1"
   },
+  "bundleDependencies": ["commander", "exceljs", "hyparquet", "uuid"],
   "devDependencies": {
     "@types/jest": "^29.5.11",
     "@types/node": "^20.10.5",
