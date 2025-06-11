@@ -44,7 +44,7 @@ export class Section2Formatter {
   private static formatHeader(): string {
     return `---
 
-### **Section 2: Comprehensive Data Quality & Integrity Audit Report** 🧐🛡️
+## Section 2: Data Quality
 
 This section provides an exhaustive assessment of the dataset's reliability, structural soundness, and adherence to quality standards. Each dimension of data quality is examined in detail, offering insights from dataset-wide summaries down to granular column-specific checks.`;
   }

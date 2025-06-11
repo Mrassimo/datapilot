@@ -31,14 +31,15 @@ export class Section1Formatter {
   private formatHeader(overview: Section1Overview): string {
     const timestamp = overview.generatedAt.toISOString().replace('T', ' ').slice(0, 19) + ' (UTC)';
 
-    return `🤖 DATAPILOT COMPLETE ANALYSIS ENGINE
-======================================
+    return `# DataPilot Analysis Report
+
 Analysis Target: ${overview.fileDetails.originalFilename}
 Report Generated: ${timestamp}
 DataPilot Version: v${overview.version} (TypeScript Edition)
 
 ---
-### Section 1: Comprehensive Dataset & Analysis Overview
+
+## Section 1: Overview
 This section provides a detailed snapshot of the dataset properties, how it was processed, and the context of this analysis run.`;
   }
 
