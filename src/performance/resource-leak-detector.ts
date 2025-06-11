@@ -26,7 +26,7 @@ interface LeakDetectionOptions {
   resourceTypes?: string[]; // Types to track
 }
 
-interface LeakReport {
+export interface LeakReport {
   resourceType: string;
   leakedCount: number;
   oldestLeak: {

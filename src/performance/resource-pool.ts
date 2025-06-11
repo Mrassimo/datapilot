@@ -670,10 +670,7 @@ export class ResourcePoolManager extends EventEmitter {
       stats[type] = pool.getStats();
     }
     
-    return {
-      ...stats,
-      gc: this.gcOptimizer.getStats()
-    };
+    return Object.assign(stats, { gc: this.gcOptimizer.getStats() });
   }
 
   /**

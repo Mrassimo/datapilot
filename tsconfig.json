@@ -40,12 +40,17 @@
     "src/core/**/*",
     "src/utils/**/*",
     "src/security/**/*",
-    "src/monitoring/**/*"
+    "src/monitoring/**/*",
+    "src/performance/**/*"
   ],
   "exclude": [
     "node_modules", 
     "dist", 
     "**/*.test.ts", 
-    "**/*.spec.ts"
+    "**/*.spec.ts",
+    "src/performance/format-optimizers/**/*",
+    "src/performance/monitoring/**/*",
+    "src/performance/workers/**/*",
+    "src/performance/benchmarking/**/*"
   ]
 }

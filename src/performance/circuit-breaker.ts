@@ -13,7 +13,7 @@ export enum CircuitState {
   HALF_OPEN = 'half-open', // Testing if service recovered
 }
 
-interface CircuitBreakerOptions {
+export interface CircuitBreakerOptions {
   failureThreshold?: number; // Number of failures before opening
   resetTimeout?: number; // Time before trying half-open
   monitoringPeriod?: number; // Window for failure counting
@@ -22,7 +22,7 @@ interface CircuitBreakerOptions {
   volumeThreshold?: number; // Minimum calls before evaluating failure rate
 }
 
-interface CircuitBreakerMetrics {
+export interface CircuitBreakerMetrics {
   state: CircuitState;
   failureCount: number;
   successCount: number;
