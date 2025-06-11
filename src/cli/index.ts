@@ -1347,6 +1347,7 @@ export class DataPilotCLI {
       }
 
       const results: Array<{ section: number; data: CLIResult }> = [];
+      const analysisResults: Array<{ section: number; analysis: any }> = [];
       const outputFiles: string[] = [];
       let totalRowsProcessed = 0;
       let totalWarnings = 0;
@@ -1381,6 +1382,16 @@ export class DataPilotCLI {
         ) => outputManager.outputSection1(result, fileName),
       };
 
+      // Execute Section 1 and capture both CLI result and analysis data
+      const section1Analyzer = new Section1Analyzer({
+        enableFileHashing: options.enableHashing !== false,
+        includeHostEnvironment: options.includeEnvironment !== false,
+        privacyMode: options.privacyMode || 'redacted',
+        detailedProfiling: options.verbose || false,
+        maxSampleSizeForSparsity: 10000,
+      });
+      const section1Analysis = await section1Analyzer.analyze(filePath, `datapilot all ${filePath}`, ['overview']);
+      
       const section1Result = await this.executeGenericAnalysis(
         section1Config,
         filePath,
@@ -1389,6 +1400,7 @@ export class DataPilotCLI {
       );
       if (!section1Result.success) return section1Result;
       results.push({ section: 1, data: section1Result });
+      analysisResults.push({ section: 1, analysis: section1Analysis });
       outputFiles.push(...(section1Result.outputFiles || []));
       totalRowsProcessed = section1Result.stats?.rowsProcessed || 0;
       totalWarnings += section1Result.stats?.warnings || 0;
@@ -1661,17 +1673,36 @@ export class DataPilotCLI {
 
       // Create comprehensive output if not in combine mode
       if (!(options.output === 'txt' || options.output === 'markdown')) {
-        const comprehensiveReport = this.generateComprehensiveReport(
-          results,
-          filePath,
-          totalProcessingTime,
-        );
-        const comprehensiveFileName = `${filePath
-          .split('/')
-          .pop()
-          ?.replace(/\.[^/.]+$/, '')}_datapilot_comprehensive.md`;
-        this.writeToFile(comprehensiveFileName, comprehensiveReport);
-        outputFiles.push(comprehensiveFileName);
+        if (options.output === 'json') {
+          // Create comprehensive JSON structure
+          const comprehensiveJson = this.generateComprehensiveJson(analysisResults, filePath, totalProcessingTime);
+          
+          // Write to output file if specified
+          if (options.outputFile) {
+            this.writeToFile(options.outputFile, JSON.stringify(comprehensiveJson, null, 2));
+            outputFiles.push(options.outputFile);
+          } else {
+            const comprehensiveFileName = `${filePath
+              .split('/')
+              .pop()
+              ?.replace(/\.[^/.]+$/, '')}_datapilot_comprehensive.json`;
+            this.writeToFile(comprehensiveFileName, JSON.stringify(comprehensiveJson, null, 2));
+            outputFiles.push(comprehensiveFileName);
+          }
+        } else {
+          // Generate markdown report for other formats
+          const comprehensiveReport = this.generateComprehensiveReport(
+            results,
+            filePath,
+            totalProcessingTime,
+          );
+          const comprehensiveFileName = `${filePath
+            .split('/')
+            .pop()
+            ?.replace(/\.[^/.]+$/, '')}_datapilot_comprehensive.md`;
+          this.writeToFile(comprehensiveFileName, comprehensiveReport);
+          outputFiles.push(comprehensiveFileName);
+        }
       }
 
       this.progressReporter.completePhase('Full analysis completed', totalProcessingTime);
@@ -1705,6 +1736,52 @@ export class DataPilotCLI {
       this.progressReporter.errorPhase('Full analysis failed');
       throw error;
     }
+  }
+
+  /**
+   * Generate comprehensive JSON structure combining all sections
+   */
+  private generateComprehensiveJson(
+    analysisResults: Array<{ section: number; analysis: any }>,
+    filePath: string,
+    processingTime: number,
+  ): any {
+    const comprehensiveJson: any = {
+      metadata: {
+        version: '1.2.1',
+        generatedAt: new Date().toISOString(),
+        command: 'datapilot all',
+        analysisType: 'Comprehensive 6-Section Analysis',
+        fileName: filePath.split('/').pop(),
+        processingTime,
+      }
+    };
+
+    // Add each section's analysis data to the appropriate property
+    for (const result of analysisResults) {
+      switch (result.section) {
+        case 1:
+          comprehensiveJson.section1 = result.analysis;
+          break;
+        case 2:
+          comprehensiveJson.section2 = result.analysis;
+          break;
+        case 3:
+          comprehensiveJson.section3 = result.analysis;
+          break;
+        case 4:
+          comprehensiveJson.section4 = result.analysis;
+          break;
+        case 5:
+          comprehensiveJson.section5 = result.analysis;
+          break;
+        case 6:
+          comprehensiveJson.section6 = result.analysis;
+          break;
+      }
+    }
+
+    return comprehensiveJson;
   }
 
   /**
