@@ -1460,6 +1460,34 @@ export class DataPilotCLI {
         ) => outputManager.outputSection2(result, fileName),
       };
 
+      // Execute Section 2 and capture both CLI result and analysis data
+      const parser2 = new CSVParser({
+        autoDetect: true,
+        maxRows: options.maxRows || 100000,
+        trimFields: true,
+      });
+      const rows2 = await parser2.parseFile(filePath);
+      const hasHeader2 = parser2.getOptions().hasHeader !== false;
+      const dataStartIndex2 = hasHeader2 ? 1 : 0;
+      const headers2 = hasHeader2 && rows2.length > 0 ? rows2[0].data : rows2[0].data.map((_, i) => `Column_${i + 1}`);
+      const data2 = rows2.slice(dataStartIndex2).map((row) => row.data);
+      const columnTypes2 = headers2.map(() => DataType.STRING);
+
+      const section2Analyzer = new Section2Analyzer({
+        data: data2,
+        headers: headers2,
+        columnTypes: columnTypes2,
+        rowCount: data2.length,
+        columnCount: headers2.length,
+        config: {
+          enabledDimensions: ['completeness', 'uniqueness', 'validity'],
+          strictMode: false,
+          maxOutlierDetection: 100,
+          semanticDuplicateThreshold: 0.85,
+        },
+      });
+      const section2Analysis = await section2Analyzer.analyze();
+
       const section2Result = await this.executeGenericAnalysis(
         section2Config,
         filePath,
@@ -1468,6 +1496,7 @@ export class DataPilotCLI {
       );
       if (!section2Result.success) return section2Result;
       results.push({ section: 2, data: section2Result });
+      analysisResults.push({ section: 2, analysis: section2Analysis });
       outputFiles.push(...(section2Result.outputFiles || []));
       totalWarnings += section2Result.stats?.warnings || 0;
 
@@ -1504,6 +1533,18 @@ export class DataPilotCLI {
         ) => outputManager.outputSection3(report, result, fileName),
       };
 
+      // Execute Section 3 and capture both CLI result and analysis data
+      const section3Analyzer = new StreamingAnalyzer({
+        chunkSize: options.chunkSize || 500,
+        memoryThresholdMB: options.memoryLimit || 100,
+        maxRowsAnalyzed: options.maxRows || 500000,
+        enabledAnalyses: ['univariate', 'bivariate', 'correlations'],
+        significanceLevel: 0.05,
+        maxCorrelationPairs: 50,
+        enableMultivariate: true,
+      });
+      const section3Analysis = await section3Analyzer.analyzeFile(filePath);
+
       const section3Result = await this.executeGenericAnalysis(
         section3Config,
         filePath,
@@ -1512,6 +1553,7 @@ export class DataPilotCLI {
       );
       if (!section3Result.success) return section3Result;
       results.push({ section: 3, data: section3Result });
+      analysisResults.push({ section: 3, analysis: section3Analysis });
       outputFiles.push(...(section3Result.outputFiles || []));
       totalWarnings += section3Result.stats?.warnings || 0;
 
@@ -1555,6 +1597,23 @@ export class DataPilotCLI {
         ) => outputManager.outputSection4(report, result, fileName),
       };
 
+      // Execute Section 4 and capture both CLI result and analysis data
+      const section4Analyzer = new Section4Analyzer({
+        accessibilityLevel: options.accessibility || 'good',
+        complexityThreshold: options.complexity || 'moderate',
+        maxRecommendationsPerChart: options.maxRecommendations || 3,
+        includeCodeExamples: options.includeCode || false,
+        enabledRecommendations: [
+          RecommendationType.UNIVARIATE,
+          RecommendationType.BIVARIATE,
+          RecommendationType.DASHBOARD,
+          RecommendationType.ACCESSIBILITY,
+          RecommendationType.PERFORMANCE,
+        ],
+        targetLibraries: ['d3', 'plotly', 'observable'],
+      });
+      const section4Analysis = await section4Analyzer.analyze(section1Analysis, section3Analysis);
+
       const section4Result = await this.executeGenericAnalysis(
         section4Config,
         filePath,
@@ -1563,6 +1622,7 @@ export class DataPilotCLI {
       );
       if (!section4Result.success) return section4Result;
       results.push({ section: 4, data: section4Result });
+      analysisResults.push({ section: 4, analysis: section4Analysis });
       outputFiles.push(...(section4Result.outputFiles || []));
       totalWarnings += section4Result.stats?.warnings || 0;
 
@@ -1596,6 +1656,13 @@ export class DataPilotCLI {
         ) => outputManager.outputSection5(report, result, fileName),
       };
 
+      // Execute Section 5 and capture both CLI result and analysis data
+      const section5Analyzer = new Section5Analyzer({
+        targetDatabaseSystem: options.database || 'postgresql',
+        mlFrameworkTarget: options.framework || 'scikit_learn',
+      });
+      const section5Analysis = await section5Analyzer.analyze(section1Analysis, section2Analysis, section3Analysis);
+
       const section5Result = await this.executeGenericAnalysis(
         section5Config,
         filePath,
@@ -1604,6 +1671,7 @@ export class DataPilotCLI {
       );
       if (!section5Result.success) return section5Result;
       results.push({ section: 5, data: section5Result });
+      analysisResults.push({ section: 5, analysis: section5Analysis });
       outputFiles.push(...(section5Result.outputFiles || []));
       totalWarnings += section5Result.stats?.warnings || 0;
 
@@ -1650,6 +1718,14 @@ export class DataPilotCLI {
         ) => outputManager.outputSection6(report, result, fileName),
       };
 
+      // Execute Section 6 and capture both CLI result and analysis data
+      const section6Analyzer = new Section6Analyzer({
+        focusAreas: options.focus || ['regression', 'binary_classification', 'clustering'],
+        complexityPreference: options.complexity || 'moderate',
+        interpretabilityRequirement: options.interpretability || 'medium',
+      });
+      const section6Analysis = await section6Analyzer.analyze(section1Analysis, section2Analysis, section3Analysis, section5Analysis);
+
       const section6Result = await this.executeGenericAnalysis(
         section6Config,
         filePath,
@@ -1658,6 +1734,7 @@ export class DataPilotCLI {
       );
       if (!section6Result.success) return section6Result;
       results.push({ section: 6, data: section6Result });
+      analysisResults.push({ section: 6, analysis: section6Analysis });
       outputFiles.push(...(section6Result.outputFiles || []));
       totalWarnings += section6Result.stats?.warnings || 0;
 
