@@ -7,7 +7,7 @@ import { EventEmitter } from 'events';
 import { performance } from 'perf_hooks';
 import { logger } from '../utils/logger';
 
-interface ResourcePoolOptions {
+export interface ResourcePoolOptions {
   maxPoolSize?: number;
   minPoolSize?: number;
   maxResourceAge?: number;
@@ -17,7 +17,7 @@ interface ResourcePoolOptions {
   resourceTypes?: ResourceTypeConfig[];
 }
 
-interface GcHeuristics {
+export interface GcHeuristics {
   memoryPressureThreshold?: number;
   timeBetweenGcMin?: number;
   timeBetweenGcMax?: number;
@@ -25,7 +25,7 @@ interface GcHeuristics {
   adaptiveGcTiming?: boolean;
 }
 
-interface ResourceTypeConfig {
+export interface ResourceTypeConfig {
   name: string;
   factory: () => any;
   cleanup: (resource: any) => void;
@@ -34,7 +34,7 @@ interface ResourceTypeConfig {
   maxPoolSize?: number;
 }
 
-interface PooledResource<T = any> {
+export interface PooledResource<T = any> {
   resource: T;
   createdAt: number;
   lastUsed: number;
@@ -42,7 +42,7 @@ interface PooledResource<T = any> {
   isHealthy: boolean;
 }
 
-interface PoolStats {
+export interface PoolStats {
   totalCreated: number;
   totalDestroyed: number;
   totalReused: number;
@@ -53,7 +53,7 @@ interface PoolStats {
   memoryUsage: number;
 }
 
-interface GcStats {
+export interface GcStats {
   totalGcRuns: number;
   totalGcTime: number;
   averageGcTime: number;

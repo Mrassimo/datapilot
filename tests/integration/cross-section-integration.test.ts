@@ -65,7 +65,14 @@ describe('Cross-Section Integration Tests', () => {
       
       const result1 = await section1.analyze(tempFile);
       const result2 = section2.analyze();
-      const result3 = await section3.analyze({ filePath: tempFile });
+      const result3 = await section3.analyze({ 
+        data: mockData,
+        headers: mockHeaders,
+        columnTypes: mockColumnTypes.map(() => 'string' as any),
+        rowCount: mockData.length,
+        columnCount: mockHeaders.length,
+        filePath: tempFile
+      });
       const result5 = section5.analyze(result1, result2, result3);
       const result6 = section6.analyze(result1, result2, result3, result5);
       

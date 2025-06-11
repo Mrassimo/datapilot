@@ -10,7 +10,7 @@ import type { MemoryOptimizer } from './memory-optimizer';
 import { getGlobalMemoryOptimizer } from './memory-optimizer';
 import { logger } from '../utils/logger';
 
-interface AdaptiveStreamingOptions {
+export interface AdaptiveStreamingOptions {
   initialChunkSize?: number;
   minChunkSize?: number;
   maxChunkSize?: number;
@@ -21,7 +21,7 @@ interface AdaptiveStreamingOptions {
   maxConcurrentChunks?: number;
 }
 
-interface StreamingMetrics {
+export interface StreamingMetrics {
   bytesProcessed: number;
   chunksProcessed: number;
   averageChunkSize: number;

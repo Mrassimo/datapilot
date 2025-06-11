@@ -7,7 +7,7 @@ import { EventEmitter } from 'events';
 import { performance } from 'perf_hooks';
 import { logger } from '../utils/logger';
 
-interface MemoryOptimizationOptions {
+export interface MemoryOptimizationOptions {
   maxMemoryMB?: number;
   gcThresholdMB?: number;
   memoryCheckInterval?: number;
@@ -17,7 +17,7 @@ interface MemoryOptimizationOptions {
   memoryPressureThreshold?: number;
 }
 
-interface MemoryStats {
+export interface MemoryStats {
   heapUsed: number;
   heapTotal: number;
   external: number;
@@ -25,7 +25,7 @@ interface MemoryStats {
   arrayBuffers: number;
 }
 
-interface ChunkSizeRecommendation {
+export interface ChunkSizeRecommendation {
   recommendedSize: number;
   reason: string;
   memoryPressure: number;

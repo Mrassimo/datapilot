@@ -9,7 +9,7 @@ import { promises as fs } from 'fs';
 import { getGlobalMemoryOptimizer } from './memory-optimizer';
 import { logger } from '../utils/logger';
 
-interface ChunkingOptions {
+export interface ChunkingOptions {
   baseChunkSize?: number;
   minChunkSize?: number;
   maxChunkSize?: number;
@@ -20,7 +20,7 @@ interface ChunkingOptions {
   maxLearningHistory?: number;
 }
 
-interface ComplexityWeights {
+export interface ComplexityWeights {
   dataTypeComplexity: number;
   encodingComplexity: number;
   structuralComplexity: number;
@@ -29,7 +29,7 @@ interface ComplexityWeights {
   ioPerformance: number;
 }
 
-interface DataCharacteristics {
+export interface DataCharacteristics {
   fileSize: number;
   estimatedRows: number;
   averageLineLength: number;
@@ -42,7 +42,7 @@ interface DataCharacteristics {
   compressionRatio: number;
 }
 
-interface SystemMetrics {
+export interface SystemMetrics {
   memoryPressure: number;
   cpuUsage: number;
   ioLatency: number;
@@ -50,7 +50,7 @@ interface SystemMetrics {
   errorRate: number;
 }
 
-interface ChunkDecision {
+export interface ChunkDecision {
   chunkSize: number;
   reasoning: string[];
   confidence: number;
