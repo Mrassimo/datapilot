@@ -817,7 +817,13 @@ export class OutputManager {
       return filePath;
     }
 
-    return filePath + expectedExtension;
+    // If no extension, add the expected one
+    if (!currentExtension) {
+      return filePath + expectedExtension;
+    }
+
+    // Replace existing extension with expected one
+    return filePath.slice(0, -currentExtension.length) + expectedExtension;
   }
 
   /**

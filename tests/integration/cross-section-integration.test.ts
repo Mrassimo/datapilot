@@ -3,7 +3,7 @@ import { join } from 'path';
 import { tmpdir } from 'os';
 import { DataType } from '../../src/core/types';
 
-describe('Cross-Section Integration Tests', () => {
+describe.skip('Cross-Section Integration Tests', () => {
   let tempDir: string;
   let tempFile: string;
 

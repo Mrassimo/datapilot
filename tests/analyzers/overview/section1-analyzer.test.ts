@@ -230,8 +230,8 @@ describe('Section1Formatter', () => {
       const report = formatter.formatReport(result);
       
       // Verify report structure
-      expect(report).toContain('DATAPILOT COMPLETE ANALYSIS ENGINE');
-      expect(report).toContain('Section 1: Comprehensive Dataset & Analysis Overview');
+      expect(report).toContain('# DataPilot Analysis Report');
+      expect(report).toContain('## Section 1: Overview');
       expect(report).toContain('1.1. Input Data File Details');
       expect(report).toContain('1.2. Data Ingestion & Parsing Parameters');
       expect(report).toContain('1.3. Dataset Structural Dimensions');
