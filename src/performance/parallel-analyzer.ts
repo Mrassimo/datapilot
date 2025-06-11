@@ -11,7 +11,7 @@ import { logger } from '../utils/logger';
 import { DataPilotError, ErrorSeverity, ErrorCategory } from '../core/types';
 import { performance } from 'perf_hooks';
 
-interface ParallelAnalysisOptions {
+export interface ParallelAnalysisOptions {
   maxWorkers?: number;
   enableMemoryMonitoring?: boolean;
   memoryLimitMB?: number;

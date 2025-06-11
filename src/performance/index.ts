@@ -98,14 +98,7 @@ export {
   type LeakReport
 } from './resource-leak-detector';
 
-export {
-  MemoryOptimizer,
-  getGlobalMemoryOptimizer,
-  shutdownGlobalMemoryOptimizer,
-  type MemoryOptimizationOptions,
-  type MemoryStats,
-  type ChunkSizeRecommendation
-} from './memory-optimizer';
+// Memory optimizer already exported above
 
 // Enhanced error handling
 export {
