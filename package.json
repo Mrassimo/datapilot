@@ -95,7 +95,6 @@
   },
   "dependencies": {
     "commander": "^11.1.0",
-    "datapilot-cli": "file:test-offline/datapilot-cli-1.2.1.tgz",
     "exceljs": "^4.4.0",
     "hyparquet": "^1.4.0",
     "uuid": "^9.0.1"
