@@ -157,6 +157,10 @@ import { getGlobalMemoryOptimizer } from './memory-optimizer';
 import { getGlobalEnhancedErrorHandler, shutdownGlobalEnhancedErrorHandler } from '../utils/enhanced-error-handler';
 import { getGlobalResourceLeakDetector, shutdownGlobalResourceLeakDetector } from './resource-leak-detector';
 import { getGlobalCircuitBreakerManager, shutdownGlobalCircuitBreakerManager } from './circuit-breaker';
+import { getGlobalIntelligentChunker } from './intelligent-chunker';
+import { getGlobalResourcePoolManager } from './resource-pool';
+import { getGlobalParallelAnalyzer } from './parallel-analyzer';
+import { getGlobalAdaptiveStreamer } from './adaptive-streamer';
 
 /**
  * Initialize error reduction components
