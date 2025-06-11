@@ -159,6 +159,12 @@ export {
   type BenchmarkReport
 } from './monitoring';
 
+// Internal imports for functions used within this module
+import { getGlobalMemoryOptimizer } from './memory-optimizer';
+import { getGlobalEnhancedErrorHandler } from '../utils/enhanced-error-handler';
+import { getGlobalResourceLeakDetector } from './resource-leak-detector';
+import { getGlobalCircuitBreakerManager } from './circuit-breaker';
+
 /**
  * Initialize error reduction components
  */

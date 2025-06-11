@@ -1,6 +1,7 @@
 import { writeFileSync, unlinkSync, mkdtempSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
+import { DataType } from '../../src/core/types';
 
 describe('Cross-Section Integration Tests', () => {
   let tempDir: string;
@@ -39,18 +40,34 @@ describe('Cross-Section Integration Tests', () => {
       
       // Run all analyses
       const section1 = new Section1Analyzer({ enableFileHashing: false });
-      const section2 = new Section2Analyzer();
+      
+      // Mock data for Section2Analyzer
+      const mockData = [['1', 'John', '25'], ['2', 'Jane', '30']];
+      const mockHeaders = ['id', 'name', 'age'];
+      const mockColumnTypes = [DataType.STRING, DataType.STRING, DataType.STRING];
+      
+      const section2 = new Section2Analyzer({
+        data: mockData,
+        headers: mockHeaders,
+        columnTypes: mockColumnTypes,
+        rowCount: mockData.length,
+        columnCount: mockHeaders.length,
+        config: { 
+          enabledDimensions: ['completeness'], 
+          strictMode: false,
+          maxOutlierDetection: 100,
+          semanticDuplicateThreshold: 0.85
+        }
+      });
       const section3 = new Section3Analyzer();
       const section5 = new Section5Analyzer();
       const section6 = new Section6Analyzer();
       
-      const [result1, result2, result3, result5, result6] = await Promise.all([
-        section1.analyze(tempFile),
-        section2.analyze(tempFile),
-        section3.analyze(tempFile),
-        section5.analyze(tempFile),
-        section6.analyze(tempFile)
-      ]);
+      const result1 = await section1.analyze(tempFile);
+      const result2 = section2.analyze();
+      const result3 = await section3.analyze({ filePath: tempFile });
+      const result5 = section5.analyze(result1, result2, result3);
+      const result6 = section6.analyze(result1, result2, result3, result5);
       
       // Verify consistent row counts
       const expectedRows = 5;

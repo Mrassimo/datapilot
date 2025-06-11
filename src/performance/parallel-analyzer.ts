@@ -19,7 +19,7 @@ interface ParallelAnalysisOptions {
   taskTimeout?: number;
 }
 
-interface AnalysisResult {
+export interface AnalysisResult {
   success: boolean;
   results: any[];
   executionTime: number;

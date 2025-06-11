@@ -12,7 +12,7 @@ import { promises as fs } from 'fs';
 jest.mock('hyparquet');
 
 import {
-  asyncBufferFromFile as mockAsyncBufferFromFile,
+  asyncBufferFromUrl as mockAsyncBufferFromFile,
   parquetReadObjects as mockParquetReadObjects,
   parquetMetadataAsync as mockParquetMetadataAsync,
   parquetSchema as mockParquetSchema
