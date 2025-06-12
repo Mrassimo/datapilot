@@ -65,15 +65,15 @@ console.log(`✅ Created: ${testFile}`);
 console.log('\n🔬 Running test analysis...');
 try {
   // Test basic functionality
-  execSync(`datapilot "${testFile}" --format json --sections 1,2 --output test-output.json`, { stdio: 'inherit' });
+  execSync(`datapilot overview "${testFile}" --output json`, { stdio: 'inherit' });
   
-  // Verify output file exists
-  const outputFile = path.join(process.cwd(), 'test-output.json');
+  // Verify output file exists (default naming pattern)
+  const outputFile = path.join(process.cwd(), 'datapilot-test_datapilot_report.json');
   if (fs.existsSync(outputFile)) {
     const output = JSON.parse(fs.readFileSync(outputFile, 'utf8'));
-    if (output.section1 && output.section2) {
+    if (output.metadata || output.summary) {
       console.log('✅ Analysis completed successfully!');
-      console.log(`✅ Generated ${Object.keys(output).length} analysis sections`);
+      console.log(`✅ Generated analysis report`);
       fs.unlinkSync(outputFile); // Cleanup output
     } else {
       console.log('❌ Analysis output incomplete');
@@ -90,7 +90,7 @@ try {
   try {
     const cliPath = path.resolve('./dist/cli/index.js');
     if (fs.existsSync(cliPath)) {
-      execSync(`node "${cliPath}" "${testFile}" --format json --sections 1,2`, { stdio: 'inherit' });
+      execSync(`node "${cliPath}" overview "${testFile}" --output json`, { stdio: 'inherit' });
       console.log('✅ Direct execution successful!');
     } else {
       console.log('❌ CLI not built. Run "npm run build" first.');
