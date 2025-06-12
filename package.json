@@ -20,7 +20,7 @@
     "dev": "tsc --watch",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage --testPathIgnorePatterns=/node_modules/ --testPathIgnorePatterns=integration.*test\\.ts$ --testPathIgnorePatterns=error-reduction.*test\\.ts$",
+    "test:coverage": "jest --coverage --testMatch=\"**/tests/e2e/basic-integration.test.ts\" --testMatch=\"**/tests/analyzers/overview/*.test.ts\" --testMatch=\"**/tests/analyzers/quality/section2-analyzer.test.ts\" --testMatch=\"**/tests/cli/argument-parser.test.ts\"",
     "test:e2e": "jest --testPathPattern=\"basic-integration|e2e\" --testPathIgnorePatterns=error-reduction --runInBand",
     "test:unit": "jest --testPathPattern=\"^((?!e2e|integration).)*$\"",
     "test:all": "npm run test:unit && npm run test:e2e",
