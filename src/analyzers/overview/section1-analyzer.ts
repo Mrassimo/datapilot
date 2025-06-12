@@ -64,27 +64,15 @@ export class Section1Analyzer {
       // Validate file first
       const validation = this.fileCollector.validateFile(filePath);
       if (!validation.valid) {
-        // Check for specific error types that should be warnings vs errors
-        const fatalErrors = validation.errors.filter(error => 
-          !error.includes('File is empty') && !error.includes('File access error: Unknown error')
-        );
-        
-        if (fatalErrors.length > 0) {
-          throw new Error(`File validation failed: ${fatalErrors.join(', ')}`);
-        }
-        
-        // Log warnings for non-fatal issues but continue
-        validation.errors.forEach(error => {
-          warnings.push({
-            category: 'file',
-            severity: 'medium',
-            message: `File validation warning: ${error}`,
-            impact: 'Analysis may be limited or produce partial results',
-            suggestion: 'Verify file integrity and accessibility'
-          });
+        // Log the error for debugging but still throw for now
+        // This maintains existing test expectations while providing better error info
+        const errorMessage = `File validation failed: ${validation.errors.join(', ')}`;
+        logger.error(`Section 1 analysis failed: ${errorMessage}`, {
+          filePath,
+          analyzer: 'Section1Analyzer',
+          errors: validation.errors
         });
-        
-        logger.warn(`File validation warnings: ${validation.errors.join(', ')}`);
+        throw new Error(errorMessage);
       }
 
       const fileDetails = await this.fileCollector.collectMetadata(filePath);

@@ -4,7 +4,7 @@
  */
 
 import { createHash } from 'crypto';
-import { createReadStream, statSync } from 'fs';
+import { createReadStream, statSync, existsSync, accessSync, constants } from 'fs';
 import { resolve, basename, extname } from 'path';
 import type { FileMetadata, Section1Config, Section1Warning } from './types';
 
@@ -154,38 +154,55 @@ export class FileMetadataCollector {
   validateFile(filePath: string): { valid: boolean; errors: string[] } {
     const errors: string[] = [];
 
+    // Check if file exists first
+    if (!existsSync(filePath)) {
+      errors.push(`File does not exist: ${filePath}`);
+      return { valid: false, errors };
+    }
+
     try {
-      // Check if file exists first
+      // Check file accessibility
+      accessSync(filePath, constants.R_OK);
+    } catch (error) {
+      if (error instanceof Error) {
+        const nodeError = error as NodeJS.ErrnoException;
+        if (nodeError.code === 'EACCES') {
+          errors.push(`File is not readable - check permissions: ${filePath}`);
+        } else {
+          errors.push(`File access error: ${nodeError.message}`);
+        }
+      } else {
+        errors.push('File access error: Unknown error');
+      }
+      return { valid: false, errors };
+    }
+
+    try {
       const stats = statSync(filePath);
 
       if (!stats.isFile()) {
-        errors.push('Path does not point to a regular file');
+        errors.push(`Path does not point to a regular file: ${filePath}`);
       }
 
       if (stats.size === 0) {
-        // Treat empty files as a warning, not a fatal error
-        errors.push('File is empty');
+        errors.push(`File is empty: ${filePath}`);
       }
 
       if (stats.size > 10 * 1024 * 1024 * 1024) {
         // 10GB
-        errors.push('File exceeds maximum size limit (10GB)');
+        errors.push(`File exceeds maximum size limit (10GB): ${filePath}`);
       }
     } catch (error) {
-      // Provide more specific error handling
+      // Handle stat errors
       if (error instanceof Error) {
         const nodeError = error as NodeJS.ErrnoException;
-        if (nodeError.code === 'ENOENT') {
-          errors.push('File not found');
-        } else if (nodeError.code === 'EACCES') {
-          errors.push('File access denied - permission error');
-        } else if (nodeError.code === 'EISDIR') {
-          errors.push('Path points to a directory, not a file');
+        if (nodeError.code === 'EISDIR') {
+          errors.push(`Path points to a directory, not a file: ${filePath}`);
         } else {
-          errors.push(`File access error: ${error.message}`);
+          errors.push(`File stat error: ${nodeError.message}`);
         }
       } else {
-        errors.push('File access error: Unknown error');
+        errors.push('File stat error: Unknown error');
       }
     }
 
