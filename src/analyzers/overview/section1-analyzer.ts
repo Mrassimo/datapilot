@@ -64,7 +64,27 @@ export class Section1Analyzer {
       // Validate file first
       const validation = this.fileCollector.validateFile(filePath);
       if (!validation.valid) {
-        throw new Error(`File validation failed: ${validation.errors.join(', ')}`);
+        // Check for specific error types that should be warnings vs errors
+        const fatalErrors = validation.errors.filter(error => 
+          !error.includes('File is empty') && !error.includes('File access error: Unknown error')
+        );
+        
+        if (fatalErrors.length > 0) {
+          throw new Error(`File validation failed: ${fatalErrors.join(', ')}`);
+        }
+        
+        // Log warnings for non-fatal issues but continue
+        validation.errors.forEach(error => {
+          warnings.push({
+            category: 'file',
+            severity: 'medium',
+            message: `File validation warning: ${error}`,
+            impact: 'Analysis may be limited or produce partial results',
+            suggestion: 'Verify file integrity and accessibility'
+          });
+        });
+        
+        logger.warn(`File validation warnings: ${validation.errors.join(', ')}`);
       }
 
       const fileDetails = await this.fileCollector.collectMetadata(filePath);

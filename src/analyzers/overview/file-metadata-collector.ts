@@ -155,6 +155,7 @@ export class FileMetadataCollector {
     const errors: string[] = [];
 
     try {
+      // Check if file exists first
       const stats = statSync(filePath);
 
       if (!stats.isFile()) {
@@ -162,6 +163,7 @@ export class FileMetadataCollector {
       }
 
       if (stats.size === 0) {
+        // Treat empty files as a warning, not a fatal error
         errors.push('File is empty');
       }
 
@@ -170,7 +172,21 @@ export class FileMetadataCollector {
         errors.push('File exceeds maximum size limit (10GB)');
       }
     } catch (error) {
-      errors.push(`File access error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      // Provide more specific error handling
+      if (error instanceof Error) {
+        const nodeError = error as NodeJS.ErrnoException;
+        if (nodeError.code === 'ENOENT') {
+          errors.push('File not found');
+        } else if (nodeError.code === 'EACCES') {
+          errors.push('File access denied - permission error');
+        } else if (nodeError.code === 'EISDIR') {
+          errors.push('Path points to a directory, not a file');
+        } else {
+          errors.push(`File access error: ${error.message}`);
+        }
+      } else {
+        errors.push('File access error: Unknown error');
+      }
     }
 
     return {
