@@ -85,7 +85,7 @@ export class ArgumentParser {
       .description(
         'A lightweight CLI statistical computation engine for comprehensive CSV data analysis',
       )
-      .version('1.2.1')
+      .version('1.3.0')
       .helpOption(false) // Disable automatic help to handle it manually
       .addHelpText(
         'after',
