@@ -39,7 +39,8 @@
     "build:win": "npm run build && pkg . --targets node18-win-x64 --output binaries/datapilot-win.exe",
     "build:mac": "npm run build && pkg . --targets node18-macos-x64 --output binaries/datapilot-macos",
     "build:linux": "npm run build && pkg . --targets node18-linux-x64 --output binaries/datapilot-linux",
-    "build:all-platforms": "npm run build:win && npm run build:mac && npm run build:linux"
+    "build:all-platforms": "npm run build:win && npm run build:mac && npm run build:linux",
+    "pack:offline": "node scripts/create-offline-package.js"
   },
   "keywords": [
     "data-analysis",
