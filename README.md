@@ -13,7 +13,8 @@ DataPilot is a sophisticated command-line tool that transforms data files into c
 ## ✨ Key Features
 
 - 📁 **Universal Format Support**: CSV, JSON, Excel (.xlsx/.xls), TSV, Parquet, JSONL with auto-detection
-- 🔍 **6-Section Analysis Pipeline**: Overview → Quality → EDA → Visualization → Engineering → Modeling
+- 🔍 **6-Section Analysis Pipeline**: Overview → Quality → EDA → Visualization → **Enhanced Engineering** → Modeling
+- 🔗 **Smart Relationship Detection**: Multi-file join analysis with confidence scoring and SQL generation
 - 🚀 **Streaming Processing**: Handle files up to 100GB with constant <512MB memory usage
 - 📊 **Comprehensive Reports**: Human-readable insights in Markdown, JSON, or YAML formats
 - ⚡ **High Performance**: Process 500K-2M rows/minute with automatic optimization
@@ -182,7 +183,7 @@ datapilot all huge-data.parquet --row-start 0 --row-end 10000
 | **2. Data Quality** 🧐 | Quality assessment, completeness, validity | Missing patterns, outliers, duplicates, quality scores |
 | **3. EDA** 📈 | Statistical analysis, distributions, correlations | Univariate/bivariate stats, hypothesis tests, associations |
 | **4. Visualization** 📊 | Chart recommendations, accessibility optimization | Chart types, encodings, library suggestions, WCAG compliance |
-| **5. Engineering** 🏗️ | Schema optimization, feature engineering, ML readiness | Index recommendations, normalization, feature selection |
+| **5. Engineering** 🏗️ | Schema optimization, feature engineering, ML readiness, **multi-file relationships** | Index recommendations, normalization, feature selection, **join analysis** |
 | **6. Modeling** 🧠 | Algorithm selection, validation strategy, deployment, ethics | ML algorithms, cross-validation, bias detection, ethical AI guidelines |
 
 ## 🎯 Use Cases & Examples
@@ -215,9 +216,13 @@ datapilot quality customer-database.json
 
 ### ML Pipeline Preparation
 ```bash
-# Prepare dataset for machine learning (Excel example)
+# Single file: feature engineering analysis
 datapilot engineering features.xlsx --sheet "Training Data"
 # Output: Feature selection, encoding strategies, scaling recommendations
+
+# Multi-file: relationship discovery + engineering
+datapilot engineering customers.csv orders.csv products.csv
+# Output: Join relationships, SQL generation, schema optimization
 ```
 
 ### Research Data Analysis

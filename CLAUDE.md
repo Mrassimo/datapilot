@@ -32,6 +32,13 @@ node test-quality-enhancements.js  # Test quality analysis features
 node test-sections-456.js         # Test sections 4-6 individually
 ```
 
+**Enhanced Engineering Analysis:**
+```bash
+datapilot eng file.csv                    # Single file: normal Section 5 analysis
+datapilot eng customers.csv orders.csv    # Multi-file: Section 5 + relationship analysis
+datapilot eng *.csv --confidence 0.8      # Analyze all CSV files with custom confidence
+```
+
 ## Architecture Overview
 
 DataPilot is a streaming statistical computation engine built around a **6-section analysis pipeline**:
@@ -40,7 +47,7 @@ DataPilot is a streaming statistical computation engine built around a **6-secti
 2. **Section 2 (Quality)**: Data quality assessment, missing values, outliers, duplicates  
 3. **Section 3 (EDA)**: Streaming univariate/bivariate statistical analysis
 4. **Section 4 (Visualization)**: Chart selection, aesthetic optimization, accessibility
-5. **Section 5 (Engineering)**: Schema optimization, feature engineering, ML readiness
+5. **Section 5 (Engineering)**: Schema optimization, feature engineering, ML readiness, **multi-file relationship analysis**
 6. **Section 6 (Modeling)**: Algorithm selection, model validation, deployment strategy
 
 ### Core Architecture Patterns

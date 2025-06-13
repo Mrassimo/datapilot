@@ -24,6 +24,7 @@ import {
 } from '../analyzers/visualization/types';
 import { Section5Analyzer, Section5Formatter } from '../analyzers/engineering';
 import { Section6Analyzer, Section6Formatter } from '../analyzers/modeling';
+import { createJoinAnalyzer } from '../analyzers/joins';
 import type { ModelingTaskType } from '../analyzers/modeling/types';
 import { CSVParser } from '../parsers/csv-parser';
 import { UniversalAnalyzer } from './universal-analyzer';
@@ -251,6 +252,7 @@ export class DataPilotCLI {
         validatedFilePath,
         commandContext.options,
         context.startTime,
+        commandContext.args, // Pass all args for multi-file support
       );
 
       return result;
@@ -591,6 +593,314 @@ export class DataPilotCLI {
   }
 
   /**
+   * Execute join analysis for multiple files (used by engineering command)
+   */
+  private async executeJoinAnalysis(
+    filePaths: string[],
+    options: CLIOptions,
+    startTime: number,
+  ): Promise<CLIResult> {
+    try {
+      logger.info(`Starting join analysis for ${filePaths.length} files`);
+      
+      // Create join analyzer with options
+      const { analyze, format } = createJoinAnalyzer({
+        maxTables: Math.min(filePaths.length, 10), // Keep it reasonable
+        confidenceThreshold: options.confidence ?? 0.7,
+        enableFuzzyMatching: true,
+        enableSemanticAnalysis: true
+      });
+
+      // Run join analysis
+      const result = await analyze(filePaths);
+      
+      // Format output
+      const outputFormat = options.output === 'json' ? 'json' : 'markdown';
+      const formattedOutput = format(result, outputFormat);
+
+      // Output results (simplified for Phase 1)
+      if (options.outputFile) {
+        // Write to file if specified
+        const fs = await import('fs');
+        fs.writeFileSync(options.outputFile, formattedOutput);
+        logger.info(`Output written to ${options.outputFile}`);
+      } else {
+        // Output to console
+        console.log(formattedOutput);
+      }
+
+      const duration = Date.now() - startTime;
+      logger.info(`Join analysis completed in ${duration}ms`);
+
+      return {
+        success: true,
+        exitCode: 0,
+        message: `Join analysis completed for ${filePaths.length} files - found ${result.candidates.length} join candidates`,
+        output: formattedOutput
+      };
+
+    } catch (error) {
+      logger.error('Join analysis failed: ' + (error as Error).message);
+      return this.handleError(error);
+    }
+  }
+
+  /**
+   * Enhanced Engineering Analysis - naturally handles single or multiple files
+   * Single file: Normal Section 5 engineering analysis
+   * Multiple files: Section 5 analysis + simple relationship analysis
+   */
+  private async executeEnhancedEngineering(
+    filePaths: string[],
+    options: CLIOptions,
+    startTime: number,
+  ): Promise<CLIResult> {
+    const primaryFile = filePaths[0];
+    
+    try {
+      // Always run normal Section 5 analysis on the primary file
+      const section5Result = await this.executeGenericAnalysis(
+        {
+          sectionName: 'Section 5',
+          phase: 'engineering',
+          message: 'Starting data engineering analysis...',
+          dependencies: ['section1', 'section2', 'section3'],
+          analyzerFactory: async (filePath, options, dependencies) => {
+            const [section1Data, section2Data, section3Data] = dependencies;
+            const analyzer = new Section5Analyzer({
+              targetDatabaseSystem:
+                (options.database as 'postgresql' | 'mysql' | 'sqlite' | 'generic_sql') ||
+                'postgresql',
+              mlFrameworkTarget:
+                (options.framework as 'scikit_learn' | 'pytorch' | 'tensorflow' | 'generic') ||
+                'scikit_learn',
+            });
+            return await analyzer.analyze(
+              section1Data as Section1Result,
+              section2Data as Section2Result,
+              section3Data as Section3Result,
+            );
+          },
+          formatterMethod: (result) => Section5Formatter.formatMarkdown(result as Section5Result),
+          outputMethod: (outputManager, report, result, fileName) =>
+            outputManager.outputSection5(report, result as Section5Result, fileName),
+        },
+        primaryFile,
+        options,
+        startTime,
+      );
+
+      // If multiple files provided, add simple relationship analysis
+      if (filePaths.length > 1) {
+        logger.info(`Multiple files detected - analyzing relationships between ${filePaths.length} files`);
+        
+        // Get simple column information for each file using Universal Analyzer
+        const fileSchemas = await this.extractSimpleSchemas(filePaths);
+        
+        // Simple relationship detection
+        const relationships = this.detectSimpleRelationships(fileSchemas);
+        
+        // Append relationship analysis to output
+        const relationshipReport = this.formatSimpleRelationships(relationships, filePaths);
+        
+        // Enhanced output that includes both Section 5 and relationships
+        console.log('\n' + '='.repeat(80));
+        console.log('📊 CROSS-FILE RELATIONSHIP ANALYSIS');
+        console.log('='.repeat(80));
+        console.log(relationshipReport);
+        
+        return {
+          ...section5Result,
+          message: `Engineering analysis completed with relationship analysis for ${filePaths.length} files`,
+        };
+      }
+
+      return section5Result;
+
+    } catch (error) {
+      logger.error('Enhanced engineering analysis failed: ' + (error as Error).message);
+      return this.handleError(error);
+    }
+  }
+
+  /**
+   * Extract simple column schemas from multiple files
+   */
+  private async extractSimpleSchemas(filePaths: string[]): Promise<Array<{fileName: string, columns: string[]}>> {
+    const schemas = [];
+    
+    for (const filePath of filePaths) {
+      try {
+        // Use existing CSV parser to get headers
+        const parser = new CSVParser({
+          autoDetect: true,
+          maxRows: 5, // Just need headers + a few rows
+          trimFields: true,
+        });
+
+        const rows = await parser.parseFile(filePath);
+        if (rows.length >= 2) {
+          // Take first 2 rows (header + data row)
+          rows.splice(2);
+        }
+
+        if (rows.length > 0) {
+          const columns = rows[0].data;
+          schemas.push({
+            fileName: filePath.split('/').pop() || filePath,
+            columns: columns
+          });
+        }
+      } catch (error) {
+        logger.warn(`Could not analyze schema for ${filePath}: ${error}`);
+      }
+    }
+
+    return schemas;
+  }
+
+  /**
+   * Simple relationship detection between files
+   */
+  private detectSimpleRelationships(schemas: Array<{fileName: string, columns: string[]}>): Array<{
+    file1: string,
+    column1: string,
+    file2: string,
+    column2: string,
+    matchType: string,
+    confidence: number
+  }> {
+    const relationships = [];
+
+    for (let i = 0; i < schemas.length; i++) {
+      for (let j = i + 1; j < schemas.length; j++) {
+        const schema1 = schemas[i];
+        const schema2 = schemas[j];
+
+        // Check for potential joins between each pair of columns
+        for (const col1 of schema1.columns) {
+          for (const col2 of schema2.columns) {
+            const match = this.calculateColumnSimilarity(col1, col2);
+            if (match.confidence > 0.6) {
+              relationships.push({
+                file1: schema1.fileName,
+                column1: col1,
+                file2: schema2.fileName,
+                column2: col2,
+                matchType: match.type,
+                confidence: match.confidence
+              });
+            }
+          }
+        }
+      }
+    }
+
+    return relationships.sort((a, b) => b.confidence - a.confidence);
+  }
+
+  /**
+   * Simple column similarity calculation
+   */
+  private calculateColumnSimilarity(col1: string, col2: string): {confidence: number, type: string} {
+    const name1 = col1.toLowerCase().trim();
+    const name2 = col2.toLowerCase().trim();
+
+    // Exact match
+    if (name1 === name2) {
+      return { confidence: 1.0, type: 'exact' };
+    }
+
+    // Common ID patterns
+    const idPatterns = [
+      ['id', 'id'],
+      ['customer_id', 'customer_id'],
+      ['user_id', 'user_id'], 
+      ['order_id', 'order_id'],
+      ['product_id', 'product_id'],
+    ];
+
+    for (const [pattern1, pattern2] of idPatterns) {
+      if (name1.includes(pattern1) && name2.includes(pattern2)) {
+        return { confidence: 0.9, type: 'id_pattern' };
+      }
+    }
+
+    // Semantic similarity for common business terms
+    const semanticPairs = [
+      ['customer_id', 'client_id'],
+      ['user_id', 'customer_id'],
+      ['product_id', 'item_id'],
+      ['order_id', 'transaction_id'],
+      ['email', 'email_address'],
+      ['name', 'full_name'],
+      ['date', 'timestamp'],
+    ];
+
+    for (const [term1, term2] of semanticPairs) {
+      if ((name1.includes(term1) && name2.includes(term2)) || 
+          (name1.includes(term2) && name2.includes(term1))) {
+        return { confidence: 0.8, type: 'semantic' };
+      }
+    }
+
+    // Partial match (common substring)
+    if (name1.length > 3 && name2.length > 3) {
+      const shorter = name1.length < name2.length ? name1 : name2;
+      const longer = name1.length >= name2.length ? name1 : name2;
+      
+      if (longer.includes(shorter)) {
+        return { confidence: 0.7, type: 'partial' };
+      }
+    }
+
+    return { confidence: 0.0, type: 'none' };
+  }
+
+  /**
+   * Format simple relationship analysis for output
+   */
+  private formatSimpleRelationships(relationships: Array<{
+    file1: string,
+    column1: string,
+    file2: string,
+    column2: string,
+    matchType: string,
+    confidence: number
+  }>, filePaths: string[]): string {
+    if (relationships.length === 0) {
+      return `\n🔍 **Files Analyzed**: ${filePaths.map(f => f.split('/').pop()).join(', ')}\n\n❌ **No obvious relationships detected**\n\nThis could mean:\n- Files are independent datasets\n- Relationships use different naming conventions\n- Join columns need data transformation\n\n💡 **Recommendation**: Review column names manually for potential joins\n`;
+    }
+
+    let output = `\n🔍 **Files Analyzed**: ${filePaths.map(f => f.split('/').pop()).join(', ')}\n`;
+    output += `\n✅ **Found ${relationships.length} potential join relationship(s)**\n\n`;
+
+    // Group by confidence level
+    const highConfidence = relationships.filter(r => r.confidence >= 0.8);
+    const mediumConfidence = relationships.filter(r => r.confidence >= 0.6 && r.confidence < 0.8);
+
+    if (highConfidence.length > 0) {
+      output += `### 🎯 High Confidence Joins (≥80%)\n\n`;
+      for (const rel of highConfidence) {
+        output += `**${rel.file1}**.${rel.column1} ↔ **${rel.file2}**.${rel.column2}\n`;
+        output += `- Confidence: ${(rel.confidence * 100).toFixed(0)}%\n`;
+        output += `- Type: ${rel.matchType}\n`;
+        output += `- SQL: \`SELECT * FROM ${rel.file1.replace('.csv', '')} a JOIN ${rel.file2.replace('.csv', '')} b ON a.${rel.column1} = b.${rel.column2}\`\n\n`;
+      }
+    }
+
+    if (mediumConfidence.length > 0) {
+      output += `### 🤔 Possible Joins (60-79%)\n\n`;
+      for (const rel of mediumConfidence) {
+        output += `**${rel.file1}**.${rel.column1} ↔ **${rel.file2}**.${rel.column2} (${(rel.confidence * 100).toFixed(0)}%)\n`;
+      }
+      output += '\n💡 **Review these manually** - they might need data transformation\n';
+    }
+
+    return output;
+  }
+
+  /**
    * Execute dependency analysis and cache results
    */
   private async executeDependency(
@@ -673,6 +983,7 @@ export class DataPilotCLI {
     filePath: string,
     options: CLIOptions,
     startTime: number,
+    args?: string[], // Optional args for multi-file support
   ): Promise<CLIResult> {
     // Check if universal analyzer should be used (for multi-format support)
     const shouldUseUniversal = options.format || this.shouldUseUniversalAnalyzer(filePath);
@@ -839,36 +1150,8 @@ export class DataPilotCLI {
         );
 
       case 'engineering':
-        return await this.executeGenericAnalysis(
-          {
-            sectionName: 'Section 5',
-            phase: 'engineering',
-            message: 'Starting data engineering analysis...',
-            dependencies: ['section1', 'section2', 'section3'],
-            analyzerFactory: async (filePath, options, dependencies) => {
-              const [section1Data, section2Data, section3Data] = dependencies;
-              const analyzer = new Section5Analyzer({
-                targetDatabaseSystem:
-                  (options.database as 'postgresql' | 'mysql' | 'sqlite' | 'generic_sql') ||
-                  'postgresql',
-                mlFrameworkTarget:
-                  (options.framework as 'scikit_learn' | 'pytorch' | 'tensorflow' | 'generic') ||
-                  'scikit_learn',
-              });
-              return await analyzer.analyze(
-                section1Data as Section1Result,
-                section2Data as Section2Result,
-                section3Data as Section3Result,
-              );
-            },
-            formatterMethod: (result) => Section5Formatter.formatMarkdown(result as Section5Result),
-            outputMethod: (outputManager, report, result, fileName) =>
-              outputManager.outputSection5(report, result as Section5Result, fileName),
-          },
-          filePath,
-          options,
-          startTime,
-        );
+        // Enhanced engineering analysis - handles single or multiple files seamlessly
+        return await this.executeEnhancedEngineering(args, options, startTime);
 
       case 'modeling':
         return await this.executeGenericAnalysis(

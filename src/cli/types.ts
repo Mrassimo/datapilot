@@ -67,6 +67,9 @@ export interface CLIOptions {
   force?: boolean;
   dryRun?: boolean;
   showProgress?: boolean;
+
+  // Join analysis options
+  confidence?: number;
   command?: string;
 
   // Index signature for additional properties

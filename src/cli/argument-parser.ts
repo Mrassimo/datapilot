@@ -186,10 +186,11 @@ Use --verbose for detailed confidence explanations in reports.`,
     this.program
       .command('engineering')
       .alias('eng')
-      .argument('<file>', 'CSV file to analyze')
-      .description('Provide data engineering insights (Section 5)')
+      .argument('<files...>', 'CSV file(s) to analyze - single file for schema analysis, multiple files for join analysis')
+      .description('Provide data engineering insights (Section 5) - supports multi-file join analysis')
       .option('-o, --output <format>', 'Output format', 'markdown')
-      .action(this.createCommandHandler('engineering'));
+      .option('--confidence <threshold>', 'Join confidence threshold (0-1)', this.parseFloat, 0.7)
+      .action(this.createJoinCommandHandler('engineering'));
 
     this.program
       .command('modeling')
