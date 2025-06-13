@@ -36,6 +36,7 @@
     "src/analyzers/visualization/**/*",
     "src/analyzers/engineering/**/*",
     "src/analyzers/multivariate/**/*",
+    "src/analyzers/joins/**/*",
     "src/cli/**/*",
     "src/core/**/*",
     "src/utils/**/*",

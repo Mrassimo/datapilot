@@ -199,6 +199,51 @@ Use --verbose for detailed confidence explanations in reports.`,
       .option('-o, --output <format>', 'Output format', 'markdown')
       .action(this.createCommandHandler('modeling'));
 
+    // Join Analysis Commands
+    this.program
+      .command('join')
+      .argument('<files...>', 'CSV files to analyze for join relationships')
+      .description('Analyze join relationships between multiple CSV files')
+      .option('-o, --output <format>', 'Output format (txt, markdown, json, yaml)', 'markdown')
+      .option('--output-file <file>', 'Write output to file instead of stdout')
+      .option('--confidence <threshold>', 'Minimum confidence threshold (0-1)', this.parseFloat, 0.7)
+      .option('--max-tables <number>', 'Maximum number of tables to analyze', this.parseInteger, 10)
+      .option('--enable-fuzzy', 'Enable fuzzy matching for column names')
+      .option('--enable-semantic', 'Enable semantic analysis for relationships')
+      .option('--enable-temporal', 'Enable temporal join detection')
+      .option('--performance-mode <mode>', 'Analysis mode (fast, balanced, thorough)', 'balanced')
+      .action(this.createJoinCommandHandler('join'));
+
+    this.program
+      .command('discover')
+      .argument('<directory>', 'Directory containing CSV files to discover relationships')
+      .description('Auto-discover join relationships in a directory of CSV files')
+      .option('-o, --output <format>', 'Output format (txt, markdown, json, yaml)', 'markdown')
+      .option('--output-file <file>', 'Write output to file instead of stdout')
+      .option('--pattern <glob>', 'File pattern to match (e.g., "*.csv")', '*.csv')
+      .option('--confidence <threshold>', 'Minimum confidence threshold (0-1)', this.parseFloat, 0.7)
+      .option('--recursive', 'Search subdirectories recursively')
+      .action(this.createJoinCommandHandler('discover'));
+
+    this.program
+      .command('join-wizard')
+      .argument('<file1>', 'First CSV file')
+      .argument('<file2>', 'Second CSV file')
+      .description('Interactive join wizard for two CSV files')
+      .option('--on <columns>', 'Specific columns to join on (comma-separated)')
+      .option('--preview-rows <number>', 'Number of rows to preview', this.parseInteger, 5)
+      .action(this.createJoinCommandHandler('join-wizard'));
+
+    this.program
+      .command('optimize-joins')
+      .argument('<files...>', 'CSV files to optimize for joining')
+      .description('Analyze and recommend join optimizations')
+      .option('-o, --output <format>', 'Output format (txt, markdown, json, yaml)', 'markdown')
+      .option('--output-file <file>', 'Write output to file instead of stdout')
+      .option('--include-sql', 'Generate SQL optimization suggestions')
+      .option('--include-indexing', 'Include indexing recommendations')
+      .action(this.createJoinCommandHandler('optimize-joins'));
+
     // Utility commands
     this.program
       .command('validate')
@@ -226,6 +271,21 @@ Use --verbose for detailed confidence explanations in reports.`,
         file,
         options,
         args: [file], // Include the file in args for compatibility
+      };
+    };
+  }
+
+  /**
+   * Create join command handler for multi-file operations
+   */
+  private createJoinCommandHandler(commandName: string) {
+    return (filesOrDirectory: string | string[], options: Record<string, unknown>) => {
+      // Store the context for the main CLI to pick up
+      (this.program as any)._lastContext = {
+        command: commandName,
+        file: Array.isArray(filesOrDirectory) ? filesOrDirectory[0] : filesOrDirectory,
+        options,
+        args: Array.isArray(filesOrDirectory) ? filesOrDirectory : [filesOrDirectory],
       };
     };
   }
@@ -359,6 +419,14 @@ Use --verbose for detailed confidence explanations in reports.`,
    */
   private parseInteger(value: string): number {
     const parsed = parseInt(value, 10);
+    if (isNaN(parsed)) {
+      throw new ValidationError(`Invalid number: ${value}`);
+    }
+    return parsed;
+  }
+
+  private parseFloat(value: string): number {
+    const parsed = parseFloat(value);
     if (isNaN(parsed)) {
       throw new ValidationError(`Invalid number: ${value}`);
     }
