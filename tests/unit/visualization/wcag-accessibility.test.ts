@@ -6,6 +6,8 @@
  * representations, and support assistive technologies.
  */
 
+/// <reference path="../../jest-custom-matchers.d.ts" />
+
 import { WCAGAccessibilityEngine } from '../../../src/analyzers/visualization/engines/wcag-accessibility-engine';
 import type { 
   AccessibilityAssessment,

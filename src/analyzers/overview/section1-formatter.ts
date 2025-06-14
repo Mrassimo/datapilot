@@ -210,7 +210,7 @@ ${phaseList}`;
     } else if (sizeMB >= 1024) {
       return `${(sizeMB / 1024).toFixed(2)} GB`;
     } else {
-      return `${sizeMB} MB`;
+      return `${sizeMB.toFixed(2)} MB`;
     }
   }
 

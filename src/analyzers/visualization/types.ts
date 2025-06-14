@@ -80,6 +80,7 @@ export enum ChartType {
   FUNNEL_CHART = 'funnel_chart',
   GAUGE_CHART = 'gauge_chart',
   WORD_CLOUD = 'word_cloud',
+  DASHBOARD_GRID = 'dashboard_grid',
 }
 
 export enum ChartPurpose {
@@ -804,6 +805,98 @@ export interface UserTesting {
   groups: string[];
   scenarios: string[];
   frequency: string;
+}
+
+// Additional WCAG interfaces for comprehensive testing
+export interface WCAGGuideline {
+  id: string;
+  level: 'A' | 'AA' | 'AAA';
+  compliance: 'pass' | 'fail' | 'not_applicable';
+  description: string;
+  principle: 'perceivable' | 'operable' | 'understandable' | 'robust';
+}
+
+export interface AlternativeRepresentation {
+  altText: {
+    isValid: boolean;
+    length: number;
+    content: string;
+    suggestions: Array<{
+      type: 'clarity' | 'completeness' | 'accuracy' | 'length';
+      suggestion: string;
+      priority: 'high' | 'medium' | 'low';
+    }>;
+  };
+  longDescription: {
+    isRequired: boolean;
+    isProvided: boolean;
+    quality: 'excellent' | 'good' | 'needs_improvement';
+    content?: string;
+  };
+  dataTable: {
+    isRequired: boolean;
+    isProvided: boolean;
+    accessibility: 'full' | 'partial' | 'none';
+  };
+}
+
+export interface WCAGAssessmentResult {
+  overallCompliance: {
+    level: 'A' | 'AA' | 'AAA' | 'Non-compliant';
+    score: number;
+  };
+  principles: {
+    perceivable: { score: number; issues: string[] };
+    operable: { score: number; issues: string[] };
+    understandable: { score: number; issues: string[] };
+    robust: { score: number; issues: string[] };
+  };
+  guidelines: WCAGGuideline[];
+  violations: Array<{
+    guideline: string;
+    description: string;
+    severity: 'minor' | 'major' | 'critical';
+    remediation: {
+      steps: string[];
+      codeExample: string;
+      testingGuidance: string;
+    };
+  }>;
+}
+
+export interface KeyboardAccessibilityAssessment {
+  compliance: {
+    overall: 'compliant' | 'partial' | 'non_compliant';
+    focusManagement: boolean;
+    keyboardTraps: boolean;
+    logicalOrder: boolean;
+  };
+  issues: Array<{
+    element: string;
+    issue: string;
+    solution: string;
+    priority: 'high' | 'medium' | 'low';
+  }>;
+  recommendations: string[];
+}
+
+export interface ContrastAssessmentResult {
+  overall: {
+    compliance: 'AA' | 'AAA' | 'fail';
+    averageRatio: number;
+  };
+  combinations: Array<{
+    foreground: string;
+    background: string;
+    ratio: number;
+    compliance: 'AA' | 'AAA' | 'fail';
+    recommendation?: string;
+  }>;
+  improvements: Array<{
+    current: { foreground: string; background: string };
+    suggested: { foreground: string; background: string };
+    ratioImprovement: number;
+  }>;
 }
 
 // ===== CONFIGURATION =====

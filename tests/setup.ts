@@ -2,6 +2,8 @@
  * Jest Test Setup - Clean and Fast
  */
 
+/// <reference path="./jest-custom-matchers.d.ts" />
+
 // Disable all console output during tests
 const originalConsole = global.console;
 global.console = {
@@ -50,6 +52,15 @@ expect.extend({
     
     return {
       message: () => `Expected ${received} to be within ${precision} decimal places of ${expected}`,
+      pass,
+    };
+  },
+  
+  toBeOneOf(received: any, expected: any[]) {
+    const pass = expected.includes(received);
+    
+    return {
+      message: () => `Expected ${received} to be one of [${expected.join(', ')}]`,
       pass,
     };
   },

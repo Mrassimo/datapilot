@@ -534,6 +534,8 @@ export class OutputManager {
         value.forEach((item) => {
           if (typeof item === 'object') {
             yaml += `${spaces}  -\n${this.objectToYAML(item as Record<string, unknown>, indent + 2)}`;
+          } else if (typeof item === 'string') {
+            yaml += `${spaces}  - "${item}"\n`;
           } else {
             yaml += `${spaces}  - ${item}\n`;
           }

@@ -1,0 +1,17 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "types": ["jest", "node"],
+    "strict": false,
+    "noImplicitAny": false
+  },
+  "include": [
+    "./**/*",
+    "../src/**/*",
+    "./jest-custom-matchers.d.ts"
+  ],
+  "exclude": [
+    "../node_modules",
+    "../dist"
+  ]
+}

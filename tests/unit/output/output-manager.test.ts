@@ -1087,7 +1087,7 @@ describe('OutputManager', () => {
       // Check EDA analysis structure
       expect(jsonData.edaAnalysis.crossVariableInsights.topFindings).toHaveLength(3);
       expect(jsonData.edaAnalysis.crossVariableInsights.topFindings[0]).toContain('correlation');
-      expect(jsonData.edaAnalysis.distributionAnalysis.normalDistributions).toContain('score');
+      expect(jsonData.edaAnalysis.multivariateAnalysis.summary.variablesAnalyzed).toContain('age');
       
       // Check metadata
       expect(jsonData.analysisMetadata.analysisDepth).toBe('comprehensive');
@@ -1193,9 +1193,9 @@ describe('OutputManager', () => {
       expect(content).toMatch(/^      - "Active users represent/m);
       
       // Check nested arrays
-      expect(content).toMatch(/^    normalDistributions:$/m);
-      expect(content).toMatch(/^      - "score"$/m);
-      expect(content).toMatch(/^      - "age"$/m);
+      expect(content).toMatch(/^      variablesAnalyzed:$/m);
+      expect(content).toMatch(/^        - "age"$/m);
+      expect(content).toMatch(/^        - "income"$/m);
     });
 
     it('should handle special characters and escaping', () => {
