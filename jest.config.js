@@ -2,10 +2,11 @@
 module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
-  roots: ['<rootDir>/src', '<rootDir>/tests'],
-  testMatch: ['**/__tests__/**/*.ts', '**/?(*.)+(spec|test).ts'],
-  testPathIgnorePatterns: [
-    '/node_modules/',
+  roots: ['<rootDir>/tests'],
+  testMatch: [
+    '**/tests/unit/**/*.test.ts',
+    '**/tests/integration/**/*.test.ts', 
+    '**/tests/e2e/**/*.test.ts'
   ],
   transform: {
     '^.+\\.ts$': 'ts-jest',
@@ -15,48 +16,50 @@ module.exports = {
     '!src/**/*.d.ts',
     '!src/**/*.test.ts',
     '!src/**/*.spec.ts',
-    // Exclude infrastructure modules not yet fully implemented
-    '!src/performance/**',
-    '!src/security/**',
-    '!src/monitoring/**',
-    '!src/analyzers/ml-readiness/**',
-    '!src/analyzers/multivariate/**',
-    '!src/analyzers/statistical-tests/**',
-    '!src/analyzers/modeling/algorithm-recommender.ts',
-    '!src/analyzers/modeling/cart-analyzer.ts',
-    '!src/analyzers/modeling/ethics-analyzer.ts',
-    '!src/analyzers/modeling/residual-analyzer.ts',
-    '!src/analyzers/modeling/workflow-engine.ts',
-    '!src/analyzers/eda/section3-analyzer.ts',
-    '!src/analyzers/eda/types.ts',
-    '!src/analyzers/engineering/section5-analyzer-fixed.ts',
-    '!src/utils/logger.ts',
-    '!src/utils/memory-manager.ts',
-    '!src/utils/retry.ts',
-    '!src/utils/validation.ts',
-    '!src/utils/error-handler.ts',
-    '!src/parsers/excel-parser.ts',
-    '!src/parsers/json-parser.ts',
-    '!src/parsers/parquet-parser.ts',
-    '!src/parsers/tsv-parser.ts',
+    // Only exclude truly unimplemented or infrastructure files
+    '!src/cli/index.ts', // Entry point
+    '!src/index.ts', // Library entry point
   ],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
   },
   coverageThreshold: {
     global: {
-      branches: 15,
-      functions: 15,
-      lines: 15,
-      statements: 15,
+      branches: 80,
+      functions: 85,
+      lines: 85,
+      statements: 85,
     },
   },
-  // Reduce test timeout to prevent hanging
-  testTimeout: 30000,
-  // Force exit after all tests complete
-  forceExit: true,
-  // Detect open handles that might prevent exit
-  detectOpenHandles: true,
-  // Global setup for async cleanup
+  // Fast test execution
+  testTimeout: 5000,
+  maxWorkers: '50%',
+  
+  // Clean test environment
+  clearMocks: true,
+  restoreMocks: true,
+  resetMocks: true,
+  
+  // No hanging tests allowed
+  forceExit: false,
+  detectOpenHandles: false,
+  
+  // Coverage reporting
+  coverageDirectory: 'coverage',
+  coverageReporters: ['text-summary', 'lcov', 'html'],
+  collectCoverage: false, // Only collect when explicitly requested
+  
+  // Performance optimization
+  cache: true,
+  cacheDirectory: '<rootDir>/.jest-cache',
+  
+  // Error handling
+  bail: 1, // Stop on first test failure for faster feedback
+  
+  // Custom matchers and setup
   setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
+  
+  // Verbose output for debugging (can be disabled in CI)
+  verbose: false,
+  silent: true, // No console.log spam
 };

@@ -1,103 +1,57 @@
 /**
- * Global test setup for consistent async cleanup
+ * Jest Test Setup - Clean and Fast
  */
 
-import { beforeEach, afterEach } from '@jest/globals';
+// Disable all console output during tests
+const originalConsole = global.console;
+global.console = {
+  ...originalConsole,
+  log: jest.fn(),
+  info: jest.fn(),
+  warn: jest.fn(),
+  error: originalConsole.error, // Keep errors for debugging
+};
 
-// Track global timers and cleanup operations
-let globalCleanupTasks: Array<() => Promise<void> | void> = [];
+// Global test timeout (should be fast)
+jest.setTimeout(5000);
 
-// Register a global cleanup task
-export function registerGlobalCleanup(task: () => Promise<void> | void): void {
-  globalCleanupTasks.push(task);
-}
-
-// Global afterEach to ensure all async operations are cleaned up
-afterEach(async () => {
-  // Run all registered cleanup tasks
-  for (const task of globalCleanupTasks) {
-    try {
-      await task();
-    } catch (error) {
-      // Ignore cleanup errors in tests
-      console.warn('Global cleanup task failed:', error);
-    }
-  }
-  
-  // Clear the cleanup tasks for next test
-  globalCleanupTasks = [];
-  
-  // Dynamic imports to avoid circular dependencies
-  try {
-    const { globalMemoryManager, globalResourceManager } = await import('../src/utils/memory-manager');
-    
-    // Stop any active monitoring
-    if (globalMemoryManager && typeof globalMemoryManager.stopMonitoring === 'function') {
-      globalMemoryManager.stopMonitoring();
-    }
-    
-    // Run cleanup callbacks
-    if (globalMemoryManager && typeof globalMemoryManager.runCleanup === 'function') {
-      globalMemoryManager.runCleanup();
-    }
-    
-    // Cleanup all registered resources
-    if (globalResourceManager && typeof globalResourceManager.cleanupAll === 'function') {
-      globalResourceManager.cleanupAll();
-    }
-  } catch (error) {
-    // Memory manager may not exist in all tests
-  }
-  
-  // Try to cleanup performance optimizers
-  try {
-    const { shutdownGlobalMemoryOptimizer } = await import('../src/performance/memory-optimizer');
-    shutdownGlobalMemoryOptimizer();
-  } catch (error) {
-    // May not exist or already shutdown
-  }
-  
-  try {
-    const { shutdownGlobalAdaptiveStreamer } = await import('../src/performance/adaptive-streamer');
-    shutdownGlobalAdaptiveStreamer();
-  } catch (error) {
-    // May not exist or already shutdown
-  }
-  
-  // Small delay to allow async operations to complete
-  await new Promise(resolve => setTimeout(resolve, 50));
+// Clean up after each test
+afterEach(() => {
+  jest.clearAllMocks();
+  jest.restoreAllMocks();
 });
 
-// Global beforeEach to set up clean state
-beforeEach(() => {
-  // Clear any residual cleanup tasks
-  globalCleanupTasks = [];
+// Custom matchers for DataPilot testing
+expect.extend({
+  toBeValidCSV(received: string) {
+    const lines = received.split('\n').filter(line => line.trim());
+    const pass = lines.length >= 2; // At least header + 1 data row
+    
+    return {
+      message: () => `Expected valid CSV with header and data rows`,
+      pass,
+    };
+  },
+  
+  toHaveValidStatistics(received: any) {
+    const required = ['mean', 'median', 'standardDeviation'];
+    const pass = required.every(key => 
+      key in received && typeof received[key] === 'number' && !isNaN(received[key])
+    );
+    
+    return {
+      message: () => `Expected object to have valid statistics: ${required.join(', ')}`,
+      pass,
+    };
+  },
+  
+  toBeCloseToStatistic(received: number, expected: number, precision = 2) {
+    const pass = Math.abs(received - expected) < Math.pow(10, -precision);
+    
+    return {
+      message: () => `Expected ${received} to be within ${precision} decimal places of ${expected}`,
+      pass,
+    };
+  },
 });
 
-// Suppress console output during tests to prevent async logging issues
-const originalConsoleLog = console.log;
-const originalConsoleWarn = console.warn;
-
-// Override console methods to be safer during tests
-console.log = (...args: any[]) => {
-  // Only log if we're in a proper test context
-  try {
-    originalConsoleLog(...args);
-  } catch (e) {
-    // Ignore logging errors during test cleanup
-  }
-};
-
-console.warn = (...args: any[]) => {
-  // Only warn if we're in a proper test context  
-  try {
-    originalConsoleWarn(...args);
-  } catch (e) {
-    // Ignore logging errors during test cleanup
-  }
-};
-
-// Export utilities for tests to use
-export {
-  globalCleanupTasks
-};
