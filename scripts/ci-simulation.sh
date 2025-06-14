@@ -28,17 +28,17 @@ if ! npm run lint; then
     # Don't exit on lint warnings, just report them
 fi
 
-# Step 4: Run core tests (excluding problematic integration tests)
-echo "🧪 Running core tests..."
-if ! npm test -- --no-coverage --testPathIgnorePatterns="integration|error-reduction"; then
-    echo "❌ Core tests failed. Check the output above."
+# Step 4: Run unit tests (CI job: test)
+echo "🧪 Running unit tests..."
+if ! npm run test:unit; then
+    echo "❌ Unit tests failed. Check the output above."
     exit 1
 fi
-echo "✅ Core tests passed"
+echo "✅ Unit tests passed"
 
-# Step 5: Test with coverage (limited scope)
-echo "📊 Running tests with coverage (core modules only)..."
-if ! npm test -- --testPathIgnorePatterns="integration|error-reduction" --collectCoverageFrom="src/analyzers/overview/**/*.ts,src/analyzers/quality/**/*.ts,src/cli/**/*.ts,src/core/**/*.ts,src/parsers/**/*.ts" --coverageThreshold="{\"global\":{\"branches\":10,\"functions\":10,\"lines\":10,\"statements\":10}}"; then
+# Step 5: Run unit tests with coverage (CI job: test)
+echo "📊 Running unit tests with coverage..."
+if ! npm run test:coverage; then
     echo "⚠️  Coverage tests failed, but continuing..."
 fi
 
@@ -63,12 +63,29 @@ if [ ! -s /tmp/test-output.json ]; then
 fi
 echo "✅ Basic CSV analysis working"
 
-echo "🎉 All CI/CD simulation checks passed!"
+# Step 8: Run integration tests (CI job: integration-test) - OPTIONAL
+echo "🔗 Running integration tests (optional)..."
+if npm run test:integration; then
+    echo "✅ Integration tests passed"
+else
+    echo "⚠️  Integration tests failed - these may need fixing"
+fi
+
+# Step 9: Run E2E tests (CI job: e2e-test) - OPTIONAL
+echo "🌐 Running E2E tests (optional)..."
+if npm run test:e2e; then
+    echo "✅ E2E tests passed"
+else
+    echo "⚠️  E2E tests failed - these may need fixing"
+fi
+
+echo "🎉 Core CI/CD simulation checks passed!"
 echo "📋 Summary:"
 echo "  ✅ TypeScript compilation"
 echo "  ✅ Build process"
-echo "  ✅ Core tests"
+echo "  ✅ Unit tests"
 echo "  ✅ CLI functionality"
 echo "  ✅ Basic analysis"
 echo ""
-echo "Your CI/CD pipeline should now work successfully!"
+echo "Note: Integration/E2E test failures won't block local development"
+echo "but should be fixed before pushing to CI."

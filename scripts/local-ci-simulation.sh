@@ -41,23 +41,23 @@ else
 fi
 echo ""
 
-# Step 5: Unit tests (without coverage first)
-echo "🧪 Running Tests (without coverage)..."
-if npm test -- --passWithNoTests; then
-    echo "✅ Tests passed"
+# Step 5: Unit tests (CI job: test)
+echo "🧪 Running Unit Tests..."
+if npm run test:unit; then
+    echo "✅ Unit tests passed"
 else
-    echo "❌ Tests failed"
+    echo "❌ Unit tests failed"
     exit 1
 fi
 echo ""
 
-# Step 6: Tests with coverage
-echo "📊 Running Tests with Coverage..."
-if npm test -- --coverage; then
-    echo "✅ Tests with coverage passed"
+# Step 6: Unit tests with coverage (CI job: test)
+echo "📊 Running Unit Tests with Coverage..."
+if npm run test:coverage; then
+    echo "✅ Unit tests with coverage passed"
 else
     echo "❌ Coverage requirements not met"
-    echo "Consider lowering thresholds temporarily"
+    echo "This will cause CI to fail!"
 fi
 echo ""
 
@@ -71,21 +71,26 @@ else
 fi
 echo ""
 
-# Step 8: E2E tests (if they exist)
-if [ -f "package.json" ] && grep -q "test:e2e" package.json; then
-    echo "🌐 Running E2E tests..."
-    if npm run test:e2e; then
-        echo "✅ E2E tests passed"
-    else
-        echo "❌ E2E tests failed"
-    fi
+# Step 8: Integration tests (CI job: integration-test)
+echo "🔗 Running Integration tests..."
+if npm run test:integration; then
+    echo "✅ Integration tests passed"
+else
+    echo "❌ Integration tests failed - will cause CI to fail!"
+fi
+echo ""
+
+# Step 9: E2E tests (CI job: e2e-test)
+echo "🌐 Running E2E tests..."
+if npm run test:e2e; then
+    echo "✅ E2E tests passed"
+else
+    echo "❌ E2E tests failed - will cause CI to fail!"
 fi
 
 echo ""
 echo "📋 Summary:"
 echo "==========="
-if [ $? -eq 0 ]; then
-    echo "✅ All checks passed! Your CI should work."
-else
-    echo "❌ Some checks failed. Fix the issues above before pushing."
-fi
+echo "✅ Core checks completed!"
+echo "⚠️  Any failed integration/e2e tests above will cause CI to fail."
+echo "💡 Fix failing tests before pushing to ensure CI success."

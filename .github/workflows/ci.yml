@@ -39,7 +39,7 @@ jobs:
     - name: Run type checking
       run: npm run typecheck
       
-    - name: Run tests with coverage
+    - name: Run unit tests with coverage
       run: npm run test:coverage
       
     - name: Upload coverage to Codecov
@@ -79,6 +79,36 @@ jobs:
         name: dist
         path: dist/
 
+  integration-test:
+    name: Integration Testing
+    runs-on: ubuntu-latest
+    needs: build
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Download build artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: dist
+        path: dist/
+        
+    - name: Make CLI executable
+      run: chmod +x dist/cli/index.js
+      
+    - name: Run integration tests
+      run: npm run test:integration
+      
   e2e-test:
     name: E2E Testing
     runs-on: ubuntu-latest
@@ -107,7 +137,7 @@ jobs:
       run: chmod +x dist/cli/index.js
       
     - name: Run E2E tests
-      run: npm test -- --testPathPattern="e2e|integration"
+      run: npm run test:e2e
       
     - name: Test CLI with real datasets
       run: |
@@ -141,8 +171,8 @@ jobs:
     - name: Test installation
       run: npm run test:installation
       
-    - name: Run core tests
-      run: npm test -- --testPathPattern="analyzers|parsers|cli"
+    - name: Run unit tests
+      run: npm run test:unit
 
   security-scan:
     name: Security Scanning
@@ -176,7 +206,7 @@ jobs:
   publish:
     name: Publish to NPM
     runs-on: ubuntu-latest
-    needs: [test, build, e2e-test, cross-platform, security-scan]
+    needs: [test, build, integration-test, e2e-test, cross-platform, security-scan]
     if: github.event_name == 'release' && github.event.action == 'published'
     
     steps:
@@ -204,7 +234,7 @@ jobs:
   build-binaries:
     name: Build Cross-Platform Binaries
     runs-on: ubuntu-latest
-    needs: [test, build, e2e-test]
+    needs: [test, build, integration-test, e2e-test]
     if: github.event_name == 'release' && github.event.action == 'published'
     
     steps:

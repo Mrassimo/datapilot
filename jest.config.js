@@ -6,14 +6,6 @@ module.exports = {
   testMatch: ['**/__tests__/**/*.ts', '**/?(*.)+(spec|test).ts'],
   testPathIgnorePatterns: [
     '/node_modules/',
-    // Exclude problematic integration tests that have async cleanup issues
-    'integration.*test\\.ts$',
-    'error-reduction.*test\\.ts$',
-    'comprehensive-e2e\\.test\\.ts$',
-    'performance-validation\\.test\\.ts$',
-    'phase2-integration\\.test\\.ts$',
-    'phase3-module-integration\\.test\\.ts$',
-    'real-world-end-to-end\\.test\\.ts$',
   ],
   transform: {
     '^.+\\.ts$': 'ts-jest',
