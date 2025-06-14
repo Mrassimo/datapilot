@@ -511,6 +511,7 @@ ${implementationPriorities.map((priority, index) => `${index + 1}. **${priority.
       [ChartType.FUNNEL_CHART]: 'Funnel Chart',
       [ChartType.GAUGE_CHART]: 'Gauge Chart',
       [ChartType.WORD_CLOUD]: 'Word Cloud',
+      [ChartType.DASHBOARD_GRID]: 'Dashboard Grid',
     };
     return names[chartType] || chartType;
   }
