@@ -305,7 +305,7 @@ describe('Section3Analyzer', () => {
   describe('Bivariate Relationship Analysis', () => {
     it('should analyze numerical-numerical relationships', async () => {
       // Create correlated data
-      const data = Array.from({ length, 50 }, (_, i) => [
+      const data = Array.from({ length: 50 }, (_, i) => [
         i.toString(),
         (i * 2 + Math.random() * 10).toFixed(2),  // Correlated with ID
         (i * 1.5 + Math.random() * 5).toFixed(2), // Also correlated with ID
