@@ -3,6 +3,8 @@
  * Jest struggles with dynamic ES module imports, so we provide a manual mock
  */
 
+import { jest } from '@jest/globals';
+
 export const asyncBufferFromFile = jest.fn();
 export const asyncBufferFromUrl = jest.fn();
 export const parquetReadObjects = jest.fn();

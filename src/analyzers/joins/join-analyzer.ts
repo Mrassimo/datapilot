@@ -3,11 +3,11 @@
  * Phase 1: Foundation Architecture - Main join analysis engine
  */
 
-import { CSVParser } from '../../parsers/csv-parser.js';
-import { CSVDetector } from '../../parsers/csv-detector.js';
-import { RelationshipDetector } from './relationship-detector.js';
-import { globalErrorHandler, DataPilotError } from '../../utils/error-handler.js';
-import { logger } from '../../utils/logger.js';
+import { CSVParser } from '../../parsers/csv-parser';
+import { CSVDetector } from '../../parsers/csv-detector';
+import { RelationshipDetector } from './relationship-detector';
+import { globalErrorHandler, DataPilotError } from '../../utils/error-handler';
+import { logger } from '../../utils/logger';
 import {
   TableMeta,
   ColumnSchema,
@@ -24,7 +24,7 @@ import {
   PerformanceAnalysis,
   JoinErrorCode,
   JoinAnalysisError
-} from './types.js';
+} from './types';
 
 export class JoinAnalyzer {
   private relationshipDetector: RelationshipDetector;

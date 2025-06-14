@@ -17,7 +17,7 @@ import type {
   PrecisionAnalysis,
   RepresentationalAnalysis,
   ProfilingInsights,
-} from './types.js';
+} from './types';
 
 export class Section2Formatter {
   public static formatReport(audit: Section2QualityAudit): string {

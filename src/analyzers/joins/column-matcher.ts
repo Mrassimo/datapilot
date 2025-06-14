@@ -11,7 +11,7 @@ import {
   TableMeta,
   ForeignKeyCandidate,
   JoinStrategy
-} from './types.js';
+} from './types';
 
 export interface ColumnMatcher {
   semanticSimilarity(col1: string, col2: string): number;

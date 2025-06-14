@@ -3,10 +3,10 @@
  * Provides easy-to-use interface without overengineering
  */
 
-import { JoinAnalyzer } from './join-analyzer.js';
-import { JoinFormatter } from './join-formatter.js';
-import { JoinAnalysisConfig, JoinAnalysisResult, OutputFormat, JoinCandidate, TableDependencyGraph, IntegrityReport, BusinessRule, TemporalJoin, JoinRecommendation, PerformanceAnalysis, JoinSummary } from './types.js';
-import { globalMemoryManager } from '../../utils/memory-manager.js';
+import { JoinAnalyzer } from './join-analyzer';
+import { JoinFormatter } from './join-formatter';
+import { JoinAnalysisConfig, JoinAnalysisResult, OutputFormat, JoinCandidate, TableDependencyGraph, IntegrityReport, BusinessRule, TemporalJoin, JoinRecommendation, PerformanceAnalysis, JoinSummary } from './types';
+import { globalMemoryManager } from '../../utils/memory-manager';
 
 /**
  * Create a simple join analyzer with sensible defaults

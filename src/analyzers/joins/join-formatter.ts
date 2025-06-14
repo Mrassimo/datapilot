@@ -13,7 +13,7 @@ import {
   OutputFormat,
   CardinalityType,
   JoinStrategy
-} from './types.js';
+} from './types';
 
 export class JoinFormatter {
   

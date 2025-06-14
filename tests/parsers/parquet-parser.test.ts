@@ -11,12 +11,19 @@ import * as path from 'path';
 // Mock hyparquet module - Jest will automatically use manual mock from __mocks__
 jest.mock('hyparquet');
 
-import {
-  asyncBufferFromUrl as mockAsyncBufferFromFile,
-  parquetReadObjects as mockParquetReadObjects,
-  parquetMetadataAsync as mockParquetMetadataAsync,
-  parquetSchema as mockParquetSchema
-} from 'hyparquet';
+// Import mocked functions
+const mockAsyncBufferFromFile = jest.fn();
+const mockParquetReadObjects = jest.fn();
+const mockParquetMetadataAsync = jest.fn();
+const mockParquetSchema = jest.fn();
+
+// Mock the module
+jest.mock('hyparquet', () => ({
+  asyncBufferFromFile: mockAsyncBufferFromFile,
+  parquetReadObjects: mockParquetReadObjects,
+  parquetMetadataAsync: mockParquetMetadataAsync,
+  parquetSchema: mockParquetSchema
+}));
 
 describe('ParquetDetector', () => {
   let detector: ParquetDetector;
@@ -330,9 +337,9 @@ describe('ParquetParser', () => {
         ]
       };
 
-      mockAsyncBufferFromFile.mockResolvedValue({} as any);
-      mockParquetMetadataAsync.mockResolvedValue({} as any);
-      mockParquetSchema.mockResolvedValue(mockSchema as any);
+      (mockAsyncBufferFromFile as jest.MockedFunction<any>).mockResolvedValue({});
+      (mockParquetMetadataAsync as jest.MockedFunction<any>).mockResolvedValue({});
+      (mockParquetSchema as jest.MockedFunction<any>).mockResolvedValue(mockSchema);
 
       const schema = await parser.getSchema('/test/data.parquet');
 
@@ -374,8 +381,8 @@ describe('ParquetParser', () => {
         ]
       };
 
-      mockAsyncBufferFromFile.mockResolvedValue({} as any);
-      mockParquetMetadataAsync.mockResolvedValue(mockMetadata as any);
+      (mockAsyncBufferFromFile as jest.MockedFunction<any>).mockResolvedValue({});
+      (mockParquetMetadataAsync as jest.MockedFunction<any>).mockResolvedValue(mockMetadata);
 
       const rowGroups = await parser.getRowGroups('/test/data.parquet');
 
