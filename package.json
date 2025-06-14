@@ -97,6 +97,8 @@
     ]
   },
   "dependencies": {
+    "@eslint/eslintrc": "^3.3.1",
+    "@eslint/js": "^9.29.0",
     "commander": "^11.1.0",
     "exceljs": "^4.4.0",
     "hyparquet": "^1.4.0",
@@ -112,9 +114,9 @@
     "@types/jest": "^29.5.11",
     "@types/node": "^20.10.5",
     "@types/uuid": "^9.0.7",
-    "@typescript-eslint/eslint-plugin": "^6.15.0",
-    "@typescript-eslint/parser": "^6.15.0",
-    "eslint": "^8.56.0",
+    "@typescript-eslint/eslint-plugin": "^8.34.0",
+    "@typescript-eslint/parser": "^8.34.0",
+    "eslint": "^9.29.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-prettier": "^5.1.2",
     "jest": "^29.7.0",
