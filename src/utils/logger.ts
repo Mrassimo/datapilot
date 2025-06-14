@@ -2,7 +2,6 @@
  * Simple logger utility for DataPilot
  */
 
-/* eslint-disable no-console */
 
 export enum LogLevel {
   ERROR = 0,
