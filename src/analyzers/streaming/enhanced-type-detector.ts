@@ -70,6 +70,11 @@ export class EnhancedTypeDetector {
   private static detectSingleColumnType(sample: ColumnSample): TypeDetectionResult {
     const { values, columnName } = sample;
 
+    // Calculate data quality before filtering
+    const totalValues = values.length;
+    const nullCount = values.filter((v) => v === null || v === undefined || v === '').length;
+    const dataQualityRatio = totalValues > 0 ? (totalValues - nullCount) / totalValues : 0;
+
     // Filter out null/undefined/empty values for analysis
     const validValues = values
       .filter((v) => v !== null && v !== undefined && v !== '')
@@ -111,6 +116,13 @@ export class EnhancedTypeDetector {
       if (result && result.confidence > bestResult.confidence) {
         bestResult = result;
       }
+    }
+
+    // Apply data quality penalty to final confidence
+    if (dataQualityRatio < 1.0) {
+      const qualityPenalty = (1.0 - dataQualityRatio) * 0.15; // Up to 15% penalty for poor data quality
+      bestResult.confidence = Math.max(0, bestResult.confidence - qualityPenalty);
+      bestResult.reasons.push(`Data quality: ${Math.round(dataQualityRatio * 100)}% valid values`);
     }
 
     return bestResult;
@@ -240,10 +252,20 @@ export class EnhancedTypeDetector {
       );
       reasons.push(`Unique values: ${Array.from(uniqueValues).join(', ')}`);
 
+      // Higher confidence for clear boolean patterns
+      let confidence = 0.7 + booleanRatio * 0.25;
+      
+      // Extra boost for classic binary patterns like 1/0, true/false
+      const classicBooleanValues = new Set(['1', '0', 'true', 'false', 'yes', 'no', 'y', 'n']);
+      const isClassicBoolean = Array.from(uniqueValues).every(val => classicBooleanValues.has(val));
+      if (isClassicBoolean && uniqueValues.size === 2) {
+        confidence += 0.05; // Extra boost for classic binary patterns
+      }
+
       return {
         dataType: EdaDataType.BOOLEAN,
         semanticType: SemanticType.STATUS,
-        confidence: Math.min(0.95, 0.7 + booleanRatio * 0.25),
+        confidence: Math.min(0.97, confidence),
         reasons,
       };
     }
@@ -557,7 +579,7 @@ export class EnhancedTypeDetector {
       return {
         dataType: EdaDataType.CATEGORICAL,
         semanticType: this.inferCategoricalSemanticType(columnName),
-        confidence: Math.min(0.85, 0.3 + (1 - uniqueRatio) * 0.4 + (nameHasHint ? 0.15 : 0)),
+        confidence: Math.min(0.9, 0.4 + (1 - uniqueRatio) * 0.35 + (nameHasHint ? 0.2 : 0)),
         reasons,
       };
     }

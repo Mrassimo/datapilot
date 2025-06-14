@@ -12,7 +12,7 @@ This section provides a detailed snapshot of the dataset properties, how it was 
 **1.1. Input Data File Details:**
     * Original Filename: `test-dataset.csv`
     * Full Resolved Path: `/path/to/test-dataset.csv`
-    * File Size (on disk): 1.024 MB
+    * File Size (on disk): 1.02 MB
     * MIME Type (detected/inferred): `text/csv`
     * File Last Modified (OS Timestamp): 2024-01-15 00:00:00 (UTC)
     * File Hash (SHA256): `abc123def456`
