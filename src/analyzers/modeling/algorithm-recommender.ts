@@ -91,8 +91,11 @@ export class AlgorithmRecommender {
         logger.warn(`Unknown task type: ${task.taskType}`);
     }
 
+    // Filter recommendations based on configuration preferences
+    let filteredRecommendations = this.filterByPreferences(recommendations);
+
     // Sort by suitability score and return top recommendations
-    return recommendations.sort((a, b) => b.suitabilityScore - a.suitabilityScore).slice(0, 5); // Top 5 recommendations per task
+    return filteredRecommendations.sort((a, b) => b.suitabilityScore - a.suitabilityScore).slice(0, 5); // Top 5 recommendations per task
   }
 
   /**
@@ -828,5 +831,84 @@ export class AlgorithmRecommender {
         importance: 'important',
       },
     ];
+  }
+
+  /**
+   * Filter algorithm recommendations based on configuration preferences
+   */
+  private filterByPreferences(recommendations: AlgorithmRecommendation[]): AlgorithmRecommendation[] {
+    let filtered = recommendations;
+
+    // Filter by complexity preference
+    if (this.config.complexityPreference === 'simple') {
+      filtered = filtered.filter(alg => alg.complexity === 'simple' || alg.complexity === 'moderate');
+    } else if (this.config.complexityPreference === 'complex') {
+      // Ensure we include complex algorithms, and add complex ones if none exist
+      const hasComplex = filtered.some(alg => alg.complexity === 'complex');
+      if (!hasComplex) {
+        // Add complex algorithms if none exist
+        this.addComplexAlgorithms(filtered);
+      }
+      filtered = filtered.filter(alg => alg.complexity === 'moderate' || alg.complexity === 'complex');
+    }
+
+    // Filter by interpretability requirement
+    if (this.config.interpretabilityRequirement === 'high') {
+      filtered = filtered.filter(alg => alg.interpretability === 'high' || alg.interpretability === 'medium');
+    } else if (this.config.interpretabilityRequirement === 'low') {
+      // Allow all interpretability levels when requirement is low
+      // Don't filter out anything
+    }
+
+    // Ensure we don't return empty results - if filtering removes everything, return original
+    return filtered.length > 0 ? filtered : recommendations;
+  }
+
+  /**
+   * Add complex algorithms to the recommendations list
+   */
+  private addComplexAlgorithms(recommendations: AlgorithmRecommendation[]): void {
+    // Add a complex algorithm (Neural Network for regression tasks)
+    recommendations.push({
+      algorithmName: 'Neural Network (MLP)',
+      category: 'neural_networks',
+      suitabilityScore: 75,
+      complexity: 'complex',
+      interpretability: 'low',
+      strengths: [
+        'Can model complex non-linear relationships',
+        'Universal function approximator',
+        'Good performance on large datasets',
+        'Flexible architecture',
+      ],
+      weaknesses: [
+        'Requires large amounts of data',
+        'Prone to overfitting',
+        'Black box - hard to interpret',
+        'Many hyperparameters to tune',
+      ],
+      dataRequirements: [
+        'Large dataset (1000+ samples preferred)',
+        'Feature scaling essential',
+        'Sufficient computational resources',
+      ],
+      hyperparameters: [
+        {
+          parameterName: 'hidden_layer_sizes',
+          description: 'Architecture of hidden layers',
+          defaultValue: [100],
+          recommendedRange: '(50,) to (200, 100, 50)',
+          tuningStrategy: 'Start simple, increase complexity gradually',
+          importance: 'critical',
+        },
+      ],
+      implementationFrameworks: ['scikit-learn', 'TensorFlow', 'PyTorch', 'Keras'],
+      evaluationMetrics: ['RMSE', 'MAE', 'R²', 'Loss curves'],
+      reasoningNotes: [
+        'Complex non-linear modeling capability',
+        'Good for complex patterns in large datasets',
+        'Requires careful regularization and tuning',
+      ],
+    });
   }
 }

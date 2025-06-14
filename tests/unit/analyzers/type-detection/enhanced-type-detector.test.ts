@@ -411,7 +411,7 @@ describe('EnhancedTypeDetector', () => {
 
     it('should sample large datasets for efficiency', () => {
       // Create dataset with 200 values but some bad ones at the end
-      const values = Array.from({length: 95}, (_, i) => i + 1);
+      const values: (number | string)[] = Array.from({length: 95}, (_, i) => i + 1);
       values.push(...Array.from({length: 105}, () => 'text')); // Add text at end
       
       const sample = createColumnSample('test_col', values);

@@ -121,7 +121,7 @@ describe('Section6Analyzer', () => {
 
       const analyzer = new Section6Analyzer(interpretableConfig);
       const result = await analyzer.analyze(
-        createMockSection1Result(),
+        createMockSection1Result({ targetColumn: 'active', targetType: 'binary' }),
         createMockSection2Result(), 
         createMockSection3Result(),
         createMockSection5Result()
@@ -334,7 +334,7 @@ describe('Section6Analyzer', () => {
       });
 
       const result = await analyzer.analyze(
-        createMockSection1Result(),
+        createMockSection1Result({ targetColumn: 'active', targetType: 'binary' }),
         createMockSection2Result(),
         createMockSection3Result(),
         createMockSection5Result()
@@ -371,14 +371,14 @@ describe('Section6Analyzer', () => {
       const classificationAnalyzer = new Section6Analyzer({ focusAreas: ['binary_classification'] });
 
       const regressionResult = await regressionAnalyzer.analyze(
-        createMockSection1Result({ targetType: 'continuous' }),
+        createMockSection1Result({ targetColumn: 'salary', targetType: 'continuous' }),
         createMockSection2Result(),
         createMockSection3Result(),
         createMockSection5Result()
       );
 
       const classificationResult = await classificationAnalyzer.analyze(
-        createMockSection1Result({ targetType: 'binary' }),
+        createMockSection1Result({ targetColumn: 'active', targetType: 'binary' }),
         createMockSection2Result(),
         createMockSection3Result(),
         createMockSection5Result()
@@ -642,6 +642,34 @@ describe('Section6Analyzer', () => {
 
 // Helper functions to create mock data
 function createMockSection1Result(overrides: any = {}): Section1Result {
+  // Adjust column inventory based on target column override
+  let columnInventory = [
+    { index: 0, name: 'id', originalIndex: 0 },
+    { index: 1, name: 'name', originalIndex: 1 },
+    { index: 2, name: 'age', originalIndex: 2 },
+    { index: 3, name: 'email', originalIndex: 3 },
+    { index: 4, name: 'salary', originalIndex: 4 },
+    { index: 5, name: 'department', originalIndex: 5 },
+    { index: 6, name: 'hire_date', originalIndex: 6 },
+    { index: 7, name: 'active', originalIndex: 7 },
+  ];
+
+  // If targetColumn is specified in overrides, replace salary with the target
+  if (overrides.targetColumn && overrides.targetColumn !== 'salary') {
+    columnInventory = columnInventory.map(col => 
+      col.name === 'salary' 
+        ? { ...col, name: overrides.targetColumn }
+        : col
+    );
+  }
+
+  // If target is categorical, add category column if not already exists
+  if (overrides.targetColumn === 'category') {
+    if (!columnInventory.find(col => col.name === 'category')) {
+      columnInventory.push({ index: 8, name: 'category', originalIndex: 8 });
+    }
+  }
+
   return {
     overview: {
       fileDetails: {
@@ -688,18 +716,9 @@ function createMockSection1Result(overrides: any = {}): Section1Result {
       structuralDimensions: {
         totalRowsRead: 1000,
         totalDataRows: 999,
-        totalColumns: 8,
-        totalDataCells: 7992,
-        columnInventory: [
-          { index: 0, name: 'id', originalIndex: 0 },
-          { index: 1, name: 'name', originalIndex: 1 },
-          { index: 2, name: 'age', originalIndex: 2 },
-          { index: 3, name: 'email', originalIndex: 3 },
-          { index: 4, name: 'salary', originalIndex: 4 },
-          { index: 5, name: 'department', originalIndex: 5 },
-          { index: 6, name: 'hire_date', originalIndex: 6 },
-          { index: 7, name: 'active', originalIndex: 7 },
-        ],
+        totalColumns: columnInventory.length,
+        totalDataCells: 999 * columnInventory.length,
+        columnInventory,
         estimatedInMemorySizeMB: 2.5,
         averageRowLengthBytes: 64,
         sparsityAnalysis: {

@@ -479,15 +479,16 @@ export class EnhancedTypeDetector {
         reasons.push(`${Math.round(integerRatio * 100)}% are integers`);
       }
 
-      // Higher confidence scoring
-      let confidence = 0.5 + numericRatio * 0.3;
+      // Higher confidence scoring with more sensitivity to data quality
+      let confidence = 0.5 + numericRatio * 0.35;
       if (nameHasHint) confidence += 0.15;
-      if (numericRatio >= 0.95) confidence += 0.05; // Bonus for very clean data
+      if (numericRatio >= 0.95) confidence += 0.1; // Bonus for very clean data
+      if (numericRatio < 0.8) confidence -= 0.1; // Penalty for messy data
 
       return {
         dataType: isInteger ? EdaDataType.NUMERICAL_INTEGER : EdaDataType.NUMERICAL_FLOAT,
         semanticType: this.inferNumericalSemanticType(columnName),
-        confidence: Math.min(0.95, confidence),
+        confidence: Math.min(0.98, confidence),
         reasons,
       };
     }
@@ -544,8 +545,10 @@ export class EnhancedTypeDetector {
       reasons.push('Column name suggests categorical data');
     }
 
-    // Categorical if low unique ratio and reasonable number of categories
-    if (uniqueRatio <= 0.5 && uniqueValues.size >= 2 && uniqueValues.size <= 100) {
+    // Categorical if reasonable unique ratio and number of categories
+    // More permissive for small samples, stricter for large samples
+    const maxAllowedRatio = values.length <= 10 ? 0.8 : 0.5;
+    if (uniqueRatio <= maxAllowedRatio && uniqueValues.size >= 2 && uniqueValues.size <= 100) {
       reasons.push(
         `${uniqueValues.size} unique values (${Math.round(uniqueRatio * 100)}% of total)`,
       );
