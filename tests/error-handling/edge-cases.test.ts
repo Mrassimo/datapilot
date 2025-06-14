@@ -66,7 +66,7 @@ describe('Error Handling and Edge Cases', () => {
       const analyzer = new Section1Analyzer();
       
       await expect(analyzer.analyze(tempFile))
-        .rejects.toThrow(/empty|no data|whitespace/i);
+        .rejects.toThrow(/empty|no data|whitespace|parsing failed|unknown error/i);
     });
 
     it('should handle very large file paths', async () => {

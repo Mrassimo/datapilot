@@ -201,7 +201,9 @@ export class ParquetParser extends BaseParser {
         yield {
           index: rowIndex++,
           data: rowData,
-          raw: JSON.stringify(row),
+          raw: JSON.stringify(row, (key, value) => 
+            typeof value === 'bigint' ? value.toString() : value
+          ),
           metadata: {
             originalType: 'parquet',
             rowGroups: this.metadata?.rowGroups,

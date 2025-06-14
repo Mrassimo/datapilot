@@ -8,16 +8,13 @@ import type { ParseOptions } from '../../src/parsers/base/data-parser';
 import { promises as fs } from 'fs';
 import * as path from 'path';
 
-// Mock hyparquet module - Jest will automatically use manual mock from __mocks__
-jest.mock('hyparquet');
-
-// Import mocked functions
+// Create mock functions
 const mockAsyncBufferFromFile = jest.fn();
 const mockParquetReadObjects = jest.fn();
 const mockParquetMetadataAsync = jest.fn();
 const mockParquetSchema = jest.fn();
 
-// Mock the module
+// Mock hyparquet module completely
 jest.mock('hyparquet', () => ({
   asyncBufferFromFile: mockAsyncBufferFromFile,
   parquetReadObjects: mockParquetReadObjects,
@@ -71,7 +68,7 @@ describe('ParquetDetector', () => {
       jest.spyOn(fs, 'stat').mockResolvedValue({ size: 1024000 } as any);
       (mockAsyncBufferFromFile as jest.MockedFunction<any>).mockResolvedValue({});
       (mockParquetMetadataAsync as jest.MockedFunction<any>).mockResolvedValue(mockMetadata);
-      (mockParquetSchema as jest.MockedFunction<any>).mockResolvedValue(mockSchema);
+      (mockParquetSchema as jest.MockedFunction<any>).mockReturnValue(mockSchema);
 
       const result = await detector.detect('/test/file.parquet');
 
@@ -97,7 +94,7 @@ describe('ParquetDetector', () => {
 
       expect(result.format).toBe('parquet');
       expect(result.confidence).toBe(0);
-      expect(result.metadata.error).toBe('File not found');
+      expect(result.metadata.error).toBe('Failed to read Parquet metadata: File not found');
     });
   });
 });
@@ -155,7 +152,7 @@ describe('ParquetParser', () => {
       jest.spyOn(fs, 'stat').mockResolvedValue(mockFileStats as any);
       (mockAsyncBufferFromFile as jest.MockedFunction<any>).mockResolvedValue({});
       (mockParquetMetadataAsync as jest.MockedFunction<any>).mockResolvedValue(mockMetadata);
-      (mockParquetSchema as jest.MockedFunction<any>).mockResolvedValue(mockSchema);
+      (mockParquetSchema as jest.MockedFunction<any>).mockReturnValue(mockSchema);
       (mockParquetReadObjects as jest.MockedFunction<any>).mockResolvedValue(mockData);
 
       const rows = [];
@@ -207,7 +204,7 @@ describe('ParquetParser', () => {
       jest.spyOn(fs, 'stat').mockResolvedValue(mockFileStats as any);
       (mockAsyncBufferFromFile as jest.MockedFunction<any>).mockResolvedValue({});
       (mockParquetMetadataAsync as jest.MockedFunction<any>).mockResolvedValue(mockMetadata);
-      (mockParquetSchema as jest.MockedFunction<any>).mockResolvedValue(mockSchema);
+      (mockParquetSchema as jest.MockedFunction<any>).mockReturnValue(mockSchema);
       (mockParquetReadObjects as jest.MockedFunction<any>).mockResolvedValue(mockData);
 
       const options: ParseOptions = { maxRows: 2 };
@@ -260,7 +257,7 @@ describe('ParquetParser', () => {
       jest.spyOn(fs, 'stat').mockResolvedValue(mockFileStats as any);
       (mockAsyncBufferFromFile as jest.MockedFunction<any>).mockResolvedValue({});
       (mockParquetMetadataAsync as jest.MockedFunction<any>).mockResolvedValue(mockMetadata);
-      (mockParquetSchema as jest.MockedFunction<any>).mockResolvedValue(mockSchema);
+      (mockParquetSchema as jest.MockedFunction<any>).mockReturnValue(mockSchema);
       (mockParquetReadObjects as jest.MockedFunction<any>).mockResolvedValue(mockData);
 
       const rows = [];
@@ -316,7 +313,7 @@ describe('ParquetParser', () => {
       jest.spyOn(fs, 'stat').mockResolvedValue(mockFileStats as any);
       (mockAsyncBufferFromFile as jest.MockedFunction<any>).mockResolvedValue({});
       (mockParquetMetadataAsync as jest.MockedFunction<any>).mockResolvedValue(mockMetadata);
-      (mockParquetSchema as jest.MockedFunction<any>).mockResolvedValue(mockSchema);
+      (mockParquetSchema as jest.MockedFunction<any>).mockReturnValue(mockSchema);
       (mockParquetReadObjects as jest.MockedFunction<any>).mockResolvedValue(mockData);
 
       // Parse to populate headers
