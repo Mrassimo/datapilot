@@ -502,23 +502,33 @@ NaN
   });
 
   describe('Configuration Edge Cases', () => {
-    it('should handle invalid configuration values', () => {
-      const { Section3Analyzer } = require('../../src/analyzers/eda');
+    it('should handle invalid configuration values', async () => {
+      // Create a minimal test file
+      const testData = 'col1\nvalue1';
+      writeFileSync(tempFile, testData, 'utf8');
+      
+      const { Section3Analyzer } = await import('../../src/analyzers/eda');
       
       const analyzer = new Section3Analyzer({
-        maxRecordsForCorrelation: -1, // Invalid
-        correlationThreshold: 2.0, // Invalid (should be -1 to 1)
-        sampleSize: 0 // Invalid
+        maxCorrelationPairs: -1, // Invalid
+        significanceLevel: 2.0, // Invalid (should be 0-1)
+        samplingThreshold: 0 // Invalid
       });
       
-      // Test with minimal valid input
-      const result = analyzer.analyze({
-        filePath: '/test',
-        data: [],
-        headers: [],
-        columnTypes: [],
-        rowCount: 0,
-        columnCount: 0
+      // Parse the test data
+      const { CSVParser } = await import('../../src/parsers/csv-parser');
+      const parser = new CSVParser({ autoDetect: true });
+      const parsedRows = await parser.parseFile(tempFile);
+      const headers = parsedRows.length > 0 ? parsedRows[0].data : [];
+      const data = parsedRows.slice(1).map(row => row.data);
+      
+      const result = await analyzer.analyze({
+        filePath: tempFile,
+        data,
+        headers,
+        columnTypes: headers.map(() => 'string' as any),
+        rowCount: data.length,
+        columnCount: headers.length
       });
       
       // Should handle invalid config gracefully
@@ -776,10 +786,10 @@ NaN
       const { Section3Analyzer } = await import('../../src/analyzers/eda');
       const analyzer = new Section3Analyzer();
       
-      // First, cause an error
+      // First, cause an error by using empty data
       try {
         await analyzer.analyze({
-          filePath: '/nonexistent.csv',
+          filePath: tempFile,
           data: [],
           headers: [],
           columnTypes: [],
@@ -787,7 +797,7 @@ NaN
           columnCount: 0
         });
       } catch (error) {
-        // Expected to fail
+        // Expected to fail with empty data
       }
       
       // Then, use the same analyzer instance successfully

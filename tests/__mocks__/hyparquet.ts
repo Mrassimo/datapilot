@@ -8,8 +8,13 @@ import { jest } from '@jest/globals';
 export const asyncBufferFromFile = jest.fn();
 export const asyncBufferFromUrl = jest.fn();
 export const parquetReadObjects = jest.fn();
-export const parquetMetadataAsync = jest.fn();
-export const parquetSchema = jest.fn();
+export const parquetMetadataAsync = jest.fn().mockResolvedValue({
+  num_rows: BigInt(0),
+  row_groups: []
+});
+export const parquetSchema = jest.fn().mockReturnValue({
+  children: []
+});
 
 // Default export (if needed)
 export default {
