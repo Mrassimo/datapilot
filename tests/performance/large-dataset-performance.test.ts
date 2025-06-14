@@ -11,12 +11,33 @@ describe('Large Dataset Performance Tests', () => {
     tempFile = join(tempDir, 'large-test.csv');
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     try {
       unlinkSync(tempFile);
     } catch (e) {
       // File might not exist
     }
+    
+    // Stop any memory monitoring and cleanup analyzers
+    const { globalMemoryManager, globalResourceManager } = await import('../../src/utils/memory-manager');
+    const { shutdownGlobalMemoryOptimizer } = await import('../../src/performance/memory-optimizer');
+    const { shutdownGlobalAdaptiveStreamer } = await import('../../src/performance/adaptive-streamer');
+    
+    // Stop monitoring and cleanup resources
+    globalMemoryManager.stopMonitoring();
+    globalMemoryManager.runCleanup();
+    globalResourceManager.cleanupAll();
+    
+    // Shutdown performance optimizers
+    try {
+      shutdownGlobalMemoryOptimizer();
+      shutdownGlobalAdaptiveStreamer();
+    } catch (e) {
+      // May not exist, ignore
+    }
+    
+    // Cleanup any lingering async operations
+    await new Promise(resolve => setTimeout(resolve, 150));
   });
 
   describe('Memory Efficiency', () => {
@@ -117,6 +138,9 @@ describe('Large Dataset Performance Tests', () => {
       
       const initialMemory = process.memoryUsage();
       const result = await analyzer.analyzeFile(tempFile);
+      
+      // Cleanup analyzer (no explicit cleanup methods, rely on global cleanup)
+      
       const finalMemory = process.memoryUsage();
       
       const memoryIncrease = finalMemory.heapUsed - initialMemory.heapUsed;

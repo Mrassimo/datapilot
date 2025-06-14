@@ -44,7 +44,27 @@ describe('Performance Validation E2E Tests', () => {
       }
     });
 
+    // Stop any monitoring and cleanup resources
+    const { globalMemoryManager, globalResourceManager } = await import('../../src/utils/memory-manager');
+    const { shutdownGlobalMemoryOptimizer } = await import('../../src/performance/memory-optimizer');
+    const { shutdownGlobalAdaptiveStreamer } = await import('../../src/performance/adaptive-streamer');
+    
+    globalMemoryManager.stopMonitoring();
+    globalMemoryManager.runCleanup();
+    globalResourceManager.cleanupAll();
+    
+    // Shutdown optimizers
+    try {
+      shutdownGlobalMemoryOptimizer();
+      shutdownGlobalAdaptiveStreamer();
+    } catch (e) {
+      // May not exist, ignore
+    }
+
     await shutdownPerformanceOptimizationsEnhanced();
+    
+    // Allow async cleanup to complete
+    await new Promise(resolve => setTimeout(resolve, 200));
   });
 
   describe('Memory Efficiency Validation', () => {
@@ -70,7 +90,7 @@ describe('Performance Validation E2E Tests', () => {
         memorySnapshots.push(process.memoryUsage().heapUsed);
         
         // Small delay to allow processing
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 50));
       }
 
       // Process the full file
@@ -319,6 +339,9 @@ describe('Performance Validation E2E Tests', () => {
         if (global.gc) {
           global.gc();
         }
+        
+        // Small delay for cleanup
+        await new Promise(resolve => setTimeout(resolve, 50));
       }
 
       const totalTime = Date.now() - startTime;

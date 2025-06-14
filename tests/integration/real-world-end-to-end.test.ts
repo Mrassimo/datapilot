@@ -17,12 +17,21 @@ describe('Real-World End-to-End Test (Simplified)', () => {
     tempFile = join(tempDir, 'test.csv');
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     try {
       unlinkSync(tempFile);
     } catch (e) {
       // File might not exist
     }
+    
+    // Stop any monitoring and cleanup global resources
+    const { globalMemoryManager, globalResourceManager } = await import('../../src/utils/memory-manager');
+    globalMemoryManager.stopMonitoring();
+    globalMemoryManager.runCleanup();
+    globalResourceManager.cleanupAll();
+    
+    // Allow cleanup to complete
+    await new Promise(resolve => setTimeout(resolve, 100));
   });
 
   test('should complete basic analysis', async () => {

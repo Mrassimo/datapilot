@@ -25,6 +25,15 @@ describe('Core Error Reduction Components', () => {
     } catch (error) {
       // Ignore shutdown errors in tests
     }
+    
+    // Stop any monitoring and cleanup global resources
+    const { globalMemoryManager, globalResourceManager } = await import('../../src/utils/memory-manager');
+    globalMemoryManager.stopMonitoring();
+    globalMemoryManager.runCleanup();
+    globalResourceManager.cleanupAll();
+    
+    // Allow cleanup to complete
+    await new Promise(resolve => setTimeout(resolve, 100));
   });
 
   describe('Enhanced Error Handler', () => {

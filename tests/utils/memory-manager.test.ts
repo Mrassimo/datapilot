@@ -11,9 +11,16 @@ describe('Memory Management Infrastructure', () => {
     // globalMemoryManager starts fresh for each test
   });
 
-  afterEach(() => {
-    // Clean up after tests
+  afterEach(async () => {
+    // Stop any monitoring first
+    globalMemoryManager.stopMonitoring();
+    
+    // Clean up resources and memory manager
     globalResourceManager.cleanupAll();
+    globalMemoryManager.runCleanup();
+    
+    // Small delay to allow async cleanup to complete
+    await new Promise(resolve => setTimeout(resolve, 100));
   });
 
   describe('Memory Manager', () => {
@@ -42,11 +49,20 @@ describe('Memory Management Infrastructure', () => {
       expect(callbackExecuted).toBe(true);
     });
 
-    test('should start and stop monitoring', () => {
+    test('should start and stop monitoring', async () => {
       expect(() => {
         globalMemoryManager.startMonitoring();
+      }).not.toThrow();
+      
+      // Small delay to let monitoring start
+      await new Promise(resolve => setTimeout(resolve, 50));
+      
+      expect(() => {
         globalMemoryManager.stopMonitoring();
       }).not.toThrow();
+      
+      // Small delay to let monitoring stop
+      await new Promise(resolve => setTimeout(resolve, 50));
     });
 
     test('should provide memory statistics', () => {

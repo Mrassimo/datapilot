@@ -66,9 +66,29 @@ describe('Phase 2: Complete Integration E2E Tests', () => {
       }
     });
 
+    // Stop any monitoring and cleanup global resources
+    const { globalMemoryManager, globalResourceManager } = await import('../../src/utils/memory-manager');
+    const { shutdownGlobalMemoryOptimizer } = await import('../../src/performance/memory-optimizer');
+    const { shutdownGlobalAdaptiveStreamer } = await import('../../src/performance/adaptive-streamer');
+    
+    globalMemoryManager.stopMonitoring();
+    globalMemoryManager.runCleanup();
+    globalResourceManager.cleanupAll();
+    
+    // Shutdown optimizers
+    try {
+      shutdownGlobalMemoryOptimizer();
+      shutdownGlobalAdaptiveStreamer();
+    } catch (e) {
+      // May not exist, ignore
+    }
+
     // Shutdown Phase 2 components
     await shutdownPerformanceOptimizationsEnhanced();
     await shutdownAllMonitoring();
+    
+    // Allow cleanup to complete
+    await new Promise(resolve => setTimeout(resolve, 200));
   });
 
   describe('Core Performance Engine Integration', () => {

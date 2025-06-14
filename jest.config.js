@@ -57,4 +57,6 @@ module.exports = {
   forceExit: true,
   // Detect open handles that might prevent exit
   detectOpenHandles: true,
+  // Global setup for async cleanup
+  setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
 };

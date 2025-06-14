@@ -32,8 +32,28 @@ describe('Error Reduction System Integration', () => {
   });
 
   afterEach(async () => {
+    // Stop any monitoring and cleanup global resources
+    const { globalMemoryManager, globalResourceManager } = await import('../../src/utils/memory-manager');
+    const { shutdownGlobalMemoryOptimizer } = await import('../../src/performance/memory-optimizer');
+    const { shutdownGlobalAdaptiveStreamer } = await import('../../src/performance/adaptive-streamer');
+    
+    globalMemoryManager.stopMonitoring();
+    globalMemoryManager.runCleanup();
+    globalResourceManager.cleanupAll();
+    
+    // Shutdown optimizers
+    try {
+      shutdownGlobalMemoryOptimizer();
+      shutdownGlobalAdaptiveStreamer();
+    } catch (e) {
+      // May not exist, ignore
+    }
+    
     // Clean shutdown
     await shutdownPerformanceOptimizationsEnhanced();
+    
+    // Allow cleanup to complete
+    await new Promise(resolve => setTimeout(resolve, 150));
   });
 
   describe('Layer 1: Input Validation', () => {

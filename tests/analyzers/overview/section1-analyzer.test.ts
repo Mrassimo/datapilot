@@ -12,12 +12,15 @@ describe('Section1Analyzer', () => {
     tempFile = join(tempDir, 'test.csv');
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     try {
       unlinkSync(tempFile);
     } catch (e) {
       // File might not exist
     }
+    
+    // The global setup will handle most cleanup, but add specific delays
+    await new Promise(resolve => setTimeout(resolve, 50));
   });
 
   describe('Basic Analysis', () => {
