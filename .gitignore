@@ -78,6 +78,15 @@ test_*.txt
 *.tmp.csv
 *.tmp.json
 
+# Bulk CSV files in root (prevent accidental commits)
+/customers.csv
+/orders.csv
+/products.csv
+/demo_*.csv
+/relationship_analysis.json
+/relationships.txt
+/*_datapilot_*
+
 # Keep essential project files
 !package.json
 !package-lock.json

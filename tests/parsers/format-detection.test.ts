@@ -5,9 +5,9 @@
 
 import { promises as fs } from 'fs';
 import * as path from 'path';
-import { JSONDetector } from '../../src/parsers/json-parser';
-import { ExcelDetector } from '../../src/parsers/excel-parser';
-import { TSVDetector } from '../../src/parsers/tsv-parser';
+import { JSONDetector, createJSONParser } from '../../src/parsers/json-parser';
+import { ExcelDetector, createExcelParser } from '../../src/parsers/excel-parser';
+import { TSVDetector, createTSVParser } from '../../src/parsers/tsv-parser';
 import { createCSVParserAdapter } from '../../src/parsers/adapters/csv-parser-adapter';
 import { globalParserRegistry } from '../../src/parsers/base/parser-registry';
 
@@ -16,6 +16,46 @@ describe('Format Detection Tests', () => {
   
   beforeAll(async () => {
     await fs.mkdir(testDataDir, { recursive: true });
+    
+    // Initialize global parser registry for tests
+    globalParserRegistry.register({
+      format: 'csv',
+      parserFactory: (options) => createCSVParserAdapter(options),
+      detector: {
+        detect: async (filePath) => {
+          const adapter = createCSVParserAdapter();
+          return adapter.detect(filePath);
+        },
+        getSupportedExtensions: () => ['.csv'],
+        getFormatName: () => 'csv',
+      },
+      priority: 100,
+      extensions: ['.csv'],
+    });
+
+    globalParserRegistry.register({
+      format: 'tsv',
+      parserFactory: (options) => createTSVParser(options),
+      detector: new TSVDetector(),
+      priority: 90,
+      extensions: ['.tsv', '.tab'],
+    });
+
+    globalParserRegistry.register({
+      format: 'json',
+      parserFactory: (options) => createJSONParser(options),
+      detector: new JSONDetector(),
+      priority: 80,
+      extensions: ['.json', '.jsonl', '.ndjson'],
+    });
+
+    globalParserRegistry.register({
+      format: 'excel',
+      parserFactory: (options) => createExcelParser(options),
+      detector: new ExcelDetector(),
+      priority: 70,
+      extensions: ['.xlsx', '.xls', '.xlsm'],
+    });
   });
 
   afterAll(async () => {

@@ -122,7 +122,31 @@ export class DataPilotCLI {
       filePath,
     };
 
-    // Use basic file validation first
+    // Get command context to determine validation type
+    const commandContext = this.argumentParser.getLastContext();
+    const command = commandContext?.command;
+
+    // Commands that expect directories instead of files
+    const directoryCommands = ['discover'];
+
+    if (directoryCommands.includes(command)) {
+      // Validate directory instead of file
+      const fs = await import('fs');
+      const path = await import('path');
+      
+      if (!fs.existsSync(filePath)) {
+        throw new ValidationError(`Directory not found: ${filePath}`);
+      }
+      
+      const stats = fs.statSync(filePath);
+      if (!stats.isDirectory()) {
+        throw new ValidationError(`Path is not a directory: ${filePath}`);
+      }
+      
+      return filePath;
+    }
+
+    // Use basic file validation for file-based commands
     const basicValidation = this.argumentParser.validateFile(filePath);
 
     // Enhanced validation using new validation system
@@ -595,7 +619,7 @@ export class DataPilotCLI {
   /**
    * Execute join analysis for multiple files (used by engineering command)
    */
-  private async executeJoinAnalysis(
+  private async executeJoinAnalysisOriginal(
     filePaths: string[],
     options: CLIOptions,
     startTime: number,
@@ -1202,6 +1226,27 @@ export class DataPilotCLI {
           options,
           startTime,
         );
+
+      case 'join':
+        return await this.executeJoinAnalysis(args, options, startTime);
+
+      case 'discover':
+        return await this.executeDiscoverAnalysis(args, options, startTime);
+
+      case 'join-wizard':
+        // For join-wizard, both files are in the args array
+        if (!args || args.length !== 2) {
+          throw new ValidationError('Join wizard requires exactly 2 files');
+        }
+        const [firstFile, secondFile] = args;
+        // Ensure files are different
+        if (firstFile === secondFile) {
+          throw new ValidationError('Join wizard requires two different files');
+        }
+        return await this.executeJoinWizard([firstFile, secondFile], options, startTime);
+
+      case 'optimize-joins':
+        return await this.executeJoinOptimization(args, options, startTime);
 
       case 'validate':
         return await this.executeValidation(filePath, options);
@@ -2950,6 +2995,393 @@ export class DataPilotCLI {
     });
 
     return errors;
+  }
+
+  /**
+   * Execute join analysis command
+   */
+  private async executeJoinAnalysis(
+    filePaths: string[],
+    options: CLIOptions,
+    startTime: number,
+  ): Promise<CLIResult> {
+    try {
+      if (filePaths.length < 2) {
+        throw new ValidationError('Join analysis requires at least 2 files');
+      }
+
+      this.progressReporter.startPhase('join-analysis', 'Starting join analysis...');
+
+      // Import and create join analyzer
+      const { createJoinAnalyzer } = await import('../analyzers/joins');
+      const joinAnalyzer = createJoinAnalyzer({
+        confidenceThreshold: (options.confidence as number) || 0.7,
+        maxTables: (options.maxTables as number) || 10,
+        enableFuzzyMatching: (options.enableFuzzy as boolean) || false,
+        enableSemanticAnalysis: (options.enableSemantic as boolean) || false,
+        enableTemporalJoins: (options.enableTemporal as boolean) || false,
+        performanceMode: (options.performanceMode as any) || 'balanced',
+      });
+
+      // Perform join analysis
+      const result = await joinAnalyzer.analyze(filePaths);
+
+      const processingTime = Date.now() - startTime;
+      this.progressReporter.completePhase('Join analysis completed', processingTime);
+
+      // Format and output results
+      const outputFiles: string[] = [];
+      
+      if (this.outputManager) {
+        // Generate output based on format
+        if (options.output === 'json') {
+          const jsonContent = JSON.stringify(result, null, 2);
+          const outputPath = options.outputFile || 'join_analysis.json';
+          console.log(jsonContent);
+          outputFiles.push(outputPath);
+        } else {
+          // Generate markdown report
+          const report = joinAnalyzer.format(result, 'markdown');
+          console.log(report);
+          
+          if (options.outputFile) {
+            outputFiles.push(options.outputFile);
+          }
+        }
+      }
+
+      this.progressReporter.showSummary({
+        processingTime,
+        rowsProcessed: result.summary?.tablesAnalyzed || filePaths.length,
+        warnings: result.integrityReport?.recommendations?.length || 0,
+        errors: 0,
+      });
+
+      return {
+        success: true,
+        exitCode: 0,
+        outputFiles,
+        stats: {
+          processingTime,
+          rowsProcessed: result.summary?.tablesAnalyzed || filePaths.length,
+          warnings: result.integrityReport?.recommendations?.length || 0,
+          errors: 0,
+        },
+      };
+    } catch (error) {
+      this.progressReporter.errorPhase('Join analysis failed');
+      return this.handleError(error);
+    }
+  }
+
+  /**
+   * Execute discover analysis command
+   */
+  private async executeDiscoverAnalysis(
+    args: string[],
+    options: CLIOptions,
+    startTime: number,
+  ): Promise<CLIResult> {
+    try {
+      const directory = args[0];
+      if (!directory) {
+        throw new ValidationError('Discover command requires a directory path');
+      }
+
+      this.progressReporter.startPhase('discovery', 'Discovering CSV files and relationships...');
+
+      // Import filesystem utilities
+      const fs = await import('fs');
+      const path = await import('path');
+
+      // Find CSV files in directory
+      const pattern = options.pattern || '*.csv';
+      const recursive = options.recursive || false;
+      
+      const csvFiles: string[] = [];
+      
+      // Simple file discovery (you could enhance this with glob patterns)
+      const files = fs.readdirSync(directory);
+      for (const file of files) {
+        const fullPath = path.join(directory, file);
+        const stat = fs.statSync(fullPath);
+        
+        if (stat.isFile() && file.toLowerCase().endsWith('.csv')) {
+          csvFiles.push(fullPath);
+        } else if (stat.isDirectory() && recursive) {
+          // Recursively search subdirectories if enabled
+          const subFiles = fs.readdirSync(fullPath);
+          for (const subFile of subFiles) {
+            if (subFile.toLowerCase().endsWith('.csv')) {
+              csvFiles.push(path.join(fullPath, subFile));
+            }
+          }
+        }
+      }
+
+      if (csvFiles.length < 2) {
+        console.log(`⚠️  Found only ${csvFiles.length} CSV files. Join analysis requires at least 2 files.`);
+        return {
+          success: false,
+          exitCode: 1,
+          outputFiles: [],
+          stats: { processingTime: 0, rowsProcessed: 0, warnings: 1, errors: 0 },
+        };
+      }
+
+      console.log(`📁 Found ${csvFiles.length} CSV files in ${directory}`);
+      csvFiles.forEach((file, i) => console.log(`   ${i + 1}. ${path.basename(file)}`));
+
+      // Run join analysis on discovered files
+      return await this.executeJoinAnalysis(csvFiles, options, startTime);
+
+    } catch (error) {
+      this.progressReporter.errorPhase('Discovery analysis failed');
+      return this.handleError(error);
+    }
+  }
+
+  /**
+   * Execute join wizard command
+   */
+  private async executeJoinWizard(
+    args: string[],
+    options: CLIOptions,
+    startTime: number,
+  ): Promise<CLIResult> {
+    try {
+      if (args.length !== 2) {
+        throw new ValidationError('Join wizard requires exactly 2 files');
+      }
+
+      const [file1, file2] = args;
+      
+      // Additional validation: ensure files are different
+      if (file1 === file2) {
+        throw new ValidationError('Join wizard cannot analyze the same file twice. Please provide two different files.');
+      }
+      this.progressReporter.startPhase('join-wizard', 'Starting interactive join wizard...');
+
+      console.log('\n🧙‍♂️ DataPilot Join Wizard');
+      console.log('═'.repeat(50));
+      console.log(`File 1: ${file1}`);
+      console.log(`File 2: ${file2}`);
+      console.log('');
+
+      // Get column information from both files
+      const { CSVParser } = await import('../parsers/csv-parser');
+      
+      const parser1 = new CSVParser({ autoDetect: true, maxRows: 5 });
+      const parser2 = new CSVParser({ autoDetect: true, maxRows: 5 });
+      
+      const rows1 = await parser1.parseFile(file1);
+      const rows2 = await parser2.parseFile(file2);
+      
+      if (rows1.length === 0 || rows2.length === 0) {
+        throw new Error('One or both files appear to be empty');
+      }
+
+      const headers1 = rows1[0].data;
+      const headers2 = rows2[0].data;
+
+      console.log('📊 Available Columns:');
+      console.log(`\n${file1}:`);
+      headers1.forEach((col, i) => console.log(`   ${i + 1}. ${col}`));
+      
+      console.log(`\n${file2}:`);
+      headers2.forEach((col, i) => console.log(`   ${i + 1}. ${col}`));
+
+      // If specific columns were provided via --on option, use those
+      if (options.on) {
+        const joinColumns = (options.on as string).split(',').map(c => c.trim());
+        console.log(`\n🔗 Using specified join columns: ${joinColumns.join(' = ')}`);
+      } else {
+        // Auto-suggest potential joins
+        console.log('\n🔍 Potential Join Candidates:');
+        
+        let suggestionCount = 0;
+        for (const col1 of headers1) {
+          for (const col2 of headers2) {
+            const similarity = this.calculateColumnSimilarity(col1, col2);
+            if (similarity.confidence > 0.6) {
+              console.log(`   • ${col1} ↔ ${col2} (${similarity.type}, ${(similarity.confidence * 100).toFixed(0)}% confidence)`);
+              suggestionCount++;
+            }
+          }
+        }
+        
+        if (suggestionCount === 0) {
+          console.log('   No obvious join candidates found. Manual specification may be needed.');
+        }
+      }
+
+      // Show preview of data
+      const previewRows = (options.previewRows as number) || 5;
+      console.log(`\n📋 Data Preview (first ${previewRows} rows):`);
+      console.log('\nFile 1:');
+      rows1.slice(0, Math.min(previewRows + 1, rows1.length)).forEach((row, i) => {
+        const prefix = i === 0 ? 'Header:' : `Row ${i}:  `;
+        console.log(`   ${prefix} ${row.data.slice(0, 3).join(' | ')}${row.data.length > 3 ? '...' : ''}`);
+      });
+
+      console.log('\nFile 2:');
+      rows2.slice(0, Math.min(previewRows + 1, rows2.length)).forEach((row, i) => {
+        const prefix = i === 0 ? 'Header:' : `Row ${i}:  `;
+        console.log(`   ${prefix} ${row.data.slice(0, 3).join(' | ')}${row.data.length > 3 ? '...' : ''}`);
+      });
+
+      // Run basic join analysis
+      console.log('\n🔄 Running join analysis...');
+      const result = await this.executeJoinAnalysis([file1, file2], options, startTime);
+      
+      return result;
+
+    } catch (error) {
+      this.progressReporter.errorPhase('Join wizard failed');
+      return this.handleError(error);
+    }
+  }
+
+  /**
+   * Execute join optimization command
+   */
+  private async executeJoinOptimization(
+    filePaths: string[],
+    options: CLIOptions,
+    startTime: number,
+  ): Promise<CLIResult> {
+    try {
+      if (filePaths.length < 2) {
+        throw new ValidationError('Join optimization requires at least 2 files');
+      }
+
+      this.progressReporter.startPhase('join-optimization', 'Analyzing join performance...');
+
+      console.log('\n⚡ DataPilot Join Optimization Analysis');
+      console.log('═'.repeat(50));
+
+      // Basic file analysis for optimization suggestions
+      const fs = await import('fs');
+      const fileStats = [];
+
+      for (const filePath of filePaths) {
+        const stats = fs.statSync(filePath);
+        const { CSVParser } = await import('../parsers/csv-parser');
+        
+        const parser = new CSVParser({ autoDetect: true, maxRows: 100 });
+        const rows = await parser.parseFile(filePath);
+        
+        fileStats.push({
+          path: filePath,
+          sizeMB: (stats.size / 1024 / 1024).toFixed(2),
+          estimatedRows: Math.floor((stats.size / (rows.length > 0 ? JSON.stringify(rows[0]).length : 100)) * 0.8),
+          columns: rows.length > 0 ? rows[0].data.length : 0,
+          fileName: filePath.split('/').pop() || filePath,
+        });
+      }
+
+      console.log('\n📊 File Analysis:');
+      fileStats.forEach((stat, i) => {
+        console.log(`   ${i + 1}. ${stat.fileName}`);
+        console.log(`      Size: ${stat.sizeMB} MB`);
+        console.log(`      Est. Rows: ${stat.estimatedRows.toLocaleString()}`);
+        console.log(`      Columns: ${stat.columns}`);
+      });
+
+      console.log('\n💡 Optimization Recommendations:');
+      
+      // Size-based recommendations
+      const largeFiles = fileStats.filter(f => parseFloat(f.sizeMB) > 100);
+      if (largeFiles.length > 0) {
+        console.log('   📈 Large File Optimizations:');
+        largeFiles.forEach(file => {
+          console.log(`      • ${file.fileName}: Consider indexing join columns for better performance`);
+          console.log(`      • Pre-filter data to reduce join dataset size`);
+        });
+      }
+
+      // Join order recommendations
+      const sortedBySize = fileStats.sort((a, b) => a.estimatedRows - b.estimatedRows);
+      console.log('\n   🔄 Recommended Join Order (smallest to largest):');
+      sortedBySize.forEach((file, i) => {
+        console.log(`      ${i + 1}. ${file.fileName} (${file.estimatedRows.toLocaleString()} rows)`);
+      });
+
+      if (options.includeSql) {
+        console.log('\n   🗄️  SQL Optimization Suggestions:');
+        console.log('      • CREATE INDEX ON table1(join_column);');
+        console.log('      • CREATE INDEX ON table2(join_column);');
+        console.log('      • Consider EXPLAIN ANALYZE for query plans');
+      }
+
+      if (options.includeIndexing) {
+        console.log('\n   📇 Indexing Recommendations:');
+        console.log('      • Primary join columns should be indexed');
+        console.log('      • Consider composite indexes for multi-column joins');
+        console.log('      • Monitor index usage and maintenance overhead');
+      }
+
+      const processingTime = Date.now() - startTime;
+      this.progressReporter.completePhase('Optimization analysis completed', processingTime);
+
+      // Generate output if requested
+      const outputFiles: string[] = [];
+      if (options.outputFile) {
+        const fs = await import('fs');
+        const report = this.generateOptimizationReport(fileStats, options);
+        fs.writeFileSync(options.outputFile, report);
+        outputFiles.push(options.outputFile);
+        console.log(`\n📄 Optimization report written to: ${options.outputFile}`);
+      }
+
+      return {
+        success: true,
+        exitCode: 0,
+        outputFiles,
+        stats: {
+          processingTime,
+          rowsProcessed: fileStats.reduce((sum, f) => sum + f.estimatedRows, 0),
+          warnings: 0,
+          errors: 0,
+        },
+      };
+
+    } catch (error) {
+      this.progressReporter.errorPhase('Join optimization failed');
+      return this.handleError(error);
+    }
+  }
+
+  /**
+   * Generate optimization report
+   */
+  private generateOptimizationReport(fileStats: any[], options: CLIOptions): string {
+    let report = '# DataPilot Join Optimization Report\n\n';
+    report += `Generated: ${new Date().toISOString()}\n\n`;
+    
+    report += '## File Analysis\n\n';
+    fileStats.forEach((stat, i) => {
+      report += `### ${i + 1}. ${stat.fileName}\n`;
+      report += `- Size: ${stat.sizeMB} MB\n`;
+      report += `- Estimated Rows: ${stat.estimatedRows.toLocaleString()}\n`;
+      report += `- Columns: ${stat.columns}\n\n`;
+    });
+
+    report += '## Recommendations\n\n';
+    report += '### Performance Optimizations\n';
+    report += '- Index join columns for faster lookups\n';
+    report += '- Filter data before joining to reduce memory usage\n';
+    report += '- Consider join order: start with smallest tables\n\n';
+
+    if (options.includeSql) {
+      report += '### SQL Optimizations\n';
+      report += '```sql\n';
+      report += 'CREATE INDEX idx_join_col ON table1(join_column);\n';
+      report += 'CREATE INDEX idx_join_col ON table2(join_column);\n';
+      report += '```\n\n';
+    }
+
+    return report;
   }
 
   /**

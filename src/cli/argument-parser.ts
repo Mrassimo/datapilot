@@ -85,7 +85,7 @@ export class ArgumentParser {
       .description(
         'A lightweight CLI statistical computation engine for comprehensive CSV data analysis',
       )
-      .version('1.3.0')
+      .version('1.3.1')
       .helpOption(false) // Disable automatic help to handle it manually
       .addHelpText(
         'after',
@@ -119,6 +119,7 @@ Use --verbose for detailed confidence explanations in reports.`,
       .description('Run complete analysis on a CSV file (all sections)')
       .option('-o, --output <format>', 'Output format (txt, markdown, json, yaml)', 'markdown')
       .option('--output-file <file>', 'Write output to file instead of stdout')
+      .option('--delimiter <char>', 'Specify delimiter character (e.g., ";" for semicolon)')
       .option('--max-rows <number>', 'Maximum rows to process', this.parseInteger)
       .option('--no-hashing', 'Disable file hashing for faster processing')
       .option('--no-environment', 'Exclude host environment details from report')
@@ -135,6 +136,7 @@ Use --verbose for detailed confidence explanations in reports.`,
       .description('Generate dataset overview (Section 1 only)')
       .option('-o, --output <format>', 'Output format (txt, markdown, json, yaml)', 'markdown')
       .option('--output-file <file>', 'Write output to file instead of stdout')
+      .option('--delimiter <char>', 'Specify delimiter character (e.g., ";" for semicolon)')
       .option('--no-hashing', 'Disable file hashing for faster processing')
       .option('--privacy <mode>', 'Privacy mode (full, redacted, minimal)', 'redacted')
       .action(this.createCommandHandler('overview'));
@@ -147,6 +149,7 @@ Use --verbose for detailed confidence explanations in reports.`,
       .description('Run data quality audit (Section 2)')
       .option('-o, --output <format>', 'Output format (txt, markdown, json, yaml)', 'markdown')
       .option('--output-file <file>', 'Write output to file instead of stdout')
+      .option('--delimiter <char>', 'Specify delimiter character (e.g., ";" for semicolon)')
       .option('--max-rows <number>', 'Maximum rows to process', this.parseInteger)
       .option('--strict', 'Enable strict quality checking mode')
       .action(this.createCommandHandler('quality'));
@@ -157,6 +160,7 @@ Use --verbose for detailed confidence explanations in reports.`,
       .description('Perform exploratory data analysis (Section 3)')
       .option('-o, --output <format>', 'Output format (txt, markdown, json, yaml)', 'markdown')
       .option('--output-file <file>', 'Write output to file instead of stdout')
+      .option('--delimiter <char>', 'Specify delimiter character (e.g., ";" for semicolon)')
       .option('--max-rows <number>', 'Maximum rows to analyze', this.parseInteger)
       .option('--chunk-size <number>', 'Chunk size for streaming processing', this.parseInteger)
       .option('--memory-limit <mb>', 'Memory limit in MB', this.parseInteger)
@@ -351,6 +355,15 @@ Use --verbose for detailed confidence explanations in reports.`,
         throw new ValidationError('Max rows must be a positive number');
       }
       options.maxRows = maxRows;
+    }
+
+    // Delimiter validation
+    if (rawOptions.delimiter !== undefined) {
+      const delimiter = rawOptions.delimiter as string;
+      if (delimiter.length !== 1) {
+        throw new ValidationError('Delimiter must be a single character');
+      }
+      options.delimiter = delimiter;
     }
 
     options.enableHashing = !rawOptions.noHashing;

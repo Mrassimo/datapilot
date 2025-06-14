@@ -1,0 +1,5 @@
+order_id,customer_id,product,amount
+101,1,Laptop,999.99
+102,2,Mouse,29.99
+103,1,Keyboard,79.99
+104,3,Monitor,299.99

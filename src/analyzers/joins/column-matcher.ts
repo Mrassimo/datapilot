@@ -295,7 +295,8 @@ export class IntelligentColumnMatcher implements ColumnMatcher {
     if (maxLength === 0) return 1;
     
     const similarity = 1 - (distance / maxLength);
-    return Math.max(similarity - 0.3, 0); // Apply threshold to reduce noise
+    // Reduced threshold from 0.3 to 0.15 to be more lenient
+    return Math.max(similarity - 0.15, 0);
   }
 
   private calculateDetailedStats(data: any[]): any {

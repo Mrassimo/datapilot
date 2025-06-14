@@ -50,6 +50,7 @@ export class TSVDetector implements FormatDetector {
             tabCount: analysis.avgTabsPerLine,
             lineCount: analysis.lineCount,
             columnCount: analysis.estimatedColumns,
+            estimatedColumns: analysis.estimatedColumns,
           },
           encoding: 'utf8' as BufferEncoding,
           estimatedRows: analysis.lineCount,
@@ -119,8 +120,8 @@ export class TSVDetector implements FormatDetector {
     const tabVariance =
       tabCounts.reduce((sum, count) => sum + Math.pow(count - avgTabs, 2), 0) / tabCounts.length;
 
-    // Check for consistent tab usage
-    const isConsistent = tabVariance < 1; // Low variance indicates consistent structure
+    // Check for consistent tab usage - stricter threshold for consistency
+    const isConsistent = tabVariance < 0.5; // Stricter variance threshold
     const hasEnoughTabs = avgTabs >= 1; // At least one tab per line on average
 
     // Detect quote character (less common in TSV but possible)
@@ -136,6 +137,10 @@ export class TSVDetector implements FormatDetector {
     if (hasEnoughTabs) confidence += 0.2;
     if (avgTabs >= 2) confidence += 0.1; // Multiple columns
     if (tabVariance === 0) confidence += 0.1; // Perfect consistency
+    
+    // More aggressive penalties for inconsistency
+    if (tabVariance > 0.5) confidence -= 0.3; // Penalty for moderate inconsistency
+    if (tabVariance > 1) confidence -= 0.4; // Higher penalty for high inconsistency
 
     return {
       isTabSeparated: isConsistent && hasEnoughTabs,

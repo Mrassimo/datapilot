@@ -6,13 +6,13 @@
  */
 
 // Core types and interfaces
-export * from './types.js';
+export * from './types';
 
 // Phase 1 components
-export { RelationshipDetector } from './relationship-detector.js';
-export { JoinAnalyzer } from './join-analyzer.js';
-export { IntelligentColumnMatcher } from './column-matcher.js';
-export { JoinFormatter } from './join-formatter.js';
+export { RelationshipDetector } from './relationship-detector';
+export { JoinAnalyzer } from './join-analyzer';
+export { IntelligentColumnMatcher } from './column-matcher';
+export { JoinFormatter } from './join-formatter';
 
 // Simplified facade for easy integration
-export { createJoinAnalyzer } from './simple-facade.js';
+export { createJoinAnalyzer } from './simple-facade';

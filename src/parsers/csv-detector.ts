@@ -74,10 +74,19 @@ export class CSVDetector {
       analyses.push(analysis);
     }
 
-    // Sort by confidence (considering both consistency and field count)
+    // Enhanced scoring: prioritise consistency over field count for better semicolon detection
     analyses.sort((a, b) => {
-      const scoreA = a.confidence * Math.log(a.fieldCount + 1);
-      const scoreB = b.confidence * Math.log(b.fieldCount + 1);
+      // Primary score: confidence (consistency) with field count bonus
+      const consistencyScoreA = a.confidence;
+      const consistencyScoreB = b.confidence;
+      
+      // Field count bonus (reduced impact to prevent bias against semicolons)
+      const fieldCountBonusA = Math.min(Math.log(a.fieldCount + 1) * 0.1, 0.3);
+      const fieldCountBonusB = Math.min(Math.log(b.fieldCount + 1) * 0.1, 0.3);
+      
+      const scoreA = consistencyScoreA + fieldCountBonusA;
+      const scoreB = consistencyScoreB + fieldCountBonusB;
+      
       return scoreB - scoreA;
     });
 

@@ -19,7 +19,7 @@ import {
   BrokenRelationship,
   OrphanedRecord,
   JoinConfidence
-} from './types.js';
+} from './types';
 
 export class RelationshipDetector {
   private confidenceThreshold: number;
@@ -31,7 +31,7 @@ export class RelationshipDetector {
     enableFuzzyMatching?: boolean;
     enableSemanticAnalysis?: boolean;
   } = {}) {
-    this.confidenceThreshold = config.confidenceThreshold ?? 0.7;
+    this.confidenceThreshold = config.confidenceThreshold ?? 0.5; // Lowered from 0.7 to 0.5 
     this.enableFuzzyMatching = config.enableFuzzyMatching ?? true;
     this.enableSemanticAnalysis = config.enableSemanticAnalysis ?? true;
   }
@@ -54,8 +54,13 @@ export class RelationshipDetector {
       }
     }
 
-    return candidates
-      .filter(candidate => candidate.confidence >= this.confidenceThreshold)
+    // Return both high-confidence and suggested joins
+    const highConfidence = candidates.filter(candidate => candidate.confidence >= this.confidenceThreshold);
+    const suggestedJoins = candidates.filter(candidate => 
+      candidate.confidence >= 0.3 && candidate.confidence < this.confidenceThreshold
+    );
+    
+    return [...highConfidence, ...suggestedJoins]
       .sort((a, b) => b.confidence - a.confidence);
   }
 

@@ -97,24 +97,62 @@ ${result.businessRules.length > 0 ?
 No join candidates found with the current confidence threshold.`;
     }
 
-    const candidateRows = result.candidates.map((candidate, index) => {
-      const confidence = `${(candidate.confidence * 100).toFixed(1)}%`;
-      const strategy = this.formatStrategy(candidate.strategy);
-      const cardinality = this.formatCardinality(candidate.cardinality);
-      const dataLoss = `${candidate.qualityMetrics.dataLoss.toFixed(1)}%`;
-      
-      return `| ${index + 1} | \`${candidate.leftTable.tableName}\` | \`${candidate.leftColumn}\` | \`${candidate.rightTable.tableName}\` | \`${candidate.rightColumn}\` | ${confidence} | ${strategy} | ${cardinality} | ${dataLoss} |`;
-    }).join('\n');
+    // Separate high-confidence and suggested joins
+    const highConfidenceJoins = result.candidates.filter(candidate => candidate.confidence >= 0.5);
+    const suggestedJoins = result.candidates.filter(candidate => candidate.confidence >= 0.3 && candidate.confidence < 0.5);
 
-    return `## 🔗 Join Candidates
+    let output = `## 🔗 Join Candidates\n\n`;
+
+    // High confidence joins
+    if (highConfidenceJoins.length > 0) {
+      const candidateRows = highConfidenceJoins.map((candidate, index) => {
+        const confidence = `${(candidate.confidence * 100).toFixed(1)}%`;
+        const strategy = this.formatStrategy(candidate.strategy);
+        const cardinality = this.formatCardinality(candidate.cardinality);
+        const dataLoss = `${candidate.qualityMetrics.dataLoss.toFixed(1)}%`;
+        
+        return `| ${index + 1} | \`${candidate.leftTable.tableName}\` | \`${candidate.leftColumn}\` | \`${candidate.rightTable.tableName}\` | \`${candidate.rightColumn}\` | ${confidence} | ${strategy} | ${cardinality} | ${dataLoss} |`;
+      }).join('\n');
+
+      output += `### ✅ High Confidence Joins
 
 | # | Left Table | Left Column | Right Table | Right Column | Confidence | Strategy | Cardinality | Data Loss |
 |---|------------|-------------|-------------|--------------|------------|----------|-------------|-----------|
 ${candidateRows}
 
-### Top Join Recommendations
+`;
+    }
+
+    // Suggested joins
+    if (suggestedJoins.length > 0) {
+      const suggestedRows = suggestedJoins.map((candidate, index) => {
+        const confidence = `${(candidate.confidence * 100).toFixed(1)}%`;
+        const strategy = this.formatStrategy(candidate.strategy);
+        const cardinality = this.formatCardinality(candidate.cardinality);
+        const dataLoss = `${candidate.qualityMetrics.dataLoss.toFixed(1)}%`;
+        
+        return `| ${index + 1} | \`${candidate.leftTable.tableName}\` | \`${candidate.leftColumn}\` | \`${candidate.rightTable.tableName}\` | \`${candidate.rightColumn}\` | ${confidence} | ${strategy} | ${cardinality} | ${dataLoss} |`;
+      }).join('\n');
+
+      output += `### 💡 Suggested Joins (Lower Confidence)
+
+| # | Left Table | Left Column | Right Table | Right Column | Confidence | Strategy | Cardinality | Data Loss |
+|---|------------|-------------|-------------|--------------|------------|----------|-------------|-----------|
+${suggestedRows}
+
+*Note: These joins have lower confidence scores but may still be useful. Consider verifying the relationships manually.*
+
+`;
+    }
+
+    // Show top recommendations from all candidates
+    if (result.candidates.length > 0) {
+      output += `### Top Join Recommendations
 
 ${this.formatTopJoins(result.candidates.slice(0, 3))}`;
+    }
+
+    return output;
   }
 
   private formatTopJoins(topCandidates: JoinCandidate[]): string {

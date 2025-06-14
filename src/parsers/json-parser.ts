@@ -21,6 +21,7 @@ interface JSONMetadata {
   estimatedRecords?: number;
   nestedLevels?: number;
   arrayElementTypes?: string[];
+  partialParse?: boolean;
 }
 
 /**
@@ -39,27 +40,12 @@ export class JSONDetector implements FormatDetector {
     try {
       // Check extension first
       const ext = path.extname(filePath).toLowerCase();
-      const extensionScore = this.getSupportedExtensions().includes(ext) ? 0.3 : 0;
+      const extensionScore = this.getSupportedExtensions().includes(ext) ? 0.25 : 0;
 
       // Read sample of file
       const sample = await this.readSample(filePath, 2048);
 
-      // Try parsing as JSON
-      const jsonResult = await this.tryParseJSON(sample);
-      if (jsonResult.success) {
-        return {
-          format: 'json',
-          confidence: Math.min(0.95, extensionScore + 0.7),
-          metadata: jsonResult.metadata,
-          estimatedRows: jsonResult.metadata.estimatedRecords,
-          suggestedOptions: {
-            arrayMode: jsonResult.metadata.type === 'array' ? 'records' : 'values',
-            flattenObjects: jsonResult.metadata.nestedLevels > 1,
-          },
-        };
-      }
-
-      // Try parsing as JSONL
+      // Try parsing as JSONL first (more specific)
       const jsonlResult = await this.tryParseJSONL(sample);
       if (jsonlResult.success) {
         return {
@@ -74,10 +60,36 @@ export class JSONDetector implements FormatDetector {
         };
       }
 
+      // Try parsing as JSON
+      const jsonResult = await this.tryParseJSON(sample);
+      if (jsonResult.success) {
+        // Adjust confidence based on whether this is a partial parse
+        const baseConfidence = jsonResult.metadata.partialParse ? 0.65 : 0.75;
+        let confidence = Math.min(0.95, extensionScore + baseConfidence);
+        
+        // For non-partial parses with extension, ensure high confidence
+        if (!jsonResult.metadata.partialParse && extensionScore > 0) {
+          confidence = 0.95;
+        }
+        
+        
+        return {
+          format: 'json',
+          confidence,
+          metadata: jsonResult.metadata,
+          estimatedRows: jsonResult.metadata.estimatedRecords,
+          suggestedOptions: {
+            arrayMode: jsonResult.metadata.type === 'array' ? 'records' : 'values',
+            flattenObjects: jsonResult.metadata.nestedLevels > 1,
+          },
+        };
+      }
+
+      // If JSON parsing fails and no JSONL content detected, return low confidence
       return {
         format: 'json',
-        confidence: extensionScore,
-        metadata: {},
+        confidence: 0,
+        metadata: { error: 'Not valid JSON or JSONL format' },
       };
     } catch (error) {
       return {
@@ -89,14 +101,36 @@ export class JSONDetector implements FormatDetector {
   }
 
   private async readSample(filePath: string, maxBytes: number): Promise<string> {
-    const buffer = Buffer.alloc(maxBytes);
-    const file = await fs.open(filePath, 'r');
-
     try {
-      const { bytesRead } = await file.read(buffer, 0, maxBytes, 0);
-      return buffer.slice(0, bytesRead).toString('utf8');
-    } finally {
-      await file.close();
+      // For JSON detection, try to read the entire file first if it's not too large
+      const stats = await fs.stat(filePath);
+      
+      // If file is small enough, read it entirely for better detection
+      if (stats.size <= maxBytes * 2) {
+        return await fs.readFile(filePath, 'utf8');
+      }
+      
+      // Otherwise read a sample from the beginning
+      const buffer = Buffer.alloc(maxBytes);
+      const file = await fs.open(filePath, 'r');
+
+      try {
+        const { bytesRead } = await file.read(buffer, 0, maxBytes, 0);
+        return buffer.slice(0, bytesRead).toString('utf8');
+      } finally {
+        await file.close();
+      }
+    } catch (error) {
+      // Fallback to buffer reading if file operations fail
+      const buffer = Buffer.alloc(maxBytes);
+      const file = await fs.open(filePath, 'r');
+
+      try {
+        const { bytesRead } = await file.read(buffer, 0, maxBytes, 0);
+        return buffer.slice(0, bytesRead).toString('utf8');
+      } finally {
+        await file.close();
+      }
     }
   }
 
@@ -105,6 +139,12 @@ export class JSONDetector implements FormatDetector {
     metadata: JSONMetadata;
   }> {
     try {
+      // First check if it looks like JSON by examining structure
+      const trimmed = sample.trim();
+      if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) {
+        return { success: false, metadata: { type: 'object' } };
+      }
+      
       const parsed = JSON.parse(sample);
 
       if (Array.isArray(parsed)) {
@@ -132,6 +172,32 @@ export class JSONDetector implements FormatDetector {
 
       return { success: false, metadata: { type: 'object' } };
     } catch (error) {
+      // If parsing fails, check if it's malformed but looks like JSON
+      const trimmed = sample.trim();
+      if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+        // Check if it's incomplete vs completely malformed by looking at the end
+        const isObject = trimmed.startsWith('{');
+        const properClosing = isObject ? trimmed.endsWith('}') : trimmed.endsWith(']');
+        
+        if (!properClosing && trimmed.length > 50) {
+          // For large files, look for JSON-like patterns even in samples
+          const hasJsonPatterns = trimmed.includes('"') && (trimmed.includes(':') || trimmed.includes(','));
+          
+          if (hasJsonPatterns) {
+            // Likely incomplete JSON due to sampling - give it some confidence
+            return {
+              success: true,
+              metadata: {
+                type: trimmed.startsWith('[') ? 'array' : 'object',
+                estimatedRecords: 1,
+                nestedLevels: 1,
+                keys: [],
+                partialParse: true
+              }
+            };
+          }
+        }
+      }
       return { success: false, metadata: { type: 'object' } };
     }
   }
@@ -142,6 +208,11 @@ export class JSONDetector implements FormatDetector {
   }> {
     const lines = sample.split('\n').filter((line) => line.trim());
     if (lines.length === 0) {
+      return { success: false, metadata: { type: 'jsonl' } };
+    }
+    
+    // JSONL requires multiple lines - single line is likely regular JSON
+    if (lines.length === 1) {
       return { success: false, metadata: { type: 'jsonl' } };
     }
 

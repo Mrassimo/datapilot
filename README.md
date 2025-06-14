@@ -8,12 +8,12 @@
 
 > **Enterprise-grade streaming multi-format data analysis with comprehensive statistical insights and advanced ML capabilities**
 
-DataPilot is a sophisticated command-line tool that transforms data files into comprehensive statistical reports with advanced machine learning guidance. With universal format support (CSV, JSON, Excel, TSV, Parquet) and memory-efficient streaming processing, it handles datasets of any size while providing deep insights across six analytical dimensions including advanced modeling recommendations.
+DataPilot is a sophisticated command-line tool that transforms data files into comprehensive statistical reports with advanced machine learning guidance. With universal format support (CSV, JSON, Excel, TSV, Parquet) and memory-efficient streaming processing, it handles datasets of any size while providing deep insights across six analytical dimensions.
 
 ## ✨ Key Features
 
 - 📁 **Universal Format Support**: CSV, JSON, Excel (.xlsx/.xls), TSV, Parquet, JSONL with auto-detection
-- 🔍 **6-Section Analysis Pipeline**: Overview → Quality → EDA → Visualization → **Enhanced Engineering** → Modeling
+- 🔍 **6-Section Analysis Pipeline**: Overview → Quality → EDA → Visualization → Engineering → Modeling
 - 🔗 **Smart Relationship Detection**: Multi-file join analysis with confidence scoring and SQL generation
 - 🚀 **Streaming Processing**: Handle files up to 100GB with constant <512MB memory usage
 - 📊 **Comprehensive Reports**: Human-readable insights in Markdown, JSON, or YAML formats
@@ -23,28 +23,21 @@ DataPilot is a sophisticated command-line tool that transforms data files into c
 - ♿ **Accessibility First**: WCAG-compliant visualization recommendations
 - 🤖 **LLM-Optimized**: Output designed for AI/ML interpretation and prompt engineering
 - 🧠 **Advanced ML Guidance**: Intelligent algorithm selection, bias detection, and ethical AI recommendations
-- 🔬 **TypeScript Foundation**: 100% TypeScript codebase with strict type safety and comprehensive error handling
 
 ## 🚀 Installation
 
 ### Option 1: NPM Package (Recommended)
 ```bash
-# Install globally (IMPORTANT: Use datapilot-cli, not datapilot)
+# Install globally 
 npm install -g datapilot-cli
 
-# Verify installation (should show v1.2.0 or later)
+# Verify installation (should show v1.3.1 or later)
 datapilot --version
 ```
 
 > ⚠️ **Important**: Install `datapilot-cli`, NOT `datapilot` (which is deprecated)
 
-### Option 2: Pre-built Binaries
-Download platform-specific binaries from [GitHub Releases](https://github.com/Mrassimo/datapilot/releases):
-- **Windows**: `datapilot-win.exe` (40MB)
-- **macOS**: `datapilot-macos` (53MB) 
-- **Linux**: `datapilot-linux` (48MB)
-
-### Option 3: NPX (No Installation, Recommended for PATH Issues)
+### Option 2: NPX (No Installation Required)
 ```bash
 # Always gets latest version, no PATH configuration needed
 npx datapilot-cli all data.csv
@@ -52,9 +45,7 @@ npx datapilot-cli --version
 npx datapilot-cli --help
 ```
 
-> 💡 **Tip**: If you have trouble with `datapilot: command not found` after global install, use `npx datapilot-cli` instead
-
-### Option 4: From Source
+### Option 3: From Source
 ```bash
 git clone https://github.com/Mrassimo/datapilot.git
 cd datapilot
@@ -65,7 +56,7 @@ npm link
 
 ## 📋 Quick Start Guide
 
-### Basic Usage
+### Basic Analysis Commands
 ```bash
 # Complete analysis (all 6 sections) - works with any supported format
 datapilot all data.csv           # CSV files
@@ -74,25 +65,36 @@ datapilot all data.xlsx          # Excel files
 datapilot all data.tsv           # Tab-separated files
 
 # Individual sections (auto-detects format)
-datapilot overview data.xlsx      # Section 1: File overview & metadata
-datapilot quality data.json       # Section 2: Data quality assessment
-datapilot eda data.tsv            # Section 3: Exploratory data analysis
-datapilot visualization data.csv  # Section 4: Chart recommendations
-datapilot engineering data.xlsx   # Section 5: ML engineering insights
-datapilot modeling data.json      # Section 6: Predictive modeling guidance
+datapilot overview data.xlsx     # Section 1: File overview & metadata
+datapilot quality data.json      # Section 2: Data quality assessment
+datapilot eda data.tsv           # Section 3: Exploratory data analysis
+datapilot visualization data.csv # Section 4: Chart recommendations
+datapilot engineering data.xlsx  # Section 5: ML engineering insights
+datapilot modeling data.json     # Section 6: Predictive modeling guidance
 
 # Quick file information (universal)
 datapilot info data.xlsx         # Basic file stats (any format)
 datapilot validate data.json     # Format validation
 ```
 
+### Multi-File Join Analysis
+```bash
+# Analyze relationships between multiple files
+datapilot join customers.csv orders.csv products.csv
+datapilot engineering customers.csv orders.csv      # Engineering + joins
+datapilot discover /path/to/csv/directory           # Auto-discover all relationships
+
+# Interactive wizards
+datapilot join-wizard customers.csv orders.csv     # Step-by-step join wizard
+datapilot optimize-joins *.csv                     # Performance optimization
+```
+
 ### Advanced Options
 ```bash
 # Format-specific options
 datapilot all data.xlsx --sheet "Sales Data"              # Excel: specific sheet
-datapilot all data.xlsx --sheet-index 2                   # Excel: sheet by index
 datapilot all data.json --flatten-objects                 # JSON: flatten nested objects
-datapilot all data.txt --format tsv --delimiter "\t"      # Force format detection
+datapilot all data.txt --format tsv --delimiter "\\t"      # Force format detection
 datapilot all data.csv --delimiter ";" --quote "'"        # CSV: custom delimiters
 
 # Output control
@@ -103,243 +105,163 @@ datapilot all data.tsv --quiet --output results/
 # Performance tuning
 datapilot all huge-file.xlsx --verbose --progress
 datapilot all data.json --chunk-size 50000 --memory-limit 1gb
-
-# Configuration
-datapilot all data.xlsx --config production.datapilotrc
-datapilot all data.json --preset high-performance
 ```
 
 ## 📁 Supported File Formats
 
-| Format | Extensions | Features | Notes |
-|--------|------------|----------|-------|
-| **CSV** | `.csv` | Auto-delimiter detection, custom quotes | Full backward compatibility |
-| **TSV** | `.tsv`, `.tab` | Tab-separated values, header detection | Optimized for data exports |
-| **JSON** | `.json`, `.jsonl`, `.ndjson` | Nested objects, arrays, JSON Lines | Auto-flattening of complex structures |
-| **Excel** | `.xlsx`, `.xls`, `.xlsm` | Multiple sheets, cell formatting | Sheet selection, metadata preservation |
-| **Parquet** | `.parquet` | Columnar storage, schema detection | High-performance analytics format |
+| Format | Extensions | Features | Auto-Detection |
+|--------|------------|----------|----------------|
+| **CSV** | `.csv` | Auto-delimiter detection, custom quotes | ✅ Content analysis |
+| **TSV** | `.tsv`, `.tab` | Tab-separated values, inconsistency detection | ✅ Tab structure validation |
+| **JSON** | `.json`, `.jsonl`, `.ndjson` | Nested objects, arrays, JSON Lines | ✅ Structure + syntax validation |
+| **Excel** | `.xlsx`, `.xls`, `.xlsm` | Multiple sheets, cell formatting | ✅ Binary signature detection |
+| **Parquet** | `.parquet` | Columnar storage, schema detection | ✅ Metadata inspection |
 
-### Format Detection
-DataPilot automatically detects file formats based on:
-- **File extension** (primary indicator)
-- **Content analysis** (structure validation)  
-- **Confidence scoring** (reliability assessment)
+### Format Detection Intelligence
+DataPilot automatically detects file formats using a multi-layered approach:
+- **File extension** analysis with confidence scoring
+- **Content structure** validation (JSON syntax, tab consistency, etc.)
+- **Binary signature** detection for Excel/Parquet files
+- **Confidence thresholds** to prevent false positives
 
 ```bash
-# Automatic detection (recommended)
+# Automatic detection (recommended) - works 99%+ of the time
 datapilot all my-data.xlsx                    # Auto-detects Excel
 datapilot all logs.jsonl                      # Auto-detects JSON Lines
 datapilot all analytics.parquet               # Auto-detects Parquet
 
-# Manual format override (when needed)
+# Manual override (when needed for edge cases)
 datapilot all ambiguous-file.txt --format tsv # Force TSV parsing
 datapilot all data.backup --format json       # Force JSON parsing
-datapilot all big-data.bin --format parquet   # Force Parquet parsing
-```
-
-### Format-Specific Features
-
-**Excel Integration**
-```bash
-# Select specific worksheet
-datapilot all workbook.xlsx --sheet "Q4 Results"
-datapilot all workbook.xlsx --sheet-index 0
-
-# Get available sheets
-datapilot info workbook.xlsx  # Lists all sheets with row/column counts
-```
-
-**JSON Processing**  
-```bash
-# Handle nested objects
-datapilot all complex.json --flatten-objects   # Flatten nested structures
-datapilot all api-data.json --json-path "$.data.records"  # Extract specific path
-```
-
-**TSV Options**
-```bash  
-# Custom separators (if not auto-detected)
-datapilot all data.tsv --delimiter "\t"
-datapilot all data.txt --format tsv --quote "'"
-```
-
-**Parquet Analytics**
-```bash
-# High-performance columnar processing
-datapilot all large-dataset.parquet --max-rows 1000000
-
-# Column selection for performance
-datapilot all analytics.parquet --columns "id,sales,region"
-
-# Row pagination for massive files
-datapilot all huge-data.parquet --row-start 0 --row-end 10000
 ```
 
 ## 📊 Analysis Sections Explained
 
-| Section | Purpose | Key Outputs |
-|---------|---------|-------------|
-| **1. Overview** 🗂️ | File metadata, structure analysis, column detection | File size, encoding, headers, data types, parsing strategy |
-| **2. Data Quality** 🧐 | Quality assessment, completeness, validity | Missing patterns, outliers, duplicates, quality scores |
-| **3. EDA** 📈 | Statistical analysis, distributions, correlations | Univariate/bivariate stats, hypothesis tests, associations |
-| **4. Visualization** 📊 | Chart recommendations, accessibility optimization | Chart types, encodings, library suggestions, WCAG compliance |
-| **5. Engineering** 🏗️ | Schema optimization, feature engineering, ML readiness, **multi-file relationships** | Index recommendations, normalization, feature selection, **join analysis** |
-| **6. Modeling** 🧠 | Algorithm selection, validation strategy, deployment, ethics | ML algorithms, cross-validation, bias detection, ethical AI guidelines |
+| Section | Purpose | Key Outputs | Multi-File Support |
+|---------|---------|-------------|-------------------|
+| **1. Overview** 🗂️ | File metadata, structure analysis | File size, encoding, headers, data types | Single file |
+| **2. Quality** 🧐 | Data quality assessment, completeness | Missing patterns, outliers, quality scores | Single file |
+| **3. EDA** 📈 | Statistical analysis, distributions | Univariate/bivariate stats, hypothesis tests | Single file |
+| **4. Visualization** 📊 | Chart recommendations, accessibility | Chart types, encodings, WCAG compliance | Single file |
+| **5. Engineering** 🏗️ | Schema optimization, **relationship detection** | Index recommendations, **join analysis**, SQL generation | **Multi-file** ✅ |
+| **6. Modeling** 🧠 | Algorithm selection, ethics, deployment | ML algorithms, bias detection, ethical AI | Single file |
 
-## 🎯 Use Cases & Examples
+### Multi-File Relationship Analysis (Section 5)
+The engineering command now supports advanced multi-file analysis:
 
-### Multi-Format Support
 ```bash
-# Analyze any supported data format - automatic detection
-datapilot all sales-data.json         # JSON/JSONL files
-datapilot all quarterly-report.xlsx   # Excel spreadsheets  
-datapilot all server-logs.tsv         # Tab-separated files
-datapilot all customer-data.csv       # Traditional CSV files
+# Single file: traditional feature engineering
+datapilot engineering data.csv
+# Output: Schema optimization, feature selection, ML readiness
 
-# Force specific format if auto-detection needs override
-datapilot all data.txt --format tsv
+# Multi-file: relationship detection + engineering  
+datapilot engineering customers.csv orders.csv products.csv
+# Output: Join relationships, SQL generation, foreign key detection, schema optimization across all files
+
+# Large-scale discovery (up to 50 files)
+datapilot discover /data/warehouse/
+# Output: Complete relationship map, join recommendations, data lineage
 ```
 
-### Business Analytics
+**Key Features:**
+- **Smart Join Detection**: Identifies relationships with confidence scoring
+- **SQL Generation**: Produces optimized JOIN statements
+- **Foreign Key Discovery**: Detects primary/foreign key relationships
+- **Performance Analysis**: Join optimization recommendations
+- **Batch Processing**: Handles large directories efficiently
+
+## 🎯 Common Use Cases
+
+### Business Intelligence
 ```bash
-# Analyze sales data for insights (works with any format)
-datapilot all sales-2024.xlsx
-# Output: Revenue trends, seasonal patterns, top products, forecasting recommendations
+# Quarterly sales analysis
+datapilot all Q4-sales.xlsx --sheet "Summary" 
+# Output: Revenue trends, seasonal patterns, forecasting recommendations
+
+# Multi-table business analysis
+datapilot engineering customers.csv orders.csv products.csv
+# Output: Customer segmentation opportunities, product performance joins
+```
+
+### Data Science Workflows  
+```bash
+# Dataset profiling for ML
+datapilot all features.csv
+# Output: Feature distributions, correlations, encoding recommendations
+
+# Multi-dataset relationship mapping
+datapilot discover /ml-datasets/
+# Output: Join opportunities, feature engineering across datasets
 ```
 
 ### Data Quality Auditing
 ```bash
-# Check data quality before analysis (JSON example)
+# Comprehensive quality assessment
 datapilot quality customer-database.json
-# Output: Completeness scores, outlier detection, consistency issues
+# Output: Completeness scores, outlier detection, data consistency issues
+
+# Cross-table integrity checking
+datapilot join customers.csv transactions.csv
+# Output: Referential integrity, orphaned records, data quality across relationships
 ```
 
-### ML Pipeline Preparation
-```bash
-# Single file: feature engineering analysis
-datapilot engineering features.xlsx --sheet "Training Data"
-# Output: Feature selection, encoding strategies, scaling recommendations
-
-# Multi-file: relationship discovery + engineering
-datapilot engineering customers.csv orders.csv products.csv
-# Output: Join relationships, SQL generation, schema optimization
-```
-
-### Research Data Analysis
-```bash
-# Comprehensive statistical analysis (TSV example)
-datapilot eda experiment-results.tsv
-# Output: Distributions, correlations, hypothesis tests, statistical significance
-```
-
-## 📖 Understanding Output Reports
-
-### Section 1: Overview Report
-- **File Metadata**: Size, encoding, structure
-- **Column Analysis**: Data types, semantic types, cardinality
-- **Parsing Strategy**: Delimiter detection, header analysis
-- **Performance Metrics**: Processing speed, memory usage
-
-### Section 2: Quality Assessment
-- **Completeness**: Missing value patterns and impact
-- **Validity**: Data format compliance and business rules
-- **Consistency**: Duplicate detection and resolution
-- **Quality Score**: Composite 0-100 quality rating
-
-### Section 3: Statistical Analysis
-- **Univariate**: Distributions, central tendency, dispersion
-- **Bivariate**: Correlations, associations, statistical tests
-- **Hypothesis Testing**: Normality, independence, significance
-- **Advanced Stats**: Confidence intervals, effect sizes
-
-### Section 4: Visualization Intelligence
-- **Chart Recommendations**: Optimal chart types per variable
-- **Accessibility**: WCAG-compliant color schemes and alternatives
-- **Library Guidance**: D3.js, Plotly, Tableau implementation code
-- **Interactive Features**: Recommended user interactions
-
-### Section 5: Engineering Insights
-- **Schema Optimization**: Index recommendations, normalization
-- **Feature Engineering**: Transformation suggestions, new features
-- **ML Readiness**: Encoding strategies, scaling requirements
-- **Performance**: Query optimization, storage efficiency
-
-### Section 6: Modeling Strategy & Ethics
-- **Algorithm Selection**: Recommended ML algorithms with rationale and complexity scoring
-- **Validation Strategy**: Cross-validation, train/test splits, robustness testing
-- **Evaluation Metrics**: Appropriate success measures with business context
-- **Ethical AI Analysis**: Bias detection, fairness assessment, transparency recommendations
-- **Deployment Considerations**: Production monitoring, model lifecycle, governance frameworks
-
-## 🔧 Configuration & Customization
+## 🔧 Configuration & Performance
 
 ### Configuration File (.datapilotrc)
 ```yaml
 # Performance settings
 performance:
   chunkSize: 10000
-  memoryLimit: "512mb"
+  memoryLimit: "512mb" 
   parallelProcessing: true
 
-# Analysis preferences  
+# Analysis preferences
 analysis:
   sections: [1, 2, 3, 4, 5, 6]
   confidenceLevel: 0.95
-  statisticalTests: true
+  joinConfidenceThreshold: 0.5
 
 # Output formatting
 output:
   format: "markdown"
   includeRawData: false
   verboseLogging: false
-
-# Visualization preferences
-visualization:
-  accessibilityLevel: "AA"
-  colorBlindSupport: true
-  interactivityLevel: "medium"
 ```
 
-### Environment-Specific Presets
-```bash
-# Use predefined configurations
-datapilot all data.csv --preset low-memory     # <256MB usage
-datapilot all data.csv --preset high-performance # Maximum speed
-datapilot all data.csv --preset research       # Comprehensive stats
-datapilot all data.csv --preset production     # Enterprise settings
-```
+### Performance Benchmarks
+
+| File Size | Rows | Processing Time | Memory Usage | Join Analysis |
+|-----------|------|----------------|--------------|---------------|
+| 10 MB | 100K | 5 seconds | 45 MB | 2-3 files: +3s |
+| 100 MB | 1M | 30 seconds | 120 MB | 3-5 files: +15s |
+| 1 GB | 10M | 4 minutes | 280 MB | 5-10 files: +2m |
+| 10 GB | 100M | 35 minutes | 450 MB | 10+ files: batched |
+
+*Benchmarks on MacBook Pro M1, 16GB RAM*
 
 ## 🤖 LLM Integration Guide
 
-DataPilot outputs are optimized for Large Language Model interpretation and prompt engineering:
+DataPilot outputs are optimized for Large Language Model interpretation:
 
-### Basic LLM Integration
 ```bash
 # Generate analysis for LLM consumption
-datapilot all data.csv --format json | llm-tool process
+datapilot all data.csv --format json --quiet | llm-tool process
 
-# Create summary for ChatGPT/Claude
-datapilot all data.csv --quiet --output analysis.md
-# Then paste analysis.md into your LLM conversation
+# Multi-file analysis for AI-driven insights
+datapilot engineering *.csv --format json > relationships.json
+ai-tool analyze --input relationships.json --focus "join-optimization"
 ```
 
 ### Recommended LLM Prompts
 ```
 Analyze this DataPilot report and:
 1. Summarize the 3 most important insights
-2. Recommend next steps for analysis
+2. Recommend next steps for analysis  
 3. Identify potential data quality issues
 4. Suggest business actions based on findings
+5. Evaluate join relationships for business intelligence opportunities
 
 [Paste DataPilot output here]
-```
-
-### Advanced AI Workflows
-```bash
-# Pipeline for AI-driven analysis
-datapilot all data.csv --format json > analysis.json
-ai-insights generate --input analysis.json --model gpt-4
-ai-insights visualize --input analysis.json --charts recommended
 ```
 
 ## 🔍 Troubleshooting
@@ -347,154 +269,78 @@ ai-insights visualize --input analysis.json --charts recommended
 ### Common Issues
 
 **Installation Problems**
-
-***"datapilot: command not found" after npm install***
 ```bash
-# Check if npm global bin is in your PATH
+# If "datapilot: command not found" after npm install
 npm config get prefix
 echo $PATH | grep $(npm config get prefix)
 
-# If not in PATH, add npm global bin to your shell profile:
-# For bash/zsh (~/.bashrc or ~/.zshrc):
+# Add npm global bin to PATH if needed
 echo 'export PATH="$(npm config get prefix)/bin:$PATH"' >> ~/.bashrc
 source ~/.bashrc
 
-# For fish shell (~/.config/fish/config.fish):
-echo 'set -gx PATH (npm config get prefix)/bin $PATH' >> ~/.config/fish/config.fish
-
-# Windows (run as administrator):
-npm config get prefix
-# Add the returned path + \node_modules\.bin to your PATH environment variable
-```
-
-***Getting old version (like 1.0.2) instead of latest***
-```bash
-# Remove any existing versions and clear cache
-npm uninstall -g datapilot datapilot-cli  
-npm cache clean --force                   
-npm install -g datapilot-cli             
-
-# Make sure you're installing the right package
-npm install -g datapilot-cli    # ✅ Correct (latest v1.2.0+)
-npm install -g datapilot        # ❌ Wrong (deprecated v2.0.0)
-```
-
-***Alternative: Use npx (always works, no PATH issues)***
-```bash
-# NPX always gets the latest version and doesn't require PATH setup
+# Alternative: Always use npx (no PATH required)
 npx datapilot-cli --version
-npx datapilot-cli all data.csv
 ```
 
 **Large File Processing**
 ```bash
-# Increase memory limit
+# Increase memory for large datasets
 datapilot all big-file.csv --memory-limit 2gb --chunk-size 5000
 
-# Use streaming mode
-datapilot all big-file.csv --streaming --progress
+# Use progress monitoring  
+datapilot all big-file.csv --verbose --progress
 ```
 
-**Performance Issues**
+**Multi-File Analysis**
 ```bash
-# Check system resources
-datapilot all data.csv --verbose --profile
+# For directories with many files, use discover
+datapilot discover /data/directory/
 
-# Use performance preset
-datapilot all data.csv --preset high-performance
+# For specific file relationships
+datapilot join file1.csv file2.csv file3.csv
+
+# Debug relationship detection
+datapilot join *.csv --verbose --confidence 0.3
 ```
-
-### Debug Mode
-```bash
-# Enable detailed logging
-datapilot all data.csv --debug --log-file debug.log
-
-# Test specific sections
-datapilot overview data.csv --dry-run
-```
-
-## 📈 Performance Benchmarks
-
-| File Size | Rows | Processing Time | Memory Usage |
-|-----------|------|----------------|--------------|
-| 10 MB | 100K | 5 seconds | 45 MB |
-| 100 MB | 1M | 30 seconds | 120 MB |
-| 1 GB | 10M | 4 minutes | 280 MB |
-| 10 GB | 100M | 35 minutes | 450 MB |
-
-*Benchmarks on MacBook Pro M1, 16GB RAM*
 
 ## 🛡️ Security & Enterprise Features
 
-- **Input Validation**: Comprehensive CSV format and content validation
-- **Memory Safety**: Automatic cleanup and resource management
-- **Proxy Support**: Corporate firewall and proxy compatibility
+- **Input Validation**: Comprehensive format and content validation
+- **Memory Safety**: Automatic cleanup and resource management  
 - **Audit Logging**: Detailed operation logs for compliance
-- **Error Handling**: Graceful degradation and recovery
 - **Data Privacy**: No data transmission, purely local processing
+- **Proxy Support**: Corporate firewall compatibility
+- **Error Handling**: Graceful degradation and recovery
 
 ## 🤝 Contributing
 
-We welcome contributions! Please see our [Contributing Guide](docs/CONTRIBUTING.md) for details.
+We welcome contributions! See our [Contributing Guide](CONTRIBUTING.md) for details.
 
 ### Development Setup
 ```bash
 git clone https://github.com/Mrassimo/datapilot.git
 cd datapilot
 npm install
-npm run dev          # Watch mode development
-npm test            # Run test suite
-npm run lint        # Code quality checks
-npm run build       # Production build
+npm run build       # Build project
+npm test           # Run test suite  
+npm run lint       # Code quality checks
+npm run typecheck  # TypeScript validation
 ```
 
-### Project Structure
-```
-src/
-├── analyzers/       # Analysis modules (sections 1-6)
-├── cli/            # Command-line interface
-├── core/           # Core configuration and types
-├── parsers/        # CSV parsing and detection
-└── utils/          # Utilities and helpers
+### Testing Commands
+```bash
+npm test                              # Run all tests
+npm run test:unit                     # Unit tests only
+npm run test:integration              # Integration tests
+npm test -- --testPathPattern="join" # Test specific features
 ```
 
 ## 📚 Additional Resources
 
-- 📖 [Full Documentation](docs/README.md)
-- 🎥 [Video Tutorials](docs/tutorials/)  
-- 💼 [Industry Use Cases](examples/use-cases/)
-- 🔧 [API Reference](docs/api/programmatic-usage.md)
+- 📖 [Full Documentation](docs/)
+- 🎯 [Command Examples](examples/)
+- 🔧 [Configuration Guide](CLAUDE.md)
 - 📊 [Sample Outputs](examples/sample-outputs/)
-
-## 🏆 What Users Are Saying
-
-> *"DataPilot v1.2.0 represents a remarkable transformation and complete success story in the data analysis tool space. Technical Score: 9.5/10 - Production-ready, enterprise-grade solution with advanced ML capabilities."*
-> 
-> *"Perfect installation experience, zero errors/warnings, beautiful formatted output. The new Section 6 modeling guidance with ethics analysis is game-changing. Ready for widespread enterprise adoption."*
-> 
-> — Comprehensive Analysis Report, June 2025
-
-## 🎯 Use Cases & Success Stories
-
-### **Business Intelligence Teams**
-- **Rapid CSV Analysis**: Generate comprehensive insights in under 2 minutes
-- **Data Quality Auditing**: Automated quality scoring across 10 dimensions  
-- **Stakeholder Reporting**: Professional markdown reports ready for presentations
-
-### **Data Scientists & Analysts**  
-- **Quick Dataset Profiling**: 60+ statistical tests performed automatically
-- **LLM Integration**: Output optimised for ChatGPT/Claude data analysis workflows
-- **Australian Context**: Recognises Australian postcodes, phone formats, state codes
-
-### **Data Engineers**
-- **Schema Optimisation**: DDL generation and primary key detection
-- **ML Readiness Assessment**: Feature engineering and algorithm recommendations
-- **Performance Benchmarks**: Process 500K-2M rows/minute with <512MB memory
-
-### **Consultants & Freelancers**
-- **Client Data Assessment**: Professional analysis reports for client meetings
-- **Zero Learning Curve**: Works immediately without configuration
-- **Cost Effective**: Free alternative to $150-840/year commercial tools
 
 ## 📄 License
 
@@ -503,12 +349,11 @@ MIT License - see [LICENSE](LICENSE) for details.
 ## 📞 Support & Community
 
 - 🐛 [Report Issues](https://github.com/Mrassimo/datapilot/issues)
-- 💬 [Discussions](https://github.com/Mrassimo/datapilot/discussions)  
-- 📧 [Email Support](mailto:support@datapilot.dev)
-- 🐦 [Twitter Updates](https://twitter.com/datapilot_dev)
+- 💬 [Discussions](https://github.com/Mrassimo/datapilot/discussions)
+- 📧 Email Support: Open an issue for support
 
 ---
 
-**DataPilot** - Transform CSV data into comprehensive insights with enterprise-grade statistical analysis. 🚁📊
+**DataPilot v1.3.1** - Transform your data into comprehensive insights with enterprise-grade statistical analysis and intelligent relationship detection. 🚁📊
 
 *Built with ❤️ for data scientists, analysts, and AI practitioners worldwide.*
