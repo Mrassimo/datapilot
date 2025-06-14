@@ -656,26 +656,48 @@ const createMockSection3Result = (): Section3Result => ({
   edaAnalysis: {
     univariateAnalysis: [],
     bivariateAnalysis: {
-      correlationMatrix: {
-        matrix: {},
-        significantCorrelations: [],
-        strongCorrelations: [],
-        insights: {
-          strongestPositiveCorrelation: {
-            column1: 'age',
-            column2: 'income',
+      numericalVsNumerical: {
+        totalPairsAnalyzed: 10,
+        correlationPairs: [
+          {
+            variable1: 'age',
+            variable2: 'income',
             correlation: 0.82,
-          },
-          strongestNegativeCorrelation: {
-            column1: 'age',
-            column2: 'energy',
-            correlation: -0.45,
-          },
-          totalSignificantPairs: 8,
-          interpretation: 'Strong positive correlation between age and income',
+            pValue: 0.001,
+            strength: 'strong',
+            direction: 'positive',
+            significance: 'highly_significant',
+            sampleSize: 1000
+          }
+        ],
+        strongestPositiveCorrelation: {
+          variable1: 'age',
+          variable2: 'income',
+          correlation: 0.82,
+          pValue: 0.001,
+          strength: 'strong',
+          direction: 'positive',
+          significance: 'highly_significant',
+          sampleSize: 1000
         },
+        strongestNegativeCorrelation: null,
+        strongCorrelations: [
+          {
+            variable1: 'age',
+            variable2: 'income',
+            correlation: 0.82,
+            pValue: 0.001,
+            strength: 'strong',
+            direction: 'positive',
+            significance: 'highly_significant',
+            sampleSize: 1000
+          }
+        ],
+        scatterPlotInsights: [],
+        regressionInsights: []
       },
-      associationTests: [],
+      numericalVsCategorical: [],
+      categoricalVsCategorical: []
     },
     multivariateAnalysis: {
       summary: {
@@ -701,63 +723,121 @@ const createMockSection3Result = (): Section3Result => ({
         },
         dominantVariables: [],
         dimensionalityRecommendations: [],
+        technicalDetails: {
+          covarianceMatrix: [],
+          correlationMatrix: [],
+          standardizedData: true,
+          numericVariablesUsed: ['age', 'income', 'score'],
+          sampleSize: 1000
+        }
       },
       clusteringAnalysis: {
         isApplicable: true,
         applicabilityReason: 'Sufficient data for clustering',
         optimalClusters: 3,
-        clusteringResults: {
-          silhouetteScore: 0.65,
-          inertia: 150.5,
-          clusters: [],
-        },
-        clusterValidation: {
-          silhouetteAnalysis: {
-            averageScore: 0.65,
-            clusterScores: [],
+        optimalityMethod: 'elbow',
+        elbowAnalysis: [
+          {
+            k: 2,
+            wcss: 250.5,
+            silhouetteScore: 0.58,
+            improvement: 0.3
           },
-          elbowMethod: {
-            optimalK: 3,
-            elbowData: [],
+          {
+            k: 3,
+            wcss: 150.5,
+            silhouetteScore: 0.65,
+            improvement: 0.4
+          }
+        ],
+        finalClustering: {
+          k: 3,
+          converged: true,
+          iterations: 15,
+          validation: {
+            silhouetteScore: 0.65,
+            silhouetteInterpretation: 'Good cluster separation',
+            wcss: 150.5,
+            betweenClusterVariance: 200.3,
+            totalVariance: 350.8,
+            varianceExplainedRatio: 0.57,
+            calinskiHarabaszIndex: 150.2,
+            daviesBouldinIndex: 0.8
           },
+          clusterProfiles: []
         },
-        insights: {
-          bestClusterConfiguration: 3,
-          clusterInterpretation: [],
-          businessImplications: [],
-        },
+        insights: [
+          'Optimal cluster configuration identified with 3 clusters',
+          'High silhouette score indicates good cluster separation',
+          'Clusters show distinct patterns in the data'
+        ],
+        recommendations: [
+          'Use 3 clusters for optimal data segmentation',
+          'Consider cluster-based feature engineering'
+        ],
+        technicalDetails: {
+          numericVariablesUsed: ['age', 'income', 'score'],
+          standardizedData: true,
+          sampleSize: 1000,
+          randomSeed: 42
+        }
       },
       outlierDetection: {
-        summary: {
-          totalOutliers: 5,
-          outlierPercentage: 0.5,
-          method: 'Mahalanobis distance',
-        },
+        isApplicable: true,
+        applicabilityReason: 'Sufficient numeric variables for multivariate outlier detection',
+        method: 'mahalanobis_distance',
+        threshold: 2.5,
+        criticalValue: 12.59,
+        totalOutliers: 5,
+        outlierPercentage: 0.5,
         outliers: [],
-        insights: {
-          severityDistribution: {
-            mild: 3,
-            moderate: 2,
-            severe: 0,
-          },
-          affectedVariables: ['income', 'score'],
-          patterns: [],
-          recommendations: [],
+        severityDistribution: {
+          mild: 3,
+          moderate: 2,
+          extreme: 0
         },
+        affectedVariables: [
+          {
+            variable: 'income',
+            outliersCount: 3,
+            meanContribution: 0.6
+          },
+          {
+            variable: 'score',
+            outliersCount: 2,
+            meanContribution: 0.4
+          }
+        ],
+        recommendations: [
+          'Investigate high income outliers',
+          'Consider data transformation for score variable'
+        ],
+        technicalDetails: {
+          numericVariablesUsed: ['income', 'score'],
+          covarianceMatrix: [],
+          sampleSize: 1000,
+          degreesOfFreedom: 2
+        }
       },
       normalityTests: {
-        multivariateNormality: {
-          hypothesis: 'Data follows multivariate normal distribution',
-          testStatistic: 15.6,
-          pValue: 0.045,
-          interpretation: 'Reject null hypothesis - not multivariate normal',
+        mardiasTest: {
+          skewnessStatistic: 15.6,
+          kurtosisStatistic: 8.4,
+          skewnessPValue: 0.045,
+          kurtosisPValue: 0.023,
+          interpretation: 'Reject null hypothesis - not multivariate normal'
+        },
+        roystonTest: {
+          statistic: 12.3,
+          pValue: 0.038,
+          interpretation: 'Reject null hypothesis for normality'
         },
         overallAssessment: {
           isMultivariateNormal: false,
           confidence: 95,
           violations: ['Non-normal distribution detected'],
-          recommendations: ['Consider data transformation'],
-        },
+          recommendations: ['Consider data transformation']
+        }
       },
       relationshipAnalysis: {
         variableInteractions: [],
@@ -1370,7 +1450,7 @@ describe('OutputManager', () => {
     it('should handle large outputs efficiently', () => {
       // Create large mock data
       const largeWarnings = Array.from({length: 1000}, (_, i) => ({
-        category: 'data' as const,
+        category: 'structural' as const,
         severity: 'low' as const,
         message: `Warning ${i}: Large dataset processing notice`,
         impact: `Processing item ${i} of large dataset with extensive details and descriptions that take up space`,
