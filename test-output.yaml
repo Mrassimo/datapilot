@@ -1,0 +1,103 @@
+metadata:
+  version: "1.0.0"
+  generatedAt: "2025-06-14T11:03:20.513Z"
+  command: "datapilot"
+overview:
+  fileDetails:
+    originalFilename: "test-dataset.csv"
+    fullResolvedPath: "/path/to/test-dataset.csv"
+    fileSizeBytes: 1024000
+    fileSizeMB: 1.024
+    mimeType: "text/csv"
+    lastModified: "2024-01-15T00:00:00.000Z"
+    sha256Hash: "abc123def456"
+  parsingMetadata:
+    dataSourceType: "Local File System"
+    parsingEngine: "DataPilot CSV Parser"
+    parsingTimeSeconds: 0.5
+    encoding:
+      encoding: "utf8"
+      detectionMethod: "BOM Analysis"
+      confidence: 95
+      bomDetected: false
+    delimiter:
+      delimiter: ","
+      detectionMethod: "Frequency Analysis"
+      confidence: 98
+      alternativesConsidered:
+        -
+          delimiter: ";"
+          score: 0.1
+        -
+          delimiter: "	"
+          score: 0.05
+    lineEnding: "LF"
+    quotingCharacter: """
+    emptyLinesEncountered: 0
+    headerProcessing:
+      headerPresence: "Detected"
+      headerRowNumbers:
+        - 0
+      columnNamesSource: "First Row"
+    initialScanLimit:
+      method: "Complete File Scan"
+      linesScanned: 1000
+  structuralDimensions:
+    totalRowsRead: 10
+    totalDataRows: 10
+    totalColumns: 7
+    totalDataCells: 70
+    columnInventory:
+      -
+        index: 0
+        name: "id"
+        originalIndex: 0
+      -
+        index: 1
+        name: "name"
+        originalIndex: 1
+      -
+        index: 2
+        name: "age"
+        originalIndex: 2
+      -
+        index: 3
+        name: "department"
+        originalIndex: 3
+      -
+        index: 4
+        name: "salary"
+        originalIndex: 4
+      -
+        index: 5
+        name: "active"
+        originalIndex: 5
+      -
+        index: 6
+        name: "hire_date"
+        originalIndex: 6
+    estimatedInMemorySizeMB: 0.5
+    averageRowLengthBytes: 64
+    sparsityAnalysis:
+      sparsityPercentage: 0
+      method: "Complete scan"
+      sampleSize: 10
+      description: "No sparsity detected"
+  executionContext:
+    fullCommandExecuted: "datapilot all test-dataset.csv"
+    analysisMode: "complete"
+    analysisStartTimestamp: "2024-01-15T10:00:00.000Z"
+    globalSamplingStrategy: "full_scan"
+    activatedModules:
+      - section1
+    processingTimeSeconds: 0.5
+  generatedAt: "2024-01-15T10:00:01.000Z"
+  version: "1.3.1"
+warnings:
+performance:
+  totalAnalysisTime: 500
+  peakMemoryUsage: 64
+  phases:
+    file-analysis: 200
+    parsing: 200
+    structural-analysis: 100
