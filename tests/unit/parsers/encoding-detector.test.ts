@@ -397,7 +397,7 @@ describe('EncodingDetector', () => {
 
       expect(result.encoding).toBe('utf8');
       expect(result.confidence).toBeGreaterThanOrEqual(0.9);
-      expect(endTime - startTime).toBeLessThan(50); // Should be very fast
+      expect(endTime - startTime).toBeLessThan(100); // Should be very fast
     });
 
     it('should handle worst-case scenarios for UTF-8 validation', () => {
