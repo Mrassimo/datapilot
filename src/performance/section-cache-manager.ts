@@ -543,7 +543,9 @@ export class SectionCacheManager {
             // Remove corrupted files
             try {
               await fs.promises.unlink(path.join(this.config.cacheDirectory, file));
-            } catch (e) {}
+            } catch (_error) {
+              // Ignore unlink errors - file may not exist or be locked
+            }
           }
         }
 
