@@ -126,6 +126,7 @@ export class FileMetadataCollector {
         // Replace user directory with placeholder
         return fullPath
           .replace(/\/Users\/[^\/]+/, '/Users/[user]')
+          .replace(/\/home\/[^\/]+/, '/home/[user]')
           .replace(/C:\\Users\\[^\\]+/, 'C:\\Users\\[user]');
 
       case 'full':
