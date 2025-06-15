@@ -35,7 +35,7 @@ Charlie,35,92`;
 
   it('should execute CLI version command', () => {
     const result = execSync(`node "${cliPath}" --version`, { encoding: 'utf8' });
-    expect(result).toContain('1.3.1');
+    expect(result).toContain('1.4.0');
   });
 
   it('should analyze CSV file with overview command', () => {
