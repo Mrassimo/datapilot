@@ -175,7 +175,7 @@ describe('InputValidator', () => {
       expect(result.isValid).toBe(true);
       expect(result.warnings).toHaveLength(1);
       expect(result.warnings[0].message).toContain('File is large');
-    });
+    }, 15000); // Increase timeout to 15 seconds for Windows CI
 
     it('should warn about old files', async () => {
       const filePath = join(tempDir, 'old.csv');
