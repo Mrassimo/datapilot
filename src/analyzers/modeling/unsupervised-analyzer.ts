@@ -28,38 +28,71 @@ export class UnsupervisedAnalyzer {
     section3Result: EDAResult,
     section5Result: EngineeringResult,
   ): Promise<UnsupervisedAnalysisResult> {
-    const columns = section1Result.overview.structuralDimensions.columnInventory;
+    // Use EDA column analysis for detailed type information, fall back to basic inventory
+    const edaUnivariate = section3Result.edaAnalysis?.univariateAnalysis;
+    let edaColumns: any[] = [];
+    
+    // Handle different EDA result structures (array vs object with separate arrays)
+    if (Array.isArray(edaUnivariate)) {
+      edaColumns = edaUnivariate;
+    } else if (edaUnivariate && typeof edaUnivariate === 'object') {
+      // Handle test mock structure with separate arrays
+      const numerical = (edaUnivariate as any).numericalAnalysis || [];
+      const categorical = (edaUnivariate as any).categoricalAnalysis || [];
+      const dateTime = (edaUnivariate as any).dateTimeAnalysis || [];
+      const boolean = (edaUnivariate as any).booleanAnalysis || [];
+      const text = (edaUnivariate as any).textAnalysis || [];
+      
+      edaColumns = [
+        ...numerical.map((col: any) => ({ ...col, detectedDataType: 'numerical_float' })),
+        ...categorical.map((col: any) => ({ ...col, detectedDataType: 'categorical' })),
+        ...dateTime.map((col: any) => ({ ...col, detectedDataType: 'date_time' })),
+        ...boolean.map((col: any) => ({ ...col, detectedDataType: 'boolean' })),
+        ...text.map((col: any) => ({ ...col, detectedDataType: 'text_general' })),
+      ];
+    }
+    
+    // Fall back to basic columns if no EDA data available
+    if (edaColumns.length === 0) {
+      edaColumns = section1Result.overview.structuralDimensions.columnInventory.map(col => ({
+        columnName: col.name,
+        detectedDataType: 'categorical', // Default assumption
+        uniqueValues: 10, // Default assumption
+      }));
+    }
+    
+    const basicColumns = section1Result.overview.structuralDimensions.columnInventory;
     const qualityScores = section2Result.qualityAudit?.cockpit?.compositeScore?.score || 0.5;
     const correlations = section3Result.edaAnalysis?.bivariateAnalysis?.numericalVsNumerical;
     
     // Generate all types of recommendations
     const syntheticTargets = await this.generateSyntheticTargets(
-      columns,
+      edaColumns,
       section2Result,
       section3Result,
       section5Result,
     );
     
     const unsupervisedApproaches = await this.generateUnsupervisedRecommendations(
-      columns,
+      edaColumns,
       section2Result,
       section3Result,
     );
     
     const autoMLRecommendations = await this.generateAutoMLRecommendations(
-      columns,
+      edaColumns,
       qualityScores,
       section1Result.overview.fileDetails.fileSizeMB,
     );
     
     const featureEngineeringRecipes = await this.generateFeatureEngineeringRecipes(
-      columns,
+      edaColumns,
       section3Result,
       section5Result,
     );
     
     const deploymentConsiderations = await this.generateDeploymentConsiderations(
-      columns,
+      edaColumns,
       section1Result.overview.fileDetails.fileSizeMB,
     );
 
@@ -112,10 +145,10 @@ export class UnsupervisedAnalyzer {
     
     // Find suitable columns for clustering
     const numericalColumns = columns.filter(col => 
-      col.inferredType === 'numerical' || col.inferredType === 'integer'
+      col.detectedDataType === 'numerical_float' || col.detectedDataType === 'numerical_integer'
     );
     const categoricalColumns = columns.filter(col =>
-      col.inferredType === 'categorical' && col.uniqueValueCount <= 50
+      col.detectedDataType === 'categorical' && col.uniqueValues <= 50
     );
     
     if (numericalColumns.length >= 2 || categoricalColumns.length >= 1) {
@@ -173,7 +206,7 @@ export class UnsupervisedAnalyzer {
     const targets: SyntheticTargetRecommendation[] = [];
     
     const numericalColumns = columns.filter(col => 
-      col.inferredType === 'numerical' || col.inferredType === 'integer'
+      col.detectedDataType === 'numerical_float' || col.detectedDataType === 'numerical_integer'
     );
 
     if (numericalColumns.length >= 2) {
@@ -293,7 +326,7 @@ export class UnsupervisedAnalyzer {
     const targets: SyntheticTargetRecommendation[] = [];
     
     const dateColumns = columns.filter(col => 
-      col.inferredType === 'datetime' || 
+      col.detectedDataType === 'date_time' || 
       col.columnName.toLowerCase().includes('date') ||
       col.columnName.toLowerCase().includes('time')
     );
@@ -351,9 +384,9 @@ export class UnsupervisedAnalyzer {
     
     // Look for high-cardinality categorical columns that could be grouped
     const highCardinalityColumns = columns.filter(col => 
-      col.inferredType === 'categorical' && 
-      col.uniqueValueCount > 20 &&
-      col.uniqueValueCount < 1000
+      col.detectedDataType === 'categorical' && 
+      col.uniqueValues > 20 &&
+      col.uniqueValues < 1000
     );
 
     if (highCardinalityColumns.length > 0) {
@@ -365,7 +398,7 @@ export class UnsupervisedAnalyzer {
         businessValue: 'Simplify analysis by grouping related categories, enable pattern recognition',
         technicalImplementation: 'Frequency-based grouping: top N categories + "Other" group',
         sourceColumns: [col.columnName],
-        expectedCardinality: Math.min(10, Math.ceil(col.uniqueValueCount / 10)),
+        expectedCardinality: Math.min(10, Math.ceil(col.uniqueValues / 10)),
         feasibilityScore: 70,
         codeExample: this.generateCategoryGroupingCode(col.columnName),
         validationStrategy: 'Business logic review of groupings, frequency distribution analysis',
@@ -392,10 +425,10 @@ export class UnsupervisedAnalyzer {
     const recommendations: UnsupervisedLearningRecommendation[] = [];
     
     const numericalColumns = columns.filter(col => 
-      col.inferredType === 'numerical' || col.inferredType === 'integer'
+      col.detectedDataType === 'numerical_float' || col.detectedDataType === 'numerical_integer'
     );
     const categoricalColumns = columns.filter(col =>
-      col.inferredType === 'categorical'
+      col.detectedDataType === 'categorical'
     );
 
     // 1. Clustering recommendations
@@ -633,7 +666,7 @@ export class UnsupervisedAnalyzer {
       description: 'Find frequent itemsets and association rules in categorical data',
       businessValue: 'Market basket analysis, recommendation systems, cross-selling opportunities',
       technicalDetails: {
-        inputFeatures: categoricalColumns.filter(c => c.uniqueValueCount <= 100).map(c => c.columnName),
+        inputFeatures: categoricalColumns.filter(c => c.uniqueValues <= 100).map(c => c.columnName),
         preprocessing: ['One-hot encoding', 'Handle missing values', 'Binary transformation'],
         hyperparameters: [
           {
@@ -740,12 +773,12 @@ export class UnsupervisedAnalyzer {
     const recommendations: AutoMLRecommendation[] = [];
     
     const numericalColumns = columns.filter(col => 
-      col.inferredType === 'numerical' || col.inferredType === 'integer'
+      col.detectedDataType === 'numerical_float' || col.detectedDataType === 'numerical_integer'
     );
     const categoricalColumns = columns.filter(col =>
-      col.inferredType === 'categorical'
+      col.detectedDataType === 'categorical'
     );
-    const highCardinalityColumns = categoricalColumns.filter(col => col.uniqueValueCount > 50);
+    const highCardinalityColumns = categoricalColumns.filter(col => col.uniqueValues > 50);
 
     // H2O AutoML recommendation
     recommendations.push({
@@ -828,7 +861,7 @@ export class UnsupervisedAnalyzer {
 
     // Temporal feature engineering
     const dateColumns = columns.filter(col => 
-      col.inferredType === 'datetime' || 
+      col.detectedDataType === 'date_time' || 
       col.columnName.toLowerCase().includes('date')
     );
     
@@ -866,7 +899,8 @@ export class UnsupervisedAnalyzer {
 
     // Text feature engineering
     const textColumns = columns.filter(col => 
-      col.inferredType === 'categorical' && col.uniqueValueCount > 100
+      col.detectedDataType === 'text_general' || col.detectedDataType === 'text_address' ||
+      (col.detectedDataType === 'categorical' && col.uniqueValues > 100)
     );
     
     if (textColumns.length > 0) {
@@ -1442,7 +1476,7 @@ df['${columnName}_category'] = group_categories(df['${columnName}'], top_n=8)`;
       ],
       preprocessingCode: [
         `# Select categorical columns with reasonable cardinality`,
-        `cat_columns = ${JSON.stringify(categoricalColumns.filter(c => c.uniqueValueCount <= 100).map(c => c.columnName))}`,
+        `cat_columns = ${JSON.stringify(categoricalColumns.filter(c => c.uniqueValues <= 100).map(c => c.columnName))}`,
         '',
         '# Create transaction format',
         'transactions = []',
@@ -1768,8 +1802,8 @@ print(feature_importance.head(10))`;
       'from sklearn.impute import SimpleImputer',
       '',
       '# Define column types',
-      `numerical_features = ${JSON.stringify(columns.filter(c => c.inferredType === 'numerical').map(c => c.columnName))}`,
-      `categorical_features = ${JSON.stringify(columns.filter(c => c.inferredType === 'categorical').map(c => c.columnName))}`,
+      `numerical_features = ${JSON.stringify(columns.filter(c => c.detectedDataType === 'numerical_float' || c.detectedDataType === 'numerical_integer').map(c => c.columnName))}`,
+      `categorical_features = ${JSON.stringify(columns.filter(c => c.detectedDataType === 'categorical').map(c => c.columnName))}`,
       '',
       '# Create preprocessing pipelines',
       'numerical_pipeline = Pipeline([',
@@ -1798,7 +1832,7 @@ print(feature_importance.head(10))`;
 
   private generateAPISchemaTemplates(columns: any[]): string[] {
     const schemaFields = columns.slice(0, 10).map(col => {
-      const fieldType = col.inferredType === 'numerical' ? 'number' : 'string';
+      const fieldType = col.detectedDataType === 'numerical_float' || col.detectedDataType === 'numerical_integer' ? 'number' : 'string';
       return `    "${col.columnName}": {"type": "${fieldType}", "required": true}`;
     });
 
@@ -1846,7 +1880,7 @@ print(feature_importance.head(10))`;
     if (fileSizeMB > 100) score += 5;
     
     // Penalty for very high cardinality
-    const highCardColumns = categoricalColumns.filter(col => col.uniqueValueCount > 1000);
+    const highCardColumns = categoricalColumns.filter(col => col.uniqueValues > 1000);
     score -= highCardColumns.length * 5;
     
     return Math.min(100, Math.max(0, score));
@@ -1860,7 +1894,7 @@ print(feature_importance.head(10))`;
     let score = 75; // Base score (good default performance)
     
     // Bonus for text-heavy data
-    const textColumns = categoricalColumns.filter(col => col.uniqueValueCount > 100);
+    const textColumns = categoricalColumns.filter(col => col.uniqueValues > 100);
     score += textColumns.length * 5;
     
     // Penalty for very large files (memory intensive)
