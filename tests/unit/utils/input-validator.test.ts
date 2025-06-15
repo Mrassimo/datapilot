@@ -6,15 +6,24 @@
  */
 
 import { InputValidator } from '@/utils/input-validator';
-import { writeFileSync, unlinkSync, mkdtempSync, chmodSync, mkdirSync } from 'fs';
+import { writeFileSync, unlinkSync, mkdtempSync, chmodSync, mkdirSync, existsSync, statSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 
 describe('InputValidator', () => {
   let tempDir: string;
+  
+  // Shared cache directory for large files to avoid recreating 120MB files
+  const cacheDir = join(tmpdir(), 'input-validator-cache');
+  const cachedLargeFile = join(cacheDir, 'large-test-file.csv');
 
   beforeEach(() => {
     tempDir = mkdtempSync(join(tmpdir(), 'input-validator-test-'));
+    
+    // Ensure cache directory exists
+    if (!existsSync(cacheDir)) {
+      mkdirSync(cacheDir, { recursive: true });
+    }
   });
 
   afterEach(() => {
@@ -165,17 +174,20 @@ describe('InputValidator', () => {
     });
 
     it('should warn about large files', async () => {
-      const filePath = join(tempDir, 'large.csv');
-      // Create a large buffer to trigger warning (needs to be > 100MB threshold)
-      const largeData = 'x'.repeat(120 * 1024 * 1024); // 120MB - above 100MB threshold
-      writeFileSync(filePath, largeData);
+      // Use cached large file or create it once
+      if (!existsSync(cachedLargeFile) || statSync(cachedLargeFile).size < 120 * 1024 * 1024) {
+        console.log('Creating cached large file (120MB) - this may take a moment...');
+        const largeData = 'x'.repeat(120 * 1024 * 1024); // 120MB - above 100MB threshold
+        writeFileSync(cachedLargeFile, largeData);
+        console.log('Cached large file created successfully');
+      }
 
-      const result = await InputValidator.validateFilePath(filePath);
+      const result = await InputValidator.validateFilePath(cachedLargeFile);
 
       expect(result.isValid).toBe(true);
       expect(result.warnings).toHaveLength(1);
       expect(result.warnings[0].message).toContain('File is large');
-    }, 10000); // 10 seconds should be plenty for 10MB file
+    }, 15000); // Allow time for potential file creation
 
     it('should warn about old files', async () => {
       const filePath = join(tempDir, 'old.csv');
