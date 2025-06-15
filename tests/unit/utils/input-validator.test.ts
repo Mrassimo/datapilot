@@ -166,8 +166,8 @@ describe('InputValidator', () => {
 
     it('should warn about large files', async () => {
       const filePath = join(tempDir, 'large.csv');
-      // Create a large buffer to simulate large file
-      const largeData = 'x'.repeat(200 * 1024 * 1024); // 200MB
+      // Create a moderately large buffer to simulate large file
+      const largeData = 'x'.repeat(10 * 1024 * 1024); // 10MB (much more reasonable)
       writeFileSync(filePath, largeData);
 
       const result = await InputValidator.validateFilePath(filePath);
@@ -175,7 +175,7 @@ describe('InputValidator', () => {
       expect(result.isValid).toBe(true);
       expect(result.warnings).toHaveLength(1);
       expect(result.warnings[0].message).toContain('File is large');
-    }, 15000); // Increase timeout to 15 seconds for Windows CI
+    }, 10000); // 10 seconds should be plenty for 10MB file
 
     it('should warn about old files', async () => {
       const filePath = join(tempDir, 'old.csv');
