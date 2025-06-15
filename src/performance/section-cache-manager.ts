@@ -399,13 +399,36 @@ export class SectionCacheManager {
   }
 
   /**
+   * Date fields that need restoration during deserialization
+   */
+  private static readonly DATE_FIELDS = [
+    'generatedAt',
+    'lastModified', 
+    'analysisStartTimestamp',
+    'timestamp',
+    'createdAt',
+    'modifiedAt'
+  ];
+
+  /**
+   * Custom JSON reviver to restore Date objects from strings
+   */
+  private static dateReviver(key: string, value: any): any {
+    if (typeof value === 'string' && SectionCacheManager.DATE_FIELDS.includes(key)) {
+      const date = new Date(value);
+      return isNaN(date.getTime()) ? value : date;
+    }
+    return value;
+  }
+
+  /**
    * Get entry from disk cache
    */
   private async getDiskEntry<T>(key: string): Promise<CacheEntry<T> | null> {
     try {
       const filePath = path.join(this.config.cacheDirectory, `${key}.json`);
       const content = await fs.promises.readFile(filePath, 'utf8');
-      return JSON.parse(content) as CacheEntry<T>;
+      return JSON.parse(content, SectionCacheManager.dateReviver) as CacheEntry<T>;
     } catch (error) {
       return null;
     }

@@ -7,6 +7,21 @@ import type { Section1Result, Section1Overview } from './types';
 
 export class Section1Formatter {
   /**
+   * Safely format date to string, handling both Date objects and strings
+   */
+  private formatTimestamp(dateValue: Date | string): string {
+    try {
+      const date = dateValue instanceof Date ? dateValue : new Date(dateValue);
+      if (isNaN(date.getTime())) {
+        return 'Invalid Date';
+      }
+      return date.toISOString().replace('T', ' ').slice(0, 19) + ' (UTC)';
+    } catch (error) {
+      return 'Invalid Date';
+    }
+  }
+
+  /**
    * Generate complete Section 1 markdown report
    */
   formatReport(result: Section1Result): string {
@@ -30,7 +45,7 @@ export class Section1Formatter {
    * Format the report header
    */
   private formatHeader(overview: Section1Overview): string {
-    const timestamp = overview.generatedAt.toISOString().replace('T', ' ').slice(0, 19) + ' (UTC)';
+    const timestamp = this.formatTimestamp(overview.generatedAt);
 
     return `# DataPilot Analysis Report
 
@@ -49,8 +64,7 @@ This section provides a detailed snapshot of the dataset properties, how it was 
    */
   private formatFileDetails(overview: Section1Overview): string {
     const { fileDetails } = overview;
-    const lastModified =
-      fileDetails.lastModified.toISOString().replace('T', ' ').slice(0, 19) + ' (UTC)';
+    const lastModified = this.formatTimestamp(fileDetails.lastModified);
 
     let section = `**1.1. Input Data File Details:**
     * Original Filename: \`${fileDetails.originalFilename}\`
@@ -146,9 +160,7 @@ ${columnList}
    */
   private formatExecutionContext(overview: Section1Overview): string {
     const { executionContext } = overview;
-    const startTime =
-      executionContext.analysisStartTimestamp.toISOString().replace('T', ' ').slice(0, 19) +
-      ' (UTC)';
+    const startTime = this.formatTimestamp(executionContext.analysisStartTimestamp);
     const modulesList = executionContext.activatedModules.join(', ');
 
     let contextSection = `**1.4. Analysis Configuration & Execution Context:**

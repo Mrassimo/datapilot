@@ -246,7 +246,8 @@ export class DataPilotCLI {
       const context = this.argumentParser.parse(argv);
 
       // Handle help and version commands
-      if (context.command === 'help' || context.args.length === 0) {
+      const commandsWithoutFiles = ['perf', 'clear-cache'];
+      if (context.command === 'help' || (context.args.length === 0 && !commandsWithoutFiles.includes(context.command))) {
         this.argumentParser.showHelp();
         return { success: true, exitCode: 0 };
       }
@@ -1401,6 +1402,9 @@ export class DataPilotCLI {
       if (!this.performanceManager) {
         this.performanceManager = new CLIPerformanceManager();
       }
+
+      // Initialize performance manager for system dashboard (no file needed)
+      await this.performanceManager.initialize('', options);
 
       // Show system information and performance dashboard
       this.performanceManager.showDashboard();
