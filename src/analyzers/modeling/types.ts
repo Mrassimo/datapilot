@@ -17,7 +17,12 @@ export type ModelingTaskType =
   | 'time_series_forecasting'
   | 'anomaly_detection'
   | 'survival_analysis'
-  | 'dimensionality_reduction';
+  | 'dimensionality_reduction'
+  | 'association_rule_mining'
+  | 'density_estimation'
+  | 'manifold_learning'
+  | 'topic_modeling'
+  | 'synthetic_target_generation';
 
 export type AlgorithmCategory =
   | 'linear_models'
@@ -548,6 +553,7 @@ export interface ModelingAnalysis {
   interpretationGuidance: InterpretationGuidance;
   ethicsAnalysis: EthicsAnalysis;
   implementationRoadmap: ImplementationRoadmap;
+  unsupervisedAnalysis?: UnsupervisedAnalysisResult;
 }
 
 export interface ImplementationRoadmap {
@@ -589,4 +595,91 @@ export interface Section6Metadata {
   recommendationConfidence: ConfidenceLevel;
   primaryFocus: string[];
   limitationsIdentified: string[];
+}
+
+// =====================================
+// Enhanced Unsupervised Learning Types
+// =====================================
+
+export interface SyntheticTargetRecommendation {
+  targetName: string;
+  targetType: 'clustering_based' | 'outlier_based' | 'composite' | 'temporal' | 'domain_derived';
+  description: string;
+  businessValue: string;
+  technicalImplementation: string;
+  sourceColumns: string[];
+  expectedCardinality?: number;
+  feasibilityScore: number; // 0-100
+  codeExample: string;
+  validationStrategy: string;
+  useCases: string[];
+}
+
+export interface UnsupervisedLearningRecommendation {
+  approach: 'clustering' | 'dimensionality_reduction' | 'association_mining' | 'anomaly_detection' | 'density_estimation';
+  algorithmName: string;
+  description: string;
+  businessValue: string;
+  technicalDetails: UnsupervisedTechnicalDetails;
+  codeImplementation: CodeImplementation;
+  evaluationMetrics: string[];
+  interpretationGuidance: string[];
+  scalabilityNotes: string[];
+}
+
+export interface UnsupervisedTechnicalDetails {
+  inputFeatures: string[];
+  preprocessing: string[];
+  hyperparameters: HyperparameterGuide[];
+  computationalComplexity: string;
+  memoryRequirements: string;
+  optimalDataSize: string;
+}
+
+export interface CodeImplementation {
+  framework: 'scikit-learn' | 'pandas' | 'numpy' | 'tensorflow' | 'pytorch';
+  importStatements: string[];
+  preprocessingCode: string[];
+  mainImplementation: string[];
+  evaluationCode: string[];
+  visualizationCode?: string[];
+}
+
+export interface AutoMLRecommendation {
+  platform: 'H2O_AutoML' | 'AutoGluon' | 'MLflow' | 'DataRobot' | 'Google_AutoML' | 'Azure_AutoML';
+  suitabilityScore: number; // 0-100
+  strengths: string[];
+  limitations: string[];
+  dataRequirements: string[];
+  estimatedCost: string;
+  setupComplexity: ModelComplexity;
+  codeExample: string;
+  configurationRecommendations: Record<string, any>;
+}
+
+export interface FeatureEngineeringRecipe {
+  recipeName: string;
+  description: string;
+  applicableColumns: string[];
+  businessRationale: string;
+  codeImplementation: string[];
+  expectedImpact: string;
+  prerequisites: string[];
+  riskFactors: string[];
+}
+
+export interface UnsupervisedAnalysisResult {
+  syntheticTargets: SyntheticTargetRecommendation[];
+  unsupervisedApproaches: UnsupervisedLearningRecommendation[];
+  autoMLRecommendations: AutoMLRecommendation[];
+  featureEngineeringRecipes: FeatureEngineeringRecipe[];
+  deploymentConsiderations: DeploymentConsideration[];
+}
+
+export interface DeploymentConsideration {
+  aspect: 'data_pipeline' | 'monitoring' | 'api_schema' | 'infrastructure' | 'maintenance';
+  requirements: string[];
+  recommendations: string[];
+  riskFactors: string[];
+  codeTemplates?: string[];
 }

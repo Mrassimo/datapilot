@@ -403,23 +403,44 @@ export class FileMetadataCollector {
     return new Promise((resolve, reject) => {
       const chunks: Buffer[] = [];
       let totalRead = 0;
+      let resolved = false;
       
       const stream = createReadStream(filePath, { start: 0, end: sampleSize - 1 });
+      
+      const resolveOnce = (result: Buffer) => {
+        if (!resolved) {
+          resolved = true;
+          resolve(result);
+        }
+      };
+      
+      const rejectOnce = (error: Error) => {
+        if (!resolved) {
+          resolved = true;
+          reject(error);
+        }
+      };
       
       stream.on('data', (chunk: Buffer) => {
         chunks.push(chunk);
         totalRead += chunk.length;
         if (totalRead >= sampleSize) {
           stream.destroy();
+          resolveOnce(Buffer.concat(chunks));
         }
       });
 
       stream.on('end', () => {
-        resolve(Buffer.concat(chunks));
+        resolveOnce(Buffer.concat(chunks));
       });
 
       stream.on('error', (error) => {
-        reject(error);
+        rejectOnce(error);
+      });
+
+      stream.on('close', () => {
+        // Ensure we resolve even if end event doesn't fire after destroy
+        resolveOnce(Buffer.concat(chunks));
       });
     });
   }

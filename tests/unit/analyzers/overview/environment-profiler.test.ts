@@ -24,6 +24,11 @@ describe('EnvironmentProfiler', () => {
       maxSampleSizeForSparsity: 1000,
       privacyMode: 'full',
       detailedProfiling: true,
+      enableCompressionAnalysis: false,
+      enableDataPreview: false,
+      previewRows: 5,
+      enableHealthChecks: false,
+      enableQuickStatistics: false,
     };
     profiler = new EnvironmentProfiler(config);
   });
@@ -59,7 +64,10 @@ describe('EnvironmentProfiler', () => {
     });
 
     it('should exclude host environment when disabled', () => {
-      const configWithoutEnv = { ...config, includeHostEnvironment: false };
+      const configWithoutEnv = {
+        ...config,
+        includeHostEnvironment: false,
+      };
       const profilerWithoutEnv = new EnvironmentProfiler(configWithoutEnv);
       
       const command = 'datapilot overview test.csv';
@@ -413,7 +421,10 @@ describe('EnvironmentProfiler', () => {
 
   describe('Configuration Impact', () => {
     it('should respect detailed profiling setting', () => {
-      const detailedConfig = { ...config, detailedProfiling: true };
+      const detailedConfig = {
+        ...config,
+        detailedProfiling: true,
+      };
       const detailedProfiler = new EnvironmentProfiler(detailedConfig);
       
       const context = detailedProfiler.createExecutionContext('datapilot test.csv', ['overview']);
@@ -423,7 +434,10 @@ describe('EnvironmentProfiler', () => {
     });
 
     it('should handle privacy mode impact on environment info', () => {
-      const minimalConfig = { ...config, privacyMode: 'minimal' as const };
+      const minimalConfig = {
+        ...config,
+        privacyMode: 'minimal' as const,
+      };
       const minimalProfiler = new EnvironmentProfiler(minimalConfig);
       
       const context = minimalProfiler.createExecutionContext('datapilot test.csv', ['overview']);

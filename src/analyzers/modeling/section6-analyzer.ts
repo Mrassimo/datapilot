@@ -27,6 +27,7 @@ import type {
   DataRequirement,
   InterpretationGuidance,
   ImplementationRoadmap,
+  UnsupervisedAnalysisResult,
 } from './types';
 import { logger } from '../../utils/logger';
 import { AlgorithmRecommender } from './algorithm-recommender';
@@ -34,6 +35,7 @@ import { WorkflowEngine } from './workflow-engine';
 import { EthicsAnalyzer } from './ethics-analyzer';
 import { CARTAnalyzer } from './cart-analyzer';
 import { ResidualAnalyzer } from './residual-analyzer';
+import { UnsupervisedAnalyzer } from './unsupervised-analyzer';
 
 export class Section6Analyzer {
   private config: Section6Config;
@@ -44,6 +46,7 @@ export class Section6Analyzer {
   private ethicsAnalyzer: EthicsAnalyzer;
   private cartAnalyzer: CARTAnalyzer;
   private residualAnalyzer: ResidualAnalyzer;
+  private unsupervisedAnalyzer: UnsupervisedAnalyzer;
 
   constructor(config: Partial<Section6Config> = {}) {
     this.config = {
@@ -69,6 +72,7 @@ export class Section6Analyzer {
     this.ethicsAnalyzer = new EthicsAnalyzer(this.config);
     this.cartAnalyzer = new CARTAnalyzer();
     this.residualAnalyzer = new ResidualAnalyzer();
+    this.unsupervisedAnalyzer = new UnsupervisedAnalyzer();
   }
 
   /**
@@ -569,6 +573,38 @@ export class Section6Analyzer {
         progressCallback,
       );
 
+      // Phase 1.5: Generate unsupervised learning opportunities (GitHub issue #22)
+      // Never return "0 modeling tasks" - always provide alternatives
+      let unsupervisedAnalysis: UnsupervisedAnalysisResult | undefined;
+      if (identifiedTasks.length === 0 || this.shouldIncludeUnsupervisedAnalysis()) {
+        this.reportProgress(
+          progressCallback,
+          'task_identification',
+          20,
+          'Generating unsupervised learning opportunities and synthetic targets...'
+        );
+        
+        unsupervisedAnalysis = await this.unsupervisedAnalyzer.analyzeUnsupervisedOpportunities(
+          section1Result,
+          section2Result,
+          section3Result,
+          section5Result,
+        );
+
+        // Log the enhancement
+        if (identifiedTasks.length === 0) {
+          logger.info(
+            `No obvious targets found, generated ${unsupervisedAnalysis.syntheticTargets.length} synthetic targets ` +
+            `and ${unsupervisedAnalysis.unsupervisedApproaches.length} unsupervised approaches`
+          );
+        } else {
+          logger.info(
+            `Enhanced analysis with ${unsupervisedAnalysis.syntheticTargets.length} synthetic targets ` +
+            `and ${unsupervisedAnalysis.unsupervisedApproaches.length} additional unsupervised approaches`
+          );
+        }
+      }
+
       // Phase 2: Generate algorithm recommendations
       const algorithmRecommendations = await this.generateAlgorithmRecommendations(
         identifiedTasks,
@@ -636,6 +672,7 @@ export class Section6Analyzer {
         interpretationGuidance,
         ethicsAnalysis,
         implementationRoadmap,
+        unsupervisedAnalysis,
       };
 
       return {
@@ -1862,5 +1899,15 @@ export class Section6Analyzer {
     };
 
     return result;
+  }
+
+  /**
+   * Determine if unsupervised analysis should be included
+   * GitHub issue #22: Always provide modeling opportunities
+   */
+  private shouldIncludeUnsupervisedAnalysis(): boolean {
+    // Always include unsupervised analysis to enhance recommendations
+    // This ensures we never return "0 modeling tasks identified"
+    return true;
   }
 }

@@ -30,6 +30,13 @@ export interface CLIOptions {
   parallel?: boolean;
   chunkSize?: number;
   memoryLimit?: number;
+  autoConfig?: boolean;
+  preset?: string;
+  threads?: number;
+  enableCaching?: boolean;
+  cacheSize?: number;
+  streamingOptimizations?: boolean;
+  progressiveReporting?: boolean;
 
   // Section-specific options
   sections?: string[];

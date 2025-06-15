@@ -17,6 +17,11 @@ import type {
   EthicsAnalysis,
   ImplementationRoadmap,
   Section6Warning,
+  UnsupervisedAnalysisResult,
+  SyntheticTargetRecommendation,
+  UnsupervisedLearningRecommendation,
+  AutoMLRecommendation,
+  FeatureEngineeringRecipe,
 } from './types';
 
 export class Section6Formatter {
@@ -30,6 +35,9 @@ export class Section6Formatter {
       this.formatHeader(),
       this.formatExecutiveSummary(modelingAnalysis, metadata),
       this.formatIdentifiedTasks(modelingAnalysis.identifiedTasks),
+      ...(modelingAnalysis.unsupervisedAnalysis
+        ? [this.formatUnsupervisedAnalysis(modelingAnalysis.unsupervisedAnalysis)]
+        : []),
       this.formatAlgorithmRecommendations(modelingAnalysis.algorithmRecommendations),
       ...(modelingAnalysis.cartAnalysis
         ? [this.formatCARTAnalysis(modelingAnalysis.cartAnalysis)]
@@ -815,5 +823,202 @@ This section leverages insights from Data Quality (Section 2), EDA (Section 3), 
         advanced: 'Consider iterative imputation for complex patterns',
       },
     };
+  }
+
+  /**
+   * Format comprehensive unsupervised learning analysis (GitHub issue #22)
+   */
+  private static formatUnsupervisedAnalysis(analysis: UnsupervisedAnalysisResult): string {
+    const sections = [];
+
+    sections.push('## 6.2 Enhanced Machine Learning Opportunities');
+    sections.push('*DataPilot never gives up! When traditional targets aren\'t obvious, we unlock hidden opportunities.*');
+
+    // Synthetic Targets Section
+    if (analysis.syntheticTargets.length > 0) {
+      sections.push('\n### 6.2.A Synthetic Target Variables');
+      sections.push('DataPilot has identified meaningful target variables that can be created from your existing data:');
+
+      analysis.syntheticTargets.forEach((target, index) => {
+        sections.push(`\n**${index + 1}. ${target.targetName}** (Feasibility: ${target.feasibilityScore}%)`);
+        sections.push(`- **Type**: ${target.targetType.replace('_', ' ')}`);
+        sections.push(`- **Description**: ${target.description}`);
+        sections.push(`- **Business Value**: ${target.businessValue}`);
+        sections.push(`- **Source Columns**: ${target.sourceColumns.join(', ')}`);
+        if (target.expectedCardinality) {
+          sections.push(`- **Expected Categories**: ${target.expectedCardinality}`);
+        }
+
+        sections.push('\n**Implementation:**');
+        sections.push('```python');
+        sections.push(target.codeExample);
+        sections.push('```');
+
+        sections.push(`\n**Validation Strategy**: ${target.validationStrategy}`);
+        
+        if (target.useCases.length > 0) {
+          sections.push('\n**Use Cases:**');
+          target.useCases.forEach(useCase => {
+            sections.push(`- ${useCase}`);
+          });
+        }
+      });
+    }
+
+    // Unsupervised Learning Section
+    if (analysis.unsupervisedApproaches.length > 0) {
+      sections.push('\n### 6.2.B Advanced Unsupervised Learning');
+      sections.push('Sophisticated techniques to extract insights without target variables:');
+
+      analysis.unsupervisedApproaches.forEach((approach, index) => {
+        sections.push(`\n**${index + 1}. ${approach.algorithmName}**`);
+        sections.push(`- **Approach**: ${approach.approach.replace('_', ' ')}`);
+        sections.push(`- **Description**: ${approach.description}`);
+        sections.push(`- **Business Value**: ${approach.businessValue}`);
+        
+        sections.push('\n**Technical Details:**');
+        sections.push(`- **Input Features**: ${approach.technicalDetails.inputFeatures.join(', ')}`);
+        sections.push(`- **Preprocessing**: ${approach.technicalDetails.preprocessing.join(', ')}`);
+        sections.push(`- **Complexity**: ${approach.technicalDetails.computationalComplexity}`);
+        sections.push(`- **Memory**: ${approach.technicalDetails.memoryRequirements}`);
+        sections.push(`- **Optimal Data Size**: ${approach.technicalDetails.optimalDataSize}`);
+
+        if (approach.technicalDetails.hyperparameters.length > 0) {
+          sections.push('\n**Key Hyperparameters:**');
+          approach.technicalDetails.hyperparameters.forEach(hp => {
+            sections.push(`- **${hp.parameterName}**: ${hp.description} (default: ${hp.defaultValue})`);
+          });
+        }
+
+        sections.push('\n**Implementation:**');
+        sections.push(`*Framework*: ${approach.codeImplementation.framework}`);
+        sections.push('```python');
+        sections.push(approach.codeImplementation.importStatements.join('\n'));
+        sections.push('');
+        sections.push(approach.codeImplementation.preprocessingCode.join('\n'));
+        sections.push('');
+        sections.push(approach.codeImplementation.mainImplementation.join('\n'));
+        sections.push('```');
+
+        if (approach.interpretationGuidance.length > 0) {
+          sections.push('\n**Interpretation Guidance:**');
+          approach.interpretationGuidance.forEach(guidance => {
+            sections.push(`- ${guidance}`);
+          });
+        }
+      });
+    }
+
+    // AutoML Integration Section
+    if (analysis.autoMLRecommendations.length > 0) {
+      sections.push('\n### 6.2.C AutoML Platform Recommendations');
+      sections.push('DataPilot-optimized settings for automated machine learning:');
+
+      analysis.autoMLRecommendations.forEach((platform, index) => {
+        sections.push(`\n**${index + 1}. ${platform.platform.replace('_', ' ')}** (Suitability: ${platform.suitabilityScore}%)`);
+        sections.push(`- **Setup Complexity**: ${platform.setupComplexity}`);
+        sections.push(`- **Estimated Cost**: ${platform.estimatedCost}`);
+
+        sections.push('\n**Strengths:**');
+        platform.strengths.forEach(strength => {
+          sections.push(`- ${strength}`);
+        });
+
+        if (platform.limitations.length > 0) {
+          sections.push('\n**Limitations:**');
+          platform.limitations.forEach(limitation => {
+            sections.push(`- ${limitation}`);
+          });
+        }
+
+        sections.push('\n**DataPilot-Optimized Configuration:**');
+        sections.push('```python');
+        sections.push(platform.codeExample);
+        sections.push('```');
+
+        if (Object.keys(platform.configurationRecommendations).length > 0) {
+          sections.push('\n**Recommended Settings:**');
+          Object.entries(platform.configurationRecommendations).forEach(([key, value]) => {
+            sections.push(`- **${key}**: ${JSON.stringify(value)}`);
+          });
+        }
+      });
+    }
+
+    // Feature Engineering Section
+    if (analysis.featureEngineeringRecipes.length > 0) {
+      sections.push('\n### 6.2.D Feature Engineering Cookbook');
+      sections.push('Ready-to-use feature engineering recipes optimized for your data:');
+
+      analysis.featureEngineeringRecipes.forEach((recipe, index) => {
+        sections.push(`\n**${index + 1}. ${recipe.recipeName}**`);
+        sections.push(`- **Description**: ${recipe.description}`);
+        sections.push(`- **Applicable Columns**: ${recipe.applicableColumns.join(', ')}`);
+        sections.push(`- **Business Rationale**: ${recipe.businessRationale}`);
+        sections.push(`- **Expected Impact**: ${recipe.expectedImpact}`);
+
+        sections.push('\n**Implementation:**');
+        sections.push('```python');
+        sections.push(recipe.codeImplementation.join('\n'));
+        sections.push('```');
+
+        if (recipe.prerequisites.length > 0) {
+          sections.push('\n**Prerequisites:**');
+          recipe.prerequisites.forEach(prereq => {
+            sections.push(`- ${prereq}`);
+          });
+        }
+
+        if (recipe.riskFactors.length > 0) {
+          sections.push('\n**Risk Factors:**');
+          recipe.riskFactors.forEach(risk => {
+            sections.push(`- ${risk}`);
+          });
+        }
+      });
+    }
+
+    // Deployment Considerations Section
+    if (analysis.deploymentConsiderations.length > 0) {
+      sections.push('\n### 6.2.E Deployment Readiness');
+      sections.push('Production deployment considerations and templates:');
+
+      analysis.deploymentConsiderations.forEach((consideration, index) => {
+        sections.push(`\n**${consideration.aspect.replace('_', ' ').toUpperCase()}**`);
+        
+        if (consideration.requirements.length > 0) {
+          sections.push('\n*Requirements:*');
+          consideration.requirements.forEach(req => {
+            sections.push(`- ${req}`);
+          });
+        }
+
+        if (consideration.recommendations.length > 0) {
+          sections.push('\n*Recommendations:*');
+          consideration.recommendations.forEach(rec => {
+            sections.push(`- ${rec}`);
+          });
+        }
+
+        if (consideration.codeTemplates && consideration.codeTemplates.length > 0) {
+          sections.push('\n*Template:*');
+          sections.push('```python');
+          sections.push(consideration.codeTemplates.join('\n'));
+          sections.push('```');
+        }
+
+        if (consideration.riskFactors.length > 0) {
+          sections.push('\n*Risk Factors:*');
+          consideration.riskFactors.forEach(risk => {
+            sections.push(`- ${risk}`);
+          });
+        }
+      });
+    }
+
+    sections.push('\n---');
+    sections.push('💡 **DataPilot Insight**: This enhanced analysis ensures you always have modeling opportunities, even when traditional target variables aren\'t obvious. These recommendations transform any dataset into actionable machine learning insights.');
+
+    return sections.join('\n');
   }
 }

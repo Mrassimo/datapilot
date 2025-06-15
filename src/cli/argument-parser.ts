@@ -110,7 +110,16 @@ Use --verbose for detailed confidence explanations in reports.`,
       .option('-q, --quiet', 'Suppress all output except errors')
       .option('--no-progress', 'Disable progress indicators')
       .option('--dry-run', 'Validate inputs without performing analysis')
-      .option('-h, --help', 'Display help information');
+      .option('-h, --help', 'Display help information')
+      // Performance and auto-configuration options
+      .option('--auto-config', 'Enable smart auto-configuration based on system resources')
+      .option('--preset <name>', 'Use performance preset (ultra-large-files, large-files, balanced, speed-optimized, memory-constrained)')
+      .option('--threads <number>', 'Number of worker threads (auto-detected if not specified)', this.parseInteger)
+      .option('--cache', 'Enable section result caching for performance')
+      .option('--cache-size <mb>', 'Cache size limit in MB', this.parseInteger)
+      .option('--no-cache', 'Disable all caching')
+      .option('--streaming', 'Force streaming optimizations for large files')
+      .option('--progressive', 'Enable progressive analysis reporting');
 
     // Main command: analyze all sections
     this.program
@@ -273,6 +282,18 @@ Use --verbose for detailed confidence explanations in reports.`,
       .argument('<file>', 'CSV file to inspect')
       .description('Show quick file information and format detection')
       .action(this.createCommandHandler('info'));
+
+    // Performance and diagnostics commands
+    this.program
+      .command('perf')
+      .description('Show performance dashboard and system information')
+      .option('--cache-stats', 'Show detailed cache statistics')
+      .action(this.createNoFileCommandHandler('perf'));
+
+    this.program
+      .command('clear-cache')
+      .description('Clear all cached analysis results')
+      .action(this.createNoFileCommandHandler('clear-cache'));
   }
 
   /**
@@ -301,6 +322,21 @@ Use --verbose for detailed confidence explanations in reports.`,
         file: Array.isArray(filesOrDirectory) ? filesOrDirectory[0] : filesOrDirectory,
         options,
         args: Array.isArray(filesOrDirectory) ? filesOrDirectory : [filesOrDirectory],
+      };
+    };
+  }
+
+  /**
+   * Create command handler for commands that don't require a file argument
+   */
+  private createNoFileCommandHandler(commandName: string) {
+    return (options: Record<string, unknown>) => {
+      // Store the context for the main CLI to pick up
+      (this.program as any)._lastContext = {
+        command: commandName,
+        file: '', // No file required
+        options,
+        args: [],
       };
     };
   }
@@ -394,6 +430,40 @@ Use --verbose for detailed confidence explanations in reports.`,
       }
       options.maxMemory = maxMemory;
     }
+
+    // Auto-configuration options
+    options.autoConfig = Boolean(rawOptions.autoConfig);
+    
+    if (rawOptions.preset) {
+      const validPresets = ['ultra-large-files', 'large-files', 'balanced', 'speed-optimized', 'memory-constrained'];
+      if (!validPresets.includes(rawOptions.preset as string)) {
+        throw new ValidationError(`Performance preset must be one of: ${validPresets.join(', ')}`);
+      }
+      options.preset = rawOptions.preset as string;
+    }
+
+    if (rawOptions.threads !== undefined) {
+      const threads = Number(rawOptions.threads);
+      if (threads <= 0) {
+        throw new ValidationError('Thread count must be a positive number');
+      }
+      options.threads = threads;
+    }
+
+    // Caching options
+    options.enableCaching = rawOptions.cache ? true : rawOptions.noCache ? false : undefined;
+    
+    if (rawOptions.cacheSize !== undefined) {
+      const cacheSize = Number(rawOptions.cacheSize);
+      if (cacheSize <= 0) {
+        throw new ValidationError('Cache size must be a positive number');
+      }
+      options.cacheSize = cacheSize;
+    }
+
+    // Performance optimization options
+    options.streamingOptimizations = Boolean(rawOptions.streaming);
+    options.progressiveReporting = Boolean(rawOptions.progressive);
 
     // Behaviour options
     options.force = Boolean(rawOptions.force);

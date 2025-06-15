@@ -36,6 +36,11 @@ describe('ParsingMetadataTracker', () => {
       maxSampleSizeForSparsity: 1000,
       privacyMode: 'full',
       detailedProfiling: true,
+      enableCompressionAnalysis: false,
+      enableDataPreview: false,
+      previewRows: 5,
+      enableHealthChecks: false,
+      enableQuickStatistics: false,
     };
     tracker = new ParsingMetadataTracker(config);
   });

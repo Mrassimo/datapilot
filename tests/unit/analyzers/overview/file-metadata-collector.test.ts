@@ -51,6 +51,11 @@ describe('FileMetadataCollector', () => {
         maxSampleSizeForSparsity: 1000,
         privacyMode: 'full',
         detailedProfiling: true,
+        enableCompressionAnalysis: false,
+        enableDataPreview: false,
+        previewRows: 5,
+        enableHealthChecks: false,
+        enableQuickStatistics: false,
       };
 
       const collector = new FileMetadataCollector(config);
@@ -83,6 +88,11 @@ describe('FileMetadataCollector', () => {
         maxSampleSizeForSparsity: 1000,
         privacyMode: 'full',
         detailedProfiling: true,
+        enableCompressionAnalysis: false,
+        enableDataPreview: false,
+        previewRows: 5,
+        enableHealthChecks: false,
+        enableQuickStatistics: false,
       };
 
       const collector = new FileMetadataCollector(config);
@@ -115,6 +125,11 @@ describe('FileMetadataCollector', () => {
         maxSampleSizeForSparsity: 1000,
         privacyMode: 'full',
         detailedProfiling: true,
+        enableCompressionAnalysis: false,
+        enableDataPreview: false,
+        previewRows: 5,
+        enableHealthChecks: false,
+        enableQuickStatistics: false,
       };
 
       const collector = new FileMetadataCollector(config);
@@ -142,6 +157,11 @@ describe('FileMetadataCollector', () => {
         maxSampleSizeForSparsity: 1000,
         privacyMode: 'full',
         detailedProfiling: true,
+        enableCompressionAnalysis: false,
+        enableDataPreview: false,
+        previewRows: 5,
+        enableHealthChecks: false,
+        enableQuickStatistics: false,
       };
 
       const collector = new FileMetadataCollector(config);
@@ -165,6 +185,11 @@ describe('FileMetadataCollector', () => {
         maxSampleSizeForSparsity: 1000,
         privacyMode: 'full',
         detailedProfiling: true,
+        enableCompressionAnalysis: false,
+        enableDataPreview: false,
+        previewRows: 5,
+        enableHealthChecks: false,
+        enableQuickStatistics: false,
       };
 
       const collector = new FileMetadataCollector(config);
@@ -184,6 +209,11 @@ describe('FileMetadataCollector', () => {
         maxSampleSizeForSparsity: 1000,
         privacyMode: 'full',
         detailedProfiling: true,
+        enableCompressionAnalysis: false,
+        enableDataPreview: false,
+        previewRows: 5,
+        enableHealthChecks: false,
+        enableQuickStatistics: false,
       };
 
       const collector = new FileMetadataCollector(config);
@@ -207,6 +237,11 @@ describe('FileMetadataCollector', () => {
         maxSampleSizeForSparsity: 1000,
         privacyMode: 'minimal',
         detailedProfiling: true,
+        enableCompressionAnalysis: false,
+        enableDataPreview: false,
+        previewRows: 5,
+        enableHealthChecks: false,
+        enableQuickStatistics: false,
       };
 
       const collector = new FileMetadataCollector(config);
@@ -228,6 +263,11 @@ describe('FileMetadataCollector', () => {
         maxSampleSizeForSparsity: 1000,
         privacyMode: 'redacted',
         detailedProfiling: true,
+        enableCompressionAnalysis: false,
+        enableDataPreview: false,
+        previewRows: 5,
+        enableHealthChecks: false,
+        enableQuickStatistics: false,
       };
 
       const collector = new FileMetadataCollector(config);
@@ -253,6 +293,11 @@ describe('FileMetadataCollector', () => {
         maxSampleSizeForSparsity: 1000,
         privacyMode: 'redacted',
         detailedProfiling: true,
+        enableCompressionAnalysis: false,
+        enableDataPreview: false,
+        previewRows: 5,
+        enableHealthChecks: false,
+        enableQuickStatistics: false,
       };
 
       const collector = new FileMetadataCollector(config);
@@ -286,6 +331,11 @@ describe('FileMetadataCollector', () => {
         maxSampleSizeForSparsity: 1000,
         privacyMode: 'full',
         detailedProfiling: true,
+        enableCompressionAnalysis: false,
+        enableDataPreview: false,
+        previewRows: 5,
+        enableHealthChecks: false,
+        enableQuickStatistics: false,
       };
 
       const collector = new FileMetadataCollector(config);
@@ -306,6 +356,11 @@ describe('FileMetadataCollector', () => {
         maxSampleSizeForSparsity: 1000,
         privacyMode: 'full',
         detailedProfiling: true,
+        enableCompressionAnalysis: false,
+        enableDataPreview: false,
+        previewRows: 5,
+        enableHealthChecks: false,
+        enableQuickStatistics: false,
       };
 
       const collector = new FileMetadataCollector(config);
@@ -324,6 +379,11 @@ describe('FileMetadataCollector', () => {
         maxSampleSizeForSparsity: 1000,
         privacyMode: 'full',
         detailedProfiling: true,
+        enableCompressionAnalysis: false,
+        enableDataPreview: false,
+        previewRows: 5,
+        enableHealthChecks: false,
+        enableQuickStatistics: false,
       };
 
       const collector = new FileMetadataCollector(config);
@@ -343,6 +403,11 @@ describe('FileMetadataCollector', () => {
         maxSampleSizeForSparsity: 1000,
         privacyMode: 'full',
         detailedProfiling: true,
+        enableCompressionAnalysis: false,
+        enableDataPreview: false,
+        previewRows: 5,
+        enableHealthChecks: false,
+        enableQuickStatistics: false,
       };
 
       const collector = new FileMetadataCollector(config);
@@ -364,6 +429,11 @@ describe('FileMetadataCollector', () => {
           maxSampleSizeForSparsity: 1000,
           privacyMode: 'full',
           detailedProfiling: true,
+          enableCompressionAnalysis: false,
+          enableDataPreview: false,
+          previewRows: 5,
+          enableHealthChecks: false,
+          enableQuickStatistics: false,
         };
 
         const collector = new FileMetadataCollector(config);
@@ -391,6 +461,11 @@ describe('FileMetadataCollector', () => {
             maxSampleSizeForSparsity: 1000,
             privacyMode: 'full',
             detailedProfiling: true,
+            enableCompressionAnalysis: false,
+            enableDataPreview: false,
+            previewRows: 5,
+            enableHealthChecks: false,
+            enableQuickStatistics: false,
           };
 
           const collector = new FileMetadataCollector(config);
@@ -419,6 +494,11 @@ describe('FileMetadataCollector', () => {
         maxSampleSizeForSparsity: 1000,
         privacyMode: 'full',
         detailedProfiling: true,
+        enableCompressionAnalysis: false,
+        enableDataPreview: false,
+        previewRows: 5,
+        enableHealthChecks: false,
+        enableQuickStatistics: false,
       };
 
       const collector = new FileMetadataCollector(config);
@@ -451,6 +531,11 @@ describe('FileMetadataCollector', () => {
         maxSampleSizeForSparsity: 1000,
         privacyMode: 'full',
         detailedProfiling: true,
+        enableCompressionAnalysis: false,
+        enableDataPreview: false,
+        previewRows: 5,
+        enableHealthChecks: false,
+        enableQuickStatistics: false,
       };
 
       const collector = new FileMetadataCollector(config);
@@ -478,6 +563,11 @@ describe('FileMetadataCollector', () => {
         maxSampleSizeForSparsity: 1000,
         privacyMode: 'full',
         detailedProfiling: true,
+        enableCompressionAnalysis: false,
+        enableDataPreview: false,
+        previewRows: 5,
+        enableHealthChecks: false,
+        enableQuickStatistics: false,
       };
 
       const collector = new FileMetadataCollector(config);
@@ -505,6 +595,11 @@ describe('FileMetadataCollector', () => {
         maxSampleSizeForSparsity: 1000,
         privacyMode: 'full',
         detailedProfiling: true,
+        enableCompressionAnalysis: false,
+        enableDataPreview: false,
+        previewRows: 5,
+        enableHealthChecks: false,
+        enableQuickStatistics: false,
       };
 
       const collector = new FileMetadataCollector(config);
@@ -522,6 +617,11 @@ describe('FileMetadataCollector', () => {
         maxSampleSizeForSparsity: 1000,
         privacyMode: 'full',
         detailedProfiling: true,
+        enableCompressionAnalysis: false,
+        enableDataPreview: false,
+        previewRows: 5,
+        enableHealthChecks: false,
+        enableQuickStatistics: false,
       };
 
       const collector = new FileMetadataCollector(config);
@@ -553,6 +653,11 @@ describe('FileMetadataCollector', () => {
           maxSampleSizeForSparsity: 1000,
           privacyMode: 'full',
           detailedProfiling: true,
+          enableCompressionAnalysis: false,
+          enableDataPreview: false,
+          previewRows: 5,
+          enableHealthChecks: false,
+          enableQuickStatistics: false,
         };
 
         const collector = new FileMetadataCollector(config);
@@ -578,6 +683,11 @@ describe('FileMetadataCollector', () => {
           maxSampleSizeForSparsity: 1000,
           privacyMode: 'full',
           detailedProfiling: true,
+          enableCompressionAnalysis: false,
+          enableDataPreview: false,
+          previewRows: 5,
+          enableHealthChecks: false,
+          enableQuickStatistics: false,
         };
 
         const collector = new FileMetadataCollector(config);
@@ -601,6 +711,11 @@ describe('FileMetadataCollector', () => {
           maxSampleSizeForSparsity: 1000,
           privacyMode: 'full',
           detailedProfiling: true,
+          enableCompressionAnalysis: false,
+          enableDataPreview: false,
+          previewRows: 5,
+          enableHealthChecks: false,
+          enableQuickStatistics: false,
         };
 
         const collector = new FileMetadataCollector(config);
@@ -624,6 +739,11 @@ describe('FileMetadataCollector', () => {
           maxSampleSizeForSparsity: 1000,
           privacyMode: 'full',
           detailedProfiling: true,
+          enableCompressionAnalysis: false,
+          enableDataPreview: false,
+          previewRows: 5,
+          enableHealthChecks: false,
+          enableQuickStatistics: false,
         };
 
         const collector = new FileMetadataCollector(config);

@@ -25,6 +25,11 @@ describe('StructuralAnalyzer', () => {
       maxSampleSizeForSparsity: 1000,
       privacyMode: 'full',
       detailedProfiling: true,
+      enableCompressionAnalysis: false,
+      enableDataPreview: false,
+      previewRows: 5,
+      enableHealthChecks: false,
+      enableQuickStatistics: false,
     };
     analyzer = new StructuralAnalyzer(config);
   });
@@ -318,7 +323,10 @@ describe('StructuralAnalyzer', () => {
       const rows = createMockRows(data);
 
       // Set small sample size for testing
-      const smallSampleConfig = { ...config, maxSampleSizeForSparsity: 500 };
+      const smallSampleConfig = {
+        ...config,
+        maxSampleSizeForSparsity: 500,
+      };
       const smallSampleAnalyzer = new StructuralAnalyzer(smallSampleConfig);
 
       const result = smallSampleAnalyzer.analyzeStructure(rows, true);

@@ -58,6 +58,11 @@ describe('Overview Module Exports', () => {
         maxSampleSizeForSparsity: 1000,
         privacyMode: 'full' as const,
         detailedProfiling: true,
+        enableCompressionAnalysis: false,
+        enableDataPreview: false,
+        previewRows: 5,
+        enableHealthChecks: false,
+        enableQuickStatistics: false,
       };
       
       expect(() => new OverviewModule.FileMetadataCollector(config)).not.toThrow();
@@ -73,6 +78,11 @@ describe('Overview Module Exports', () => {
         maxSampleSizeForSparsity: 1000,
         privacyMode: 'full' as const,
         detailedProfiling: true,
+        enableCompressionAnalysis: false,
+        enableDataPreview: false,
+        previewRows: 5,
+        enableHealthChecks: false,
+        enableQuickStatistics: false,
       };
       
       expect(() => new OverviewModule.StructuralAnalyzer(config)).not.toThrow();
@@ -88,6 +98,11 @@ describe('Overview Module Exports', () => {
         maxSampleSizeForSparsity: 1000,
         privacyMode: 'full' as const,
         detailedProfiling: true,
+        enableCompressionAnalysis: false,
+        enableDataPreview: false,
+        previewRows: 5,
+        enableHealthChecks: false,
+        enableQuickStatistics: false,
       };
       
       expect(() => new OverviewModule.ParsingMetadataTracker(config)).not.toThrow();
@@ -103,6 +118,11 @@ describe('Overview Module Exports', () => {
         maxSampleSizeForSparsity: 1000,
         privacyMode: 'full' as const,
         detailedProfiling: true,
+        enableCompressionAnalysis: false,
+        enableDataPreview: false,
+        previewRows: 5,
+        enableHealthChecks: false,
+        enableQuickStatistics: false,
       };
       
       expect(() => new OverviewModule.EnvironmentProfiler(config)).not.toThrow();
@@ -169,6 +189,11 @@ describe('Overview Module Exports', () => {
         maxSampleSizeForSparsity: 1000,
         privacyMode: 'full' as const,
         detailedProfiling: true,
+        enableCompressionAnalysis: false,
+        enableDataPreview: false,
+        previewRows: 5,
+        enableHealthChecks: false,
+        enableQuickStatistics: false,
       };
 
       // All exported classes should be constructable
@@ -201,6 +226,11 @@ describe('Overview Module Exports', () => {
         maxSampleSizeForSparsity: 1000,
         privacyMode: 'full' as const,
         detailedProfiling: true,
+        enableCompressionAnalysis: false,
+        enableDataPreview: false,
+        previewRows: 5,
+        enableHealthChecks: false,
+        enableQuickStatistics: false,
       };
 
       // Create instances of all components
@@ -228,6 +258,11 @@ describe('Overview Module Exports', () => {
         maxSampleSizeForSparsity: 1000,
         privacyMode: 'full' as const,
         detailedProfiling: true,
+        enableCompressionAnalysis: false,
+        enableDataPreview: false,
+        previewRows: 5,
+        enableHealthChecks: false,
+        enableQuickStatistics: false,
       };
 
       const fileCollector = new OverviewModule.FileMetadataCollector(config);
@@ -258,6 +293,11 @@ describe('Overview Module Exports', () => {
         maxSampleSizeForSparsity: 100,
         privacyMode: 'minimal' as const,
         detailedProfiling: false,
+        enableCompressionAnalysis: false,
+        enableDataPreview: false,
+        previewRows: 5,
+        enableHealthChecks: false,
+        enableQuickStatistics: false,
       };
 
       expect(() => new OverviewModule.Section1Analyzer(minimalConfig)).not.toThrow();
@@ -296,6 +336,11 @@ describe('Overview Module Exports', () => {
         maxSampleSizeForSparsity: 1000,
         privacyMode: 'full' as const,
         detailedProfiling: true,
+        enableCompressionAnalysis: false,
+        enableDataPreview: false,
+        previewRows: 5,
+        enableHealthChecks: false,
+        enableQuickStatistics: false,
       };
 
       // Classes should not throw during construction
@@ -313,6 +358,11 @@ describe('Overview Module Exports', () => {
         maxSampleSizeForSparsity: 1000,
         privacyMode: 'full' as const,
         detailedProfiling: true,
+        enableCompressionAnalysis: false,
+        enableDataPreview: false,
+        previewRows: 5,
+        enableHealthChecks: false,
+        enableQuickStatistics: false,
       };
 
       const environmentProfiler = new OverviewModule.EnvironmentProfiler(config);
@@ -332,6 +382,11 @@ describe('Overview Module Exports', () => {
         maxSampleSizeForSparsity: 1000,
         privacyMode: 'full' as const,
         detailedProfiling: true,
+        enableCompressionAnalysis: false,
+        enableDataPreview: false,
+        previewRows: 5,
+        enableHealthChecks: false,
+        enableQuickStatistics: false,
       };
 
       const analyzer = new OverviewModule.Section1Analyzer();
@@ -358,6 +413,11 @@ describe('Overview Module Exports', () => {
         maxSampleSizeForSparsity: 1000,
         privacyMode: 'full' as const,
         detailedProfiling: true,
+        enableCompressionAnalysis: false,
+        enableDataPreview: false,
+        previewRows: 5,
+        enableHealthChecks: false,
+        enableQuickStatistics: false,
       };
 
       const collector = new OverviewModule.FileMetadataCollector(config);

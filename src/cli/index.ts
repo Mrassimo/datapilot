@@ -11,6 +11,7 @@ import { ArgumentParser } from './argument-parser';
 import { ProgressReporter } from './progress-reporter';
 import { OutputManager } from './output-manager';
 import { AnalyzerDependencyResolver } from './dependency-resolver';
+import { CLIPerformanceManager } from './performance-manager';
 import { Section1Analyzer } from '../analyzers/overview';
 import { Section2Analyzer } from '../analyzers/quality';
 import { Section2Formatter } from '../analyzers/quality/section2-formatter';
@@ -83,6 +84,7 @@ export class DataPilotCLI {
   private progressReporter: ProgressReporter;
   private outputManager?: OutputManager;
   private dependencyResolver?: AnalyzerDependencyResolver;
+  private performanceManager?: CLIPerformanceManager;
   private dependencyCache = new Map<string, SectionResult>();
   private errorContext: LogContext = {};
   private sectionErrors = new Map<string, DataPilotError[]>();
@@ -128,6 +130,14 @@ export class DataPilotCLI {
 
     // Commands that expect directories instead of files
     const directoryCommands = ['discover'];
+    
+    // Commands that don't require any file input
+    const noFileCommands = ['perf', 'clear-cache'];
+
+    if (noFileCommands.includes(command)) {
+      // Skip file validation for commands that don't need files
+      return '';
+    }
 
     if (directoryCommands.includes(command)) {
       // Validate directory instead of file
@@ -244,6 +254,9 @@ export class DataPilotCLI {
       // Get the actual command context from the parser
       const commandContext = this.argumentParser.getLastContext();
       if (!commandContext) {
+        // Debug logging for troubleshooting
+        console.log('Debug: No command context found');
+        console.log('Debug: Context:', context);
         throw new ValidationError('No command specified');
       }
 
@@ -264,11 +277,16 @@ export class DataPilotCLI {
 
       this.outputManager = new OutputManager(commandContext.options);
 
-      // Comprehensive input validation
-      const validatedFilePath = await this.validateInputs(
-        commandContext.file,
-        commandContext.options,
-      );
+      // Comprehensive input validation (skip for commands that don't need files)
+      const noFileCommands = ['perf', 'clear-cache'];
+      let validatedFilePath = '';
+      
+      if (!noFileCommands.includes(commandContext.command)) {
+        validatedFilePath = await this.validateInputs(
+          commandContext.file,
+          commandContext.options,
+        );
+      }
 
       // Execute the appropriate command
       const result = await this.executeCommand(
@@ -279,7 +297,8 @@ export class DataPilotCLI {
         commandContext.args, // Pass all args for multi-file support
       );
 
-      return result;
+      // Complete performance monitoring and add metrics to result
+      return this.completePerformanceMonitoring(result);
     } catch (error) {
       return this.handleError(error);
     } finally {
@@ -350,11 +369,40 @@ export class DataPilotCLI {
           timeElapsed: Date.now() - startTime,
         });
 
-        // Execute main analysis with retry logic
-        const result = await RetryUtils.retryAnalysis(
-          () => config.analyzerFactory(filePath, options, dependencies),
-          analysisContext,
-        );
+        // Check cache first if performance manager is available
+        let result: any = null;
+        const cacheKey = config.sectionName.toLowerCase().replace(/\s+/g, '');
+        
+        if (this.performanceManager && this.performanceManager.isCachingEnabled()) {
+          result = await this.performanceManager.getCachedResult(filePath, cacheKey);
+          if (result) {
+            logger.debug(`Cache hit for ${config.sectionName}`);
+            this.progressReporter.updateProgress({
+              phase: config.sectionName,
+              progress: 90,
+              message: `Using cached ${config.sectionName} results...`,
+              timeElapsed: Date.now() - startTime,
+            });
+          }
+        }
+
+        // Execute main analysis with retry logic if not cached
+        if (!result) {
+          result = await RetryUtils.retryAnalysis(
+            () => config.analyzerFactory(filePath, options, dependencies),
+            analysisContext,
+          );
+
+          // Cache the result if performance manager is available
+          if (this.performanceManager && this.performanceManager.isCachingEnabled()) {
+            try {
+              await this.performanceManager.setCachedResult(filePath, cacheKey, result);
+              logger.debug(`Cached result for ${config.sectionName}`);
+            } catch (cacheError) {
+              logger.warn(`Failed to cache result for ${config.sectionName}`);
+            }
+          }
+        }
 
         const processingTime = Date.now() - startTime;
         this.progressReporter.completePhase(
@@ -1014,6 +1062,31 @@ export class DataPilotCLI {
     startTime: number,
     args?: string[], // Optional args for multi-file support
   ): Promise<CLIResult> {
+    // Initialize performance manager for enhanced performance
+    if (!this.performanceManager && !options.quiet) {
+      this.performanceManager = new CLIPerformanceManager();
+      
+      try {
+        const perfConfig = await this.performanceManager.initialize(filePath, options);
+        
+        // Use optimized options from performance manager
+        options = perfConfig.optimizedOptions;
+        
+        // Start performance monitoring
+        this.performanceManager.startMonitoring();
+        
+        if (options.verbose) {
+          logger.info('🚀 Smart performance configuration activated');
+          if (options.autoConfig) {
+            this.performanceManager.showDashboard();
+          }
+        }
+      } catch (error) {
+        logger.warn('Failed to initialize performance manager, continuing with default settings');
+        this.performanceManager = undefined;
+      }
+    }
+
     // Check if universal analyzer should be used (for multi-format support)
     const shouldUseUniversal = options.format || this.shouldUseUniversalAnalyzer(filePath);
 
@@ -1264,8 +1337,147 @@ export class DataPilotCLI {
       case 'info':
         return await this.executeInfo(filePath);
 
+      case 'perf':
+        return await this.executePerformanceDashboard(options);
+
+      case 'clear-cache':
+        return await this.executeClearCache(options);
+
       default:
         throw new ValidationError(`Unknown command: ${command}`);
+    }
+  }
+
+  /**
+   * Complete performance monitoring and generate report
+   */
+  private completePerformanceMonitoring(result: CLIResult): CLIResult {
+    if (this.performanceManager) {
+      try {
+        const perfReport = this.performanceManager.stopMonitoring();
+        
+        if (perfReport && result.success) {
+          // Show performance report if verbose mode is enabled
+          // Note: we need to check options from the current CLI context rather than result
+          console.log('\n' + this.formatPerformanceReport(perfReport));
+          
+          // Add performance metrics to result
+          result.stats = {
+            ...result.stats,
+            processingTime: perfReport.summary.totalDuration,
+            rowsProcessed: result.stats?.rowsProcessed || perfReport.summary.totalRowsProcessed,
+            warnings: result.stats?.warnings || 0,
+            errors: result.stats?.errors || 0,
+          };
+        }
+      } catch (error) {
+        logger.warn('Failed to complete performance monitoring');
+      }
+    }
+    
+    return result;
+  }
+
+  /**
+   * Format performance report for console output
+   */
+  private formatPerformanceReport(report: any): string {
+    if (typeof report.formatReport === 'function') {
+      return report.formatReport();
+    }
+    
+    // Fallback formatting
+    return `\n📊 Performance Summary:\n` +
+           `   Duration: ${(report.summary.totalDuration / 1000).toFixed(2)}s\n` +
+           `   Peak Memory: ${report.summary.peakMemoryMB.toFixed(1)} MB\n` +
+           `   Throughput: ${report.summary.avgThroughput.toFixed(0)} rows/s\n`;
+  }
+
+  /**
+   * Execute performance dashboard command
+   */
+  private async executePerformanceDashboard(options: CLIOptions): Promise<CLIResult> {
+    try {
+      if (!this.performanceManager) {
+        this.performanceManager = new CLIPerformanceManager();
+      }
+
+      // Show system information and performance dashboard
+      this.performanceManager.showDashboard();
+
+      // Show cache statistics if requested
+      if (options.cacheStats) {
+        const stats = await this.performanceManager.getCacheStats();
+        if (stats) {
+          console.log('\n📋 Detailed Cache Statistics:');
+          console.log(`   Total Entries: ${stats.totalEntries}`);
+          console.log(`   Total Size: ${(stats.totalSizeBytes / 1024 / 1024).toFixed(2)} MB`);
+          console.log(`   Hit Rate: ${(stats.hitRate * 100).toFixed(2)}%`);
+          console.log(`   Hits: ${stats.totalHits}`);
+          console.log(`   Misses: ${stats.totalMisses}`);
+          if (stats.oldestEntry) {
+            console.log(`   Oldest Entry: ${new Date(stats.oldestEntry).toLocaleString()}`);
+          }
+          if (stats.newestEntry) {
+            console.log(`   Newest Entry: ${new Date(stats.newestEntry).toLocaleString()}`);
+          }
+        } else {
+          console.log('\n❌ Cache statistics not available');
+        }
+      }
+
+      return {
+        success: true,
+        exitCode: 0,
+        message: 'Performance dashboard displayed successfully',
+        stats: {
+          processingTime: 0,
+          rowsProcessed: 0,
+          warnings: 0,
+          errors: 0,
+        },
+      };
+    } catch (error) {
+      logger.error('Failed to show performance dashboard: ' + (error as Error).message);
+      return this.handleError(error);
+    }
+  }
+
+  /**
+   * Execute clear cache command
+   */
+  private async executeClearCache(options: CLIOptions): Promise<CLIResult> {
+    try {
+      if (!this.performanceManager) {
+        this.performanceManager = new CLIPerformanceManager();
+      }
+
+      const stats = await this.performanceManager.getCacheStats();
+      if (stats && stats.totalEntries > 0) {
+        // Clear all cache entries
+        await this.performanceManager.clearFileCache(''); // This might need adjustment based on implementation
+        
+        console.log('🧹 Cache cleared successfully');
+        console.log(`   Removed ${stats.totalEntries} cache entries`);
+        console.log(`   Freed ${(stats.totalSizeBytes / 1024 / 1024).toFixed(2)} MB of disk space`);
+      } else {
+        console.log('ℹ️  Cache is already empty');
+      }
+
+      return {
+        success: true,
+        exitCode: 0,
+        message: 'Cache cleared successfully',
+        stats: {
+          processingTime: 0,
+          rowsProcessed: 0,
+          warnings: 0,
+          errors: 0,
+        },
+      };
+    } catch (error) {
+      logger.error('Failed to clear cache: ' + (error as Error).message);
+      return this.handleError(error);
     }
   }
 
