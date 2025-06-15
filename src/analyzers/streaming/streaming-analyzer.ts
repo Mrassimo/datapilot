@@ -4,6 +4,7 @@
  */
 
 import { createReadStream } from 'fs';
+import { promises as fs } from 'fs';
 import { Transform } from 'stream';
 import { pipeline } from 'stream/promises';
 import type { LogContext } from '../../utils/logger';
@@ -28,6 +29,8 @@ import {
 import { StreamingBivariateAnalyzer, type ColumnPair } from './streaming-bivariate-analyzer';
 import { MultivariateOrchestrator } from '../multivariate/multivariate-orchestrator';
 import { EnhancedTypeDetector, type TypeDetectionResult } from './enhanced-type-detector';
+import { SmartSampler, type SamplingResult, type SamplingStrategy } from './smart-sampler';
+import type { CLIOptions } from '../../cli/types';
 import type {
   Section3Result,
   Section3EdaAnalysis,
@@ -48,6 +51,8 @@ interface StreamingAnalyzerConfig extends Section3Config {
   enableMemoryOptimization: boolean;
   enableAdaptiveStreaming: boolean;
   enableParallelProcessing: boolean;
+  // Smart sampling options (optional - injected from CLI)
+  samplingOptions?: Pick<CLIOptions, 'autoSample' | 'samplePercentage' | 'sampleRows' | 'sampleSizeBytes' | 'sampleMethod' | 'stratifyBy' | 'seed'>;
 }
 
 interface StreamingState {
@@ -58,6 +63,9 @@ interface StreamingState {
   startTime: number;
   currentChunkSize: number;
   hasSkippedHeader: boolean;
+  // Smart sampling state
+  samplingEnabled: boolean;
+  samplingResult?: SamplingResult;
 }
 
 /**
@@ -73,6 +81,9 @@ export class StreamingAnalyzer {
   private columnAnalyzers = new Map<string, StreamingColumnAnalyzer>();
   private bivariateAnalyzer: StreamingBivariateAnalyzer;
 
+  // Smart sampling
+  private smartSampler?: SmartSampler;
+
   // Metadata
   private headers: string[] = [];
   private detectedTypes: EdaDataType[] = [];
@@ -84,6 +95,19 @@ export class StreamingAnalyzer {
   // Data collection for multivariate analysis (when enabled)
   private collectedData: (string | number | null | undefined)[][] = [];
   private maxCollectedRows: number;
+
+  /**
+   * Create a StreamingAnalyzer with smart sampling options from CLI
+   */
+  static withSamplingOptions(
+    config: Partial<StreamingAnalyzerConfig> = {},
+    samplingOptions?: Pick<CLIOptions, 'autoSample' | 'samplePercentage' | 'sampleRows' | 'sampleSizeBytes' | 'sampleMethod' | 'stratifyBy' | 'seed'>,
+  ): StreamingAnalyzer {
+    return new StreamingAnalyzer({
+      ...config,
+      samplingOptions,
+    });
+  }
 
   constructor(config: Partial<StreamingAnalyzerConfig> = {}) {
     const configManager = getConfig();
@@ -126,6 +150,7 @@ export class StreamingAnalyzer {
       startTime: 0,
       currentChunkSize: this.config.chunkSize,
       hasSkippedHeader: false,
+      samplingEnabled: false,
     };
 
     this.bivariateAnalyzer = new StreamingBivariateAnalyzer(this.config.maxCorrelationPairs);
@@ -138,6 +163,52 @@ export class StreamingAnalyzer {
 
   setProgressCallback(callback: (progress: Section3Progress) => void): void {
     this.progressCallback = callback;
+  }
+
+  /**
+   * Initialize smart sampling if conditions are met
+   */
+  private initializeSmartSampling(filePath: string, fileSize: number): void {
+    const samplingOptions = this.config.samplingOptions;
+    if (!samplingOptions) return;
+
+    const shouldSample = SmartSampler.shouldEnableSampling(fileSize, samplingOptions);
+    if (shouldSample) {
+      this.state.samplingEnabled = true;
+      
+      // Create default options for any missing required fields
+      const defaultSamplingOptions = {
+        autoSample: false,
+        samplePercentage: undefined,
+        sampleRows: undefined,
+        sampleSizeBytes: undefined,
+        sampleMethod: 'random' as const,
+        stratifyBy: undefined,
+        seed: undefined,
+        ...samplingOptions,
+      };
+
+      this.smartSampler = new SmartSampler(
+        defaultSamplingOptions as Required<typeof defaultSamplingOptions>,
+        fileSize,
+        {
+          section: 'eda',
+          analyzer: 'StreamingAnalyzer',
+          operation: 'smart-sampling',
+          filePath,
+        },
+      );
+
+      logger.info(
+        `Smart sampling enabled for ${this.formatBytes(fileSize)} file`,
+        {
+          section: 'eda',
+          analyzer: 'StreamingAnalyzer',
+          operation: 'initializeSmartSampling',
+          filePath,
+        },
+      );
+    }
   }
 
   /**
@@ -183,6 +254,14 @@ export class StreamingAnalyzer {
 
     logger.info('Starting streaming analysis of file', context);
     this.state.startTime = Date.now();
+
+    // Initialize smart sampling if configured
+    try {
+      const fileStats = await fs.stat(filePath);
+      this.initializeSmartSampling(filePath, fileStats.size);
+    } catch (error) {
+      logger.warn('Could not determine file size for sampling decisions', context, error);
+    }
 
     // Initialize memory optimizer if enabled
     if (this.config.enableMemoryOptimization) {
@@ -311,25 +390,15 @@ export class StreamingAnalyzer {
   private async firstPass(parser: CSVParser, filePath: string): Promise<void> {
     this.reportProgress('initialization', 25, 'Detecting data types...');
 
-    let sampleRowCount = 0;
-    const maxSampleRows = 1000;
-    const sampleData: ParsedRow[] = [];
+    let sampleData: ParsedRow[];
 
-    const sampleStream = new Transform({
-      objectMode: true,
-      transform(chunk: ParsedRow, _encoding, callback) {
-        if (sampleRowCount < maxSampleRows) {
-          sampleData.push(chunk);
-          sampleRowCount++;
-        }
-        callback();
-      },
-    });
-
-    const readStream = createReadStream(filePath);
-    const parseStream = parser.createStream();
-
-    await pipeline(readStream, parseStream, sampleStream);
+    if (this.state.samplingEnabled && this.smartSampler) {
+      // Use smart sampling for data collection
+      sampleData = await this.collectSmartSample(parser, filePath);
+    } else {
+      // Use traditional fixed sampling
+      sampleData = await this.collectFixedSample(parser, filePath);
+    }
 
     if (sampleData.length === 0) {
       throw new Error('No data found in file');
@@ -355,6 +424,96 @@ export class StreamingAnalyzer {
     this.initializeBivariateAnalysis();
 
     this.reportProgress('initialization', 100, 'Initialization complete');
+  }
+
+  /**
+   * Collect sample data using smart sampling
+   */
+  private async collectSmartSample(parser: CSVParser, filePath: string): Promise<ParsedRow[]> {
+    if (!this.smartSampler) {
+      throw new Error('Smart sampler not initialized');
+    }
+
+    // First, collect all data (or a reasonable subset for very large files)
+    const allData: ParsedRow[] = [];
+    let rowCount = 0;
+    const maxInitialSample = 100000; // Limit initial collection to prevent memory issues
+
+    const dataStream = new Transform({
+      objectMode: true,
+      transform(chunk: ParsedRow, _encoding, callback) {
+        if (rowCount < maxInitialSample) {
+          allData.push(chunk);
+          rowCount++;
+        }
+        callback();
+      },
+    });
+
+    const readStream = createReadStream(filePath);
+    const parseStream = parser.createStream();
+
+    await pipeline(readStream, parseStream, dataStream);
+
+    // Get preliminary headers for sampling strategy calculation
+    const preliminaryHeaders = this.extractHeaders(allData.slice(0, 10), parser);
+    const estimatedRowCount = Math.max(allData.length, rowCount);
+
+    // Calculate sampling strategy
+    const strategy = this.smartSampler.calculateSamplingStrategy(estimatedRowCount, preliminaryHeaders);
+
+    // Perform sampling
+    const samplingResult = await this.smartSampler.performSampling(allData, strategy, preliminaryHeaders);
+    
+    // Store sampling result for reporting
+    this.state.samplingResult = samplingResult;
+
+    // Add sampling notice to warnings
+    this.warnings.push({
+      category: 'data',
+      severity: 'medium',
+      message: 'Smart sampling was applied to this dataset for efficient processing',
+      suggestion: samplingResult.warnings.join('; ') || 'Use --seed option for reproducible sampling',
+    });
+
+    logger.info(
+      `Smart sampling completed: ${samplingResult.sampledRowCount} samples from ${samplingResult.originalRowCount} rows using ${samplingResult.strategy.name} method`,
+      {
+        section: 'eda',
+        analyzer: 'StreamingAnalyzer',
+        operation: 'collectSmartSample',
+        filePath,
+      },
+    );
+
+    return samplingResult.samples;
+  }
+
+  /**
+   * Collect sample data using traditional fixed sampling
+   */
+  private async collectFixedSample(parser: CSVParser, filePath: string): Promise<ParsedRow[]> {
+    let sampleRowCount = 0;
+    const maxSampleRows = 1000;
+    const sampleData: ParsedRow[] = [];
+
+    const sampleStream = new Transform({
+      objectMode: true,
+      transform(chunk: ParsedRow, _encoding, callback) {
+        if (sampleRowCount < maxSampleRows) {
+          sampleData.push(chunk);
+          sampleRowCount++;
+        }
+        callback();
+      },
+    });
+
+    const readStream = createReadStream(filePath);
+    const parseStream = parser.createStream();
+
+    await pipeline(readStream, parseStream, sampleStream);
+
+    return sampleData;
   }
 
   /**
@@ -743,10 +902,12 @@ export class StreamingAnalyzer {
         memoryEfficiency: `Constant ~${this.state.peakMemoryMB}MB usage`,
       },
       metadata: {
-        analysisApproach: 'Streaming with online algorithms',
+        analysisApproach: this.state.samplingEnabled 
+          ? 'Streaming with smart sampling and online algorithms' 
+          : 'Streaming with online algorithms',
         datasetSize: this.state.rowsProcessed,
         columnsAnalyzed: this.headers.length,
-        samplingApplied: this.state.rowsProcessed >= this.config.maxRowsAnalyzed,
+        samplingApplied: this.state.samplingEnabled || this.state.rowsProcessed >= this.config.maxRowsAnalyzed,
       },
     };
   }
@@ -1137,5 +1298,17 @@ export async function analyzeFileStreaming(
   config: Partial<StreamingAnalyzerConfig> = {},
 ): Promise<Section3Result> {
   const analyzer = new StreamingAnalyzer(config);
+  return analyzer.analyzeFile(filePath);
+}
+
+/**
+ * Convenience function to analyze a file using streaming approach with smart sampling
+ */
+export async function analyzeFileStreamingWithSampling(
+  filePath: string,
+  samplingOptions: Pick<CLIOptions, 'autoSample' | 'samplePercentage' | 'sampleRows' | 'sampleSizeBytes' | 'sampleMethod' | 'stratifyBy' | 'seed'>,
+  config: Partial<StreamingAnalyzerConfig> = {},
+): Promise<Section3Result> {
+  const analyzer = StreamingAnalyzer.withSamplingOptions(config, samplingOptions);
   return analyzer.analyzeFile(filePath);
 }

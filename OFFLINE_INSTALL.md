@@ -1,10 +1,10 @@
 # DataPilot CLI - Offline Installation Guide
 
-This guide provides instructions for installing DataPilot CLI v1.3.1 in environments without internet access.
+This guide provides instructions for installing DataPilot CLI v1.4.0 in environments without internet access.
 
 ## 📦 Package Overview
 
-DataPilot CLI v1.3.1 includes:
+DataPilot CLI v1.4.0 includes:
 - **Universal Format Support**: CSV, JSON, Excel, TSV, Parquet, JSONL
 - **Multi-File Join Analysis**: Intelligent relationship detection across datasets  
 - **6-Section Analysis Pipeline**: Overview → Quality → EDA → Visualization → Engineering → Modeling
@@ -17,11 +17,11 @@ DataPilot CLI v1.3.1 includes:
 ```bash
 # Copy the package file to your offline machine
 # Install globally from the .tgz package
-npm install -g datapilot-cli-1.3.1.tgz
+npm install -g datapilot-cli-1.4.0.tgz
 
 # Verify installation
 datapilot --version
-# Should output: 1.3.1
+# Should output: 1.4.0
 
 # Test basic functionality
 datapilot --help
@@ -31,7 +31,7 @@ datapilot --help
 
 ```bash
 # Extract the package
-tar -xzf datapilot-cli-1.3.1.tgz
+tar -xzf datapilot-cli-1.4.0.tgz
 
 # Navigate to extracted directory
 cd package/
@@ -51,7 +51,7 @@ npm link
 ```bash
 # Extract to a specific directory
 mkdir datapilot-offline
-tar -xzf datapilot-cli-1.3.1.tgz -C datapilot-offline
+tar -xzf datapilot-cli-1.4.0.tgz -C datapilot-offline
 
 cd datapilot-offline/package/
 
@@ -169,7 +169,7 @@ $(npm config get prefix)/bin/datapilot --version
 chmod +x $(npm config get prefix)/bin/datapilot
 
 # Or use sudo for global install
-sudo npm install -g datapilot-cli-1.3.1.tgz
+sudo npm install -g datapilot-cli-1.4.0.tgz
 ```
 
 **Memory Issues with Large Files**
@@ -213,7 +213,7 @@ datapilot info /dev/null 2>/dev/null || echo "Installation verified"
 
 ## 📝 Package Information
 
-- **Version**: 1.3.1
+- **Version**: 1.4.0
 - **Package Size**: ~50MB (includes all dependencies)
 - **Node.js Requirement**: 16+ (bundled dependencies compatible)
 - **Platform Support**: Windows, macOS, Linux
@@ -229,4 +229,4 @@ For additional support in offline environments:
 
 ---
 
-**DataPilot CLI v1.3.1** - Complete data analysis capabilities, fully functional offline. 🚁📊
+**DataPilot CLI v1.4.0** - Complete data analysis capabilities, fully functional offline. 🚁📊

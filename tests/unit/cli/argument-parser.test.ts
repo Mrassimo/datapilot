@@ -242,7 +242,7 @@ describe('ArgumentParser', () => {
         
         validFormats.forEach(format => {
           const options = parser as any;
-          const result = options.validateOptions({ output: format });
+          const result = options.validateOptions({ format: format });
           expect(result.output).toBe(format);
         });
       });
@@ -251,7 +251,7 @@ describe('ArgumentParser', () => {
         const options = parser as any;
         
         expect(() => {
-          options.validateOptions({ output: 'invalid' });
+          options.validateOptions({ format: 'invalid' });
         }).toThrow(ValidationError);
       });
     });
@@ -412,7 +412,7 @@ describe('ArgumentParser', () => {
         mockPath.resolve.mockReturnValue('/resolved/path/output.txt');
         
         const options = parser as any;
-        const result = options.validateOptions({ outputFile: 'output.txt' });
+        const result = options.validateOptions({ output: 'output.txt' });
         
         expect(result.outputFile).toBe('/resolved/path/output.txt');
         expect(mockPath.resolve).toHaveBeenCalledWith('output.txt');
@@ -574,7 +574,7 @@ describe('ArgumentParser', () => {
       const mockProgram = parser as any;
       mockProgram.program._lastContext = {
         command: 'test',
-        options: { output: 'json' },
+        options: { format: 'json' },
       };
       mockProgram.program.opts = () => ({ verbose: true });
       

@@ -158,14 +158,14 @@ export class AdaptiveStreamer extends EventEmitter {
 
         // Determine optimal chunk size
         const optimalChunkSize = this.calculateOptimalChunkSize(session, chunkIndex);
-        const actualChunkSize = Math.min(optimalChunkSize, session.fileSize - currentPosition);
+        const actualChunkSize = Math.floor(Math.min(optimalChunkSize, session.fileSize - currentPosition));
 
         // Get buffer from memory optimizer
         const buffer = this.memoryOptimizer.getBuffer(actualChunkSize);
 
         try {
-          // Read chunk
-          const readResult = await fileHandle.read(buffer, 0, actualChunkSize, currentPosition);
+          // Read chunk - ensure position is an integer for Windows compatibility
+          const readResult = await fileHandle.read(buffer, 0, actualChunkSize, Math.floor(currentPosition));
           const chunk = buffer.subarray(0, readResult.bytesRead);
 
           // Process chunk
@@ -233,10 +233,10 @@ export class AdaptiveStreamer extends EventEmitter {
 
       if (performanceRatio < 0.5) {
         // Performance is poor - reduce chunk size for better parallelization
-        baseSize = Math.max(this.options.minChunkSize, baseSize * 0.7);
+        baseSize = Math.max(this.options.minChunkSize, Math.floor(baseSize * 0.7));
       } else if (performanceRatio > 1.5 && memoryRecommendation.memoryPressure < 0.6) {
         // Performance is good and memory is available - can increase chunk size
-        baseSize = Math.min(this.options.maxChunkSize, baseSize * 1.3);
+        baseSize = Math.min(this.options.maxChunkSize, Math.floor(baseSize * 1.3));
       }
     }
 
@@ -313,16 +313,16 @@ export class AdaptiveStreamer extends EventEmitter {
         // Performance is significantly below target
         if (memoryPressure < 0.5) {
           // Try larger chunks for better throughput
-          newChunkSize = Math.min(this.options.maxChunkSize, session.adaptiveChunkSize * 1.4);
+          newChunkSize = Math.min(this.options.maxChunkSize, Math.floor(session.adaptiveChunkSize * 1.4));
           adaptationReason = 'Low performance, increasing chunk size';
         } else {
           // Memory pressure is high, reduce chunk size
-          newChunkSize = Math.max(this.options.minChunkSize, session.adaptiveChunkSize * 0.8);
+          newChunkSize = Math.max(this.options.minChunkSize, Math.floor(session.adaptiveChunkSize * 0.8));
           adaptationReason = 'Low performance with memory pressure, reducing chunk size';
         }
       } else if (performanceRatio > 1.5 && memoryPressure < 0.3) {
         // Performance is good, memory is available - optimize for efficiency
-        newChunkSize = Math.min(this.options.maxChunkSize, session.adaptiveChunkSize * 1.2);
+        newChunkSize = Math.min(this.options.maxChunkSize, Math.floor(session.adaptiveChunkSize * 1.2));
         adaptationReason = 'Good performance, optimizing chunk size';
       }
     }
@@ -330,7 +330,7 @@ export class AdaptiveStreamer extends EventEmitter {
     // Memory pressure adaptation
     if (memoryPressure > this.options.memoryPressureThreshold) {
       const pressureReduction = Math.max(0.5, 1 - memoryPressure);
-      newChunkSize = Math.max(this.options.minChunkSize, newChunkSize * pressureReduction);
+      newChunkSize = Math.max(this.options.minChunkSize, Math.floor(newChunkSize * pressureReduction));
       adaptationReason = `Memory pressure adaptation (${(memoryPressure * 100).toFixed(1)}%)`;
     }
 
@@ -373,7 +373,7 @@ export class AdaptiveStreamer extends EventEmitter {
       const oldSize = session.adaptiveChunkSize;
       session.adaptiveChunkSize = Math.max(
         this.options.minChunkSize,
-        session.adaptiveChunkSize * reductionFactor,
+        Math.floor(session.adaptiveChunkSize * reductionFactor),
       );
 
       if (session.adaptiveChunkSize !== oldSize) {

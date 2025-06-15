@@ -75,6 +75,15 @@ export interface CLIOptions {
   dryRun?: boolean;
   showProgress?: boolean;
 
+  // Smart sampling options
+  autoSample?: boolean;
+  samplePercentage?: number;
+  sampleRows?: number;
+  sampleSizeBytes?: number;
+  sampleMethod?: 'random' | 'stratified' | 'systematic' | 'head';
+  stratifyBy?: string;
+  seed?: number;
+
   // Join analysis options
   confidence?: number;
   command?: string;

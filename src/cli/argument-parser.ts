@@ -126,8 +126,8 @@ Use --verbose for detailed confidence explanations in reports.`,
       .command('all')
       .argument('<file>', 'CSV file to analyze')
       .description('Run complete analysis on a CSV file (all sections)')
-      .option('-o, --output <format>', 'Output format (txt, markdown, json, yaml)', 'markdown')
-      .option('--output-file <file>', 'Write output to file instead of stdout')
+      .option('-f, --format <format>', 'Output format (txt, markdown, json, yaml)', 'markdown')
+      .option('-o, --output <file>', 'Write output to file instead of stdout')
       .option('--delimiter <char>', 'Specify delimiter character (e.g., ";" for semicolon)')
       .option('--max-rows <number>', 'Maximum rows to process', this.parseInteger)
       .option('--no-hashing', 'Disable file hashing for faster processing')
@@ -140,6 +140,14 @@ Use --verbose for detailed confidence explanations in reports.`,
       .option('--no-health-checks', 'Disable file health checks')
       .option('--no-quick-stats', 'Disable quick column statistics')
       .option('--no-data-preview', 'Disable data preview generation')
+      // Smart sampling options
+      .option('--auto-sample', 'Enable automatic sampling for large files (>1GB)')
+      .option('--sample <percentage>', 'Sample percentage (e.g., "10%" or "0.1")')
+      .option('--sample-rows <number>', 'Sample specific number of rows', this.parseInteger)
+      .option('--sample-size <size>', 'Sample by file size (e.g., "100MB")')
+      .option('--sample-method <method>', 'Sampling method (random, stratified, systematic, head)', 'random')
+      .option('--stratify-by <column>', 'Column name for stratified sampling')
+      .option('--seed <number>', 'Random seed for reproducible sampling', this.parseInteger)
       .action(this.createCommandHandler('all'));
 
     // Section-specific commands
@@ -148,8 +156,8 @@ Use --verbose for detailed confidence explanations in reports.`,
       .alias('ove')
       .argument('<file>', 'CSV file to analyze')
       .description('Generate dataset overview (Section 1 only)')
-      .option('-o, --output <format>', 'Output format (txt, markdown, json, yaml)', 'markdown')
-      .option('--output-file <file>', 'Write output to file instead of stdout')
+      .option('-f, --format <format>', 'Output format (txt, markdown, json, yaml)', 'markdown')
+      .option('-o, --output <file>', 'Write output to file instead of stdout')
       .option('--delimiter <char>', 'Specify delimiter character (e.g., ";" for semicolon)')
       .option('--no-hashing', 'Disable file hashing for faster processing')
       .option('--privacy <mode>', 'Privacy mode (full, redacted, minimal)', 'redacted')
@@ -166,8 +174,8 @@ Use --verbose for detailed confidence explanations in reports.`,
       .alias('qua')
       .argument('<file>', 'CSV file to analyze')
       .description('Run data quality audit (Section 2)')
-      .option('-o, --output <format>', 'Output format (txt, markdown, json, yaml)', 'markdown')
-      .option('--output-file <file>', 'Write output to file instead of stdout')
+      .option('-f, --format <format>', 'Output format (txt, markdown, json, yaml)', 'markdown')
+      .option('-o, --output <file>', 'Write output to file instead of stdout')
       .option('--delimiter <char>', 'Specify delimiter character (e.g., ";" for semicolon)')
       .option('--max-rows <number>', 'Maximum rows to process', this.parseInteger)
       .option('--strict', 'Enable strict quality checking mode')
@@ -177,12 +185,20 @@ Use --verbose for detailed confidence explanations in reports.`,
       .command('eda')
       .argument('<file>', 'CSV file to analyze')
       .description('Perform exploratory data analysis (Section 3)')
-      .option('-o, --output <format>', 'Output format (txt, markdown, json, yaml)', 'markdown')
-      .option('--output-file <file>', 'Write output to file instead of stdout')
+      .option('-f, --format <format>', 'Output format (txt, markdown, json, yaml)', 'markdown')
+      .option('-o, --output <file>', 'Write output to file instead of stdout')
       .option('--delimiter <char>', 'Specify delimiter character (e.g., ";" for semicolon)')
       .option('--max-rows <number>', 'Maximum rows to analyze', this.parseInteger)
       .option('--chunk-size <number>', 'Chunk size for streaming processing', this.parseInteger)
       .option('--memory-limit <mb>', 'Memory limit in MB', this.parseInteger)
+      // Smart sampling options
+      .option('--auto-sample', 'Enable automatic sampling for large files (>1GB)')
+      .option('--sample <percentage>', 'Sample percentage (e.g., "10%" or "0.1")')
+      .option('--sample-rows <number>', 'Sample specific number of rows', this.parseInteger)
+      .option('--sample-size <size>', 'Sample by file size (e.g., "100MB")')
+      .option('--sample-method <method>', 'Sampling method (random, stratified, systematic, head)', 'random')
+      .option('--stratify-by <column>', 'Column name for stratified sampling')
+      .option('--seed <number>', 'Random seed for reproducible sampling', this.parseInteger)
       .action(this.createCommandHandler('eda'));
 
     this.program
@@ -190,8 +206,8 @@ Use --verbose for detailed confidence explanations in reports.`,
       .alias('vis')
       .argument('<file>', 'CSV file to analyze')
       .description('Generate visualization recommendations (Section 4)')
-      .option('-o, --output <format>', 'Output format (txt, markdown, json, yaml)', 'markdown')
-      .option('--output-file <file>', 'Write output to file instead of stdout')
+      .option('-f, --format <format>', 'Output format (txt, markdown, json, yaml)', 'markdown')
+      .option('-o, --output <file>', 'Write output to file instead of stdout')
       .option('--accessibility <level>', 'Accessibility level (excellent, good, adequate)', 'good')
       .option(
         '--complexity <level>',
@@ -211,7 +227,8 @@ Use --verbose for detailed confidence explanations in reports.`,
       .alias('eng')
       .argument('<files...>', 'CSV file(s) to analyze - single file for schema analysis, multiple files for join analysis')
       .description('Provide data engineering insights (Section 5) - supports multi-file join analysis')
-      .option('-o, --output <format>', 'Output format', 'markdown')
+      .option('-f, --format <format>', 'Output format (txt, markdown, json, yaml)', 'markdown')
+      .option('-o, --output <file>', 'Write output to file instead of stdout')
       .option('--confidence <threshold>', 'Join confidence threshold (0-1)', this.parseFloat, 0.7)
       .action(this.createJoinCommandHandler('engineering'));
 
@@ -220,7 +237,8 @@ Use --verbose for detailed confidence explanations in reports.`,
       .alias('mod')
       .argument('<file>', 'CSV file to analyze')
       .description('Generate predictive modeling guidance (Section 6)')
-      .option('-o, --output <format>', 'Output format', 'markdown')
+      .option('-f, --format <format>', 'Output format (txt, markdown, json, yaml)', 'markdown')
+      .option('-o, --output <file>', 'Write output to file instead of stdout')
       .action(this.createCommandHandler('modeling'));
 
     // Join Analysis Commands
@@ -228,8 +246,8 @@ Use --verbose for detailed confidence explanations in reports.`,
       .command('join')
       .argument('<files...>', 'CSV files to analyze for join relationships')
       .description('Analyze join relationships between multiple CSV files')
-      .option('-o, --output <format>', 'Output format (txt, markdown, json, yaml)', 'markdown')
-      .option('--output-file <file>', 'Write output to file instead of stdout')
+      .option('-f, --format <format>', 'Output format (txt, markdown, json, yaml)', 'markdown')
+      .option('-o, --output <file>', 'Write output to file instead of stdout')
       .option('--confidence <threshold>', 'Minimum confidence threshold (0-1)', this.parseFloat, 0.7)
       .option('--max-tables <number>', 'Maximum number of tables to analyze', this.parseInteger, 10)
       .option('--enable-fuzzy', 'Enable fuzzy matching for column names')
@@ -242,8 +260,8 @@ Use --verbose for detailed confidence explanations in reports.`,
       .command('discover')
       .argument('<directory>', 'Directory containing CSV files to discover relationships')
       .description('Auto-discover join relationships in a directory of CSV files')
-      .option('-o, --output <format>', 'Output format (txt, markdown, json, yaml)', 'markdown')
-      .option('--output-file <file>', 'Write output to file instead of stdout')
+      .option('-f, --format <format>', 'Output format (txt, markdown, json, yaml)', 'markdown')
+      .option('-o, --output <file>', 'Write output to file instead of stdout')
       .option('--pattern <glob>', 'File pattern to match (e.g., "*.csv")', '*.csv')
       .option('--confidence <threshold>', 'Minimum confidence threshold (0-1)', this.parseFloat, 0.7)
       .option('--recursive', 'Search subdirectories recursively')
@@ -262,8 +280,8 @@ Use --verbose for detailed confidence explanations in reports.`,
       .command('optimize-joins')
       .argument('<files...>', 'CSV files to optimize for joining')
       .description('Analyze and recommend join optimizations')
-      .option('-o, --output <format>', 'Output format (txt, markdown, json, yaml)', 'markdown')
-      .option('--output-file <file>', 'Write output to file instead of stdout')
+      .option('-f, --format <format>', 'Output format (txt, markdown, json, yaml)', 'markdown')
+      .option('-o, --output <file>', 'Write output to file instead of stdout')
       .option('--include-sql', 'Generate SQL optimization suggestions')
       .option('--include-indexing', 'Include indexing recommendations')
       .action(this.createJoinCommandHandler('optimize-joins'));
@@ -375,15 +393,15 @@ Use --verbose for detailed confidence explanations in reports.`,
     const options: CLIOptions = {};
 
     // Output options
-    if (rawOptions.output) {
-      if (!['txt', 'markdown', 'json', 'yaml'].includes(rawOptions.output as string)) {
+    if (rawOptions.format) {
+      if (!['txt', 'markdown', 'json', 'yaml'].includes(rawOptions.format as string)) {
         throw new ValidationError('Output format must be one of: txt, markdown, json, yaml');
       }
-      options.output = rawOptions.output as 'txt' | 'markdown' | 'json' | 'yaml';
+      options.output = rawOptions.format as 'txt' | 'markdown' | 'json' | 'yaml';
     }
 
-    if (rawOptions.outputFile) {
-      options.outputFile = resolve(rawOptions.outputFile as string);
+    if (rawOptions.output) {
+      options.outputFile = resolve(rawOptions.output as string);
     }
 
     // Verbosity options
@@ -465,6 +483,63 @@ Use --verbose for detailed confidence explanations in reports.`,
     options.streamingOptimizations = Boolean(rawOptions.streaming);
     options.progressiveReporting = Boolean(rawOptions.progressive);
 
+    // Sampling options
+    options.autoSample = Boolean(rawOptions.autoSample);
+    
+    if (rawOptions.sample !== undefined) {
+      const sampleStr = rawOptions.sample as string;
+      if (sampleStr.endsWith('%')) {
+        const percentage = parseFloat(sampleStr.slice(0, -1));
+        if (percentage <= 0 || percentage > 100) {
+          throw new ValidationError('Sample percentage must be between 0 and 100');
+        }
+        options.samplePercentage = percentage / 100;
+      } else {
+        const ratio = parseFloat(sampleStr);
+        if (ratio <= 0 || ratio > 1) {
+          throw new ValidationError('Sample ratio must be between 0 and 1');
+        }
+        options.samplePercentage = ratio;
+      }
+    }
+
+    if (rawOptions.sampleRows !== undefined) {
+      const sampleRows = Number(rawOptions.sampleRows);
+      if (sampleRows <= 0) {
+        throw new ValidationError('Sample rows must be a positive number');
+      }
+      options.sampleRows = sampleRows;
+    }
+
+    if (rawOptions.sampleSize !== undefined) {
+      const sampleSize = rawOptions.sampleSize as string;
+      const sizeBytes = this.parseSizeToBytes(sampleSize);
+      if (sizeBytes <= 0) {
+        throw new ValidationError('Sample size must be a positive value (e.g., "100MB", "1GB")');
+      }
+      options.sampleSizeBytes = sizeBytes;
+    }
+
+    if (rawOptions.sampleMethod !== undefined) {
+      const validMethods = ['random', 'stratified', 'systematic', 'head'];
+      if (!validMethods.includes(rawOptions.sampleMethod as string)) {
+        throw new ValidationError(`Sample method must be one of: ${validMethods.join(', ')}`);
+      }
+      options.sampleMethod = rawOptions.sampleMethod as 'random' | 'stratified' | 'systematic' | 'head';
+    }
+
+    if (rawOptions.stratifyBy !== undefined) {
+      options.stratifyBy = rawOptions.stratifyBy as string;
+    }
+
+    if (rawOptions.seed !== undefined) {
+      const seed = Number(rawOptions.seed);
+      if (!Number.isInteger(seed) || seed < 0) {
+        throw new ValidationError('Seed must be a non-negative integer');
+      }
+      options.seed = seed;
+    }
+
     // Behaviour options
     options.force = Boolean(rawOptions.force);
     options.dryRun = Boolean(rawOptions.dryRun);
@@ -525,6 +600,29 @@ Use --verbose for detailed confidence explanations in reports.`,
       throw new ValidationError(`Invalid number: ${value}`);
     }
     return parsed;
+  }
+
+  /**
+   * Parse file size string to bytes (e.g., "100MB" -> 104857600)
+   */
+  private parseSizeToBytes(sizeStr: string): number {
+    const units: Record<string, number> = {
+      'B': 1,
+      'KB': 1024,
+      'MB': 1024 * 1024,
+      'GB': 1024 * 1024 * 1024,
+      'TB': 1024 * 1024 * 1024 * 1024,
+    };
+
+    const match = sizeStr.match(/^(\d+(?:\.\d+)?)\s*(B|KB|MB|GB|TB)$/i);
+    if (!match) {
+      throw new ValidationError(`Invalid size format: ${sizeStr}. Use format like "100MB", "1.5GB"`);
+    }
+
+    const value = parseFloat(match[1]);
+    const unit = match[2].toUpperCase();
+    
+    return Math.floor(value * units[unit]);
   }
 
   /**
