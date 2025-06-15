@@ -91,6 +91,16 @@ test_*.txt
 /relationships.txt
 /*_datapilot_*
 
+# DataPilot output files (prevent pollution)
+*_datapilot_*.md
+*_datapilot_*.json
+*_datapilot_*.yaml
+*_datapilot_*.txt
+test-output*.md
+test-output*.json
+test-output*.yaml
+engineering-test-results*
+
 # Keep essential project files
 !package.json
 !package-lock.json

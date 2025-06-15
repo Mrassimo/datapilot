@@ -609,7 +609,13 @@ export class SecurityConfigManager {
     const result = JSON.parse(JSON.stringify(target));
 
     const merge = (targetObj: any, sourceObj: any): void => {
-      for (const key in sourceObj) {
+      // Use Object.keys() instead of for...in to avoid inherited properties
+      for (const key of Object.keys(sourceObj)) {
+        // Explicitly check for prototype pollution attempts
+        if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
+          continue; // Skip dangerous property names
+        }
+        
         if (
           sourceObj[key] &&
           typeof sourceObj[key] === 'object' &&
@@ -618,6 +624,7 @@ export class SecurityConfigManager {
           if (!targetObj[key]) targetObj[key] = {};
           merge(targetObj[key], sourceObj[key]);
         } else {
+          // Safe assignment - key is guaranteed to be a safe property name
           targetObj[key] = sourceObj[key];
         }
       }

@@ -10,7 +10,7 @@ import { Transform, Readable } from 'stream';
 import { DataPilotError, ErrorSeverity } from '../core/types';
 import type { LogContext } from '../utils/logger';
 import { logger } from '../utils/logger';
-import { getInputValidator } from './input-validator';
+import { InputValidator } from '../utils/input-validator';
 
 export interface FileAccessPolicy {
   /** Allowed operations for this path */
@@ -96,8 +96,7 @@ export class FileAccessController {
   ): Promise<SecureFileHandle> {
     try {
       // Validate input using security validator
-      const validator = getInputValidator();
-      const validation = validator.validateFilePath(filePath);
+      const validation = await InputValidator.validateFilePath(filePath);
       
       if (!validation.isValid) {
         throw validation.errors[0] || new DataPilotError(
@@ -560,14 +559,30 @@ export class FileAccessController {
   }
 
   private detectSuspiciousContent(chunk: Buffer): boolean {
-    const content = chunk.toString('utf8', 0, Math.min(chunk.length, 1024));
+    // Check larger portion of content for security
+    const content = chunk.toString('utf8', 0, Math.min(chunk.length, 4096));
     
-    // Check for suspicious patterns
+    // Comprehensive security patterns to detect malicious content
     const suspiciousPatterns = [
       /\x00{10,}/, // Many null bytes
-      /<script[^>]*>.*?<\/script>/gi, // Script tags
-      /javascript:/gi, // JavaScript protocol
-      /data:text\/html/gi, // HTML data URLs
+      // More robust script detection patterns
+      /<script[\s\S]*?>/gi, // Script opening tags (including self-closing)
+      /<\/script>/gi, // Script closing tags
+      /<(iframe|object|embed|applet|form)[\s\S]*?>/gi, // Dangerous HTML elements
+      // Event handlers
+      /\bon\w+\s*=\s*["']?[\s\S]*?["']?/gi,
+      // Dangerous protocols
+      /javascript\s*:/gi,
+      /vbscript\s*:/gi,
+      // Data URLs with executable content
+      /data\s*:\s*text\s*\/\s*(html|javascript)/gi,
+      /data\s*:\s*application\s*\/\s*javascript/gi,
+      // Template injection patterns
+      /\$\{[\s\S]*?\}/g,
+      /\{\{[\s\S]*?\}\}/g,
+      // Server-side includes
+      /<%[\s\S]*?%>/g,
+      /<\?[\s\S]*?\?>/g,
     ];
     
     return suspiciousPatterns.some(pattern => pattern.test(content));

@@ -95,6 +95,9 @@ export class AdaptiveStreamer extends EventEmitter {
    * Create a new streaming session
    */
   async createSession(filePath: string): Promise<string> {
+    // Using Math.random() is acceptable here as session IDs are used only for
+    // internal performance tracking and session management, not for security purposes.
+    // These IDs don't control access to sensitive resources or authentication.
     const sessionId = `stream-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
     try {

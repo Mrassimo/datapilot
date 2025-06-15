@@ -866,6 +866,18 @@ export class JsonOptimizer extends EventEmitter {
     const parts = path.split('.');
     let current = obj;
     
+    // Validate all path parts to prevent prototype pollution
+    for (const part of parts) {
+      if (part === '__proto__' || part === 'constructor' || part === 'prototype') {
+        throw new DataPilotError(
+          `Prototype pollution attempt detected in property path: ${path}`,
+          'PROTOTYPE_POLLUTION_DETECTED',
+          ErrorSeverity.HIGH,
+          ErrorCategory.SECURITY
+        );
+      }
+    }
+    
     for (let i = 0; i < parts.length - 1; i++) {
       const part = parts[i];
       if (!current[part] || typeof current[part] !== 'object') {
@@ -874,7 +886,9 @@ export class JsonOptimizer extends EventEmitter {
       current = current[part];
     }
     
-    current[parts[parts.length - 1]] = value;
+    const finalKey = parts[parts.length - 1];
+    // Final assignment is now safe since we've validated all path parts
+    current[finalKey] = value;
   }
 
   /**

@@ -53,7 +53,14 @@ export class InputValidator {
   private static readonly SECURITY_PATTERNS = {
     pathTraversal: /\.\.[\/\\]/,
     sqlInjection: /(union|select|insert|update|delete|drop|create|alter|exec|execute)/i,
-    scriptInjection: /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi,
+    // Comprehensive HTML/Script injection patterns - more secure approach
+    htmlTags: /<\/?[a-z][\s\S]*>/gi,
+    scriptElements: /<script[\s\S]*?<\/script>/gi,
+    dangerousElements: /<(script|iframe|object|embed|form|input|link|meta|style|base|applet)[\s\S]*?>/gi,
+    eventHandlers: /\bon\w+\s*=\s*["']?[^"'>]*["']?/gi,
+    javascriptProtocol: /javascript\s*:/gi,
+    vbscriptProtocol: /vbscript\s*:/gi,
+    dataUrls: /data\s*:\s*text\s*\/\s*(html|javascript)/gi,
     commandInjection: /[;&|`$(){}\[\]]/,
   };
 
@@ -617,6 +624,7 @@ export class InputValidator {
 
   /**
    * Security sanitization for string inputs
+   * Uses comprehensive HTML filtering to prevent XSS attacks
    */
   static sanitizeString(input: string): string {
     if (typeof input !== 'string') {
@@ -624,10 +632,62 @@ export class InputValidator {
     }
 
     return input
-      .replace(this.SECURITY_PATTERNS.scriptInjection, '') // Remove script tags
-      .replace(/[\x00-\x1F\x7F]/g, '') // Remove control characters
+      // Remove dangerous HTML elements and script tags
+      .replace(this.SECURITY_PATTERNS.dangerousElements, '')
+      .replace(this.SECURITY_PATTERNS.scriptElements, '')
+      // Remove event handlers (onclick, onload, etc.)
+      .replace(this.SECURITY_PATTERNS.eventHandlers, '')
+      // Remove dangerous protocols
+      .replace(this.SECURITY_PATTERNS.javascriptProtocol, '')
+      .replace(this.SECURITY_PATTERNS.vbscriptProtocol, '')
+      // Remove data URLs that could contain HTML/JS
+      .replace(this.SECURITY_PATTERNS.dataUrls, '')
+      // Remove control characters and null bytes
+      .replace(/[\x00-\x1F\x7F]/g, '')
       .trim()
       .slice(0, 10000); // Limit length
+  }
+
+  /**
+   * Secure HTML sanitization for content that may contain HTML
+   * Implements a whitelist approach for maximum security
+   */
+  static sanitizeHTML(input: string, allowedTags: string[] = []): string {
+    if (typeof input !== 'string') {
+      return '';
+    }
+
+    // First pass: Remove all HTML if no tags are allowed
+    if (allowedTags.length === 0) {
+      return input
+        .replace(this.SECURITY_PATTERNS.htmlTags, '')
+        .replace(/[\x00-\x1F\x7F]/g, '')
+        .trim();
+    }
+
+    // Second pass: Remove dangerous elements and attributes
+    let sanitized = input
+      // Remove dangerous elements completely
+      .replace(this.SECURITY_PATTERNS.dangerousElements, '')
+      // Remove all event handlers
+      .replace(this.SECURITY_PATTERNS.eventHandlers, '')
+      // Remove dangerous protocols
+      .replace(this.SECURITY_PATTERNS.javascriptProtocol, 'removed:')
+      .replace(this.SECURITY_PATTERNS.vbscriptProtocol, 'removed:')
+      // Remove dangerous data URLs
+      .replace(this.SECURITY_PATTERNS.dataUrls, 'removed:');
+
+    // Third pass: Only allow specified tags
+    const allowedTagsRegex = new RegExp(
+      `<(?!/?(?:${allowedTags.join('|')})(?:\\s|>))[^>]*>`,
+      'gi'
+    );
+    sanitized = sanitized.replace(allowedTagsRegex, '');
+
+    return sanitized
+      .replace(/[\x00-\x1F\x7F]/g, '')
+      .trim()
+      .slice(0, 50000); // Larger limit for HTML content
   }
 
   /**
