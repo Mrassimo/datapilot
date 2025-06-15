@@ -38,10 +38,22 @@ Charlie,35,92`;
     expect(result).toContain('1.3.1');
   });
 
-  it('should analyze CSV file', () => {
+  it('should analyze CSV file with overview command', () => {
     const result = execSync(`node "${cliPath}" overview "${testCsv}" --output json`, { encoding: 'utf8' });
     expect(result).toContain('Report written to:');
     expect(result).toContain('Summary:');
     expect(result).toContain('Processing time:');
+  });
+
+  it('should run complete analysis with all command', () => {
+    const outputFile = join(__dirname, 'test-output.md');
+    const result = execSync(`node "${cliPath}" all "${testCsv}" --output-file "${outputFile}"`, { encoding: 'utf8' });
+    expect(result).toContain('Report written to:');
+    expect(result).toContain('Summary:');
+    
+    // Cleanup
+    if (existsSync(outputFile)) {
+      unlinkSync(outputFile);
+    }
   });
 });
