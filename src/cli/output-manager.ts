@@ -877,7 +877,10 @@ export class OutputManager {
   /**
    * Format file size for display
    */
-  private formatFileSize(sizeMB: number): string {
+  private formatFileSize(sizeMB?: number): string {
+    if (sizeMB === undefined || sizeMB === null) {
+      return 'unknown';
+    }
     if (sizeMB < 0.01) {
       return `${(sizeMB * 1024).toFixed(1)} KB`;
     } else if (sizeMB >= 1024) {
