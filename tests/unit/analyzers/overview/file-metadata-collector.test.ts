@@ -233,13 +233,48 @@ describe('FileMetadataCollector', () => {
       const collector = new FileMetadataCollector(config);
       const metadata = await collector.collectMetadata(tempFile);
 
-      // Should redact user directory
+      // Should redact user directory or CI paths
       if (process.platform === 'win32') {
-        expect(metadata.fullResolvedPath).toContain('[user]');
+        // Windows CI environments use [project] pattern, regular Windows uses [user]
+        const hasUserRedaction = metadata.fullResolvedPath.includes('[user]');
+        const hasProjectRedaction = metadata.fullResolvedPath.includes('[project]');
+        const hasBuildRedaction = metadata.fullResolvedPath.includes('[build]');
+        expect(hasUserRedaction || hasProjectRedaction || hasBuildRedaction).toBe(true);
       } else {
         expect(metadata.fullResolvedPath).toContain('[user]');
       }
       expect(metadata.fullResolvedPath).toContain('test-');
+    });
+
+    it('should redact Windows CI paths correctly', () => {
+      const config: Section1Config = {
+        includeHostEnvironment: true,
+        enableFileHashing: false,
+        maxSampleSizeForSparsity: 1000,
+        privacyMode: 'redacted',
+        detailedProfiling: true,
+      };
+
+      const collector = new FileMetadataCollector(config);
+      
+      // Test GitHub Actions Windows path
+      const githubActionPath = 'C:\\a\\datapilot\\datapilot\\tests\\temp\\test.csv';
+      const redactedGithub = (collector as any).sanitizePath(githubActionPath);
+      expect(redactedGithub).toBe('C:\\a\\[project]\\[project]\\tests\\temp\\test.csv');
+      
+      // Test Azure DevOps Windows paths
+      const azureWorkPath = 'C:\\Agent\\_work\\123\\tests\\temp\\test.csv';
+      const redactedAzureWork = (collector as any).sanitizePath(azureWorkPath);
+      expect(redactedAzureWork).toBe('C:\\Agent\\_work\\[build]\\tests\\temp\\test.csv');
+      
+      const azureDPath = 'D:\\a\\456\\tests\\temp\\test.csv';
+      const redactedAzureD = (collector as any).sanitizePath(azureDPath);
+      expect(redactedAzureD).toBe('D:\\a\\[build]\\tests\\temp\\test.csv');
+      
+      // Test regular Windows user path still works
+      const userPath = 'C:\\Users\\johndoe\\Documents\\test.csv';
+      const redactedUser = (collector as any).sanitizePath(userPath);
+      expect(redactedUser).toBe('C:\\Users\\[user]\\Documents\\test.csv');
     });
 
     it('should apply full privacy mode', async () => {

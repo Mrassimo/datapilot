@@ -127,7 +127,12 @@ export class FileMetadataCollector {
         return fullPath
           .replace(/\/Users\/[^\/]+/, '/Users/[user]')
           .replace(/\/home\/[^\/]+/, '/home/[user]')
-          .replace(/C:\\Users\\[^\\]+/, 'C:\\Users\\[user]');
+          .replace(/C:\\Users\\[^\\]+/, 'C:\\Users\\[user]')
+          // GitHub Actions Windows CI path: C:\a\repo\repo\...
+          .replace(/C:\\a\\[^\\]+\\[^\\]+/, 'C:\\a\\[project]\\[project]')
+          // Azure DevOps Windows CI paths
+          .replace(/C:\\Agent\\_work\\[^\\]+/, 'C:\\Agent\\_work\\[build]')
+          .replace(/D:\\a\\[^\\]+/, 'D:\\a\\[build]');
 
       case 'full':
       default:
@@ -183,15 +188,16 @@ export class FileMetadataCollector {
 
       if (!stats.isFile()) {
         errors.push(`Path does not point to a regular file: ${filePath}`);
-      }
+      } else {
+        // Only check file-specific properties if it's actually a file
+        if (stats.size === 0) {
+          errors.push(`File is empty: ${filePath}`);
+        }
 
-      if (stats.size === 0) {
-        errors.push(`File is empty: ${filePath}`);
-      }
-
-      if (stats.size > 10 * 1024 * 1024 * 1024) {
-        // 10GB
-        errors.push(`File exceeds maximum size limit (10GB): ${filePath}`);
+        if (stats.size > 10 * 1024 * 1024 * 1024) {
+          // 10GB
+          errors.push(`File exceeds maximum size limit (10GB): ${filePath}`);
+        }
       }
     } catch (error) {
       // Handle stat errors

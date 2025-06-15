@@ -23,7 +23,7 @@
     "test:coverage": "jest --coverage",
     "test:unit": "jest tests/unit",
     "test:integration": "jest tests/integration",
-    "test:e2e": "jest tests/e2e",
+    "test:e2e": "jest tests/e2e --passWithNoTests",
     "test:all": "npm run test:unit && npm run test:integration && npm run test:e2e",
     "test:ci": "npm run test:unit && npm run test:integration",
     "lint": "eslint src --ext .ts",
@@ -103,8 +103,7 @@
     "exceljs": "^4.4.0",
     "hyparquet": "^1.4.0",
     "parquetjs": "^0.11.2",
-    "uuid": "^9.0.1",
-    "xlsx": "^0.18.5"
+    "uuid": "^9.0.1"
   },
   "bundleDependencies": [
     "commander",

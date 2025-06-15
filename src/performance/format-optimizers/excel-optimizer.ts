@@ -136,30 +136,12 @@ export class ExcelOptimizer extends EventEmitter {
    * Load Excel workbook with memory optimization
    */
   private async loadWorkbook(filePath: string): Promise<any> {
-    try {
-      // Import xlsx library dynamically
-      const XLSX = await import('xlsx');
-      
-      // Configure for streaming and memory efficiency
-      const workbook = XLSX.readFile(filePath, {
-        cellDates: true,
-        cellNF: false,
-        cellText: false,
-        sheetStubs: false,
-        dense: true, // Use dense mode for memory efficiency
-        WTF: false
-      });
-      
-      return workbook;
-      
-    } catch (error) {
-      throw new DataPilotError(
-        `Failed to load Excel workbook: ${(error as Error).message}`,
-        'EXCEL_LOAD_ERROR',
-        ErrorSeverity.HIGH,
-        ErrorCategory.PARSING
-      );
-    }
+    throw new DataPilotError(
+      'Excel performance optimizer has been disabled due to security vulnerabilities in xlsx dependency. Use the standard ExcelJS parser instead.',
+      ErrorSeverity.ERROR,
+      ErrorCategory.DEPENDENCY,
+      { filePath, reason: 'xlsx_security_vulnerability' }
+    );
   }
 
   /**
