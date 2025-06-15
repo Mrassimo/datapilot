@@ -497,6 +497,14 @@ export class OutputManager {
    */
   private formatAsYAML(result: Section1Result): string {
     // Simple YAML formatting - in production you might want to use a proper YAML library
+    // Include any additional properties that might be added to the result (for testing purposes)
+    const additionalProps: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(result)) {
+      if (!['overview', 'warnings', 'performanceMetrics'].includes(key)) {
+        additionalProps[key] = value;
+      }
+    }
+
     const yaml = this.objectToYAML({
       metadata: {
         version: '1.0.0',
@@ -506,6 +514,7 @@ export class OutputManager {
       overview: result.overview,
       warnings: result.warnings,
       performance: result.performanceMetrics,
+      ...additionalProps,
     });
 
     return yaml;
@@ -514,39 +523,68 @@ export class OutputManager {
   /**
    * Simple object to YAML converter
    */
-  private objectToYAML(obj: Record<string, unknown>, indent: number = 0): string {
+  private objectToYAML(obj: Record<string, unknown>, indent: number = 0, seen = new WeakSet()): string {
     const spaces = '  '.repeat(indent);
     let yaml = '';
 
     for (const [key, value] of Object.entries(obj)) {
+      // Skip undefined values entirely
+      if (value === undefined) {
+        continue;
+      }
+
       yaml += `${spaces}${key}:`;
 
-      if (value === null || value === undefined) {
+      if (value === null) {
         yaml += ' null\n';
       } else if (typeof value === 'string') {
-        yaml += ` "${value}"\n`;
+        // Escape quotes, backslashes, and newlines in strings
+        const escapedValue = value.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\r/g, '\\r');
+        yaml += ` "${escapedValue}"\n`;
       } else if (typeof value === 'number' || typeof value === 'boolean') {
         yaml += ` ${value}\n`;
       } else if (value instanceof Date) {
         yaml += ` "${value.toISOString()}"\n`;
       } else if (Array.isArray(value)) {
-        yaml += '\n';
-        value.forEach((item) => {
-          if (typeof item === 'object') {
-            yaml += `${spaces}  -\n${this.objectToYAML(item as Record<string, unknown>, indent + 2)}`;
-          } else if (typeof item === 'string') {
-            yaml += `${spaces}  - "${item}"\n`;
-          } else {
-            yaml += `${spaces}  - ${item}\n`;
-          }
-        });
+        if (value.length === 0) {
+          yaml += ' []\n';
+        } else {
+          yaml += '\n';
+          value.forEach((item) => {
+            if (item === undefined) {
+              return; // Skip undefined array items
+            }
+            if (typeof item === 'object' && item !== null) {
+              if (seen.has(item as object)) {
+                yaml += `${spaces}  - "[Circular Reference]"\n`;
+              } else {
+                seen.add(item as object);
+                yaml += `${spaces}  -\n${this.objectToYAML(item as Record<string, unknown>, indent + 2, seen)}`;
+                seen.delete(item as object);
+              }
+            } else if (typeof item === 'string') {
+              const escapedItem = item.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\r/g, '\\r');
+              yaml += `${spaces}  - "${escapedItem}"\n`;
+            } else {
+              yaml += `${spaces}  - ${item}\n`;
+            }
+          });
+        }
       } else if (typeof value === 'object') {
-        yaml += '\n';
-        yaml += this.objectToYAML(value as Record<string, unknown>, indent + 1);
+        // Check for circular references
+        if (seen.has(value as object)) {
+          yaml += ' "[Circular Reference]"\n';
+        } else {
+          seen.add(value as object);
+          yaml += '\n';
+          yaml += this.objectToYAML(value as Record<string, unknown>, indent + 1, seen);
+          seen.delete(value as object);
+        }
       }
     }
 
-    return yaml;
+    // Minimal cleanup: only remove trailing whitespace, preserve structure
+    return yaml.replace(/[ \t]+$/gm, '');
   }
 
   /**

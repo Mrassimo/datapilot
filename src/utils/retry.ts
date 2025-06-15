@@ -100,9 +100,7 @@ export class RetryManager {
     }
 
     const totalTime = Date.now() - startTime;
-    const finalError = new Error(
-      `Operation failed after ${opts.maxAttempts} attempts over ${totalTime}ms. Last error: ${lastError.message}`,
-    );
+    const finalError = this.createRetryError(lastError, opts.maxAttempts, totalTime, context);
 
     logger.error('Retry attempts exhausted', {
       ...context,

@@ -22,7 +22,7 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "test:unit": "jest tests/unit",
-    "test:integration": "jest tests/integration", 
+    "test:integration": "jest tests/integration",
     "test:e2e": "jest tests/e2e",
     "test:all": "npm run test:unit && npm run test:integration && npm run test:e2e",
     "test:ci": "npm run test:unit && npm run test:integration",
@@ -102,7 +102,9 @@
     "commander": "^11.1.0",
     "exceljs": "^4.4.0",
     "hyparquet": "^1.4.0",
-    "uuid": "^9.0.1"
+    "parquetjs": "^0.11.2",
+    "uuid": "^9.0.1",
+    "xlsx": "^0.18.5"
   },
   "bundleDependencies": [
     "commander",
