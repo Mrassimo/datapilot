@@ -166,8 +166,8 @@ describe('InputValidator', () => {
 
     it('should warn about large files', async () => {
       const filePath = join(tempDir, 'large.csv');
-      // Create a moderately large buffer to simulate large file
-      const largeData = 'x'.repeat(10 * 1024 * 1024); // 10MB (much more reasonable)
+      // Create a large buffer to trigger warning (needs to be > 100MB threshold)
+      const largeData = 'x'.repeat(120 * 1024 * 1024); // 120MB - above 100MB threshold
       writeFileSync(filePath, largeData);
 
       const result = await InputValidator.validateFilePath(filePath);
