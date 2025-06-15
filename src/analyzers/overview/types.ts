@@ -11,6 +11,8 @@ export interface FileMetadata {
   mimeType: string;
   lastModified: Date;
   sha256Hash: string;
+  compressionAnalysis?: CompressionAnalysis;
+  healthCheck?: FileHealthCheck;
 }
 
 export interface EncodingDetection {
@@ -72,6 +74,7 @@ export interface StructuralDimensions {
     sampleSize: number;
     description: string;
   };
+  quickStatistics?: QuickColumnStatistics;
 }
 
 export interface SystemEnvironment {
@@ -98,6 +101,7 @@ export interface Section1Overview {
   parsingMetadata: ParsingMetadata;
   structuralDimensions: StructuralDimensions;
   executionContext: ExecutionContext;
+  dataPreview?: DataPreview;
   generatedAt: Date;
   version: string;
 }
@@ -109,6 +113,11 @@ export interface Section1Config {
   maxSampleSizeForSparsity: number;
   privacyMode: 'full' | 'redacted' | 'minimal';
   detailedProfiling: boolean;
+  enableCompressionAnalysis: boolean;
+  enableDataPreview: boolean;
+  previewRows: number;
+  enableHealthChecks: boolean;
+  enableQuickStatistics: boolean;
 }
 
 // Progress tracking for long operations
@@ -137,4 +146,61 @@ export interface Section1Result {
     peakMemoryUsage?: number;
     phases: Record<string, number>;
   };
+}
+
+// New interfaces for enhanced features
+
+export interface CompressionAnalysis {
+  originalSizeBytes: number;
+  estimatedGzipSizeBytes: number;
+  estimatedGzipReduction: number; // percentage
+  estimatedParquetSizeBytes: number;
+  estimatedParquetReduction: number; // percentage
+  columnEntropy: Array<{
+    columnName: string;
+    entropy: number;
+    compressionPotential: 'high' | 'medium' | 'low';
+  }>;
+  recommendedFormat: 'gzip' | 'parquet' | 'none';
+  analysisMethod: string;
+}
+
+export interface FileHealthCheck {
+  bomDetected: boolean;
+  bomType?: string;
+  lineEndingConsistency: 'consistent' | 'mixed' | 'unknown';
+  nullBytesDetected: boolean;
+  validEncodingThroughout: boolean;
+  largeFileWarning: boolean;
+  recommendations: string[];
+  healthScore: number; // 0-100
+}
+
+export interface DataPreview {
+  headerRow?: string[];
+  sampleRows: string[][];
+  totalRowsShown: number;
+  totalRowsInFile: number;
+  truncated: boolean;
+  previewMethod: 'head' | 'sample' | 'stratified';
+  generationTimeMs: number;
+}
+
+export interface QuickColumnStatistics {
+  numericColumns: number;
+  textColumns: number;
+  dateColumns: number;
+  booleanColumns: number;
+  emptyColumns: number;
+  highCardinalityColumns: number; // >50% unique
+  lowCardinalityColumns: number; // <10% unique
+  potentialIdColumns: string[];
+  columnTypes: Array<{
+    columnName: string;
+    detectedType: 'numeric' | 'text' | 'date' | 'boolean' | 'empty' | 'mixed';
+    uniqueValueCount: number;
+    cardinality: 'high' | 'medium' | 'low';
+  }>;
+  analysisMethod: string;
+  sampleSize: number;
 }

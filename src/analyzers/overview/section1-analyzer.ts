@@ -7,6 +7,7 @@ import { FileMetadataCollector } from './file-metadata-collector';
 import { ParsingMetadataTracker } from './parsing-metadata-tracker';
 import { StructuralAnalyzer } from './structural-analyzer';
 import { EnvironmentProfiler } from './environment-profiler';
+import { DataPreviewGenerator } from './data-preview-generator';
 import { logger } from '../../utils/logger';
 import type { Section1Result, Section1Config, Section1Progress, Section1Warning } from './types';
 
@@ -16,6 +17,7 @@ export class Section1Analyzer {
   private parsingTracker: ParsingMetadataTracker;
   private structuralAnalyzer: StructuralAnalyzer;
   private environmentProfiler: EnvironmentProfiler;
+  private dataPreviewGenerator: DataPreviewGenerator;
   private progressCallback?: (progress: Section1Progress) => void;
 
   constructor(config: Partial<Section1Config> = {}) {
@@ -26,6 +28,11 @@ export class Section1Analyzer {
       maxSampleSizeForSparsity: 10000,
       privacyMode: 'redacted',
       detailedProfiling: true,
+      enableCompressionAnalysis: true,
+      enableDataPreview: true,
+      previewRows: 5,
+      enableHealthChecks: true,
+      enableQuickStatistics: true,
       ...config,
     };
 
@@ -34,6 +41,7 @@ export class Section1Analyzer {
     this.parsingTracker = new ParsingMetadataTracker(this.config);
     this.structuralAnalyzer = new StructuralAnalyzer(this.config);
     this.environmentProfiler = new EnvironmentProfiler(this.config);
+    this.dataPreviewGenerator = new DataPreviewGenerator(this.config);
   }
 
   /**
@@ -105,8 +113,33 @@ export class Section1Analyzer {
       const structuralTime = this.environmentProfiler.endPhase('structural-analysis');
       this.reportProgress('structural-analysis', 100, 'Structural analysis completed');
 
-      // Phase 4: Environment Context
-      this.reportProgress('report-generation', 0, 'Finalizing analysis context...');
+      // Phase 4: Data Preview (if enabled)
+      let dataPreview;
+      let previewTime = 0;
+      if (this.config.enableDataPreview) {
+        this.reportProgress('report-generation', 0, 'Generating data preview...');
+        this.environmentProfiler.startPhase('data-preview');
+        
+        try {
+          dataPreview = await this.dataPreviewGenerator.generatePreview(filePath);
+          warnings.push(...this.dataPreviewGenerator.getWarnings());
+        } catch (error) {
+          // Fall back if preview generation fails
+          warnings.push({
+            category: 'structural',
+            severity: 'low',
+            message: 'Data preview generation failed',
+            impact: 'Preview not available in report',
+            suggestion: 'Data analysis continues normally',
+          });
+        }
+        
+        previewTime = this.environmentProfiler.endPhase('data-preview');
+        this.reportProgress('report-generation', 50, 'Data preview completed');
+      }
+
+      // Phase 5: Environment Context
+      this.reportProgress('report-generation', this.config.enableDataPreview ? 75 : 0, 'Finalizing analysis context...');
 
       const modules = this.environmentProfiler.generateModuleList(enabledSections);
       const executionContext = this.environmentProfiler.createExecutionContext(command, modules);
@@ -117,6 +150,7 @@ export class Section1Analyzer {
         parsingMetadata,
         structuralDimensions,
         executionContext,
+        dataPreview,
         generatedAt: new Date(),
         version: this.getDataPilotVersion(),
       };
@@ -127,6 +161,7 @@ export class Section1Analyzer {
           'file-analysis': Number((fileAnalysisTime / 1000).toFixed(3)),
           parsing: Number((parsingTime / 1000).toFixed(3)),
           'structural-analysis': Number((structuralTime / 1000).toFixed(3)),
+          ...(this.config.enableDataPreview && { 'data-preview': Number((previewTime / 1000).toFixed(3)) }),
         },
       };
 

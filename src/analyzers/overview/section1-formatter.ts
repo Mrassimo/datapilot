@@ -18,6 +18,7 @@ export class Section1Formatter {
       this.formatParsingParameters(overview),
       this.formatStructuralDimensions(overview),
       this.formatExecutionContext(overview),
+      overview.dataPreview ? this.formatDataPreview(overview) : null,
       this.formatWarnings(warnings),
       this.formatPerformanceMetrics(performanceMetrics),
     ];
@@ -51,13 +52,25 @@ This section provides a detailed snapshot of the dataset properties, how it was 
     const lastModified =
       fileDetails.lastModified.toISOString().replace('T', ' ').slice(0, 19) + ' (UTC)';
 
-    return `**1.1. Input Data File Details:**
+    let section = `**1.1. Input Data File Details:**
     * Original Filename: \`${fileDetails.originalFilename}\`
     * Full Resolved Path: \`${fileDetails.fullResolvedPath}\`
     * File Size (on disk): ${this.formatFileSize(fileDetails.fileSizeMB)}
     * MIME Type (detected/inferred): \`${fileDetails.mimeType}\`
     * File Last Modified (OS Timestamp): ${lastModified}
     * File Hash (SHA256): \`${fileDetails.sha256Hash}\``;
+
+    // Add compression analysis if available
+    if (fileDetails.compressionAnalysis) {
+      section += this.formatCompressionAnalysis(fileDetails.compressionAnalysis);
+    }
+
+    // Add health check if available
+    if (fileDetails.healthCheck) {
+      section += this.formatHealthCheck(fileDetails.healthCheck);
+    }
+
+    return section;
   }
 
   /**
@@ -109,7 +122,7 @@ This section provides a detailed snapshot of the dataset properties, how it was 
       .map((col) => `        ${col.index}.  (Index ${col.originalIndex}) \`${col.name}\``)
       .join('\n');
 
-    return `**1.3. Dataset Structural Dimensions & Initial Profile:**
+    let section = `**1.3. Dataset Structural Dimensions & Initial Profile:**
     * Total Rows Read (including header, if any): ${totalRowsRead.toLocaleString()}
     * Total Rows of Data (excluding header): ${totalDataRows.toLocaleString()}
     * Total Columns Detected: ${totalColumns}
@@ -119,6 +132,13 @@ ${columnList}
     * Estimated In-Memory Size (Post-Parsing & Initial Type Guessing): ${estimatedInMemorySizeMB} MB
     * Average Row Length (bytes, approximate): ${averageRowLengthBytes} bytes
     * Dataset Sparsity (Initial Estimate): ${sparsityAnalysis.description} (${sparsityAnalysis.sparsityPercentage}% sparse cells via ${sparsityAnalysis.method})`;
+
+    // Add quick statistics if available
+    if (structuralDimensions.quickStatistics) {
+      section += this.formatQuickStatistics(structuralDimensions.quickStatistics);
+    }
+
+    return section;
   }
 
   /**
@@ -258,6 +278,144 @@ ${phaseList}`;
 
   private capitalizeFirst(str: string): string {
     return str.charAt(0).toUpperCase() + str.slice(1);
+  }
+
+  /**
+   * Format compression analysis section
+   */
+  private formatCompressionAnalysis(compression: import('./types').CompressionAnalysis): string {
+    let section = `\n    **1.5. Compression & Storage Efficiency:**
+    * Current File Size: ${this.formatFileSize(compression.originalSizeBytes / (1024 * 1024))}
+    * Estimated Compressed Size (gzip): ${this.formatFileSize(compression.estimatedGzipSizeBytes / (1024 * 1024))} (${compression.estimatedGzipReduction}% reduction)
+    * Estimated Compressed Size (parquet): ${this.formatFileSize(compression.estimatedParquetSizeBytes / (1024 * 1024))} (${compression.estimatedParquetReduction}% reduction)`;
+
+    if (compression.columnEntropy.length > 0) {
+      const highEntropy = compression.columnEntropy.filter(c => c.compressionPotential === 'low').map(c => c.columnName);
+      const lowEntropy = compression.columnEntropy.filter(c => c.compressionPotential === 'high').map(c => c.columnName);
+      
+      section += `\n    * Column Entropy Analysis:`;
+      if (highEntropy.length > 0) {
+        section += `\n        * High Entropy (poor compression): ${highEntropy.join(', ')}`;
+      }
+      if (lowEntropy.length > 0) {
+        section += `\n        * Low Entropy (good compression): ${lowEntropy.join(', ')}`;
+      }
+    }
+
+    if (compression.recommendedFormat !== 'none') {
+      const savings = compression.recommendedFormat === 'gzip' ? compression.estimatedGzipReduction : compression.estimatedParquetReduction;
+      section += `\n    * Recommendation: Consider ${compression.recommendedFormat} format for ${savings}% storage savings`;
+    }
+
+    section += `\n    * Analysis Method: ${compression.analysisMethod}`;
+    return section;
+  }
+
+  /**
+   * Format health check section
+   */
+  private formatHealthCheck(healthCheck: import('./types').FileHealthCheck): string {
+    let section = `\n    **1.6. File Health Check:**`;
+    
+    // Health score
+    const scoreIcon = healthCheck.healthScore >= 90 ? '✅' : healthCheck.healthScore >= 70 ? '⚠️' : '❌';
+    section += `\n    * Overall Health Score: ${scoreIcon} ${healthCheck.healthScore}/100`;
+
+    // Individual checks
+    section += `\n    * ${healthCheck.bomDetected ? '⚠️' : '✅'} Byte Order Mark (BOM): ${healthCheck.bomDetected ? `${healthCheck.bomType} detected` : 'Not detected'}`;
+    section += `\n    * ${healthCheck.lineEndingConsistency === 'consistent' ? '✅' : '⚠️'} Line endings: ${healthCheck.lineEndingConsistency}`;
+    section += `\n    * ${healthCheck.nullBytesDetected ? '❌' : '✅'} Null bytes: ${healthCheck.nullBytesDetected ? 'Detected' : 'Not detected'}`;
+    section += `\n    * ${healthCheck.validEncodingThroughout ? '✅' : '❌'} Valid UTF-8 encoding: ${healthCheck.validEncodingThroughout ? 'Throughout' : 'Issues found'}`;
+    section += `\n    * ${healthCheck.largeFileWarning ? '⚠️' : 'ℹ️'} File size: ${healthCheck.largeFileWarning ? 'Large file detected' : 'Normal size'}`;
+
+    if (healthCheck.recommendations.length > 0) {
+      section += `\n    * Recommendations:`;
+      healthCheck.recommendations.forEach(rec => {
+        section += `\n        * ${rec}`;
+      });
+    }
+
+    return section;
+  }
+
+  /**
+   * Format quick column statistics section
+   */
+  private formatQuickStatistics(stats: import('./types').QuickColumnStatistics): string {
+    let section = `\n    **1.7. Quick Column Statistics:**
+    * Numeric Columns: ${stats.numericColumns} (${this.formatPercentage(stats.numericColumns, this.getTotalColumns(stats))})
+    * Text Columns: ${stats.textColumns} (${this.formatPercentage(stats.textColumns, this.getTotalColumns(stats))})`;
+    
+    if (stats.dateColumns > 0) {
+      section += `\n    * Date Columns: ${stats.dateColumns} (${this.formatPercentage(stats.dateColumns, this.getTotalColumns(stats))})`;
+    }
+    if (stats.booleanColumns > 0) {
+      section += `\n    * Boolean Columns: ${stats.booleanColumns} (${this.formatPercentage(stats.booleanColumns, this.getTotalColumns(stats))})`;
+    }
+    if (stats.emptyColumns > 0) {
+      section += `\n    * Empty Columns: ${stats.emptyColumns} (${this.formatPercentage(stats.emptyColumns, this.getTotalColumns(stats))})`;
+    }
+
+    section += `\n    * Columns with High Cardinality (>50% unique): ${stats.highCardinalityColumns}`;
+    section += `\n    * Columns with Low Cardinality (<10% unique): ${stats.lowCardinalityColumns}`;
+
+    if (stats.potentialIdColumns.length > 0) {
+      section += `\n    * Potential ID Columns: ${stats.potentialIdColumns.join(', ')}`;
+    }
+
+    section += `\n    * Analysis Method: ${stats.analysisMethod}`;
+    return section;
+  }
+
+  /**
+   * Format data preview section
+   */
+  private formatDataPreview(overview: Section1Overview): string {
+    const preview = overview.dataPreview!;
+    let section = `**1.8. Data Sample:**`;
+
+    // Show header if available
+    if (preview.headerRow) {
+      const headerRow = preview.headerRow.slice(0, 6).map(h => h.length > 15 ? h.substring(0, 12) + '...' : h);
+      section += `\n    | ${headerRow.join(' | ')} |`;
+      section += `\n    |${headerRow.map(() => '---').join('|')}|`;
+    }
+
+    // Show sample rows
+    const maxRowsToShow = Math.min(preview.sampleRows.length, 5);
+    for (let i = 0; i < maxRowsToShow; i++) {
+      const row = preview.sampleRows[i];
+      const displayRow = row.slice(0, 6).map(cell => {
+        const cellStr = String(cell || '');
+        return cellStr.length > 15 ? cellStr.substring(0, 12) + '...' : cellStr;
+      });
+      section += `\n    | ${displayRow.join(' | ')} |`;
+    }
+
+    if (preview.truncated) {
+      section += `\n    | ... | ... | ... | ... | ... | ... |`;
+    }
+
+    section += `\n\n    * Note: Showing ${preview.totalRowsShown} of ${preview.totalRowsInFile.toLocaleString()} rows`;
+    section += `\n    * Preview Method: ${preview.previewMethod}`;
+    section += `\n    * Generation Time: ${preview.generationTimeMs}ms`;
+
+    return section;
+  }
+
+  /**
+   * Helper to calculate total columns from stats
+   */
+  private getTotalColumns(stats: import('./types').QuickColumnStatistics): number {
+    return stats.numericColumns + stats.textColumns + stats.dateColumns + stats.booleanColumns + stats.emptyColumns;
+  }
+
+  /**
+   * Helper to format percentage
+   */
+  private formatPercentage(count: number, total: number): string {
+    if (total === 0) return '0%';
+    return `${((count / total) * 100).toFixed(1)}%`;
   }
 
   /**

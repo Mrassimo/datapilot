@@ -31,11 +31,49 @@ DataPilot is a sophisticated command-line tool that transforms data files into c
 # Install globally 
 npm install -g datapilot-cli
 
-# Verify installation (should show v1.3.1 or later)
+# Verify installation (should show v1.3.3 or later)
 datapilot --version
 ```
 
 > ⚠️ **Important**: Install `datapilot-cli`, NOT `datapilot` (which is deprecated)
+
+#### Windows Users - Important Notes 🪟
+
+**If you get `'datapilot' is not recognized` error on Windows**, you have three options:
+
+**🟢 Option A - Use npx (Recommended, no setup needed):**
+```bash
+npx datapilot-cli --version
+npx datapilot-cli all data.csv
+```
+
+**🟡 Option B - Add to PATH (One-time setup):**
+```bash
+# 1. Find your npm global directory
+npm config get prefix
+
+# 2. Add the returned path to your Windows PATH environment variable
+# Example: Add C:\Users\YourName\AppData\Roaming\npm to PATH
+
+# 3. Restart PowerShell/Command Prompt
+
+# 4. Test it works
+datapilot --version
+```
+
+**🟠 Option C - Use full path:**
+```bash
+# Replace [npm-prefix] with the path from 'npm config get prefix'
+[npm-prefix]\datapilot --version
+```
+
+**Step-by-step PATH setup for Windows:**
+1. Run `npm config get prefix` in PowerShell
+2. Copy the returned path (e.g., `C:\Users\YourName\AppData\Roaming\npm`)
+3. Open System Properties → Advanced → Environment Variables
+4. Edit the `PATH` variable and add the npm path
+5. Restart PowerShell/Command Prompt
+6. Run `datapilot --version` to verify
 
 ### Option 2: NPX (No Installation Required)
 ```bash
@@ -44,6 +82,8 @@ npx datapilot-cli all data.csv
 npx datapilot-cli --version
 npx datapilot-cli --help
 ```
+
+> 💡 **Windows users**: npx is often the easiest option as it bypasses PATH issues entirely.
 
 ### Option 3: From Source
 ```bash
@@ -269,8 +309,25 @@ Analyze this DataPilot report and:
 ### Common Issues
 
 **Installation Problems**
+
+**Windows - `'datapilot' is not recognized` error:**
 ```bash
-# If "datapilot: command not found" after npm install
+# Quick fix: Use npx (recommended)
+npx datapilot-cli --version
+
+# OR: Check your npm global directory
+npm config get prefix
+
+# Add the returned path to Windows PATH:
+# 1. Windows key + R → type "sysdm.cpl" → Enter
+# 2. Advanced tab → Environment Variables
+# 3. Edit PATH and add your npm prefix path
+# 4. Restart PowerShell/CMD
+```
+
+**Mac/Linux - `datapilot: command not found` error:**
+```bash
+# Check if npm global bin is in PATH
 npm config get prefix
 echo $PATH | grep $(npm config get prefix)
 

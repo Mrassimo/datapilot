@@ -368,6 +368,11 @@ export class UniversalAnalyzer {
       privacyMode: options.privacyMode || 'redacted',
       detailedProfiling: options.verbose || false,
       maxSampleSizeForSparsity: 10000,
+      enableCompressionAnalysis: options.enableCompressionAnalysis !== false,
+      enableDataPreview: options.enableDataPreview !== false,
+      previewRows: (options.previewRows as number) || 5,
+      enableHealthChecks: options.enableHealthChecks !== false,
+      enableQuickStatistics: options.enableQuickStats !== false,
     });
 
     // Section1 expects filePath, command, and analysis sections

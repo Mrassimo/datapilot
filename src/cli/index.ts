@@ -940,6 +940,11 @@ export class DataPilotCLI {
           privacyMode: options.privacyMode || 'redacted',
           detailedProfiling: options.verbose || false,
           maxSampleSizeForSparsity: 10000,
+          enableCompressionAnalysis: options.enableCompressionAnalysis !== false,
+          enableDataPreview: options.enableDataPreview !== false,
+          previewRows: (options.previewRows as number) || 5,
+          enableHealthChecks: options.enableHealthChecks !== false,
+          enableQuickStatistics: options.enableQuickStats !== false,
         });
         return await section1Analyzer.analyze(
           filePath,
@@ -1041,6 +1046,11 @@ export class DataPilotCLI {
                 privacyMode: options.privacyMode || 'redacted',
                 detailedProfiling: options.verbose || false,
                 maxSampleSizeForSparsity: 10000,
+                enableCompressionAnalysis: options.enableCompressionAnalysis !== false,
+                enableDataPreview: options.enableDataPreview !== false,
+                previewRows: (options.previewRows as number) || 5,
+                enableHealthChecks: options.enableHealthChecks !== false,
+                enableQuickStatistics: options.enableQuickStats !== false,
               });
               return await analyzer.analyze(
                 filePath,
@@ -1289,6 +1299,11 @@ export class DataPilotCLI {
         privacyMode: options.privacyMode || 'redacted',
         detailedProfiling: options.verbose || false,
         maxSampleSizeForSparsity: 10000,
+        enableCompressionAnalysis: options.enableCompressionAnalysis !== false,
+        enableDataPreview: options.enableDataPreview !== false,
+        previewRows: options.previewRows || 5,
+        enableHealthChecks: options.enableHealthChecks !== false,
+        enableQuickStatistics: options.enableQuickStats !== false,
       });
 
       // Set up progress callback if analyzer supports it
@@ -1601,6 +1616,11 @@ export class DataPilotCLI {
         privacyMode: options.privacyMode || 'redacted',
         detailedProfiling: options.verbose || false,
         maxSampleSizeForSparsity: 10000,
+        enableCompressionAnalysis: options.enableCompressionAnalysis !== false,
+        enableDataPreview: options.enableDataPreview !== false,
+        previewRows: options.previewRows || 5,
+        enableHealthChecks: options.enableHealthChecks !== false,
+        enableQuickStatistics: options.enableQuickStats !== false,
       });
 
       const section1Data = await section1Analyzer.analyze(
@@ -1706,6 +1726,11 @@ export class DataPilotCLI {
             privacyMode: options.privacyMode || 'redacted',
             detailedProfiling: options.verbose || false,
             maxSampleSizeForSparsity: 10000,
+            enableCompressionAnalysis: options.enableCompressionAnalysis !== false,
+            enableDataPreview: options.enableDataPreview !== false,
+            previewRows: (options.previewRows as number) || 5,
+            enableHealthChecks: options.enableHealthChecks !== false,
+            enableQuickStatistics: options.enableQuickStats !== false,
           });
           return await analyzer.analyze(filePath, `datapilot all ${filePath}`, ['overview']);
         },
@@ -1724,6 +1749,11 @@ export class DataPilotCLI {
         privacyMode: options.privacyMode || 'redacted',
         detailedProfiling: options.verbose || false,
         maxSampleSizeForSparsity: 10000,
+        enableCompressionAnalysis: options.enableCompressionAnalysis !== false,
+        enableDataPreview: options.enableDataPreview !== false,
+        previewRows: options.previewRows || 5,
+        enableHealthChecks: options.enableHealthChecks !== false,
+        enableQuickStatistics: options.enableQuickStats !== false,
       });
       const section1Analysis = await section1Analyzer.analyze(filePath, `datapilot all ${filePath}`, ['overview']);
       
@@ -2401,6 +2431,11 @@ export class DataPilotCLI {
         privacyMode: 'minimal',
         detailedProfiling: false,
         maxSampleSizeForSparsity: 1000,
+        enableCompressionAnalysis: false,
+        enableDataPreview: false,
+        previewRows: 5,
+        enableHealthChecks: false,
+        enableQuickStatistics: false,
       });
 
       const metadata = await collector.collectMetadata(filePath);
@@ -2448,6 +2483,11 @@ export class DataPilotCLI {
         privacyMode: options.privacyMode || 'redacted',
         detailedProfiling: options.verbose || false,
         maxSampleSizeForSparsity: 10000,
+        enableCompressionAnalysis: options.enableCompressionAnalysis !== false,
+        enableDataPreview: options.enableDataPreview !== false,
+        previewRows: options.previewRows || 5,
+        enableHealthChecks: options.enableHealthChecks !== false,
+        enableQuickStatistics: options.enableQuickStats !== false,
       });
 
       const section1Data = await section1Analyzer.analyze(
@@ -2618,6 +2658,11 @@ export class DataPilotCLI {
         privacyMode: options.privacyMode || 'redacted',
         detailedProfiling: options.verbose || false,
         maxSampleSizeForSparsity: 10000,
+        enableCompressionAnalysis: options.enableCompressionAnalysis !== false,
+        enableDataPreview: options.enableDataPreview !== false,
+        previewRows: options.previewRows || 5,
+        enableHealthChecks: options.enableHealthChecks !== false,
+        enableQuickStatistics: options.enableQuickStats !== false,
       });
 
       const section1Data = await section1Analyzer.analyze(

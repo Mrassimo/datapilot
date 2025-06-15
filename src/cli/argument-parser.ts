@@ -126,6 +126,11 @@ Use --verbose for detailed confidence explanations in reports.`,
       .option('--privacy <mode>', 'Privacy mode (full, redacted, minimal)', 'redacted')
       .option('--max-memory <mb>', 'Maximum memory usage in MB', this.parseInteger)
       .option('--force', 'Ignore warnings and force processing')
+      .option('--preview-rows <number>', 'Number of rows to show in data preview (default: 5)', this.parseInteger)
+      .option('--no-compression-analysis', 'Disable compression analysis')
+      .option('--no-health-checks', 'Disable file health checks')
+      .option('--no-quick-stats', 'Disable quick column statistics')
+      .option('--no-data-preview', 'Disable data preview generation')
       .action(this.createCommandHandler('all'));
 
     // Section-specific commands
@@ -139,6 +144,11 @@ Use --verbose for detailed confidence explanations in reports.`,
       .option('--delimiter <char>', 'Specify delimiter character (e.g., ";" for semicolon)')
       .option('--no-hashing', 'Disable file hashing for faster processing')
       .option('--privacy <mode>', 'Privacy mode (full, redacted, minimal)', 'redacted')
+      .option('--preview-rows <number>', 'Number of rows to show in data preview (default: 5)', this.parseInteger)
+      .option('--no-compression-analysis', 'Disable compression analysis')
+      .option('--no-health-checks', 'Disable file health checks')
+      .option('--no-quick-stats', 'Disable quick column statistics')
+      .option('--no-data-preview', 'Disable data preview generation')
       .action(this.createCommandHandler('overview'));
 
     // Section 2: Quality analysis

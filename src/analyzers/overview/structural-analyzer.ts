@@ -9,6 +9,7 @@ import type {
   ColumnInventory,
   Section1Config,
   Section1Warning,
+  QuickColumnStatistics,
 } from './types';
 
 export class StructuralAnalyzer {
@@ -45,6 +46,11 @@ export class StructuralAnalyzer {
     // Sparsity analysis
     const sparsityAnalysis = this.analyzeSparsity(rows, hasHeader);
 
+    // Quick statistics if enabled
+    const quickStatistics = this.config.enableQuickStatistics
+      ? this.generateQuickStatistics(rows, hasHeader, columnInventory)
+      : undefined;
+
     // Add warnings for structural issues
     this.addStructuralWarnings(totalDataRows, totalColumns, estimatedInMemorySizeMB);
 
@@ -57,6 +63,7 @@ export class StructuralAnalyzer {
       estimatedInMemorySizeMB,
       averageRowLengthBytes,
       sparsityAnalysis,
+      quickStatistics,
     };
   }
 
@@ -324,6 +331,246 @@ export class StructuralAnalyzer {
         sampleSize: 0,
         description: 'Empty dataset',
       },
+    };
+  }
+
+  /**
+   * Generate quick column statistics for overview
+   */
+  private generateQuickStatistics(
+    rows: ParsedRow[],
+    hasHeader: boolean,
+    columnInventory: ColumnInventory[]
+  ): QuickColumnStatistics {
+    if (rows.length === 0) {
+      return this.createEmptyStatistics();
+    }
+
+    const dataStartIndex = hasHeader ? 1 : 0;
+    const sampleSize = Math.min(rows.length - dataStartIndex, 1000); // Sample first 1000 data rows
+    const sampleRows = rows.slice(dataStartIndex, dataStartIndex + sampleSize);
+    
+    let numericColumns = 0;
+    let textColumns = 0;
+    let dateColumns = 0;
+    let booleanColumns = 0;
+    let emptyColumns = 0;
+    let highCardinalityColumns = 0;
+    let lowCardinalityColumns = 0;
+    const potentialIdColumns: string[] = [];
+    
+    const columnTypes: Array<{
+      columnName: string;
+      detectedType: 'numeric' | 'text' | 'date' | 'boolean' | 'empty' | 'mixed';
+      uniqueValueCount: number;
+      cardinality: 'high' | 'medium' | 'low';
+    }> = [];
+
+    for (let colIndex = 0; colIndex < columnInventory.length; colIndex++) {
+      const column = columnInventory[colIndex];
+      const values: string[] = [];
+      
+      // Collect values from sample
+      for (const row of sampleRows) {
+        if (row.data[colIndex] !== undefined) {
+          values.push(row.data[colIndex]);
+        }
+      }
+      
+      if (values.length === 0) {
+        emptyColumns++;
+        columnTypes.push({
+          columnName: column.name,
+          detectedType: 'empty',
+          uniqueValueCount: 0,
+          cardinality: 'low',
+        });
+        continue;
+      }
+
+      // Analyze column type and characteristics
+      const typeAnalysis = this.analyzeColumnType(values);
+      const uniqueValueCount = new Set(values).size;
+      const cardinalityRatio = uniqueValueCount / values.length;
+      
+      let cardinality: 'high' | 'medium' | 'low' = 'medium';
+      if (cardinalityRatio > 0.5) {
+        cardinality = 'high';
+        highCardinalityColumns++;
+      } else if (cardinalityRatio < 0.1) {
+        cardinality = 'low';
+        lowCardinalityColumns++;
+      }
+
+      // Count by type
+      switch (typeAnalysis.primaryType) {
+        case 'numeric':
+          numericColumns++;
+          break;
+        case 'date':
+          dateColumns++;
+          break;
+        case 'boolean':
+          booleanColumns++;
+          break;
+        case 'text':
+        default:
+          textColumns++;
+          break;
+      }
+
+      if (typeAnalysis.primaryType === 'empty') {
+        emptyColumns++;
+      }
+
+      // Check if potentially an ID column
+      if (this.isPotentialIdColumn(column.name, values, uniqueValueCount)) {
+        potentialIdColumns.push(column.name);
+      }
+
+      columnTypes.push({
+        columnName: column.name,
+        detectedType: typeAnalysis.primaryType,
+        uniqueValueCount,
+        cardinality,
+      });
+    }
+
+    return {
+      numericColumns,
+      textColumns,
+      dateColumns,
+      booleanColumns,
+      emptyColumns,
+      highCardinalityColumns,
+      lowCardinalityColumns,
+      potentialIdColumns,
+      columnTypes,
+      analysisMethod: `Sample-based analysis (${sampleSize} rows)`,
+      sampleSize,
+    };
+  }
+
+  /**
+   * Analyze the type of a column based on its values
+   */
+  private analyzeColumnType(values: string[]): { primaryType: 'numeric' | 'text' | 'date' | 'boolean' | 'empty' | 'mixed' } {
+    if (values.length === 0) {
+      return { primaryType: 'empty' };
+    }
+
+    let numericCount = 0;
+    let dateCount = 0;
+    let booleanCount = 0;
+    let emptyCount = 0;
+    
+    for (const value of values.slice(0, 50)) { // Sample first 50 values for type detection
+      const trimmed = value.trim();
+      
+      if (this.isEmptyCell(trimmed)) {
+        emptyCount++;
+      } else if (this.isNumeric(trimmed)) {
+        numericCount++;
+      } else if (this.isDate(trimmed)) {
+        dateCount++;
+      } else if (this.isBoolean(trimmed)) {
+        booleanCount++;
+      }
+    }
+
+    const sampleSize = Math.min(values.length, 50);
+    const threshold = sampleSize * 0.6; // 60% threshold for type determination
+
+    if (numericCount >= threshold) return { primaryType: 'numeric' };
+    if (dateCount >= threshold) return { primaryType: 'date' };
+    if (booleanCount >= threshold) return { primaryType: 'boolean' };
+    if (emptyCount >= threshold) return { primaryType: 'empty' };
+
+    // Check for mixed types
+    const totalTypedValues = numericCount + dateCount + booleanCount;
+    if (totalTypedValues >= threshold) {
+      return { primaryType: 'mixed' };
+    }
+
+    return { primaryType: 'text' };
+  }
+
+  /**
+   * Check if a value is numeric
+   */
+  private isNumeric(value: string): boolean {
+    if (value === '') return false;
+    const num = Number(value.replace(/,/g, '')); // Remove commas
+    return !isNaN(num) && isFinite(num);
+  }
+
+  /**
+   * Check if a value looks like a date
+   */
+  private isDate(value: string): boolean {
+    if (value === '') return false;
+    
+    // Common date patterns
+    const datePatterns = [
+      /^\d{4}-\d{2}-\d{2}$/, // YYYY-MM-DD
+      /^\d{2}\/\d{2}\/\d{4}$/, // MM/DD/YYYY
+      /^\d{2}-\d{2}-\d{4}$/, // MM-DD-YYYY
+      /^\d{4}\/\d{2}\/\d{2}$/, // YYYY/MM/DD
+    ];
+    
+    return datePatterns.some(pattern => pattern.test(value)) || !isNaN(Date.parse(value));
+  }
+
+  /**
+   * Check if a value is boolean
+   */
+  private isBoolean(value: string): boolean {
+    const lower = value.toLowerCase().trim();
+    return ['true', 'false', 'yes', 'no', 'y', 'n', '1', '0'].includes(lower);
+  }
+
+  /**
+   * Check if a column might be an ID column
+   */
+  private isPotentialIdColumn(
+    columnName: string,
+    values: string[],
+    uniqueValueCount: number
+  ): boolean {
+    // Check name patterns
+    const namePatterns = [/id$/i, /^id/i, /key$/i, /^key/i, /index$/i, /^index/i];
+    const hasIdName = namePatterns.some(pattern => pattern.test(columnName));
+    
+    // Check uniqueness (high cardinality suggests ID)
+    const uniquenessRatio = uniqueValueCount / values.length;
+    const isHighlyUnique = uniquenessRatio > 0.9;
+    
+    // Check if values look like IDs (sequential numbers, UUIDs, etc.)
+    const sampleValues = values.slice(0, 10);
+    const looksLikeIds = sampleValues.every(value => {
+      const trimmed = value.trim();
+      return /^[a-zA-Z0-9\-_]+$/.test(trimmed) && trimmed.length >= 3;
+    });
+    
+    return hasIdName || (isHighlyUnique && looksLikeIds);
+  }
+
+  /**
+   * Create empty statistics for edge cases
+   */
+  private createEmptyStatistics(): QuickColumnStatistics {
+    return {
+      numericColumns: 0,
+      textColumns: 0,
+      dateColumns: 0,
+      booleanColumns: 0,
+      emptyColumns: 0,
+      highCardinalityColumns: 0,
+      lowCardinalityColumns: 0,
+      potentialIdColumns: [],
+      columnTypes: [],
+      analysisMethod: 'No data available',
+      sampleSize: 0,
     };
   }
 
