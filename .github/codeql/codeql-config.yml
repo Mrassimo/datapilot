@@ -1,0 +1,45 @@
+# CodeQL Configuration for DataPilot
+# Enhanced security analysis configuration
+
+name: "DataPilot CodeQL Config"
+
+# Disable built-in suite to use custom configuration
+disable-default-queries: false
+
+# Query filters and custom queries
+queries:
+  - uses: security-and-quality
+  - uses: security-extended
+  
+# Path filters - include source code but exclude dependencies and generated files
+paths:
+  - "src/**"
+  - "tests/**"
+  - "scripts/**"
+  
+paths-ignore:
+  - "node_modules/**"
+  - "dist/**"
+  - "coverage/**"
+  - "binaries/**"
+  - "examples/**"
+  - "*.json"
+  - "*.md"
+  - "*.yml"
+  - "*.yaml"
+  - "**/*.test.ts"
+  - "**/*.spec.ts"
+  - ".github/**"
+  - ".vscode/**"
+  - ".jest-cache/**"
+
+# Language-specific configuration
+javascript:
+  # Include TypeScript files
+  identify-nested-archives: true
+  
+# Additional packs for enhanced security scanning
+packs:
+  - "codeql/javascript-queries:AlertSuppression.ql"
+  - "codeql/javascript-queries:Security"
+  - "codeql/javascript-queries:Performance"

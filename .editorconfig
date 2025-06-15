@@ -1,0 +1,203 @@
+# EditorConfig for DataPilot
+# Ensures consistent coding styles across different editors and IDEs
+# Learn more: https://editorconfig.org/
+
+# Top-most EditorConfig file
+root = true
+
+# Default settings for all files
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+# Line length guidance (matches Prettier printWidth)
+max_line_length = 100
+
+# TypeScript and JavaScript files
+[*.{ts,js}]
+indent_style = space
+indent_size = 2
+quote_type = single
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# TypeScript declaration files
+[*.d.ts]
+indent_style = space
+indent_size = 2
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# JSON files (package.json, tsconfig.json, etc.)
+[*.json]
+indent_style = space
+indent_size = 2
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# JSON5 files
+[*.json5]
+indent_style = space
+indent_size = 2
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# YAML files (.yml, .yaml)
+[*.{yml,yaml}]
+indent_style = space
+indent_size = 2
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# Markdown files
+[*.md]
+indent_style = space
+indent_size = 2
+insert_final_newline = true
+trim_trailing_whitespace = false  # Preserve trailing spaces for line breaks
+
+# Shell scripts
+[*.sh]
+indent_style = space
+indent_size = 2
+insert_final_newline = true
+trim_trailing_whitespace = true
+end_of_line = lf
+
+# Batch files (Windows)
+[*.bat]
+indent_style = space
+indent_size = 2
+insert_final_newline = true
+trim_trailing_whitespace = true
+end_of_line = crlf
+
+# PowerShell scripts
+[*.ps1]
+indent_style = space
+indent_size = 2
+insert_final_newline = true
+trim_trailing_whitespace = true
+end_of_line = crlf
+
+# Configuration files
+[{.eslintrc,.prettierrc}]
+indent_style = space
+indent_size = 2
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# Configuration files with extensions
+[*.{eslintrc,prettierrc}]
+indent_style = space
+indent_size = 2
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# Package manager files
+[{package.json,package-lock.json,yarn.lock,pnpm-lock.yaml}]
+indent_style = space
+indent_size = 2
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# Git configuration files
+[.gitconfig]
+indent_style = tab
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# Makefile (requires tabs)
+[{Makefile,makefile,*.mk}]
+indent_style = tab
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# Docker files
+[{Dockerfile,Dockerfile.*,*.dockerfile}]
+indent_style = space
+indent_size = 2
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# Docker Compose files
+[docker-compose*.{yml,yaml}]
+indent_style = space
+indent_size = 2
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# GitHub Actions workflow files
+[.github/workflows/*.{yml,yaml}]
+indent_style = space
+indent_size = 2
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# License and legal files
+[{LICENSE,LICENCE,COPYRIGHT,NOTICE}]
+indent_style = space
+indent_size = 2
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# CSV and TSV files (data files)
+[*.{csv,tsv}]
+indent_style = space
+indent_size = 2
+insert_final_newline = false
+trim_trailing_whitespace = false  # Preserve data integrity
+
+# XML files
+[*.xml]
+indent_style = space
+indent_size = 2
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# HTML files
+[*.html]
+indent_style = space
+indent_size = 2
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# CSS and SCSS files
+[*.{css,scss,sass}]
+indent_style = space
+indent_size = 2
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# SQL files
+[*.sql]
+indent_style = space
+indent_size = 2
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# Text files
+[*.txt]
+indent_style = space
+indent_size = 2
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# Log files
+[*.log]
+insert_final_newline = false
+trim_trailing_whitespace = false  # Preserve log formatting
+
+# Binary files (no text formatting)
+[*.{png,jpg,jpeg,gif,ico,svg,woff,woff2,ttf,eot,pdf,zip,tar,gz,exe,dll,so,dylib}]
+insert_final_newline = false
+trim_trailing_whitespace = false
+
+# Generated files (usually should not be edited)
+[{dist/**/*,build/**/*,coverage/**/*,node_modules/**/*,.jest-cache/**/*}]
+insert_final_newline = false
+trim_trailing_whitespace = false
