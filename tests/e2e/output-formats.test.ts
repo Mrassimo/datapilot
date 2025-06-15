@@ -50,7 +50,7 @@ describe('Output Formats E2E', () => {
   it('should generate valid JSON output', async () => {
     const result = await runCLI([
       'overview', testCsvPath,
-      '--output', 'json',
+      '--format', 'json',
       '--quiet'
     ], tempDir);
 
@@ -90,7 +90,7 @@ describe('Output Formats E2E', () => {
   it('should generate valid YAML output', async () => {
     const result = await runCLI([
       'overview', testCsvPath,
-      '--output', 'yaml',
+      '--format', 'yaml',
       '--quiet'
     ], tempDir);
 
@@ -130,7 +130,7 @@ describe('Output Formats E2E', () => {
   it('should generate valid Markdown output', async () => {
     const result = await runCLI([
       'overview', testCsvPath,
-      '--output', 'markdown',
+      '--format', 'markdown',
       '--quiet'
     ], tempDir);
 

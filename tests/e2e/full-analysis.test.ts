@@ -59,7 +59,7 @@ describe('Full Analysis E2E', () => {
   it('should perform complete analysis and generate markdown output', async () => {
     const result = await runCLI([
       'all', testCsvPath, 
-      '--output', 'markdown'
+      '--format', 'markdown'
     ], tempDir); // Change working directory to tempDir
 
     expect(result.exitCode).toBe(0);

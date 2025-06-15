@@ -267,7 +267,7 @@ jobs:
         # Benchmark current version
         echo "🔍 Benchmarking current version..."
         START_TIME=$(date +%s%N)
-        timeout 60s node dist/cli/index.js all benchmark-data/test.csv --output-file current-benchmark.md || true
+        timeout 60s node dist/cli/index.js all benchmark-data/test.csv --output current-benchmark.md || true
         END_TIME=$(date +%s%N)
         CURRENT_TIME=$((($END_TIME - $START_TIME) / 1000000))  # Convert to milliseconds
         
@@ -285,7 +285,7 @@ jobs:
           chmod +x dist/cli/index.js || true
           
           START_TIME=$(date +%s%N)
-          timeout 60s node dist/cli/index.js all benchmark-data/test.csv --output-file baseline-benchmark.md || true
+          timeout 60s node dist/cli/index.js all benchmark-data/test.csv --output baseline-benchmark.md || true
           END_TIME=$(date +%s%N)
           BASELINE_TIME=$((($END_TIME - $START_TIME) / 1000000))
           
@@ -411,7 +411,7 @@ jobs:
       
     - name: Test CLI with real datasets
       run: |
-        node dist/cli/index.js all examples/sample.csv --output-file test-output.md
+        node dist/cli/index.js all examples/sample.csv --output test-output.md
         [ -f test-output.md ] && echo "✅ CLI test passed" || exit 1
 
   cross-platform:
@@ -481,7 +481,7 @@ jobs:
         
         # Test with sample data if available
         if [ -f "examples/sample.csv" ]; then
-          node dist/cli/index.js overview examples/sample.csv --output-file test-${{ runner.os }}.md
+          node dist/cli/index.js overview examples/sample.csv --output test-${{ runner.os }}.md
           [ -f "test-${{ runner.os }}.md" ] && echo "✅ CLI test passed on ${{ matrix.platform-name }}"
         fi
         
@@ -495,7 +495,7 @@ jobs:
         
         REM Test with sample data if available
         if exist "examples\sample.csv" (
-          node dist/cli/index.js overview examples\sample.csv --output-file test-Windows.md
+          node dist/cli/index.js overview examples\sample.csv --output test-Windows.md
           if exist "test-Windows.md" echo CLI test passed on Windows
         )
         

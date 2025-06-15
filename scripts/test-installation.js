@@ -112,13 +112,13 @@ if (cliAvailable) {
   let analysisCommand = '';
   switch (cliMethod) {
     case 'direct':
-      analysisCommand = `node "${cliPath}" overview "${testFile}" --output json`;
+      analysisCommand = `node "${cliPath}" overview "${testFile}" --format json`;
       break;
     case 'global':
-      analysisCommand = `datapilot overview "${testFile}" --output json`;
+      analysisCommand = `datapilot overview "${testFile}" --format json`;
       break;
     case 'npx':
-      analysisCommand = `npx datapilot-cli overview "${testFile}" --output json`;
+      analysisCommand = `npx datapilot-cli overview "${testFile}" --format json`;
       break;
   }
   
@@ -147,7 +147,7 @@ if (cliAvailable) {
     if (cliMethod !== 'direct' && fs.existsSync(cliPath)) {
       console.log('\n🔄 Trying direct execution fallback...');
       try {
-        execSync(`node "${cliPath}" overview "${testFile}" --output json`, { stdio: 'inherit' });
+        execSync(`node "${cliPath}" overview "${testFile}" --format json`, { stdio: 'inherit' });
         console.log('✅ Direct execution fallback successful!');
       } catch (directError) {
         console.log('❌ Direct execution fallback also failed');
