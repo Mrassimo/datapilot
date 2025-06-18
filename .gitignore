@@ -99,7 +99,29 @@ test_*.txt
 test-output*.md
 test-output*.json
 test-output*.yaml
+test-output*.txt
 engineering-test-results*
+
+# Root directory cleanup - move these files to archive
+/custom-report_datapilot_report.md
+/invalid_datapilot_report.md
+/sample-data_datapilot_report.md
+/sample_datapilot_eda.json
+/test-data_datapilot_report.json
+/test-output.json
+/test-output.txt
+/test-output.yaml
+/test-output_datapilot_report.md
+/valid_datapilot_report.md
+
+# Documentation that should be moved to docs/
+/TEST_REBUILD_SUMMARY.md
+/TEST_STRATEGY.md
+/WINDOWS_SETUP.md
+/OFFLINE_INSTALL.md
+
+# Archive folder for old documentation and test outputs
+archive/
 
 # Keep essential project files
 !package.json

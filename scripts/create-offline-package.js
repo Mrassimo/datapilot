@@ -3,26 +3,35 @@
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
+const os = require('os');
 
 /**
  * Creates a fully bundled package for offline installation
  * This ensures all dependencies are embedded in the package
  */
 
+const isWindows = os.platform() === 'win32';
+const npmCmd = isWindows ? 'npm.cmd' : 'npm';
+
 console.log('🚀 Creating offline-installable package...');
+console.log(`📊 Platform: ${os.platform()} ${os.arch()}`);
+console.log(`🔧 Node version: ${process.version}`);
 
 try {
   // Step 1: Clean and prepare
   console.log('1️⃣ Cleaning previous builds...');
-  execSync('npm run clean', { stdio: 'inherit' });
+  execSync(`${npmCmd} run clean`, { stdio: 'inherit', shell: true });
   
   // Step 2: Ensure fresh dependency install
   console.log('2️⃣ Installing fresh dependencies...');
-  execSync('npm ci', { stdio: 'inherit' });
+  if (isWindows) {
+    console.log('   💡 Windows detected - using optimized npm settings');
+  }
+  execSync(`${npmCmd} ci`, { stdio: 'inherit', shell: true });
   
   // Step 3: Build the project
   console.log('3️⃣ Building TypeScript...');
-  execSync('npm run build', { stdio: 'inherit' });
+  execSync(`${npmCmd} run build`, { stdio: 'inherit', shell: true });
   
   // Step 4: Verify bundleDependencies are properly configured
   const packageJson = require('../package.json');
@@ -41,7 +50,7 @@ try {
   
   // Step 5: Create the bundled package
   console.log('5️⃣ Creating bundled package...');
-  const result = execSync('npm pack', { encoding: 'utf8', stdio: 'pipe' });
+  const result = execSync(`${npmCmd} pack`, { encoding: 'utf8', stdio: 'pipe', shell: true });
   const packageFilename = result.trim();
   
   console.log(`✅ Package created: ${packageFilename}`);
@@ -71,22 +80,47 @@ try {
 
 The package ${packageFilename} contains all dependencies bundled.
 
-## To install on an offline machine:
+## Windows Installation (Recommended):
+
+### Method 1: Global Installation
+1. Copy ${packageFilename} to the target Windows machine
+2. Open Command Prompt or PowerShell as Administrator
+3. Run: \`npm install -g ${packageFilename}\`
+4. Verify: \`datapilot --version\`
+
+### Method 2: Local Installation
+1. Extract: \`tar -xzf ${packageFilename}\` (or use 7-Zip)
+2. \`cd package\`
+3. \`npm install --production --offline\`
+4. \`npm link\` (optional, for global access)
+
+## Troubleshooting Windows Installation:
+
+### If npm install hangs:
+1. Clear npm cache: \`npm cache clean --force\`
+2. Delete node_modules: \`rmdir /s node_modules\`
+3. Try with --no-audit flag: \`npm install --no-audit --prefer-offline\`
+
+### If you get permission errors:
+1. Run Command Prompt as Administrator
+2. Or use: \`npm install -g ${packageFilename} --unsafe-perm\`
+
+### Alternative Windows Installation:
+1. Download and install Node.js from https://nodejs.org
+2. Use yarn instead: \`yarn global add ${packageFilename}\`
+3. Or use pnpm: \`pnpm add -g ${packageFilename}\`
+
+## Linux/macOS Installation:
 
 1. Copy ${packageFilename} to the target machine
-2. Run: npm install -g ${packageFilename}
-3. Verify: datapilot --version
-
-## Alternative local installation:
-1. Extract: tar -xzf ${packageFilename}
-2. cd package/  
-3. npm install --production --offline
-4. npm link (optional, for global access)
+2. Run: \`npm install -g ${packageFilename}\`
+3. Verify: \`datapilot --version\`
 
 ## Package contents:
 - All source code in dist/
 - All dependencies bundled
 - No internet connection required for installation
+- Optimized .npmrc for Windows compatibility
 `;
 
   fs.writeFileSync('OFFLINE_INSTALL.md', installInstructions);
@@ -99,12 +133,22 @@ The package ${packageFilename} contains all dependencies bundled.
   // Test the package locally
   console.log('\n🧪 Testing package installation...');
   try {
-    execSync(`npm install -g ${packageFilename}`, { stdio: 'inherit' });
-    execSync('datapilot --version', { stdio: 'inherit' });
-    execSync('npm uninstall -g datapilot-cli', { stdio: 'inherit' });
+    console.log('   📦 Installing package globally...');
+    execSync(`${npmCmd} install -g ${packageFilename}`, { stdio: 'inherit', shell: true });
+    
+    console.log('   ✅ Testing datapilot command...');
+    execSync('datapilot --version', { stdio: 'inherit', shell: true });
+    
+    console.log('   🧹 Cleaning up test installation...');
+    execSync(`${npmCmd} uninstall -g datapilot-cli`, { stdio: 'inherit', shell: true });
+    
     console.log('✅ Package installation test successful');
   } catch (error) {
     console.log('⚠️  Package installation test failed - please verify manually');
+    console.log(`   💡 Error: ${error.message}`);
+    if (isWindows) {
+      console.log('   🛠️  Try running as Administrator or use: npm install -g --unsafe-perm');
+    }
   }
 
 } catch (error) {
