@@ -41,6 +41,8 @@
     "test:package": "npm pack && npm install -g datapilot-cli-*.tgz && npm run test:installation && npm uninstall -g datapilot-cli",
     "release": "node scripts/release-automation.js",
     "pre-release": "npm run lint && npm run typecheck && npm run test:all && npm run build && npm run test:installation",
+    "prepublishOnly": "npm run build:clean",
+    "prepack": "npm run build",
     "build:binaries": "npm run build && pkg . --output binaries/datapilot",
     "build:win": "npm run build && pkg . --targets node18-win-x64 --output binaries/datapilot-win.exe",
     "build:mac": "npm run build && pkg . --targets node18-macos-x64 --output binaries/datapilot-macos",

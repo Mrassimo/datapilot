@@ -5,8 +5,6 @@ test-datasets/
 examples/outputs/
 
 # Development files
-*.ts
-!*.d.ts
 tsconfig.json
 jest.config.js
 .eslintrc*

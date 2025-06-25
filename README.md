@@ -28,14 +28,15 @@ DataPilot is a sophisticated command-line tool that transforms data files into c
 
 ### Option 1: NPM Package (Recommended)
 ```bash
-# Install globally 
+# Install globally (pre-built, no compilation required)
 npm install -g datapilot-cli
 
-# Verify installation (should show v1.3.3 or later)
+# Verify installation (should show v1.4.0 or later)
 datapilot --version
 ```
 
 > ⚠️ **Important**: Install `datapilot-cli`, NOT `datapilot` (which is deprecated)
+> ✅ **New in v1.4.0**: Pre-built packages - no TypeScript compilation needed!
 
 #### Windows Users - Important Notes 🪟
 
@@ -85,7 +86,17 @@ npx datapilot-cli --help
 
 > 💡 **Windows users**: npx is often the easiest option as it bypasses PATH issues entirely.
 
-### Option 3: From Source
+### Option 3: Enterprise Installation
+
+For offline environments, Windows-specific issues, or standalone executables, see our comprehensive [Enterprise Installation Guide](docs/ENTERPRISE_INSTALLATION.md).
+
+**Available options:**
+- Pre-built npm packages (no build tools required)
+- Standalone executables (no Node.js required)
+- Offline installation packages
+- Windows-specific installers
+
+### Option 4: From Source
 ```bash
 git clone https://github.com/Mrassimo/datapilot.git
 cd datapilot
