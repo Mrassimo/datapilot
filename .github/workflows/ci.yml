@@ -225,12 +225,7 @@ jobs:
         run: |
           npm install -g caxa
           
-          caxa `
-            --input . `
-            --output datapilot-win-test.exe `
-            --exclude-output binaries `
-            --exclude ".github" `
-            --exclude "tests"
+          caxa --input . --output datapilot-win-test.exe --exclude-output binaries --exclude ".github" --exclude "tests"
           
           .\datapilot-win-test.exe --version
 

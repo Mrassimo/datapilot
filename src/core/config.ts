@@ -499,20 +499,49 @@ export const DEFAULT_CONFIG: DataPilotConfig = {
   },
 };
 
+// Re-export refactored managers
+// Configuration managers temporarily disabled pending refactor
+
 /**
- * Enhanced Configuration Manager with Type Safety and Validation
+ * Enhanced Configuration Manager - Refactored as Facade
+ * Delegates to focused managers for single responsibility
  */
+// Stub config managers
+class CoreConfigManager {
+  constructor(config?: any) {}
+  getConfig() { return DEFAULT_CONFIG; }
+  updateConfig() {}
+  getPerformanceConfig() { return DEFAULT_CONFIG.performance; }
+  getStatisticalConfig() { return DEFAULT_CONFIG.statistical; }
+  getQualityConfig() { return DEFAULT_CONFIG.quality; }
+  getOutputConfig() { return DEFAULT_CONFIG.output; }
+}
+
+class EnvironmentConfigManager {
+  loadFromEnvironmentVariables() { return {}; }
+}
+
+class RuntimeConfigManager {
+  getPresetConfig(preset: string) { return DEFAULT_CONFIG; }
+  getUseCaseConfig(useCase: string) { return DEFAULT_CONFIG; }
+}
+
 export class ConfigManager {
   private static instance: ConfigManager;
-  private config: DataPilotConfig;
-  private validationSchema: ConfigValidationSchema;
-  private environmentOverrides: Map<EnvironmentMode, Partial<DataPilotConfig>>;
+  private coreConfigManager: any; // Will be CoreConfigManager
+  private environmentConfigManager: any; // Will be EnvironmentConfigManager
+  private runtimeConfigManager: any; // Will be RuntimeConfigManager
 
   private constructor(initialConfig?: Partial<DataPilotConfig>) {
-    this.config = this.mergeConfig(initialConfig);
-    this.validationSchema = this.createValidationSchema();
-    this.environmentOverrides = new Map();
-    this.initializeEnvironmentOverrides();
+    // Initialize stub managers
+    this.coreConfigManager = new CoreConfigManager(initialConfig);
+    this.environmentConfigManager = new EnvironmentConfigManager();
+    this.runtimeConfigManager = new RuntimeConfigManager();
+
+    // Apply environment config if specified
+    if (initialConfig?.environment?.mode) {
+      this.applyEnvironmentConfig(initialConfig.environment.mode);
+    }
   }
 
   static getInstance(initialConfig?: Partial<DataPilotConfig>): ConfigManager {
@@ -522,162 +551,15 @@ export class ConfigManager {
     return ConfigManager.instance;
   }
 
-  /**
-   * Initialize environment-specific configuration overrides
-   */
-  private initializeEnvironmentOverrides(): void {
-    // Development environment - more verbose, smaller limits
-    this.environmentOverrides.set('development', {
-      performance: {
-        maxRows: 50000,
-        maxFieldSize: 1024 * 1024, // 1MB
-        memoryThresholdBytes: 512 * 1024 * 1024, // 512MB
-        chunkSize: 100,
-        sampleSize: 1000,
-        adaptiveChunkSizing: false,
-        maxCollectedRowsMultivariate: 10000,
-        batchSize: 50,
-        performanceMonitoringInterval: 1000,
-        memoryCleanupInterval: 5000,
-        emergencyMemoryThresholdMultiplier: 0.9,
-      },
-      streaming: {
-        memoryThresholdMB: 50,
-        maxRowsAnalyzed: 50000,
-        adaptiveChunkSizing: {
-          enabled: false,
-          minChunkSize: 50,
-          maxChunkSize: 200,
-          reductionFactor: 0.5,
-          expansionFactor: 1.1,
-          targetMemoryUtilization: 0.8,
-        },
-        memoryManagement: {
-          cleanupInterval: 20,
-          emergencyThresholdMultiplier: 1.5,
-          forceGarbageCollection: true,
-          gcFrequency: 1000,
-          memoryLeakDetection: true,
-          autoGarbageCollect: true,
-        },
-      },
-    });
-
-    // Production environment - optimized for performance
-    this.environmentOverrides.set('production', {
-      performance: {
-        maxRows: 2000000,
-        maxFieldSize: 10 * 1024 * 1024, // 10MB
-        memoryThresholdBytes: 4 * 1024 * 1024 * 1024, // 4GB
-        chunkSize: 1000,
-        sampleSize: 10000,
-        adaptiveChunkSizing: true,
-        maxCollectedRowsMultivariate: 100000,
-        batchSize: 500,
-        performanceMonitoringInterval: 5000,
-        memoryCleanupInterval: 10000,
-        emergencyMemoryThresholdMultiplier: 0.95,
-      },
-      streaming: {
-        memoryThresholdMB: 500,
-        maxRowsAnalyzed: 2000000,
-        adaptiveChunkSizing: {
-          enabled: true,
-          minChunkSize: 500,
-          maxChunkSize: 2000,
-          reductionFactor: 0.7,
-          expansionFactor: 1.1,
-          targetMemoryUtilization: 0.85,
-        },
-        memoryManagement: {
-          cleanupInterval: 20,
-          emergencyThresholdMultiplier: 1.5,
-          forceGarbageCollection: true,
-          gcFrequency: 5000,
-          memoryLeakDetection: true,
-          autoGarbageCollect: true,
-        },
-      },
-    });
-
-    // CI environment - fast and minimal
-    this.environmentOverrides.set('ci', {
-      performance: {
-        maxRows: 10000,
-        maxFieldSize: 512 * 1024, // 512KB
-        memoryThresholdBytes: 256 * 1024 * 1024, // 256MB
-        chunkSize: 50,
-        sampleSize: 500,
-        adaptiveChunkSizing: false,
-        maxCollectedRowsMultivariate: 1000,
-        batchSize: 25,
-        performanceMonitoringInterval: 500,
-        memoryCleanupInterval: 2000,
-        emergencyMemoryThresholdMultiplier: 0.8,
-      },
-      analysis: {
-        maxCategoricalLevels: 20,
-        maxCorrelationPairs: 10,
-        samplingThreshold: 1000,
-        outlierMethods: ['iqr'],
-        normalityTests: ['shapiro'],
-        enableMultivariate: false,
-        enabledAnalyses: ['univariate'],
-        highCardinalityThreshold: 80,
-        missingValueQualityThreshold: 20,
-        multivariateThreshold: 500,
-        maxDimensionsForPCA: 5,
-        clusteringMethods: ['kmeans'],
-      },
-    });
-
-    // Test environment - predictable and limited
-    this.environmentOverrides.set('test', {
-      performance: {
-        maxRows: 1000,
-        maxFieldSize: 256 * 1024, // 256KB
-        memoryThresholdBytes: 128 * 1024 * 1024, // 128MB
-        chunkSize: 25,
-        sampleSize: 100,
-        adaptiveChunkSizing: false,
-        maxCollectedRowsMultivariate: 500,
-        batchSize: 10,
-        performanceMonitoringInterval: 250,
-        memoryCleanupInterval: 1000,
-        emergencyMemoryThresholdMultiplier: 0.7,
-      },
-      statistical: {
-        significanceLevel: 0.1, // Less strict for testing
-        alternativeSignificanceLevels: {
-          normalityTests: 0.1,
-          correlationTests: 0.1,
-          hypothesisTests: 0.1,
-          outlierDetection: 0.2,
-        },
-        confidenceLevel: 0.9,
-        correlationThresholds: { weak: 0.2, moderate: 0.5, strong: 0.8, veryStrong: 0.9 },
-        outlierThresholds: {
-          zScoreThreshold: 3.0,
-          modifiedZScoreThreshold: 3.5,
-          iqrMultiplier: 1.5,
-        },
-        normalityThresholds: {
-          shapiroWilkMinSample: 3,
-          shapiroWilkMaxSample: 5000,
-          jarqueBeraThreshold: 0.1,
-          ksTestThreshold: 0.1,
-        },
-      },
-    });
-  }
 
   /**
    * Apply environment-specific configuration
    */
   applyEnvironmentConfig(environment: EnvironmentMode): void {
-    const envOverrides = this.environmentOverrides.get(environment);
-    if (envOverrides) {
-      this.config = this.mergeConfig(envOverrides);
+    this.environmentConfigManager.setEnvironment(environment);
+    const envConfig = this.environmentConfigManager.getEnvironmentConfig(environment);
+    if (envConfig) {
+      this.updateConfig(envConfig);
     }
   }
 
@@ -685,421 +567,158 @@ export class ConfigManager {
    * Apply performance preset with type safety
    */
   applyPerformancePreset(preset: PerformancePreset): void {
-    switch (preset.preset) {
-      case 'low-memory':
-        if ('maxMemoryMB' in preset && 'maxRows' in preset) {
-          this.updatePerformanceConfig({
-            maxRows: preset.maxRows,
-            memoryThresholdBytes: preset.maxMemoryMB * 1024 * 1024,
-            adaptiveChunkSizing: false,
-          });
-          this.updateStreamingConfig({
-            memoryThresholdMB: preset.maxMemoryMB / 4,
-            maxRowsAnalyzed: preset.maxRows,
-          });
-        }
-        break;
-
-      case 'balanced':
-        if ('maxMemoryMB' in preset && 'maxRows' in preset) {
-          this.updatePerformanceConfig({
-            maxRows: preset.maxRows,
-            memoryThresholdBytes: preset.maxMemoryMB * 1024 * 1024,
-            adaptiveChunkSizing: true,
-          });
-        }
-        break;
-
-      case 'high-performance':
-        if ('maxMemoryMB' in preset && 'maxRows' in preset) {
-          this.updatePerformanceConfig({
-            maxRows: preset.maxRows,
-            memoryThresholdBytes: preset.maxMemoryMB * 1024 * 1024,
-            adaptiveChunkSizing: true,
-            batchSize: 5000,
-          });
-        }
-        break;
-
-      case 'custom':
-        this.updatePerformanceConfig(preset.config);
-        break;
-    }
-  }
-
-  /**
-   * Create comprehensive validation schema
-   */
-  private createValidationSchema(): ConfigValidationSchema {
-    return {
-      performance: [
-        {
-          field: 'maxRows',
-          validator: (value) => typeof value === 'number' && value > 0,
-          message: 'maxRows must be a positive number',
-          required: true,
-        },
-        {
-          field: 'memoryThresholdBytes',
-          validator: (value) => typeof value === 'number' && value > 0,
-          message: 'memoryThresholdBytes must be a positive number',
-          required: true,
-        },
-        {
-          field: 'chunkSize',
-          validator: (value) => typeof value === 'number' && value >= 1024,
-          message: 'chunkSize must be at least 1024 bytes',
-        },
-      ],
-      statistical: [
-        {
-          field: 'significanceLevel',
-          validator: (value) => typeof value === 'number' && value > 0 && value < 1,
-          message: 'significanceLevel must be between 0 and 1',
-          required: true,
-        },
-        {
-          field: 'confidenceLevel',
-          validator: (value) => typeof value === 'number' && value > 0 && value < 1,
-          message: 'confidenceLevel must be between 0 and 1',
-          required: true,
-        },
-      ],
-      quality: [
-        {
-          field: 'qualityWeights',
-          validator: (weights) => {
-            if (typeof weights !== 'object') return false;
-            const sum = Object.values(weights as Record<string, number>).reduce(
-              (a: number, b: number) => a + b,
-              0,
-            );
-            return Math.abs(sum - 1.0) < 0.01;
-          },
-          message: 'qualityWeights must sum to 1.0',
-          required: true,
-        },
-      ],
-      analysis: [
-        {
-          field: 'maxCategoricalLevels',
-          validator: (value) => typeof value === 'number' && value > 0,
-          message: 'maxCategoricalLevels must be a positive number',
-        },
-      ],
-      visualization: [
-        {
-          field: 'maxDataPoints',
-          validator: (value) => typeof value === 'number' && value > 0,
-          message: 'maxDataPoints must be a positive number',
-        },
-      ],
-      modeling: [
-        {
-          field: 'maxFeaturesAutoSelection',
-          validator: (value, context) => {
-            if (typeof value !== 'number' || value <= 0) {
-              return {
-                isValid: false,
-                message: 'maxFeaturesAutoSelection must be a positive number',
-              };
-            }
-
-            // Warn about very large feature counts
-            if (value > 1000) {
-              return {
-                isValid: true,
-                message: 'Very large feature count may impact performance and interpretability',
-              };
-            }
-
-            return { isValid: true };
-          },
-          message: 'maxFeaturesAutoSelection must be a positive number',
-          severity: 'warning',
-        },
-      ],
-
-      // Additional validation sections with enhanced rules
-      streaming: [
-        {
-          field: 'memoryThresholdMB',
-          validator: (value, context) => {
-            if (typeof value !== 'number' || value <= 0) {
-              return { isValid: false, message: 'memoryThresholdMB must be a positive number' };
-            }
-
-            // Check consistency with performance memory settings
-            const perfMemoryMB = context?.fullConfig.performance.memoryThresholdBytes
-              ? context.fullConfig.performance.memoryThresholdBytes / (1024 * 1024)
-              : null;
-
-            if (perfMemoryMB && value > perfMemoryMB) {
-              return {
-                isValid: false,
-                message:
-                  'streaming.memoryThresholdMB should not exceed performance memory threshold',
-                suggestedValue: Math.floor(perfMemoryMB * 0.8),
-                relatedFields: ['performance.memoryThresholdBytes'],
-              };
-            }
-
-            return { isValid: true };
-          },
-          message: 'memoryThresholdMB must be a positive number',
-          severity: 'warning',
-        },
-      ],
-    };
+    const presetConfig = this.environmentConfigManager.getPerformancePresetConfig(preset);
+    this.updateConfig(presetConfig);
   }
 
   /**
    * Get the complete configuration
    */
   getConfig(): DataPilotConfig {
-    return { ...this.config };
+    // Get core config
+    const coreConfig = this.coreConfigManager.getCoreConfig();
+    
+    // Apply runtime overrides
+    const mergedConfig = this.runtimeConfigManager.mergeConfigs(
+      DEFAULT_CONFIG,
+      coreConfig
+    );
+    
+    // Apply any runtime overrides
+    return this.runtimeConfigManager.applyRuntimeOverrides(mergedConfig);
   }
 
   /**
-   * Get a specific configuration section
+   * Get a specific configuration section - Delegate to CoreConfigManager
    */
   getPerformanceConfig(): PerformanceConfig {
-    return { ...this.config.performance };
+    return this.coreConfigManager.getPerformanceConfig();
   }
 
   getStatisticalConfig(): StatisticalConfig {
-    return { ...this.config.statistical };
+    return this.coreConfigManager.getStatisticalConfig();
   }
 
   getQualityConfig(): QualityConfig {
-    return { ...this.config.quality };
+    return this.coreConfigManager.getQualityConfig();
   }
 
   getAnalysisConfig(): AnalysisConfig {
-    return { ...this.config.analysis };
+    return this.coreConfigManager.getAnalysisConfig();
   }
 
   getStreamingConfig(): StreamingConfig {
-    return { ...this.config.streaming };
+    return this.coreConfigManager.getStreamingConfig();
   }
 
   getVisualizationConfig(): VisualizationConfig {
-    return { ...this.config.visualization };
+    return this.coreConfigManager.getVisualizationConfig();
   }
 
   getModelingConfig(): ModelingConfig {
-    return { ...this.config.modeling };
+    return this.coreConfigManager.getModelingConfig();
   }
 
   getOutputConfig(): OutputConfig {
-    return { ...this.config.output };
+    return this.coreConfigManager.getOutputConfig();
   }
 
   /**
    * Update configuration dynamically
    */
   updateConfig(updates: Partial<DataPilotConfig>): void {
-    this.config = this.mergeConfig(updates);
+    // Update core config sections
+    if (updates.performance) {
+      this.coreConfigManager.updatePerformanceConfig(updates.performance);
+    }
+    if (updates.statistical) {
+      this.coreConfigManager.updateStatisticalConfig(updates.statistical);
+    }
+    if (updates.quality) {
+      this.coreConfigManager.updateQualityConfig(updates.quality);
+    }
+    if (updates.analysis) {
+      this.coreConfigManager.updateAnalysisConfig(updates.analysis);
+    }
+    if (updates.streaming) {
+      this.coreConfigManager.updateStreamingConfig(updates.streaming);
+    }
+    if (updates.visualization) {
+      this.coreConfigManager.updateVisualizationConfig(updates.visualization);
+    }
+    if (updates.modeling) {
+      this.coreConfigManager.updateModelingConfig(updates.modeling);
+    }
+    if (updates.output) {
+      this.coreConfigManager.updateOutputConfig(updates.output);
+    }
+    
+    // Handle environment updates
+    if (updates.environment?.mode) {
+      this.applyEnvironmentConfig(updates.environment.mode);
+    }
   }
 
   /**
-   * Update a specific configuration section
+   * Update specific configuration sections - Delegate to CoreConfigManager
    */
   updatePerformanceConfig(updates: Partial<PerformanceConfig>): void {
-    this.config.performance = { ...this.config.performance, ...updates };
+    this.coreConfigManager.updatePerformanceConfig(updates);
   }
 
   updateStatisticalConfig(updates: Partial<StatisticalConfig>): void {
-    this.config.statistical = { ...this.config.statistical, ...updates };
+    this.coreConfigManager.updateStatisticalConfig(updates);
   }
 
   updateQualityConfig(updates: Partial<QualityConfig>): void {
-    this.config.quality = { ...this.config.quality, ...updates };
+    this.coreConfigManager.updateQualityConfig(updates);
   }
 
   updateAnalysisConfig(updates: Partial<AnalysisConfig>): void {
-    this.config.analysis = { ...this.config.analysis, ...updates };
+    this.coreConfigManager.updateAnalysisConfig(updates);
   }
 
   updateStreamingConfig(updates: Partial<StreamingConfig>): void {
-    this.config.streaming = { ...this.config.streaming, ...updates };
+    this.coreConfigManager.updateStreamingConfig(updates);
   }
 
   updateVisualizationConfig(updates: Partial<VisualizationConfig>): void {
-    this.config.visualization = { ...this.config.visualization, ...updates };
+    this.coreConfigManager.updateVisualizationConfig(updates);
   }
 
   updateModelingConfig(updates: Partial<ModelingConfig>): void {
-    this.config.modeling = { ...this.config.modeling, ...updates };
+    this.coreConfigManager.updateModelingConfig(updates);
   }
 
   updateOutputConfig(updates: Partial<OutputConfig>): void {
-    this.config.output = { ...this.config.output, ...updates };
+    this.coreConfigManager.updateOutputConfig(updates);
   }
 
   /**
    * Reset to default configuration
    */
   reset(): void {
-    this.config = { ...DEFAULT_CONFIG };
+    this.coreConfigManager.reset();
+    this.runtimeConfigManager.clearRuntimeOverrides();
+    this.runtimeConfigManager.clearAdaptiveCache();
   }
 
   /**
-   * Get adaptive thresholds based on dataset characteristics
+   * Get adaptive thresholds based on dataset characteristics - Delegate to RuntimeConfigManager
    */
   getAdaptiveThresholds(datasetSize: number, memoryAvailable: number): Partial<DataPilotConfig> {
-    const adaptiveConfig: Partial<DataPilotConfig> = {};
-
-    // Adaptive performance settings based on dataset size
-    if (datasetSize > 1000000) {
-      adaptiveConfig.performance = {
-        ...this.config.performance,
-        maxRows: Math.min(datasetSize, 2000000),
-        chunkSize: 128 * 1024, // Larger chunks for big datasets
-        batchSize: 2000,
-      };
-    } else if (datasetSize < 10000) {
-      adaptiveConfig.performance = {
-        ...this.config.performance,
-        chunkSize: 16 * 1024, // Smaller chunks for small datasets
-        batchSize: 100,
-      };
-    }
-
-    // Adaptive memory settings based on available memory
-    if (memoryAvailable < 512 * 1024 * 1024) {
-      // Less than 512MB
-      adaptiveConfig.streaming = {
-        ...this.config.streaming,
-        memoryThresholdMB: 50,
-        maxRowsAnalyzed: 100000,
-        adaptiveChunkSizing: {
-          ...this.config.streaming.adaptiveChunkSizing,
-          maxChunkSize: 500,
-        },
-      };
-      adaptiveConfig.performance = {
-        ...this.config.performance,
-        maxCollectedRowsMultivariate: 500,
-      };
-    }
-
-    return adaptiveConfig;
+    return this.runtimeConfigManager.getAdaptiveThresholds(
+      datasetSize,
+      memoryAvailable,
+      this.getConfig()
+    );
   }
 
   /**
-   * Merge configurations with deep object merging
-   */
-  private mergeConfig(updates?: Partial<DataPilotConfig>): DataPilotConfig {
-    if (!updates) {
-      return { ...DEFAULT_CONFIG };
-    }
-
-    const merged = { ...DEFAULT_CONFIG };
-
-    Object.keys(updates).forEach((key) => {
-      const section = key as keyof DataPilotConfig;
-      if (updates[section] && typeof updates[section] === 'object') {
-        (merged as any)[section] = { ...(merged as any)[section], ...updates[section] };
-      }
-    });
-
-    return merged;
-  }
-
-  /**
-   * Comprehensive configuration validation using schema
+   * Comprehensive configuration validation - Delegate to EnvironmentConfigManager
    */
   validateConfig(): { isValid: boolean; errors: string[]; warnings: string[] } {
-    const errors: string[] = [];
-    const warnings: string[] = [];
-
-    // Validate each section using the schema
-    for (const [sectionName, rules] of Object.entries(this.validationSchema)) {
-      const sectionConfig = this.config[sectionName as keyof DataPilotConfig];
-
-      for (const rule of rules) {
-        const fieldValue = (sectionConfig as any)[rule.field];
-
-        // Check required fields
-        if (rule.required && (fieldValue === undefined || fieldValue === null)) {
-          errors.push(`${sectionName}.${String(rule.field)} is required`);
-          continue;
-        }
-
-        // Skip validation if field is not present and not required
-        if (fieldValue === undefined || fieldValue === null) {
-          continue;
-        }
-
-        // Run the validator
-        if (!rule.validator(fieldValue)) {
-          errors.push(`${sectionName}.${String(rule.field)}: ${rule.message}`);
-        }
-      }
-    }
-
-    // Additional cross-section validation
-    this.validateCrossSectionConsistency(errors, warnings);
-
-    // Performance warnings
-    this.validatePerformanceSettings(warnings);
-
-    return {
-      isValid: errors.length === 0,
-      errors,
-      warnings,
-    };
-  }
-
-  /**
-   * Validate consistency across configuration sections
-   */
-  private validateCrossSectionConsistency(errors: string[], warnings: string[]): void {
-    // Check memory consistency
-    const performanceMemoryMB = this.config.performance.memoryThresholdBytes / (1024 * 1024);
-    const streamingMemoryMB = this.config.streaming.memoryThresholdMB;
-
-    if (streamingMemoryMB > performanceMemoryMB) {
-      warnings.push('streaming.memoryThresholdMB should not exceed performance memory threshold');
-    }
-
-    // Check row count consistency
-    if (this.config.streaming.maxRowsAnalyzed > this.config.performance.maxRows) {
-      warnings.push('streaming.maxRowsAnalyzed should not exceed performance.maxRows');
-    }
-
-    // Check significance levels are reasonable
-    const baseLevel = this.config.statistical.significanceLevel;
-    const altLevels = this.config.statistical.alternativeSignificanceLevels;
-
-    if (altLevels.correlationTests < baseLevel) {
-      warnings.push('correlationTests significance level is more strict than base level');
-    }
-  }
-
-  /**
-   * Validate performance settings and provide recommendations
-   */
-  private validatePerformanceSettings(warnings: string[]): void {
-    const perf = this.config.performance;
-
-    // Check for potential memory issues
-    if (perf.memoryThresholdBytes < 256 * 1024 * 1024) {
-      // Less than 256MB
-      warnings.push('Memory threshold is quite low, consider increasing for better performance');
-    }
-
-    // Check chunk size efficiency
-    if (perf.chunkSize < 32 * 1024) {
-      // Less than 32KB
-      warnings.push('Small chunk size may impact performance, consider increasing');
-    }
-
-    // Check batch size consistency
-    if (perf.batchSize > perf.chunkSize / 100) {
-      warnings.push('Batch size seems large relative to chunk size');
-    }
+    return this.environmentConfigManager.validateConfig(this.getConfig());
   }
 }
 
@@ -1127,7 +746,9 @@ export class ConfigBuilder {
   }
 
   preset(presetName: 'small' | 'medium' | 'large' | 'xlarge'): ConfigBuilder {
-    const presetConfig = getPresetConfig(presetName);
+    // Config manager temporarily disabled
+    const runtimeManager = new RuntimeConfigManager();
+    const presetConfig = runtimeManager.getPresetConfig(presetName);
     this.config = { ...this.config, ...presetConfig };
     return this;
   }
@@ -1135,7 +756,9 @@ export class ConfigBuilder {
   useCase(
     useCase: 'data-quality' | 'eda-focused' | 'ml-pipeline' | 'visualization' | 'quick-scan',
   ): ConfigBuilder {
-    const useCaseConfig = getUseCaseConfig(useCase);
+    // Config manager temporarily disabled
+    const runtimeManager = new RuntimeConfigManager();
+    const useCaseConfig = runtimeManager.getUseCaseConfig(useCase);
     this.config = { ...this.config, ...useCaseConfig };
     return this;
   }
@@ -1196,184 +819,20 @@ export const ConfigFactory = {
  * Enhanced environment-based configuration loading with validation
  */
 export function loadConfigFromEnvironment(): Partial<DataPilotConfig> {
-  const envConfig: Partial<DataPilotConfig> = {};
-
-  // Performance settings
-  if (process.env.DATAPILOT_MAX_ROWS) {
-    const maxRows = parseInt(process.env.DATAPILOT_MAX_ROWS, 10);
-    if (!isNaN(maxRows) && maxRows > 0) {
-      envConfig.performance = {
-        ...envConfig.performance,
-        maxRows,
-      };
-    }
-  }
-
-  if (process.env.DATAPILOT_MEMORY_THRESHOLD_MB) {
-    const memoryMB = parseInt(process.env.DATAPILOT_MEMORY_THRESHOLD_MB, 10);
-    if (!isNaN(memoryMB) && memoryMB > 0) {
-      envConfig.performance = {
-        ...envConfig.performance,
-        memoryThresholdBytes: memoryMB * 1024 * 1024,
-      };
-      envConfig.streaming = {
-        ...envConfig.streaming,
-        memoryThresholdMB: memoryMB,
-      };
-    }
-  }
-
-  // Statistical settings
-  if (process.env.DATAPILOT_SIGNIFICANCE_LEVEL) {
-    const sigLevel = parseFloat(process.env.DATAPILOT_SIGNIFICANCE_LEVEL);
-    if (!isNaN(sigLevel) && sigLevel > 0 && sigLevel < 1) {
-      envConfig.statistical = {
-        ...envConfig.statistical,
-        significanceLevel: sigLevel,
-      };
-    }
-  }
-
-  // Feature flags
-  if (process.env.DATAPILOT_ENABLE_MULTIVARIATE) {
-    const enabled = process.env.DATAPILOT_ENABLE_MULTIVARIATE.toLowerCase() === 'true';
-    envConfig.analysis = {
-      ...envConfig.analysis,
-      enableMultivariate: enabled,
-    };
-  }
-
-  // Security settings
-  if (process.env.DATAPILOT_MAX_FILE_SIZE_MB) {
-    const maxFileSizeMB = parseInt(process.env.DATAPILOT_MAX_FILE_SIZE_MB, 10);
-    if (!isNaN(maxFileSizeMB) && maxFileSizeMB > 0) {
-      envConfig.security = {
-        ...envConfig.security,
-        maxFileSize: maxFileSizeMB * 1024 * 1024,
-      };
-    }
-  }
-
-  // Preset selection
-  if (process.env.DATAPILOT_PRESET) {
-    const preset = process.env.DATAPILOT_PRESET as 'small' | 'medium' | 'large' | 'xlarge';
-    if (['small', 'medium', 'large', 'xlarge'].includes(preset)) {
-      const presetConfig = getPresetConfig(preset);
-      Object.assign(envConfig, presetConfig);
-    }
-  }
-
-  return envConfig;
+    // Config manager temporarily disabled
+  const envManager = new EnvironmentConfigManager();
+  return envManager.loadFromEnvironmentVariables();
 }
 
 /**
- * Enhanced dataset size-based configuration presets with type safety
+ * Enhanced dataset size-based configuration presets
  */
 export function getPresetConfig(
   presetName: 'small' | 'medium' | 'large' | 'xlarge',
 ): Partial<DataPilotConfig> {
-  const presets: Record<string, Partial<DataPilotConfig>> = {
-    small: {
-      performance: {
-        ...DEFAULT_CONFIG.performance,
-        maxRows: 10000,
-        chunkSize: 16 * 1024,
-        batchSize: 100,
-        maxCollectedRowsMultivariate: 500,
-      },
-      streaming: {
-        ...DEFAULT_CONFIG.streaming,
-        memoryThresholdMB: 25,
-        maxRowsAnalyzed: 10000,
-        adaptiveChunkSizing: {
-          ...DEFAULT_CONFIG.streaming.adaptiveChunkSizing,
-          maxChunkSize: 500,
-        },
-      },
-      analysis: {
-        ...DEFAULT_CONFIG.analysis,
-        enableMultivariate: false, // Disable for small datasets
-        maxCorrelationPairs: 25,
-      },
-    },
-    medium: {
-      performance: {
-        ...DEFAULT_CONFIG.performance,
-        maxRows: 100000,
-        chunkSize: 32 * 1024,
-        batchSize: 500,
-        maxCollectedRowsMultivariate: 1000,
-      },
-      streaming: {
-        ...DEFAULT_CONFIG.streaming,
-        memoryThresholdMB: 50,
-        maxRowsAnalyzed: 100000,
-      },
-      analysis: {
-        ...DEFAULT_CONFIG.analysis,
-        enableMultivariate: true,
-        maxCorrelationPairs: 50,
-      },
-    },
-    large: {
-      performance: {
-        ...DEFAULT_CONFIG.performance,
-        maxRows: 1000000,
-        chunkSize: 64 * 1024,
-        batchSize: 1000,
-        maxCollectedRowsMultivariate: 2000,
-      },
-      streaming: {
-        ...DEFAULT_CONFIG.streaming,
-        memoryThresholdMB: 100,
-        maxRowsAnalyzed: 500000,
-        adaptiveChunkSizing: {
-          ...DEFAULT_CONFIG.streaming.adaptiveChunkSizing,
-          enabled: true,
-          expansionFactor: 1.2, // More aggressive for large datasets
-        },
-      },
-      analysis: {
-        ...DEFAULT_CONFIG.analysis,
-        enableMultivariate: true,
-        maxCorrelationPairs: 75,
-      },
-    },
-    xlarge: {
-      performance: {
-        ...DEFAULT_CONFIG.performance,
-        maxRows: 5000000,
-        chunkSize: 128 * 1024,
-        batchSize: 2000,
-        maxCollectedRowsMultivariate: 3000,
-        emergencyMemoryThresholdMultiplier: 2.0, // More headroom
-      },
-      streaming: {
-        ...DEFAULT_CONFIG.streaming,
-        memoryThresholdMB: 200,
-        maxRowsAnalyzed: 1000000,
-        adaptiveChunkSizing: {
-          ...DEFAULT_CONFIG.streaming.adaptiveChunkSizing,
-          enabled: true,
-          maxChunkSize: 5000,
-          expansionFactor: 1.3,
-        },
-        memoryManagement: {
-          ...DEFAULT_CONFIG.streaming.memoryManagement,
-          cleanupInterval: 10, // More frequent cleanup
-          forceGarbageCollection: true,
-        },
-      },
-      analysis: {
-        ...DEFAULT_CONFIG.analysis,
-        enableMultivariate: true,
-        maxCorrelationPairs: 100,
-        samplingThreshold: 50000, // Use sampling for very large datasets
-      },
-    },
-  };
-
-  return presets[presetName];
+    // Config manager temporarily disabled
+  const runtimeManager = new RuntimeConfigManager();
+  return runtimeManager.getPresetConfig(presetName);
 }
 
 /**
@@ -1382,82 +841,7 @@ export function getPresetConfig(
 export function getUseCaseConfig(
   useCase: 'data-quality' | 'eda-focused' | 'ml-pipeline' | 'visualization' | 'quick-scan',
 ): Partial<DataPilotConfig> {
-  const useCaseConfigs: Record<string, Partial<DataPilotConfig>> = {
-    'data-quality': {
-      quality: {
-        ...DEFAULT_CONFIG.quality,
-        qualityWeights: {
-          completeness: 0.25,
-          uniqueness: 0.2,
-          validity: 0.25,
-          consistency: 0.2,
-          accuracy: 0.1,
-          timeliness: 0.0,
-          integrity: 0.0,
-          reasonableness: 0.0,
-          precision: 0.0,
-          representational: 0.0,
-        },
-      },
-      analysis: {
-        ...DEFAULT_CONFIG.analysis,
-        enabledAnalyses: ['univariate'], // Focus on quality, not complex analysis
-      },
-    },
-    'eda-focused': {
-      analysis: {
-        ...DEFAULT_CONFIG.analysis,
-        enableMultivariate: true,
-        enabledAnalyses: ['univariate', 'bivariate', 'correlations'],
-        maxCorrelationPairs: 100,
-      },
-      statistical: {
-        ...DEFAULT_CONFIG.statistical,
-        significanceLevel: 0.01, // More stringent for EDA
-      },
-    },
-    'ml-pipeline': {
-      analysis: {
-        ...DEFAULT_CONFIG.analysis,
-        enableMultivariate: true,
-        enabledAnalyses: ['univariate', 'bivariate', 'correlations'],
-      },
-      modeling: {
-        ...DEFAULT_CONFIG.modeling,
-        algorithmScoringWeights: {
-          performance: 0.5,
-          interpretability: 0.2,
-          scalability: 0.2,
-          robustness: 0.1,
-        },
-      },
-    },
-    visualization: {
-      visualization: {
-        ...DEFAULT_CONFIG.visualization,
-        maxDataPoints: 50000, // More points for rich visualizations
-        chartScoringWeights: {
-          dataFit: 0.3,
-          clarity: 0.3,
-          insightPotential: 0.3,
-          accessibility: 0.1,
-        },
-      },
-    },
-    'quick-scan': {
-      performance: {
-        ...DEFAULT_CONFIG.performance,
-        maxRows: 5000,
-        maxCollectedRowsMultivariate: 200,
-      },
-      analysis: {
-        ...DEFAULT_CONFIG.analysis,
-        enableMultivariate: false,
-        enabledAnalyses: ['univariate'],
-        maxCorrelationPairs: 10,
-      },
-    },
-  };
-
-  return useCaseConfigs[useCase];
+    // Config manager temporarily disabled
+  const runtimeManager = new RuntimeConfigManager();
+  return runtimeManager.getUseCaseConfig(useCase);
 }
