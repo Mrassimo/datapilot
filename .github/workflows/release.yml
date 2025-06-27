@@ -297,7 +297,8 @@ jobs:
     - name: Install caxa (secure pkg alternative)
       run: npm install -g caxa
       
-    - name: Build binary
+    - name: Build binary (Unix)
+      if: runner.os != 'Windows'
       run: |
         VERSION="${{ needs.validate-release.outputs.version }}"
         BINARY_NAME="datapilot-${{ matrix.platform }}-${VERSION}${{ matrix.extension }}"
@@ -313,6 +314,16 @@ jobs:
           --exclude "node_modules/.cache" \
           -- \
           "{{caxa}}/node_modules/.bin/node" "{{caxa}}/dist/cli/index.js"
+    
+    - name: Build binary (Windows)
+      if: runner.os == 'Windows'
+      shell: cmd
+      run: |
+        set VERSION=${{ needs.validate-release.outputs.version }}
+        set BINARY_NAME=datapilot-${{ matrix.platform }}-%VERSION%${{ matrix.extension }}
+        
+        echo 🔨 Building binary: %BINARY_NAME%
+        caxa --input . --output "%BINARY_NAME%" --exclude "binaries" --exclude ".github" --exclude "tests" --exclude "*.test.*" --exclude "node_modules/.cache" -- "{{caxa}}/node_modules/.bin/node" "{{caxa}}/dist/cli/index.js"
         
     - name: Test binary (Unix)
       if: runner.os != 'Windows'
@@ -327,9 +338,11 @@ jobs:
       shell: cmd
       run: |
         set VERSION=${{ needs.validate-release.outputs.version }}
-        datapilot-${{ matrix.platform }}-%VERSION%.exe --version
+        set PLATFORM=${{ matrix.platform }}
+        datapilot-%PLATFORM%-%VERSION%.exe --version
         
-    - name: Create platform package
+    - name: Create platform package (Unix)
+      if: runner.os != 'Windows'
       run: |
         VERSION="${{ needs.validate-release.outputs.version }}"
         mkdir -p release-package
@@ -348,13 +361,8 @@ jobs:
         ### ${{ matrix.platform }}
         
         1. Download the binary
-        2. Make it executable (Unix only): `chmod +x datapilot-${{ matrix.platform }}-*`
+        2. Make it executable: `chmod +x datapilot-${{ matrix.platform }}-*`
         3. Move to your PATH or run directly: `./datapilot-${{ matrix.platform }}-* --help`
-
-        ### Windows specific:
-        - You may need to allow the executable in Windows Defender
-        - Run from Command Prompt or PowerShell
-        - Add to PATH for global access
 
         ## Usage
 
@@ -365,11 +373,37 @@ jobs:
         EOF
         
         # Create archive
-        if [ "${{ runner.os }}" = "Windows" ]; then
-          7z a -tzip datapilot-${{ matrix.platform }}-${VERSION}.zip release-package/*
-        else
-          tar -czf datapilot-${{ matrix.platform }}-${VERSION}.tar.gz -C release-package .
-        fi
+        tar -czf datapilot-${{ matrix.platform }}-${VERSION}.tar.gz -C release-package .
+
+    - name: Create platform package (Windows)
+      if: runner.os == 'Windows'
+      shell: cmd
+      run: |
+        set VERSION=${{ needs.validate-release.outputs.version }}
+        set PLATFORM=${{ matrix.platform }}
+        
+        mkdir release-package
+        copy datapilot-%PLATFORM%-%VERSION%.exe release-package\
+        
+        echo # DataPilot - %PLATFORM% > release-package\README.md
+        echo. >> release-package\README.md
+        echo ## Installation >> release-package\README.md
+        echo. >> release-package\README.md
+        echo This is a standalone executable - no Node.js required! >> release-package\README.md
+        echo. >> release-package\README.md
+        echo ### Windows >> release-package\README.md
+        echo. >> release-package\README.md
+        echo 1. Download the executable >> release-package\README.md
+        echo 2. You may need to allow the executable in Windows Defender >> release-package\README.md
+        echo 3. Run from Command Prompt or PowerShell >> release-package\README.md
+        echo 4. Add to PATH for global access >> release-package\README.md
+        echo. >> release-package\README.md
+        echo ## Usage >> release-package\README.md
+        echo. >> release-package\README.md
+        echo datapilot-%PLATFORM%-%VERSION%.exe --version >> release-package\README.md
+        echo datapilot-%PLATFORM%-%VERSION%.exe all data.csv >> release-package\README.md
+        
+        7z a -tzip datapilot-%PLATFORM%-%VERSION%.zip release-package\*
         
     - name: Upload release assets
       if: github.event_name == 'release'
