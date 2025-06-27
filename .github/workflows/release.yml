@@ -7,9 +7,10 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to release (e.g., v1.4.3)'
+        description: 'Version to release (e.g., v1.4.4)'
         required: true
         type: string
+        default: 'v1.4.4'
 
 # SECURITY: Minimal required permissions for release operations
 permissions:
@@ -79,6 +80,40 @@ jobs:
           echo "✅ Version validation passed"
           echo "should-release=true" >> $GITHUB_OUTPUT
 
+  npm-publish:
+    name: Publish to NPM
+    runs-on: ubuntu-latest
+    needs: validate-release
+    if: needs.validate-release.outputs.should-release == 'true'
+    permissions:
+      contents: read
+      id-token: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build project
+        run: npm run build:clean
+
+      - name: Publish to NPM
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
   security-audit:
     name: Security Audit
     runs-on: ubuntu-latest
@@ -122,7 +157,7 @@ jobs:
   build-packages:
     name: Build Pre-built Packages
     runs-on: ubuntu-latest
-    needs: [validate-release, security-audit]
+    needs: [validate-release, npm-publish, security-audit]
     if: needs.validate-release.outputs.should-release == 'true'
     permissions:
       contents: write
@@ -163,7 +198,7 @@ jobs:
         echo "Package created: $PACKAGE_FILE"
         
         # Rename for clarity
-        VERSION=${{ github.event.release.tag_name || github.event.inputs.tag }}
+        VERSION=${{ github.event.release.tag_name || github.event.inputs.version }}
         mv "$PACKAGE_FILE" "datapilot-cli-${VERSION}-prebuilt.tgz"
         
     - name: Create Windows-specific package
@@ -183,7 +218,7 @@ jobs:
         npm pack
         
         # Rename
-        VERSION=${{ github.event.release.tag_name || github.event.inputs.tag }}
+        VERSION=${{ github.event.release.tag_name || github.event.inputs.version }}
         PACKAGE_FILE=$(ls -1 datapilot-cli-*.tgz | grep -v prebuilt | head -1)
         mv "$PACKAGE_FILE" "datapilot-cli-${VERSION}-windows.tgz"
         
@@ -212,7 +247,7 @@ jobs:
   build-binaries:
     name: Build Platform Binaries
     runs-on: ${{ matrix.os }}
-    needs: [validate-release, security-audit]
+    needs: [validate-release, npm-publish, security-audit]
     if: needs.validate-release.outputs.should-release == 'true'
     strategy:
       fail-fast: false
@@ -271,11 +306,13 @@ jobs:
         caxa \
           --input . \
           --output "$BINARY_NAME" \
-          --exclude-output binaries \
+          --exclude "binaries" \
           --exclude ".github" \
           --exclude "tests" \
           --exclude "*.test.*" \
-          --exclude "node_modules/.cache"
+          --exclude "node_modules/.cache" \
+          -- \
+          "{{caxa}}/node_modules/.bin/node" "{{caxa}}/dist/cli/index.js"
         
     - name: Test binary (Unix)
       if: runner.os != 'Windows'
@@ -356,9 +393,65 @@ jobs:
           datapilot-${{ matrix.platform }}-*.tar.gz
         retention-days: 30
 
+  create-github-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [validate-release, npm-publish]
+    if: github.event_name == 'workflow_dispatch' && needs.validate-release.outputs.should-release == 'true'
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.event.inputs.version }}
+          name: Release ${{ github.event.inputs.version }}
+          body: |
+            ## DataPilot ${{ github.event.inputs.version }}
+            
+            ### 🚀 Features & Improvements
+            - Windows installation fixes and improvements
+            - Enhanced enterprise deployment support
+            - Pre-built packages for offline installation
+            
+            ### 📦 Installation Options
+            
+            **NPM (Recommended):**
+            ```bash
+            npm install -g datapilot-cli@${{ github.event.inputs.version }}
+            ```
+            
+            **Standalone Binaries:**
+            - Windows: Download `datapilot-windows-*.exe`
+            - Linux: Download `datapilot-linux-*`
+            - macOS: Download `datapilot-macos-*`
+            
+            **Enterprise/Offline:**
+            - Download `datapilot-enterprise-bundle-*.tar.gz` for complete offline installation
+            
+            ### 🛠️ Windows-Specific Fixes
+            - Resolved npm installation issues on Windows
+            - Improved Windows enterprise installation process
+            - Added Windows-optimized package variants
+            
+            Published to npm: https://www.npmjs.com/package/datapilot-cli
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   create-offline-installer:
     name: Create Offline Installer Bundle
-    needs: [build-packages, build-binaries]
+    needs: [build-packages, build-binaries, create-github-release]
+    if: always() && (needs.build-packages.result == 'success' && needs.build-binaries.result == 'success')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -367,7 +460,7 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       with:
-        ref: ${{ github.event.release.tag_name || github.event.inputs.tag }}
+        ref: ${{ github.event.release.tag_name || github.event.inputs.version }}
         
     - name: Download all artifacts
       if: github.event_name == 'workflow_dispatch'
@@ -377,7 +470,7 @@ jobs:
         
     - name: Create enterprise bundle
       run: |
-        VERSION=${{ github.event.release.tag_name || github.event.inputs.tag }}
+        VERSION=${{ github.event.release.tag_name || github.event.inputs.version }}
         mkdir -p enterprise-bundle
         
         # Download release assets if this is a release
