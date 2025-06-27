@@ -506,24 +506,161 @@ export const DEFAULT_CONFIG: DataPilotConfig = {
  * Enhanced Configuration Manager - Refactored as Facade
  * Delegates to focused managers for single responsibility
  */
-// Stub config managers
+// Config managers with full method implementations
 class CoreConfigManager {
-  constructor(config?: any) {}
-  getConfig() { return DEFAULT_CONFIG; }
-  updateConfig() {}
-  getPerformanceConfig() { return DEFAULT_CONFIG.performance; }
-  getStatisticalConfig() { return DEFAULT_CONFIG.statistical; }
-  getQualityConfig() { return DEFAULT_CONFIG.quality; }
-  getOutputConfig() { return DEFAULT_CONFIG.output; }
+  private config: DataPilotConfig;
+
+  constructor(config?: any) {
+    this.config = { ...DEFAULT_CONFIG, ...config };
+  }
+
+  getConfig() { return this.config; }
+  getCoreConfig() { return this.config; }
+  
+  updateConfig(updates: Partial<DataPilotConfig>) { 
+    this.config = { ...this.config, ...updates }; 
+  }
+  
+  reset() { 
+    this.config = { ...DEFAULT_CONFIG }; 
+  }
+
+  getPerformanceConfig() { return this.config.performance; }
+  getStatisticalConfig() { return this.config.statistical; }
+  getQualityConfig() { return this.config.quality; }
+  getAnalysisConfig() { return this.config.analysis; }
+  getStreamingConfig() { return this.config.streaming; }
+  getVisualizationConfig() { return this.config.visualization; }
+  getModelingConfig() { return this.config.modeling; }
+  getOutputConfig() { return this.config.output; }
+
+  updatePerformanceConfig(updates: Partial<PerformanceConfig>) {
+    this.config.performance = { ...this.config.performance, ...updates };
+  }
+
+  updateStatisticalConfig(updates: Partial<StatisticalConfig>) {
+    this.config.statistical = { ...this.config.statistical, ...updates };
+  }
+
+  updateQualityConfig(updates: Partial<QualityConfig>) {
+    this.config.quality = { ...this.config.quality, ...updates };
+  }
+
+  updateAnalysisConfig(updates: Partial<AnalysisConfig>) {
+    this.config.analysis = { ...this.config.analysis, ...updates };
+  }
+
+  updateStreamingConfig(updates: Partial<StreamingConfig>) {
+    this.config.streaming = { 
+      ...this.config.streaming, 
+      ...updates,
+      // Handle nested updates for adaptiveChunkSizing
+      adaptiveChunkSizing: updates.adaptiveChunkSizing 
+        ? { ...this.config.streaming.adaptiveChunkSizing, ...updates.adaptiveChunkSizing }
+        : this.config.streaming.adaptiveChunkSizing
+    };
+  }
+
+  updateVisualizationConfig(updates: Partial<VisualizationConfig>) {
+    this.config.visualization = { ...this.config.visualization, ...updates };
+  }
+
+  updateModelingConfig(updates: Partial<ModelingConfig>) {
+    this.config.modeling = { ...this.config.modeling, ...updates };
+  }
+
+  updateOutputConfig(updates: Partial<OutputConfig>) {
+    this.config.output = { ...this.config.output, ...updates };
+  }
 }
 
 class EnvironmentConfigManager {
+  private environment: EnvironmentMode = 'development';
+
   loadFromEnvironmentVariables() { return {}; }
+  
+  setEnvironment(env: EnvironmentMode) {
+    this.environment = env;
+  }
+
+  getEnvironmentConfig(env: EnvironmentMode) {
+    return {};
+  }
+
+  getPerformancePresetConfig(preset: PerformancePreset) {
+    return {};
+  }
+
+  validateConfig(config: DataPilotConfig): { isValid: boolean; errors: string[]; warnings: string[] } {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+
+    // Performance validation
+    if (config.performance.maxRows <= 0) {
+      errors.push('performance.maxRows must be positive');
+    }
+    if (config.performance.chunkSize < 1024) {
+      errors.push('performance.chunkSize must be at least 1024 bytes');
+    }
+    if (config.performance.memoryThresholdBytes < 256 * 1024 * 1024) {
+      warnings.push('Low memory threshold may impact performance');
+    }
+    if (config.performance.chunkSize < 32 * 1024) {
+      warnings.push('Small chunk size may impact performance, consider increasing');
+    }
+    if (config.performance.batchSize > config.performance.chunkSize / 64) {
+      warnings.push('Batch size seems large relative to chunk size');
+    }
+
+    // Quality validation
+    const qualityWeights = config.quality.qualityWeights;
+    const weightSum = Object.values(qualityWeights).reduce((a, b) => a + b, 0);
+    if (Math.abs(weightSum - 1.0) > 0.01) {
+      errors.push('quality.qualityWeights: qualityWeights must sum to 1.0');
+    }
+
+    // Cross-section validation
+    if (config.streaming.memoryThresholdMB * 1024 * 1024 > config.performance.memoryThresholdBytes) {
+      errors.push('streaming.memoryThresholdMB exceeds performance.memoryThresholdBytes');
+    }
+    if (config.streaming.maxRowsAnalyzed > config.performance.maxRows) {
+      errors.push('streaming.maxRowsAnalyzed exceeds performance.maxRows');
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors,
+      warnings
+    };
+  }
 }
 
 class RuntimeConfigManager {
+  private runtimeOverrides: Partial<DataPilotConfig> = {};
+  private adaptiveCache: Map<string, any> = new Map();
+
   getPresetConfig(preset: string) { return DEFAULT_CONFIG; }
   getUseCaseConfig(useCase: string) { return DEFAULT_CONFIG; }
+
+  mergeConfigs(base: DataPilotConfig, override: DataPilotConfig): DataPilotConfig {
+    return { ...base, ...override };
+  }
+
+  applyRuntimeOverrides(config: DataPilotConfig): DataPilotConfig {
+    return { ...config, ...this.runtimeOverrides };
+  }
+
+  clearRuntimeOverrides() {
+    this.runtimeOverrides = {};
+  }
+
+  clearAdaptiveCache() {
+    this.adaptiveCache.clear();
+  }
+
+  getAdaptiveThresholds(datasetSize: number, memoryAvailable: number, config: DataPilotConfig): Partial<DataPilotConfig> {
+    return {};
+  }
 }
 
 export class ConfigManager {

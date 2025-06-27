@@ -397,7 +397,7 @@ jobs:
     name: Create GitHub Release
     runs-on: ubuntu-latest
     needs: [validate-release, npm-publish]
-    if: github.event_name == 'workflow_dispatch' && needs.validate-release.outputs.should-release == 'true'
+    if: (github.event_name == 'workflow_dispatch' || github.event_name == 'push') && needs.validate-release.outputs.should-release == 'true'
     permissions:
       contents: write
     
@@ -411,10 +411,10 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ github.event.inputs.version }}
-          name: Release ${{ github.event.inputs.version }}
+          tag_name: ${{ github.event.inputs.version || github.ref_name }}
+          name: Release ${{ github.event.inputs.version || github.ref_name }}
           body: |
-            ## DataPilot ${{ github.event.inputs.version }}
+            ## DataPilot ${{ github.event.inputs.version || github.ref_name }}
             
             ### 🚀 Features & Improvements
             - Windows installation fixes and improvements
@@ -425,7 +425,7 @@ jobs:
             
             **NPM (Recommended):**
             ```bash
-            npm install -g datapilot-cli@${{ github.event.inputs.version }}
+            npm install -g datapilot-cli@${{ github.event.inputs.version || github.ref_name }}
             ```
             
             **Standalone Binaries:**
