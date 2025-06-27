@@ -223,9 +223,10 @@ jobs:
         mv "$PACKAGE_FILE" "datapilot-cli-${VERSION}-windows.tgz"
         
     - name: Upload release assets
-      if: github.event_name == 'release'
+      if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
       uses: softprops/action-gh-release@v1
       with:
+        tag_name: ${{ github.event.inputs.version || github.ref_name }}
         files: |
           datapilot-cli-*-prebuilt.tgz
           datapilot-cli-*-windows.tgz
@@ -406,9 +407,10 @@ jobs:
         7z a -tzip datapilot-%PLATFORM%-%VERSION%.zip release-package\*
         
     - name: Upload release assets
-      if: github.event_name == 'release'
+      if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
       uses: softprops/action-gh-release@v1
       with:
+        tag_name: ${{ github.event.inputs.version || github.ref_name }}
         files: |
           datapilot-${{ matrix.platform }}-*${{ matrix.extension }}
           datapilot-${{ matrix.platform }}-*.zip
@@ -598,9 +600,10 @@ jobs:
         tar -czf datapilot-enterprise-bundle-${VERSION}.tar.gz -C enterprise-bundle .
         
     - name: Upload enterprise bundle
-      if: github.event_name == 'release'
+      if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
       uses: softprops/action-gh-release@v1
       with:
+        tag_name: ${{ github.event.inputs.version || github.ref_name }}
         files: |
           datapilot-enterprise-bundle-*.tar.gz
       env:
