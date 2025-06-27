@@ -405,28 +405,55 @@ jobs:
         echo datapilot-%PLATFORM%-%VERSION%.exe all data.csv >> release-package\README.md
         
         7z a -tzip datapilot-%PLATFORM%-%VERSION%.zip release-package\*
+
+    - name: Debug - List files before upload
+      run: |
+        echo "📁 Current directory contents:"
+        ls -la
+        echo ""
+        echo "🔍 Looking for datapilot-${{ matrix.platform }}-* files:"
+        ls -la datapilot-${{ matrix.platform }}-* || echo "No matching files found"
         
-    - name: Upload release assets
-      if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
+    - name: Upload release assets (Unix)
+      if: (github.event_name == 'release' || github.event_name == 'workflow_dispatch') && runner.os != 'Windows'
       uses: softprops/action-gh-release@v1
       with:
         tag_name: ${{ github.event.inputs.version || github.ref_name }}
         files: |
-          datapilot-${{ matrix.platform }}-*${{ matrix.extension }}
-          datapilot-${{ matrix.platform }}-*.zip
+          datapilot-${{ matrix.platform }}-*
           datapilot-${{ matrix.platform }}-*.tar.gz
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Upload release assets (Windows)
+      if: (github.event_name == 'release' || github.event_name == 'workflow_dispatch') && runner.os == 'Windows'
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ github.event.inputs.version || github.ref_name }}
+        files: |
+          datapilot-${{ matrix.platform }}-*.exe
+          datapilot-${{ matrix.platform }}-*.zip
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         
-    - name: Upload artifacts
-      if: github.event_name == 'workflow_dispatch'
+    - name: Upload artifacts (Unix)
+      if: github.event_name == 'workflow_dispatch' && runner.os != 'Windows'
       uses: actions/upload-artifact@v4
       with:
         name: binary-${{ matrix.platform }}
         path: |
-          datapilot-${{ matrix.platform }}-*${{ matrix.extension }}
-          datapilot-${{ matrix.platform }}-*.zip
+          datapilot-${{ matrix.platform }}-*
           datapilot-${{ matrix.platform }}-*.tar.gz
+        retention-days: 30
+
+    - name: Upload artifacts (Windows)
+      if: github.event_name == 'workflow_dispatch' && runner.os == 'Windows'
+      uses: actions/upload-artifact@v4
+      with:
+        name: binary-${{ matrix.platform }}
+        path: |
+          datapilot-${{ matrix.platform }}-*.exe
+          datapilot-${{ matrix.platform }}-*.zip
         retention-days: 30
 
   create-github-release:
