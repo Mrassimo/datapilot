@@ -4,7 +4,7 @@
  */
 
 // Type definitions
-export type VisualChannel = 'position_x' | 'position_y' | 'size' | 'color' | 'shape' | 'texture' | 'opacity' | 'orientation';
+export type VisualChannel = 'position_x' | 'position_y' | 'size' | 'size_area' | 'color' | 'color_hue' | 'shape' | 'texture' | 'opacity' | 'orientation';
 export type DataType = 'quantitative' | 'ordinal' | 'nominal' | 'temporal';
 export type CompositionPrinciple = 'hierarchy' | 'balance' | 'contrast' | 'unity' | 'emphasis' | 'rhythm';
 
@@ -20,6 +20,9 @@ export interface EncodingDimension {
   dataType: DataType;
   encodingStrength: number;
   perceptualAccuracy: number;
+  discriminability: number;
+  orderingPreservation: number;
+  optimization?: any;
   range?: any;
   scale?: any;
 }
@@ -169,6 +172,17 @@ export interface ImprovementArea {
 }
 
 export class ChartComposer {
+  // Static methods
+  static composeVisualization(
+    dimensions: EncodingDimension[],
+    aestheticPreferences?: any,
+    constraints?: any
+  ): CompositionProfile {
+    const instance = new ChartComposer();
+    return instance.composeMultiDimensionalChart(dimensions, aestheticPreferences, constraints);
+  }
+
+  // Instance methods
   composeMultiDimensionalChart(
     dimensions: EncodingDimension[],
     aestheticPreferences?: any,
