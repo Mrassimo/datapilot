@@ -7,10 +7,10 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to release (e.g., v1.4.5)'
+        description: 'Version to release (e.g., v1.4.6)'
         required: true
         type: string
-        default: 'v1.4.5'
+        default: 'v1.4.6'
 
 # SECURITY: Minimal required permissions for release operations
 permissions:
