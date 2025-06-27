@@ -1,6 +1,6 @@
 {
   "name": "datapilot-cli",
-  "version": "1.4.3",
+  "version": "1.4.2",
   "description": "Enterprise-grade streaming multi-format data analysis with comprehensive statistical insights and intelligent relationship detection - supports CSV, JSON, Excel, TSV, Parquet - memory-efficient, cross-platform",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -43,10 +43,10 @@
     "pre-release": "npm run lint && npm run typecheck && npm run test:all && npm run build && npm run test:installation",
     "prepublishOnly": "npm run build:clean",
     "prepack": "npm run build",
-    "build:binaries": "npm run build && pkg . --output binaries/datapilot",
-    "build:win": "npm run build && pkg . --targets node18-win-x64 --output binaries/datapilot-win.exe",
-    "build:mac": "npm run build && pkg . --targets node18-macos-x64 --output binaries/datapilot-macos",
-    "build:linux": "npm run build && pkg . --targets node18-linux-x64 --output binaries/datapilot-linux",
+    "build:binaries": "npm run build && caxa --input . --output binaries/datapilot --exclude-output binaries",
+    "build:win": "npm run build && caxa --input . --output binaries/datapilot-win.exe --exclude-output binaries",
+    "build:mac": "npm run build && caxa --input . --output binaries/datapilot-macos --exclude-output binaries",
+    "build:linux": "npm run build && caxa --input . --output binaries/datapilot-linux --exclude-output binaries",
     "build:all-platforms": "npm run build:win && npm run build:mac && npm run build:linux",
     "pack:offline": "node scripts/create-offline-package.js"
   },
@@ -91,30 +91,19 @@
   "engines": {
     "node": ">=18.0.0"
   },
-  "pkg": {
-    "targets": [
-      "node18-win-x64",
-      "node18-macos-x64",
-      "node18-linux-x64"
-    ],
-    "outputPath": "binaries",
-    "scripts": [
-      "dist/**/*.js"
-    ]
-  },
   "dependencies": {
     "commander": "^12.1.0",
     "exceljs": "^4.4.0",
     "hyparquet": "^1.16.0",
-    "uuid": "^10.0.0",
-    "xlsx": "^0.18.5"
+    "reflect-metadata": "^0.2.2",
+    "tsyringe": "^4.10.0",
+    "uuid": "^10.0.0"
   },
   "bundleDependencies": [
     "commander",
     "exceljs",
     "hyparquet",
-    "uuid",
-    "xlsx"
+    "uuid"
   ],
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",
@@ -124,13 +113,13 @@
     "@types/uuid": "^10.0.0",
     "@typescript-eslint/eslint-plugin": "^8.34.0",
     "@typescript-eslint/parser": "^8.34.0",
+    "caxa": "^3.0.1",
     "eslint": "^9.29.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-prettier": "^5.4.1",
     "jest": "^29.7.0",
     "madge": "^8.0.0",
     "npm-check-updates": "^18.0.1",
-    "pkg": "^5.8.1",
     "prettier": "^3.5.3",
     "ts-jest": "^29.4.0",
     "typescript": "^5.8.3"

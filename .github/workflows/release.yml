@@ -1,22 +1,129 @@
-name: Release Pre-built Packages
+name: Release
 
 on:
-  release:
-    types: [published]
+  push:
+    tags:
+      - 'v*'
   workflow_dispatch:
     inputs:
-      tag:
-        description: 'Tag to build (e.g., v1.4.0)'
+      version:
+        description: 'Version to release (e.g., v1.4.3)'
         required: true
         type: string
 
+# SECURITY: Minimal required permissions for release operations
+permissions:
+  contents: write          # Create releases and upload assets
+  packages: write          # Publish to npm registry
+  id-token: write          # OIDC token for secure authentication
+  actions: read            # Read workflow metadata
+
 env:
   NODE_VERSION: '18'
+  NPM_REGISTRY: 'https://registry.npmjs.org/'
 
 jobs:
+  validate-release:
+    name: Validate Release Prerequisites
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      should-release: ${{ steps.validation.outputs.should-release }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure Git Bot
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git config --global init.defaultBranch main
+
+      - name: Extract version
+        id: version
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION="${{ github.ref_name }}"
+          fi
+          
+          # Validate version format (v1.2.3)
+          if [[ ! "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "❌ Invalid version format: $VERSION (expected: v1.2.3)"
+            exit 1
+          fi
+          
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "✅ Release version: $VERSION"
+
+      - name: Validate package.json version
+        id: validation
+        run: |
+          PACKAGE_VERSION="v$(node -p "require('./package.json').version")"
+          RELEASE_VERSION="${{ steps.version.outputs.version }}"
+          
+          echo "📦 Package version: $PACKAGE_VERSION"
+          echo "🚀 Release version: $RELEASE_VERSION"
+          
+          if [[ "$PACKAGE_VERSION" != "$RELEASE_VERSION" ]]; then
+            echo "❌ Version mismatch: package.json ($PACKAGE_VERSION) != release ($RELEASE_VERSION)"
+            echo "should-release=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+          
+          echo "✅ Version validation passed"
+          echo "should-release=true" >> $GITHUB_OUTPUT
+
+  security-audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    needs: validate-release
+    if: needs.validate-release.outputs.should-release == 'true'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure Git Bot
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Security audit
+        run: |
+          echo "🔍 Running npm audit..."
+          npm audit --audit-level=high
+          
+          echo "🔍 Checking for vulnerable dependencies..."
+          if npm ls | grep -E "(xlsx|pkg)" >/dev/null 2>&1; then
+            echo "❌ Found insecure dependencies (xlsx/pkg)"
+            exit 1
+          fi
+          
+          echo "✅ Security audit passed"
+
   build-packages:
     name: Build Pre-built Packages
     runs-on: ubuntu-latest
+    needs: [validate-release, security-audit]
+    if: needs.validate-release.outputs.should-release == 'true'
     permissions:
       contents: write
     
@@ -24,7 +131,13 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       with:
-        ref: ${{ github.event.release.tag_name || github.event.inputs.tag }}
+        fetch-depth: 0
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Configure Git Bot
+      run: |
+        git config --global user.name 'github-actions[bot]'
+        git config --global user.email 'github-actions[bot]@users.noreply.github.com'
       
     - name: Setup Node.js
       uses: actions/setup-node@v4
@@ -99,21 +212,21 @@ jobs:
   build-binaries:
     name: Build Platform Binaries
     runs-on: ${{ matrix.os }}
+    needs: [validate-release, security-audit]
+    if: needs.validate-release.outputs.should-release == 'true'
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest
             platform: linux
             extension: ''
-            target: 'node18-linux-x64'
           - os: windows-latest
-            platform: windows
+            platform: win
             extension: '.exe'
-            target: 'node18-win-x64'
           - os: macos-latest
             platform: macos
             extension: ''
-            target: 'node18-macos-x64'
     permissions:
       contents: write
     
@@ -121,7 +234,13 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       with:
-        ref: ${{ github.event.release.tag_name || github.event.inputs.tag }}
+        fetch-depth: 0
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Configure Git Bot
+      run: |
+        git config --global user.name 'github-actions[bot]'
+        git config --global user.email 'github-actions[bot]@users.noreply.github.com'
       
     - name: Setup Node.js
       uses: actions/setup-node@v4
@@ -135,29 +254,47 @@ jobs:
     - name: Build project
       run: npm run build
       
-    - name: Install pkg
-      run: npm install -g pkg
+    - name: Configure Git Bot
+      run: |
+        git config --global user.name 'github-actions[bot]'
+        git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+
+    - name: Install caxa (secure pkg alternative)
+      run: npm install -g caxa
       
     - name: Build binary
       run: |
-        VERSION=${{ github.event.release.tag_name || github.event.inputs.tag }}
-        pkg . --targets ${{ matrix.target }} --output datapilot-${{ matrix.platform }}-${VERSION}${{ matrix.extension }}
+        VERSION="${{ needs.validate-release.outputs.version }}"
+        BINARY_NAME="datapilot-${{ matrix.platform }}-${VERSION}${{ matrix.extension }}"
+        
+        echo "🔨 Building binary: $BINARY_NAME"
+        caxa \
+          --input . \
+          --output "$BINARY_NAME" \
+          --exclude-output binaries \
+          --exclude ".github" \
+          --exclude "tests" \
+          --exclude "*.test.*" \
+          --exclude "node_modules/.cache"
         
     - name: Test binary (Unix)
       if: runner.os != 'Windows'
       run: |
-        chmod +x datapilot-${{ matrix.platform }}-*
-        ./datapilot-${{ matrix.platform }}-* --version
+        VERSION="${{ needs.validate-release.outputs.version }}"
+        BINARY_NAME="datapilot-${{ matrix.platform }}-${VERSION}${{ matrix.extension }}"
+        chmod +x "$BINARY_NAME"
+        ./"$BINARY_NAME" --version
         
     - name: Test binary (Windows)
       if: runner.os == 'Windows'
       shell: cmd
       run: |
-        datapilot-windows-*.exe --version
+        set VERSION=${{ needs.validate-release.outputs.version }}
+        datapilot-${{ matrix.platform }}-%VERSION%.exe --version
         
     - name: Create platform package
       run: |
-        VERSION=${{ github.event.release.tag_name || github.event.inputs.tag }}
+        VERSION="${{ needs.validate-release.outputs.version }}"
         mkdir -p release-package
         
         # Copy binary

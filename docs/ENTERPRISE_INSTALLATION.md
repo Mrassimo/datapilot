@@ -362,8 +362,33 @@ datapilot all data.csv
 datapilot all data.csv --output report.md
 ```
 
+## Security Improvements (v1.4.3+)
+
+### Critical Security Fixes
+
+- ✅ **Removed insecure xlsx dependency** - Eliminated high severity vulnerabilities (prototype pollution, ReDoS)
+- ✅ **Replaced pkg with caxa** - Fixed moderate privilege escalation vulnerability  
+- ✅ **Enhanced ExcelJS-only processing** - Secure Excel file handling without security risks
+- ✅ **Updated bundled dependencies** - All security vulnerabilities resolved
+
+### Security Verification
+
+After installation, verify security improvements:
+
+```bash
+# Check for vulnerabilities (should show 0 high/critical)
+npm audit
+
+# Verify no insecure packages
+npm ls | grep -E "(xlsx|pkg)"  # Should show no results
+
+# Verify version includes security fixes
+datapilot --version  # Should show v1.4.3 or higher
+```
+
 ## Version History
 
+- **v1.4.3** - Security fixes: removed xlsx, replaced pkg with caxa, enhanced Windows support
 - **v1.4.0** - Fixed Windows installation issues, added pre-built packages
 - **v1.3.0** - Added offline installation support
 - **v1.2.0** - Initial enterprise features

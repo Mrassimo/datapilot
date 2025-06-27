@@ -16,6 +16,7 @@ const npmCmd = isWindows ? 'npm.cmd' : 'npm';
 console.log('🚀 Creating offline-installable package...');
 console.log(`📊 Platform: ${os.platform()} ${os.arch()}`);
 console.log(`🔧 Node version: ${process.version}`);
+console.log('🔒 Security: Secure dependencies (xlsx removed, pkg replaced with caxa)');
 
 try {
   // Step 1: Clean and prepare
