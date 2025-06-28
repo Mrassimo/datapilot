@@ -1,3 +1,10 @@
+## [1.4.15](https://github.com/Mrassimo/datapilot/compare/v1.4.14...v1.4.15) (2025-06-28)
+
+
+### Bug Fixes
+
+* CRITICAL - Section 6 ML task identification completely rewritten ([1d4c860](https://github.com/Mrassimo/datapilot/commit/1d4c8606aef3e01a0a09d08f22ab278a6e145ea6)), closes [#36](https://github.com/Mrassimo/datapilot/issues/36)
+
 ## [1.4.14](https://github.com/Mrassimo/datapilot/compare/v1.4.13...v1.4.14) (2025-06-28)
 
 
