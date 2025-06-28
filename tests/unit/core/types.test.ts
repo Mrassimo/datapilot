@@ -188,8 +188,7 @@ describe('Core Types and Data Structures', () => {
 
         const formatted = error.getFormattedMessage();
 
-        expect(formatted).toContain('[VALIDATION:MISSING_VALUE]');
-        expect(formatted).toContain('Missing required value');
+        expect(formatted).toContain('❌ ERROR: Missing required value');
         expect(formatted).toContain('File: /test/data.csv');
         expect(formatted).toContain('Section: quality');
         expect(formatted).toContain('Analyzer: CompletenessAnalyzer');
@@ -201,7 +200,7 @@ describe('Core Types and Data Structures', () => {
         const error = new DataPilotError('Simple error', 'SIMPLE_ERROR');
         const formatted = error.getFormattedMessage();
 
-        expect(formatted).toBe('[ANALYSIS:SIMPLE_ERROR] Simple error');
+        expect(formatted).toBe('❌ ERROR: Simple error');
       });
 
       it('should handle partial context', () => {

@@ -14,6 +14,7 @@ import { createTSVParser, TSVDetector } from '../parsers/tsv-parser';
 import { createParquetParser, ParquetDetector } from '../parsers/parquet-parser';
 import { DataPilotError, ErrorSeverity, ErrorCategory } from '../core/types';
 import { logger } from '../utils/logger';
+import { globalErrorHandler, ErrorUtils } from '../utils/error-handler';
 
 // Import existing analyzers (these remain unchanged)
 import { Section1Analyzer } from '../analyzers/overview';
@@ -111,81 +112,193 @@ export class UniversalAnalyzer {
   }
 
   /**
-   * Analyze any supported file format
+   * Analyze multiple files for join analysis (engineering command with multiple files)
    */
-  async analyzeFile(filePath: string, options: CLIOptions): Promise<CLIResult> {
+  async analyzeMultipleFiles(filePaths: string[], options: CLIOptions): Promise<CLIResult> {
     this.initializeParsers();
 
     try {
-      // 1. Auto-detect format and get parser
-      logger.info(`Starting universal analysis for: ${filePath}`);
-      // Convert CLIOptions to ParseOptions
-      const parseOptions: any = {
-        maxRows: options.maxRows,
-        encoding: options.encoding as BufferEncoding,
-        format: options.format,
-        delimiter: options.delimiter,
-        quote: options.quote,
-        hasHeader: options.hasHeader,
-        jsonPath: options.jsonPath,
-        arrayMode: options.arrayMode,
-        flattenObjects: options.flattenObjects,
-        sheetName: options.sheetName,
-        sheetIndex: options.sheetIndex,
-        columns: options.columns,
-        rowStart: options.rowStart,
-        rowEnd: options.rowEnd,
-      };
+      logger.info(`Starting multi-file join analysis for: ${filePaths.join(', ')}`);
 
-      const { parser, format, detection } = await this.registry.getParser(filePath, parseOptions);
-
-      logger.info(
-        `Detected format: ${format} (confidence: ${(detection.confidence * 100).toFixed(1)}%)`,
-      );
-
-      // 2. Validate file can be parsed
-      const validation = await parser.validate(filePath);
-      if (!validation.canProceed) {
-        throw new DataPilotError(
-          `Cannot parse file: ${validation.errors.join(', ')}`,
-          'UNIVERSAL_PARSE_ERROR',
-          ErrorSeverity.HIGH,
-          ErrorCategory.VALIDATION,
-        );
+      // Validate all files exist and are supported
+      for (const filePath of filePaths) {
+        const validation = await this.validateFile(filePath);
+        if (!validation.supported) {
+          throw new DataPilotError(
+            `File ${filePath} is not supported: ${validation.suggestions.join(', ')}`,
+            'MULTI_FILE_VALIDATION_ERROR',
+            ErrorSeverity.HIGH,
+            ErrorCategory.VALIDATION,
+          );
+        }
       }
 
-      if (validation.warnings.length > 0) {
-        logger.warn(`Parsing warnings: ${validation.warnings.join(', ')}`);
-      }
+      // Import and run join analysis
+      const { JoinAnalyzer } = await import('../analyzers/joins');
+      const joinAnalyzer = new JoinAnalyzer({
+        maxTables: Math.max(10, filePaths.length),
+        confidenceThreshold: options.confidence || 0.7,
+        enableFuzzyMatching: true,
+        enableSemanticAnalysis: true,
+        enableTemporalJoins: false,
+        performanceMode: 'BALANCED',
+        outputFormats: [{ type: 'MARKDOWN' }]
+      });
 
-      // 3. Convert to common dataset format
-      const dataset = await this.parseToDataset(parser, filePath, parseOptions, format, detection);
-
-      // 4. Run the same 6-section analysis pipeline
-      const analysisResult = await this.runAnalysisPipeline(dataset, options);
+      const joinResult = await joinAnalyzer.analyzeJoins(filePaths);
 
       return {
         success: true,
         exitCode: 0,
-        data: analysisResult,
+        data: {
+          joinAnalysis: joinResult
+        },
         format: options.format || 'markdown',
         metadata: {
-          command: options.command || 'all',
-          filePath,
-          originalFormat: format,
-          detection: {
-            format,
-            confidence: detection.confidence,
-            metadata: detection.metadata,
-          },
-          parserStats: parser.getStats(),
+          command: 'engineering',
+          filePaths,
+          analysisType: 'multi-file-join',
+          filesAnalyzed: filePaths.length,
           timestamp: new Date().toISOString(),
-          version: '1.2.1', // Multi-format support version
+          version: '1.2.1',
         },
       };
     } catch (error) {
-      return this.handleAnalysisError(error, filePath);
+      return this.handleAnalysisError(error, filePaths.join(', '));
     }
+  }
+
+  /**
+   * Analyze any supported file format
+   */
+  async analyzeFile(filePath: string, options: CLIOptions): Promise<CLIResult> {
+    this.initializeParsers();
+    
+    // Enable verbose mode in error handler if verbose CLI option is set
+    globalErrorHandler.setVerboseMode(options.verbose || false);
+
+    return await ErrorUtils.withEnhancedContext(
+      async () => {
+        // 1. Auto-detect format and get parser
+        logger.info(`Starting universal analysis for: ${filePath}`);
+        // Convert CLIOptions to ParseOptions
+        const parseOptions: any = {
+          maxRows: options.maxRows,
+          encoding: options.encoding as BufferEncoding,
+          format: options.format,
+          delimiter: options.delimiter,
+          quote: options.quote,
+          hasHeader: options.hasHeader,
+          jsonPath: options.jsonPath,
+          arrayMode: options.arrayMode,
+          flattenObjects: options.flattenObjects,
+          sheetName: options.sheetName,
+          sheetIndex: options.sheetIndex,
+          columns: options.columns,
+          rowStart: options.rowStart,
+          rowEnd: options.rowEnd,
+        };
+
+        const { parser, format, detection } = await ErrorUtils.withEnhancedContext(
+          () => this.registry.getParser(filePath, parseOptions),
+          {
+            operationName: 'format_detection',
+            filePath,
+            additionalContext: { parseOptions }
+          }
+        );
+
+        logger.info(
+          `Detected format: ${format} (confidence: ${(detection.confidence * 100).toFixed(1)}%)`,
+        );
+
+        // 2. Validate file can be parsed
+        const validation = await ErrorUtils.withEnhancedContext(
+          () => parser.validate(filePath),
+          {
+            operationName: 'parser_validation',
+            filePath,
+            additionalContext: { format, confidence: detection.confidence }
+          }
+        );
+        
+        if (!validation.canProceed) {
+          throw ErrorUtils.createContextualError(
+            `Cannot parse file: ${validation.errors.join(', ')}`,
+            'UNIVERSAL_PARSE_ERROR',
+            ErrorCategory.VALIDATION,
+            ErrorSeverity.HIGH,
+            {
+              operationName: 'parser_validation',
+              filePath,
+              additionalContext: {
+                format,
+                parserErrors: validation.errors,
+                parserWarnings: validation.warnings
+              }
+            }
+          );
+        }
+
+        if (validation.warnings.length > 0) {
+          logger.warn(`Parsing warnings: ${validation.warnings.join(', ')}`);
+        }
+
+        // 3. Convert to common dataset format
+        const dataset = await ErrorUtils.withEnhancedContext(
+          () => this.parseToDataset(parser, filePath, parseOptions, format, detection),
+          {
+            operationName: 'dataset_conversion',
+            filePath,
+            additionalContext: { format, parseOptions }
+          }
+        );
+
+        // 4. Run the same 6-section analysis pipeline
+        const analysisResult = await ErrorUtils.withEnhancedContext(
+          () => this.runAnalysisPipeline(dataset, options),
+          {
+            operationName: 'analysis_pipeline',
+            filePath,
+            additionalContext: { 
+              format, 
+              datasetSize: dataset.rows.length,
+              columns: dataset.headers.length
+            }
+          }
+        );
+
+        return {
+          success: true,
+          exitCode: 0,
+          data: analysisResult,
+          format: options.format || 'markdown',
+          metadata: {
+            command: options.command || 'all',
+            filePath,
+            originalFormat: format,
+            detection: {
+              format,
+              confidence: detection.confidence,
+              metadata: detection.metadata,
+            },
+            parserStats: parser.getStats(),
+            timestamp: new Date().toISOString(),
+            version: '1.2.1', // Multi-format support version
+          },
+        };
+      },
+      {
+        operationName: 'universal_file_analysis',
+        filePath,
+        additionalContext: { 
+          command: options.command,
+          verboseMode: options.verbose 
+        }
+      }
+    ).catch((error) => {
+      return this.handleAnalysisError(error, filePath, options);
+    });
   }
 
   /**
@@ -864,29 +977,77 @@ export class UniversalAnalyzer {
   }
 
   /**
-   * Handle analysis errors with helpful suggestions
+   * Handle analysis errors with enhanced debugging information
    */
-  private handleAnalysisError(error: any, filePath: string): CLIResult {
+  private handleAnalysisError(error: any, filePath: string, options?: CLIOptions): CLIResult {
     const supportedFormats = this.registry.getSupportedFormats();
     const supportedExtensions = this.registry.getSupportedExtensions();
+    
+    let errorMessage = 'Analysis failed';
+    let enhancedSuggestions: string[] = [];
+    let errorDetails: any = {};
+
+    if (error instanceof DataPilotError) {
+      // Enhanced error handling for DataPilotError
+      errorMessage = error.getFormattedMessage(options?.verbose || false);
+      enhancedSuggestions = error.getEnhancedSuggestions(options?.verbose || false);
+      
+      if (options?.verbose && error.verboseInfo) {
+        errorDetails = {
+          fullContext: error.verboseInfo.fullContext,
+          performanceMetrics: error.verboseInfo.performanceMetrics,
+          memorySnapshot: error.verboseInfo.memorySnapshot,
+        };
+      }
+    } else {
+      // Convert generic error to enhanced format
+      errorMessage = error instanceof Error ? error.message : 'Unknown analysis error';
+      
+      if (options?.verbose) {
+        errorMessage += `\n   Stack: ${error instanceof Error ? error.stack?.split('\n').slice(0, 3).join('\n          ') : 'No stack available'}`;
+      }
+    }
+
+    // Default suggestions enhanced with debugging context
+    const defaultSuggestions = [
+      `Check if file format is supported: ${supportedFormats.join(', ')}`,
+      `Supported extensions: ${supportedExtensions.join(', ')}`,
+      'Try specifying format explicitly: --format json',
+      'Verify file is not corrupted',
+      'Check file permissions',
+    ];
+    
+    if (options?.verbose) {
+      defaultSuggestions.push(
+        'Run with --verbose for more detailed error information',
+        'Check memory usage with system monitor during analysis',
+        'Use --maxRows to limit data size for testing'
+      );
+    } else {
+      defaultSuggestions.push('Use --verbose for detailed debugging information');
+    }
+    
+    defaultSuggestions.push('Use --help for more information');
+
+    // Combine enhanced suggestions with defaults
+    const allSuggestions = enhancedSuggestions.length > 0 ? 
+      [...enhancedSuggestions, '---', ...defaultSuggestions] :
+      defaultSuggestions;
 
     return {
       success: false,
       exitCode: 1,
-      error: error.message,
-      suggestions: [
-        `Check if file format is supported: ${supportedFormats.join(', ')}`,
-        `Supported extensions: ${supportedExtensions.join(', ')}`,
-        'Try specifying format explicitly: --format json',
-        'Verify file is not corrupted',
-        'Check file permissions',
-        'Use --help for more information',
-      ],
+      error: errorMessage,
+      suggestions: allSuggestions,
       metadata: {
         filePath,
         supportedFormats,
         supportedExtensions,
         timestamp: new Date().toISOString(),
+        errorCategory: error instanceof DataPilotError ? error.category : 'unknown',
+        errorSeverity: error instanceof DataPilotError ? error.severity : 'medium',
+        verboseMode: options?.verbose || false,
+        ...(options?.verbose && errorDetails ? { errorDetails } : {}),
       },
     };
   }

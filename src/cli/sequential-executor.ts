@@ -29,6 +29,7 @@ import {
 import { DataPilotError, ErrorSeverity, ErrorCategory } from '../core/types';
 import { logger } from '../utils/logger';
 import { globalMemoryManager } from '../utils/memory-manager';
+import { globalErrorHandler, ErrorUtils } from '../utils/error-handler';
 import { ResultCache, createResultCache } from './result-cache';
 
 // Import existing analyzers
@@ -597,7 +598,48 @@ export class SequentialExecutor {
   }
 
   /**
-   * Register section resolvers with the dependency resolver
+   * Execute section with enhanced error handling and context
+   */
+  private async executeSectionWithEnhancedContext<T>(
+    sectionName: string,
+    sectionExecutor: () => Promise<T>
+  ): Promise<T> {
+    return await ErrorUtils.withEnhancedContext(
+      async () => {
+        const result = await sectionExecutor();
+        
+        // Validate section result
+        return ErrorUtils.validateOperationResult(
+          result, 
+          'object', 
+          `${sectionName}_analysis`,
+          { 
+            section: sectionName, 
+            analyzer: `${sectionName}Analyzer`,
+            filePath: this.dataset.metadata.filePath
+          }
+        );
+      },
+      {
+        operationName: `${sectionName}_execution`,
+        section: sectionName,
+        analyzer: `${sectionName}Analyzer`,
+        filePath: this.dataset.metadata.filePath,
+        additionalContext: {
+          datasetRows: this.dataset.rows.length,
+          datasetColumns: this.dataset.headers.length,
+          executionState: {
+            currentSection: this.executionState.currentSection,
+            completedSections: Array.from(this.executionState.completedSections),
+            memoryUsage: this.executionState.memoryPeakUsage
+          }
+        }
+      }
+    );
+  }
+
+  /**
+   * Register section resolvers with the dependency resolver and enhanced error handling
    */
   private registerSectionResolvers(): void {
     // Section 1: Overview Analysis
@@ -828,46 +870,111 @@ export class SequentialExecutor {
   }
 
   /**
-   * Handle execution errors with detailed reporting
+   * Handle execution errors with enhanced debugging and detailed reporting
    */
   private async handleExecutionError(error: any, startTime: number): Promise<CLIResult> {
     const totalTime = Date.now() - startTime;
     
+    // Set verbose mode based on options
+    globalErrorHandler.setVerboseMode(this.options.verbose || false);
+    
     logger.error('Sequential execution failed', this.context, error);
 
-    // Attempt rollback
+    // Attempt rollback with enhanced error context
     try {
       await this.performRollback();
     } catch (rollbackError) {
       logger.error('Rollback failed', this.context, rollbackError);
     }
 
+    let errorMessage = 'Sequential execution failed';
+    let enhancedSuggestions: string[] = [];
+    let errorDetails: any = {};
+
+    if (error instanceof DataPilotError) {
+      // Enhanced error handling for DataPilotError
+      errorMessage = error.getFormattedMessage(this.options.verbose || false);
+      enhancedSuggestions = error.getEnhancedSuggestions(this.options.verbose || false);
+      
+      if (this.options.verbose && error.verboseInfo) {
+        errorDetails = {
+          fullContext: error.verboseInfo.fullContext,
+          performanceMetrics: error.verboseInfo.performanceMetrics,
+          memorySnapshot: error.verboseInfo.memorySnapshot,
+        };
+      }
+    } else {
+      // Convert generic error to enhanced format
+      errorMessage = error instanceof Error ? error.message : 'Unknown execution error';
+      
+      if (this.options.verbose) {
+        errorMessage += `\n   Stack: ${error instanceof Error ? error.stack?.split('\n').slice(0, 3).join('\n          ') : 'No stack available'}`;
+        errorMessage += `\n   Section: ${this.executionState.currentSection || 'unknown'}`;
+        errorMessage += `\n   Completed: ${Array.from(this.executionState.completedSections).join(', ') || 'none'}`;
+        errorMessage += `\n   Memory Peak: ${(this.executionState.memoryPeakUsage / 1024 / 1024).toFixed(2)}MB`;
+      }
+    }
+
     // Determine error suggestions based on current state
-    const suggestions: string[] = [
+    const contextualSuggestions: string[] = [];
+    
+    if (this.executionState.currentSection) {
+      contextualSuggestions.push(`• Section Failed: ${this.executionState.currentSection} - check section-specific requirements`);
+    }
+
+    if (this.executionState.memoryPeakUsage > (this.options.memoryLimit || 512 * 1024 * 1024)) {
+      contextualSuggestions.push('• Memory Issue: Consider increasing memory limit or reducing data size');
+    }
+    
+    // Check for dependency issues
+    if (this.executionPlan && this.executionState.completedSections.size < this.executionPlan.order.length) {
+      const failedSections = this.executionPlan.order.filter(
+        section => !this.executionState.completedSections.has(section)
+      );
+      contextualSuggestions.push(`• Dependency Issue: Sections not completed: ${failedSections.join(', ')}`);
+    }
+    
+    // General debugging suggestions
+    const generalSuggestions = [
       'Check system resources and memory availability',
       'Verify input data format and quality',
       'Try running individual sections to isolate the issue',
     ];
-
-    if (this.executionState.currentSection) {
-      suggestions.unshift(`${this.executionState.currentSection} section failed - check section-specific requirements`);
+    
+    if (this.options.verbose) {
+      generalSuggestions.push(
+        'Monitor system resources during execution',
+        'Check for data corruption or format issues',
+        'Use --maxRows to limit data size for testing'
+      );
+    } else {
+      generalSuggestions.push('Use --verbose for detailed debugging information');
     }
 
-    if (this.executionState.memoryPeakUsage > (this.options.memoryLimit || 512 * 1024 * 1024)) {
-      suggestions.push('Consider increasing memory limit or reducing data size');
-    }
+    // Combine enhanced suggestions with contextual and general suggestions
+    const allSuggestions = [
+      ...enhancedSuggestions,
+      ...(enhancedSuggestions.length > 0 ? ['---'] : []),
+      ...contextualSuggestions,
+      ...(contextualSuggestions.length > 0 ? ['---'] : []),
+      ...generalSuggestions
+    ].filter(Boolean);
 
     return {
       success: false,
       exitCode: 1,
-      error: error instanceof Error ? error.message : 'Unknown execution error',
-      suggestions,
+      error: errorMessage,
+      suggestions: allSuggestions,
       metadata: {
         executionTime: totalTime,
         currentSection: this.executionState.currentSection,
         completedSections: Array.from(this.executionState.completedSections),
         memoryPeakUsage: this.executionState.memoryPeakUsage,
         rollbackPoints: this.executionState.rollbackStack.length,
+        errorCategory: error instanceof DataPilotError ? error.category : 'unknown',
+        errorSeverity: error instanceof DataPilotError ? error.severity : 'medium',
+        verboseMode: this.options.verbose || false,
+        ...(this.options.verbose && errorDetails ? { errorDetails } : {}),
       },
       stats: {
         processingTime: totalTime,

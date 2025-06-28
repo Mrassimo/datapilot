@@ -17,6 +17,11 @@ export interface ErrorHandlerConfig {
   logErrors: boolean;
   abortOnCritical: boolean;
   memoryThresholdBytes: number;
+  verboseMode: boolean;
+  enhancedStackTraces: boolean;
+  silentFailureDetection: boolean;
+  performanceTracking: boolean;
+  contextPreservation: boolean;
 }
 
 export interface ErrorStats {
@@ -40,6 +45,11 @@ export class ErrorHandler {
       logErrors: true,
       abortOnCritical: true,
       memoryThresholdBytes: 512 * 1024 * 1024, // 512MB
+      verboseMode: false,
+      enhancedStackTraces: true,
+      silentFailureDetection: true,
+      performanceTracking: true,
+      contextPreservation: true,
       ...config,
     };
 
@@ -293,7 +303,7 @@ export class ErrorHandler {
   }
 
   /**
-   * Wrap operation with automatic error handling
+   * Wrap operation with automatic error handling and enhanced context
    */
   async wrapOperation<T>(
     operation: () => Promise<T>,
@@ -301,26 +311,207 @@ export class ErrorHandler {
     context?: ErrorContext,
     recoveryStrategy?: ErrorRecoveryStrategy,
   ): Promise<T | null> {
+    const startTime = performance.now();
+    const memoryBefore = this.config.performanceTracking ? process.memoryUsage() : undefined;
+    
     try {
-      return await operation();
+      const result = await operation();
+      
+      // Silent failure detection
+      if (this.config.silentFailureDetection) {
+        this.detectSilentFailure(result, operationName, context);
+      }
+      
+      return result;
     } catch (error) {
+      const endTime = performance.now();
+      const memoryAfter = this.config.performanceTracking ? process.memoryUsage() : undefined;
+      
       let dataPilotError: DataPilotError;
 
       if (error instanceof DataPilotError) {
         dataPilotError = error;
+        // Enhance context with performance data
+        if (this.config.performanceTracking && dataPilotError.context) {
+          dataPilotError.context.performanceContext = {
+            startTime,
+            endTime,
+            memoryBefore,
+            memoryAfter,
+          };
+        }
       } else {
-        // Convert generic error to DataPilotError
+        // Convert generic error to DataPilotError with enhanced context
+        const enhancedContext: ErrorContext = {
+          ...context,
+          operationName,
+          originalStack: error instanceof Error ? error.stack : undefined,
+          performanceContext: this.config.performanceTracking ? {
+            startTime,
+            endTime,
+            memoryBefore,
+            memoryAfter,
+          } : undefined,
+        };
+        
         dataPilotError = new DataPilotError(
           error instanceof Error ? error.message : 'Unknown error',
           'UNKNOWN_ERROR',
           ErrorSeverity.MEDIUM,
           ErrorCategory.ANALYSIS,
-          { ...context, operationName },
+          enhancedContext,
         );
       }
 
       return await this.handleError(dataPilotError, operation, recoveryStrategy);
     }
+  }
+  
+  /**
+   * Create enhanced error context with debugging information
+   */
+  createEnhancedContext(
+    baseContext: Partial<ErrorContext>,
+    operationName: string,
+    additionalContext?: Record<string, unknown>
+  ): ErrorContext {
+    const context: ErrorContext = {
+      ...baseContext,
+      operationName,
+      additionalContext,
+    };
+    
+    if (this.config.enhancedStackTraces) {
+      // Capture call stack
+      const stack = new Error().stack;
+      if (stack) {
+        context.callStack = stack.split('\n').slice(2, 8); // Skip Error() and this function
+        context.originalStack = stack;
+      }
+    }
+    
+    if (this.config.performanceTracking) {
+      context.performanceContext = {
+        startTime: performance.now(),
+        memoryBefore: process.memoryUsage(),
+      };
+    }
+    
+    return context;
+  }
+  
+  /**
+   * Detect silent failures in operation results
+   */
+  private detectSilentFailure(
+    result: unknown,
+    operationName: string,
+    context?: ErrorContext
+  ): void {
+    if (!result) return;
+    
+    // Check for common silent failure patterns
+    const silentFailureDetected = this.checkForSilentFailurePatterns(result, operationName);
+    
+    if (silentFailureDetected && context) {
+      context.silentFailure = {
+        detected: true,
+        expectedResult: this.getExpectedResultDescription(operationName),
+        actualResult: result,
+        failureType: silentFailureDetected.type,
+        detectionTimestamp: Date.now(),
+      };
+      
+      // Log silent failure detection in verbose mode
+      if (this.config.verboseMode) {
+        logger.warn(`Silent failure detected in ${operationName}: ${silentFailureDetected.description}`);
+      }
+    }
+  }
+  
+  /**
+   * Check for silent failure patterns in results
+   */
+  private checkForSilentFailurePatterns(
+    result: unknown,
+    operationName: string
+  ): { type: 'missing_result' | 'invalid_result' | 'partial_result' | 'timeout'; description: string } | null {
+    // Check for missing or null results
+    if (result === null || result === undefined) {
+      return {
+        type: 'missing_result',
+        description: 'Operation returned null or undefined'
+      };
+    }
+    
+    // Check for empty objects that should have content
+    if (typeof result === 'object' && Object.keys(result as object).length === 0) {
+      if (operationName.includes('analyze') || operationName.includes('process')) {
+        return {
+          type: 'invalid_result',
+          description: 'Analysis operation returned empty object'
+        };
+      }
+    }
+    
+    // Check for partial results (arrays with very few items when more expected)
+    if (Array.isArray(result) && result.length < 2) {
+      if (operationName.includes('analyze') || operationName.includes('process')) {
+        return {
+          type: 'partial_result',
+          description: 'Analysis returned unexpectedly few results'
+        };
+      }
+    }
+    
+    // Check for error indicators in result objects
+    if (typeof result === 'object' && result !== null) {
+      const resultObj = result as Record<string, unknown>;
+      if (resultObj.error || resultObj.failed || resultObj.timeout) {
+        return {
+          type: 'invalid_result',
+          description: 'Result contains error indicators'
+        };
+      }
+    }
+    
+    return null;
+  }
+  
+  /**
+   * Get expected result description for operation
+   */
+  private getExpectedResultDescription(operationName: string): string {
+    const operationMap: Record<string, string> = {
+      'analyze': 'Analysis results object with statistics',
+      'parse': 'Parsed data array or object',
+      'format': 'Formatted output string',
+      'process': 'Processed data structure',
+      'validate': 'Validation results object',
+      'transform': 'Transformed data structure',
+    };
+    
+    for (const [key, description] of Object.entries(operationMap)) {
+      if (operationName.toLowerCase().includes(key)) {
+        return description;
+      }
+    }
+    
+    return 'Operation-specific result object';
+  }
+  
+  /**
+   * Enable or disable verbose mode
+   */
+  setVerboseMode(enabled: boolean): void {
+    this.config.verboseMode = enabled;
+  }
+  
+  /**
+   * Get configuration for debugging
+   */
+  getConfig(): ErrorHandlerConfig {
+    return { ...this.config };
   }
 
   /**
@@ -391,8 +582,11 @@ export class ErrorHandler {
   }
 
   private logError(error: DataPilotError): void {
-    const message = error.getFormattedMessage();
-    const suggestions = error.getSuggestions();
+    // Set verbose info if in verbose mode
+    error.setVerboseInfo(this.config.verboseMode);
+    
+    const message = error.getFormattedMessage(this.config.verboseMode);
+    const suggestions = error.getEnhancedSuggestions(this.config.verboseMode);
 
     switch (error.severity) {
       case ErrorSeverity.CRITICAL:
@@ -410,8 +604,20 @@ export class ErrorHandler {
     }
 
     if (suggestions.length > 0) {
-      logger.info('Suggestions:');
+      const suggestionHeader = this.config.verboseMode ? 
+        'Suggestions (with debugging context):' : 
+        'Suggestions:';
+      logger.info(suggestionHeader);
       suggestions.forEach((suggestion) => logger.info(suggestion));
+    }
+    
+    // Log verbose information if enabled
+    if (this.config.verboseMode && error.verboseInfo) {
+      logger.debug('Verbose Error Information:', {
+        context: error.verboseInfo.fullContext,
+        performance: error.verboseInfo.performanceMetrics,
+        memory: error.verboseInfo.memorySnapshot,
+      });
     }
   }
 
@@ -512,16 +718,17 @@ export class ErrorHandler {
 export const globalErrorHandler = new ErrorHandler();
 
 /**
- * Utility functions for common error scenarios
+ * Enhanced utility functions for common error scenarios
  */
 export class ErrorUtils {
   /**
-   * Handle CSV parsing errors with recovery
+   * Handle CSV parsing errors with enhanced recovery and context
    */
   static async handleParsingError(
     error: unknown,
     filePath: string,
     retryWithFallback: () => Promise<any>,
+    operationContext?: Partial<ErrorContext>
   ): Promise<any> {
     let dataPilotError: DataPilotError;
 
@@ -529,7 +736,14 @@ export class ErrorUtils {
       dataPilotError = error;
     } else {
       const errorMessage = error instanceof Error ? error.message : 'Unknown parsing error';
+      const enhancedContext = globalErrorHandler.createEnhancedContext(
+        { filePath, ...operationContext },
+        'parseFile',
+        { originalError: error }
+      );
+      
       dataPilotError = globalErrorHandler.createFileCorruptionError(filePath, errorMessage);
+      dataPilotError.context = { ...dataPilotError.context, ...enhancedContext };
     }
 
     return await globalErrorHandler.handleError(dataPilotError, retryWithFallback, {
@@ -629,5 +843,136 @@ export class ErrorUtils {
     } catch {
       return defaultValue;
     }
+  }
+  
+  /**
+   * Wrap async operation with enhanced error context
+   */
+  static async withEnhancedContext<T>(
+    operation: () => Promise<T>,
+    context: {
+      operationName: string;
+      section?: string;
+      analyzer?: string;
+      filePath?: string;
+      additionalContext?: Record<string, unknown>;
+    }
+  ): Promise<T> {
+    const enhancedContext = globalErrorHandler.createEnhancedContext(
+      {
+        section: context.section,
+        analyzer: context.analyzer,
+        filePath: context.filePath,
+      },
+      context.operationName,
+      context.additionalContext
+    );
+
+    return await globalErrorHandler.wrapOperation(
+      operation,
+      context.operationName,
+      enhancedContext
+    ) as T;
+  }
+  
+  /**
+   * Create a contextual error with enhanced debugging information
+   */
+  static createContextualError(
+    message: string,
+    code: string,
+    category: ErrorCategory,
+    severity: ErrorSeverity,
+    context: {
+      operationName: string;
+      section?: string;
+      analyzer?: string;
+      filePath?: string;
+      dependencyContext?: Record<string, any>;
+      additionalContext?: Record<string, unknown>;
+    }
+  ): DataPilotError {
+    const enhancedContext = globalErrorHandler.createEnhancedContext(
+      {
+        section: context.section,
+        analyzer: context.analyzer,
+        filePath: context.filePath,
+        dependencyContext: context.dependencyContext,
+      },
+      context.operationName,
+      context.additionalContext
+    );
+
+    return new DataPilotError(
+      message,
+      code,
+      severity,
+      category,
+      enhancedContext,
+      undefined,
+      true
+    );
+  }
+  
+  /**
+   * Check operation result and detect silent failures
+   */
+  static validateOperationResult<T>(
+    result: T,
+    expectedType: 'object' | 'array' | 'string' | 'number',
+    operationName: string,
+    context?: Partial<ErrorContext>
+  ): T {
+    // Basic type validation
+    if (result === null || result === undefined) {
+      throw ErrorUtils.createContextualError(
+        `Operation ${operationName} returned null or undefined`,
+        'NULL_RESULT',
+        ErrorCategory.ANALYSIS,
+        ErrorSeverity.HIGH,
+        {
+          operationName,
+          ...context,
+          additionalContext: { expectedType, actualResult: result }
+        }
+      );
+    }
+    
+    // Type-specific validation
+    switch (expectedType) {
+      case 'object':
+        if (typeof result !== 'object' || Array.isArray(result)) {
+          throw ErrorUtils.createContextualError(
+            `Operation ${operationName} expected object, got ${typeof result}`,
+            'TYPE_MISMATCH',
+            ErrorCategory.VALIDATION,
+            ErrorSeverity.HIGH,
+            {
+              operationName,
+              ...context,
+              additionalContext: { expectedType, actualType: typeof result }
+            }
+          );
+        }
+        break;
+        
+      case 'array':
+        if (!Array.isArray(result)) {
+          throw ErrorUtils.createContextualError(
+            `Operation ${operationName} expected array, got ${typeof result}`,
+            'TYPE_MISMATCH',
+            ErrorCategory.VALIDATION,
+            ErrorSeverity.HIGH,
+            {
+              operationName,
+              ...context,
+              additionalContext: { expectedType, actualType: typeof result }
+            }
+          );
+        }
+        break;
+    }
+    
+    return result;
   }
 }
