@@ -1,3 +1,10 @@
+# [1.5.0](https://github.com/Mrassimo/datapilot/compare/v1.4.17...v1.5.0) (2025-06-28)
+
+
+### Features
+
+* implement enhanced error handling with stack traces and contextual debugging ([f7fee81](https://github.com/Mrassimo/datapilot/commit/f7fee816c8e8aabaf15d6ea7e9f175613585aa47))
+
 ## [1.4.17](https://github.com/Mrassimo/datapilot/compare/v1.4.16...v1.4.17) (2025-06-28)
 
 
