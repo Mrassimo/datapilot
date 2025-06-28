@@ -586,18 +586,199 @@ class CoreConfigManager {
 class EnvironmentConfigManager {
   private environment: EnvironmentMode = 'development';
 
-  loadFromEnvironmentVariables() { return {}; }
+  loadFromEnvironmentVariables(): Partial<DataPilotConfig> {
+    const config: any = {};
+
+    // Helper function to safely parse numbers
+    const parseNumber = (value: string | undefined): number | undefined => {
+      if (!value) return undefined;
+      const num = Number(value);
+      return isNaN(num) ? undefined : num;
+    };
+
+    // Helper function to safely parse booleans
+    const parseBoolean = (value: string | undefined): boolean | undefined => {
+      if (!value) return undefined;
+      const lower = value.toLowerCase();
+      if (lower === 'true') return true;
+      if (lower === 'false') return false;
+      return undefined;
+    };
+
+    // Helper function to convert MB to bytes
+    const mbToBytes = (mb: number): number => mb * 1024 * 1024;
+
+    // Parse performance settings
+    const maxRows = parseNumber(process.env.DATAPILOT_MAX_ROWS);
+    const memoryThresholdMB = parseNumber(process.env.DATAPILOT_MEMORY_THRESHOLD_MB);
+    
+    if (maxRows !== undefined || memoryThresholdMB !== undefined) {
+      config.performance = {};
+      if (maxRows !== undefined) {
+        config.performance.maxRows = maxRows;
+      }
+      if (memoryThresholdMB !== undefined) {
+        config.performance.memoryThresholdBytes = mbToBytes(memoryThresholdMB);
+      }
+    }
+
+    // Parse streaming settings
+    if (memoryThresholdMB !== undefined) {
+      config.streaming = {
+        memoryThresholdMB: memoryThresholdMB
+      };
+    }
+
+    // Parse statistical settings
+    const significanceLevel = parseNumber(process.env.DATAPILOT_SIGNIFICANCE_LEVEL);
+    if (significanceLevel !== undefined && significanceLevel >= 0 && significanceLevel <= 1) {
+      config.statistical = {
+        significanceLevel: significanceLevel
+      };
+    }
+
+    // Parse analysis settings
+    const enableMultivariate = parseBoolean(process.env.DATAPILOT_ENABLE_MULTIVARIATE);
+    if (enableMultivariate !== undefined) {
+      config.analysis = {
+        enableMultivariate: enableMultivariate
+      };
+    }
+
+    // Parse security settings
+    const maxFileSizeMB = parseNumber(process.env.DATAPILOT_MAX_FILE_SIZE_MB);
+    if (maxFileSizeMB !== undefined) {
+      config.security = {
+        maxFileSize: mbToBytes(maxFileSizeMB)
+      };
+    }
+
+    // Handle preset configuration
+    const preset = process.env.DATAPILOT_PRESET;
+    if (preset && ['small', 'medium', 'large', 'xlarge'].includes(preset)) {
+      const runtimeManager = new RuntimeConfigManager();
+      const presetConfig = runtimeManager.getPresetConfig(preset);
+      
+      // Merge preset config with environment overrides, giving priority to environment
+      return this.deepMergeConfigs(presetConfig, config);
+    }
+
+    return config as Partial<DataPilotConfig>;
+  }
+
+  private deepMergeConfigs(target: any, source: any): any {
+    const result = JSON.parse(JSON.stringify(target));
+    
+    for (const key in source) {
+      if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
+        result[key] = this.deepMergeConfigs(result[key] || {}, source[key]);
+      } else {
+        result[key] = source[key];
+      }
+    }
+    
+    return result;
+  }
   
   setEnvironment(env: EnvironmentMode) {
     this.environment = env;
   }
 
-  getEnvironmentConfig(env: EnvironmentMode) {
-    return {};
+  getEnvironmentConfig(env: EnvironmentMode): Partial<DataPilotConfig> {
+    const environmentConfigs: Record<EnvironmentMode, any> = {
+      'development': {
+        performance: {
+          maxRows: 50000
+        },
+        streaming: {
+          memoryThresholdMB: 50,
+          adaptiveChunkSizing: {
+            enabled: false
+          }
+        }
+      },
+      'production': {
+        performance: {
+          maxRows: 2000000
+        },
+        streaming: {
+          memoryThresholdMB: 500,
+          adaptiveChunkSizing: {
+            enabled: true
+          }
+        }
+      },
+      'ci': {
+        performance: {
+          maxRows: 10000
+        },
+        analysis: {
+          enableMultivariate: false,
+          enabledAnalyses: ['univariate'] as const
+        }
+      },
+      'test': {
+        performance: {
+          maxRows: 1000
+        },
+        statistical: {
+          significanceLevel: 0.1,
+          confidenceLevel: 0.9
+        }
+      }
+    };
+
+    return this.deepMerge({}, environmentConfigs[env] || {}) as Partial<DataPilotConfig>;
   }
 
-  getPerformancePresetConfig(preset: PerformancePreset) {
-    return {};
+  private deepMerge(target: any, source: any): any {
+    const result = JSON.parse(JSON.stringify(target));
+    
+    for (const key in source) {
+      if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
+        result[key] = this.deepMerge(result[key] || {}, source[key]);
+      } else {
+        result[key] = source[key];
+      }
+    }
+    
+    return result;
+  }
+
+  getPerformancePresetConfig(preset: 'low-memory' | 'balanced' | 'high-performance' | 'custom'): Partial<DataPilotConfig> {
+    const presetConfigs: Record<string, any> = {
+      'low-memory': {
+        performance: {
+          maxRows: 10000,
+          memoryThresholdBytes: 256 * 1024 * 1024,
+          adaptiveChunkSizing: false
+        } as Partial<PerformanceConfig>,
+        streaming: {
+          memoryThresholdMB: 64
+        } as Partial<StreamingConfig>
+      },
+      'balanced': {
+        performance: {
+          maxRows: 100000,
+          memoryThresholdBytes: 1024 * 1024 * 1024,
+          adaptiveChunkSizing: true
+        } as Partial<PerformanceConfig>
+      },
+      'high-performance': {
+        performance: {
+          maxRows: 1000000,
+          memoryThresholdBytes: 4096 * 1024 * 1024,
+          batchSize: 5000
+        } as Partial<PerformanceConfig>
+      },
+      'custom': {
+        performance: {
+          maxRows: 500000
+        } as Partial<PerformanceConfig>
+      }
+    };
+
+    return this.deepMerge({}, presetConfigs[preset] || {}) as Partial<DataPilotConfig>;
   }
 
   validateConfig(config: DataPilotConfig): { isValid: boolean; errors: string[]; warnings: string[] } {
@@ -606,13 +787,13 @@ class EnvironmentConfigManager {
 
     // Performance validation
     if (config.performance.maxRows <= 0) {
-      errors.push('performance.maxRows must be positive');
+      errors.push('performance.maxRows: maxRows must be a positive number');
     }
     if (config.performance.chunkSize < 1024) {
-      errors.push('performance.chunkSize must be at least 1024 bytes');
+      errors.push('performance.chunkSize: chunkSize must be at least 1024 bytes');
     }
     if (config.performance.memoryThresholdBytes < 256 * 1024 * 1024) {
-      warnings.push('Low memory threshold may impact performance');
+      warnings.push('Memory threshold is quite low, consider increasing for better performance');
     }
     if (config.performance.chunkSize < 32 * 1024) {
       warnings.push('Small chunk size may impact performance, consider increasing');
@@ -621,11 +802,32 @@ class EnvironmentConfigManager {
       warnings.push('Batch size seems large relative to chunk size');
     }
 
-    // Quality validation
-    const qualityWeights = config.quality.qualityWeights;
-    const weightSum = Object.values(qualityWeights).reduce((a, b) => a + b, 0);
-    if (Math.abs(weightSum - 1.0) > 0.01) {
-      errors.push('quality.qualityWeights: qualityWeights must sum to 1.0');
+    // Statistical validation
+    if (config.statistical.significanceLevel <= 0 || config.statistical.significanceLevel >= 1) {
+      errors.push('statistical.significanceLevel: significanceLevel must be between 0 and 1');
+    }
+    if (config.statistical.confidenceLevel <= 0 || config.statistical.confidenceLevel >= 1) {
+      errors.push('statistical.confidenceLevel: confidenceLevel must be between 0 and 1');
+    }
+
+    // Correlation test validation - check if correlation test significance is more strict than base
+    if (config.statistical.alternativeSignificanceLevels.correlationTests < config.statistical.significanceLevel) {
+      warnings.push('correlationTests significance level is more strict than base level');
+    }
+
+    // Quality validation with null/undefined safety
+    const qualityWeights = config.quality?.qualityWeights;
+    if (qualityWeights && typeof qualityWeights === 'object') {
+      const weights = Object.values(qualityWeights);
+      if (weights.length > 0) {
+        const weightSum = weights.reduce((a, b) => (typeof a === 'number' ? a : 0) + (typeof b === 'number' ? b : 0), 0);
+        if (Math.abs(weightSum - 1.0) > 0.1) {
+          // Significantly off from 1.0 - return errors, not warnings
+          errors.push('quality.qualityWeights: qualityWeights must sum to 1.0');
+        } else if (Math.abs(weightSum - 1.0) > 0.01) {
+          warnings.push(`quality.qualityWeights sum to ${weightSum.toFixed(3)}, consider adjusting to sum to 1.0 for optimal scoring`);
+        }
+      }
     }
 
     // Cross-section validation
@@ -803,7 +1005,103 @@ class RuntimeConfigManager {
   }
 
   getAdaptiveThresholds(datasetSize: number, memoryAvailable: number, config: DataPilotConfig): Partial<DataPilotConfig> {
-    return {};
+    const cacheKey = `${datasetSize}-${memoryAvailable}`;
+    if (this.adaptiveCache.has(cacheKey)) {
+      return this.adaptiveCache.get(cacheKey);
+    }
+
+    const result: Partial<DataPilotConfig> = {};
+
+    // Convert memory to MB for easier calculation
+    const memoryMB = memoryAvailable / (1024 * 1024);
+
+    // Define memory thresholds (in MB)
+    const LOW_MEMORY_THRESHOLD = 512; // 512MB
+    const HIGH_MEMORY_THRESHOLD = 2048; // 2GB
+
+    // Define dataset size categories
+    const SMALL_DATASET = 10000;
+    const MEDIUM_DATASET = 100000;
+    const LARGE_DATASET = 1000000;
+    const VERY_LARGE_DATASET = 10000000;
+
+    // Determine memory category
+    const isLowMemory = memoryMB < LOW_MEMORY_THRESHOLD;
+    const isHighMemory = memoryMB >= HIGH_MEMORY_THRESHOLD;
+
+    // Determine dataset category
+    const isSmallDataset = datasetSize <= SMALL_DATASET;
+    const isMediumDataset = datasetSize > SMALL_DATASET && datasetSize <= MEDIUM_DATASET;
+    const isLargeDataset = datasetSize > MEDIUM_DATASET && datasetSize <= LARGE_DATASET;
+    const isVeryLargeDataset = datasetSize > LARGE_DATASET;
+
+    // Performance configuration based on dataset size and memory
+    if (isVeryLargeDataset && isHighMemory) {
+      // Very large dataset with high memory (like 100M rows, 8GB)
+      (result as any).performance = {
+        maxRows: Math.min(2000000, datasetSize),
+        chunkSize: 128 * 1024, // 128KB
+        batchSize: 2000
+      };
+    } else if (isLargeDataset && isHighMemory) {
+      // Large dataset with high memory (like 2M rows, 2GB)
+      (result as any).performance = {
+        maxRows: Math.min(2000000, datasetSize),
+        chunkSize: 128 * 1024, // 128KB
+        batchSize: 2000
+      };
+    } else if (isSmallDataset) {
+      // Small dataset (like 5K rows)
+      (result as any).performance = {
+        chunkSize: 16 * 1024, // 16KB
+        batchSize: 100
+      };
+    } else if (isLowMemory) {
+      // Low memory scenarios (like 100K rows, 256MB)
+      (result as any).streaming = {
+        memoryThresholdMB: 50,
+        maxRowsAnalyzed: 100000,
+        adaptiveChunkSizing: {
+          enabled: true,
+          minChunkSize: 50,
+          maxChunkSize: 500,
+          reductionFactor: 0.6,
+          expansionFactor: 1.1,
+          targetMemoryUtilization: 0.8
+        }
+      };
+      (result as any).performance = {
+        maxCollectedRowsMultivariate: 500
+      };
+    }
+    // Note: For medium datasets with adequate memory, no adaptive configuration is needed
+
+    // Additional adaptive settings for extreme cases
+    if (isVeryLargeDataset && isLowMemory) {
+      // Very large dataset with low memory - aggressive constraints
+      (result as any).performance = {
+        maxRows: 50000,
+        chunkSize: 8 * 1024, // 8KB
+        batchSize: 50
+      };
+      (result as any).streaming = {
+        memoryThresholdMB: 25,
+        maxRowsAnalyzed: 50000,
+        adaptiveChunkSizing: {
+          enabled: true,
+          minChunkSize: 50,
+          maxChunkSize: 200,
+          reductionFactor: 0.5,
+          expansionFactor: 1.1,
+          targetMemoryUtilization: 0.8
+        }
+      };
+    }
+
+    // Cache the result
+    this.adaptiveCache.set(cacheKey, result);
+    
+    return result;
   }
 }
 
@@ -848,8 +1146,16 @@ export class ConfigManager {
    * Apply performance preset with type safety
    */
   applyPerformancePreset(preset: PerformancePreset): void {
-    const presetConfig = this.environmentConfigManager.getPerformancePresetConfig(preset);
-    this.updateConfig(presetConfig);
+    if (preset.preset === 'custom') {
+      // For custom presets, use the provided config directly through the performance updater
+      if (preset.config) {
+        this.updatePerformanceConfig(preset.config);
+      }
+    } else {
+      // For predefined presets, get the configuration by preset name
+      const presetConfig = this.environmentConfigManager.getPerformancePresetConfig(preset.preset);
+      this.updateConfig(presetConfig);
+    }
   }
 
   /**
@@ -1022,6 +1328,20 @@ export class ConfigBuilder {
     return new ConfigBuilder();
   }
 
+  private deepMergeConfigs(target: any, source: any): any {
+    const result = JSON.parse(JSON.stringify(target));
+    
+    for (const key in source) {
+      if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
+        result[key] = this.deepMergeConfigs(result[key] || {}, source[key]);
+      } else {
+        result[key] = source[key];
+      }
+    }
+    
+    return result;
+  }
+
   environment(mode: EnvironmentMode): ConfigBuilder {
     const manager = ConfigManager.getInstance();
     manager.applyEnvironmentConfig(mode);
@@ -1032,7 +1352,8 @@ export class ConfigBuilder {
     // Config manager temporarily disabled
     const runtimeManager = new RuntimeConfigManager();
     const presetConfig = runtimeManager.getPresetConfig(presetName);
-    this.config = { ...this.config, ...presetConfig };
+    // Ensure we merge with DEFAULT_CONFIG as base to avoid missing properties
+    this.config = this.deepMergeConfigs(this.config, presetConfig);
     return this;
   }
 
@@ -1042,28 +1363,33 @@ export class ConfigBuilder {
     // Config manager temporarily disabled
     const runtimeManager = new RuntimeConfigManager();
     const useCaseConfig = runtimeManager.getUseCaseConfig(useCase);
-    this.config = { ...this.config, ...useCaseConfig };
+    // Ensure we merge with DEFAULT_CONFIG as base to avoid missing properties
+    this.config = this.deepMergeConfigs(this.config, useCaseConfig);
     return this;
   }
 
   performance(config: Partial<PerformanceConfig>): ConfigBuilder {
-    this.config.performance = { ...this.config.performance, ...config };
+    this.config.performance = this.deepMergeConfigs(this.config.performance || {}, config);
     return this;
   }
 
   statistical(config: Partial<StatisticalConfig>): ConfigBuilder {
-    this.config.statistical = { ...this.config.statistical, ...config };
+    this.config.statistical = this.deepMergeConfigs(this.config.statistical || {}, config);
     return this;
   }
 
   quality(config: Partial<QualityConfig>): ConfigBuilder {
-    this.config.quality = { ...this.config.quality, ...config };
+    this.config.quality = this.deepMergeConfigs(this.config.quality || {}, config);
     return this;
   }
 
   build(): DataPilotConfig {
-    const manager = ConfigManager.getInstance(this.config);
-    const validation = manager.validateConfig();
+    // Ensure we have a complete configuration by merging with DEFAULT_CONFIG
+    const completeConfig = this.deepMergeConfigs(DEFAULT_CONFIG, this.config) as DataPilotConfig;
+    
+    // Validate the configuration directly to avoid singleton caching issues
+    const environmentManager = new EnvironmentConfigManager();
+    const validation = environmentManager.validateConfig(completeConfig);
 
     if (!validation.isValid) {
       throw new Error(`Configuration validation failed: ${validation.errors.join(', ')}`);
@@ -1073,7 +1399,8 @@ export class ConfigBuilder {
       console.warn('Configuration warnings:', validation.warnings);
     }
 
-    return manager.getConfig();
+    // Return the complete configuration we built
+    return completeConfig;
   }
 }
 
