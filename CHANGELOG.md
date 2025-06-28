@@ -1,3 +1,11 @@
+## [1.4.13](https://github.com/Mrassimo/datapilot/compare/v1.4.12...v1.4.13) (2025-06-28)
+
+
+### Bug Fixes
+
+* optimize npm package size by excluding source maps and development files ([44ba35f](https://github.com/Mrassimo/datapilot/commit/44ba35fa91a685687df76c331e46689a1f9212c3))
+* resolve 400+ files in releases by fixing semantic-release configuration ([1fcc844](https://github.com/Mrassimo/datapilot/commit/1fcc844eec6ca87bd91720198d374f1167be6ece))
+
 ## [1.4.12](https://github.com/Mrassimo/datapilot/compare/v1.4.11...v1.4.12) (2025-06-28)
 
 
