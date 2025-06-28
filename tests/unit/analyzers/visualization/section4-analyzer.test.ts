@@ -8,7 +8,9 @@
 /// <reference path="../../../jest-custom-matchers.d.ts" />
 
 import { Section4Analyzer } from '../../../../src/analyzers/visualization/section4-analyzer';
-import type { Section1Results, Section2Results, Section3Results } from '../../../../src/core/types';
+import type { Section1Result } from '../../../../src/analyzers/overview/types';
+import type { Section2Result } from '../../../../src/analyzers/quality/types';
+import type { Section3Result } from '../../../../src/analyzers/eda/types';
 import type { ColumnAnalysis, BivariateAnalysis } from '../../../../src/analyzers/eda/types';
 import { EdaDataType } from '../../../../src/analyzers/eda/types';
 
@@ -20,7 +22,7 @@ describe('Section4Analyzer', () => {
   });
 
   // Test data fixtures
-  const mockSection1Results: Section1Results = {
+  const mockSection1Result: Section1Result = {
     metadata: {
       fileName: 'test.csv',
       fileSize: 1024,
@@ -39,9 +41,9 @@ describe('Section4Analyzer', () => {
       },
       sampleRows: []
     }
-  } as Section1Results;
+  } as Section1Result;
 
-  const mockSection2Results: Section2Results = {
+  const mockSection2Result: Section2Result = {
     dataQuality: {
       overallScore: 85,
       completeness: 0.95,
@@ -51,12 +53,12 @@ describe('Section4Analyzer', () => {
     },
     qualityIssues: [],
     recommendations: []
-  } as Section2Results;
+  } as Section2Result;
 
-  const mockSection3Results: Section3Results = {
+  const mockSection3Result: Section3Result = {
     univariateAnalysis: {
       sales: {
-        dataType: EdaDataType.CONTINUOUS,
+        dataType: EdaDataType.NUMERICAL_FLOAT,
         basicStats: {
           count: 100,
           mean: 1000,
@@ -90,14 +92,14 @@ describe('Section4Analyzer', () => {
       } as BivariateAnalysis
     ],
     insights: []
-  } as Section3Results;
+  } as Section3Result;
 
   describe('analyze', () => {
     it('should generate comprehensive visualization analysis', async () => {
       const results = await analyzer.analyze(
-        mockSection1Results,
-        mockSection2Results, 
-        mockSection3Results
+        mockSection1Result,
+        mockSection2Result, 
+        mockSection3Result
       );
 
       expect(results.visualizationAnalysis).toBeDefined();
@@ -111,14 +113,14 @@ describe('Section4Analyzer', () => {
 
     it('should handle small datasets appropriately', async () => {
       const smallSection1 = {
-        ...mockSection1Results,
-        metadata: { ...mockSection1Results.metadata, totalRows: 10 }
+        ...mockSection1Result,
+        metadata: { ...mockSection1Result.metadata, totalRows: 10 }
       };
 
       const results = await analyzer.analyze(
         smallSection1,
-        mockSection2Results,
-        mockSection3Results
+        mockSection2Result,
+        mockSection3Result
       );
 
       expect(results.visualizationAnalysis.strategy).toBeDefined();
@@ -127,14 +129,14 @@ describe('Section4Analyzer', () => {
 
     it('should handle large datasets with performance considerations', async () => {
       const largeSection1 = {
-        ...mockSection1Results,
-        metadata: { ...mockSection1Results.metadata, totalRows: 100000 }
+        ...mockSection1Result,
+        metadata: { ...mockSection1Result.metadata, totalRows: 100000 }
       };
 
       const results = await analyzer.analyze(
         largeSection1,
-        mockSection2Results,
-        mockSection3Results
+        mockSection2Result,
+        mockSection3Result
       );
 
       expect(results.visualizationAnalysis.strategy).toBeDefined();
@@ -143,9 +145,9 @@ describe('Section4Analyzer', () => {
 
     it('should provide accessibility compliance assessment', async () => {
       const results = await analyzer.analyze(
-        mockSection1Results,
-        mockSection2Results,
-        mockSection3Results
+        mockSection1Result,
+        mockSection2Result,
+        mockSection3Result
       );
 
       const accessibility = results.visualizationAnalysis.accessibilityAssessment;
@@ -156,9 +158,9 @@ describe('Section4Analyzer', () => {
 
     it('should generate appropriate chart recommendations for univariate data', async () => {
       const results = await analyzer.analyze(
-        mockSection1Results,
-        mockSection2Results,
-        mockSection3Results
+        mockSection1Result,
+        mockSection2Result,
+        mockSection3Result
       );
 
       const univariate = results.visualizationAnalysis.univariateRecommendations;
@@ -172,9 +174,9 @@ describe('Section4Analyzer', () => {
 
     it('should generate appropriate chart recommendations for bivariate data', async () => {
       const results = await analyzer.analyze(
-        mockSection1Results,
-        mockSection2Results,
-        mockSection3Results
+        mockSection1Result,
+        mockSection2Result,
+        mockSection3Result
       );
 
       const bivariate = results.visualizationAnalysis.bivariateRecommendations;
@@ -188,9 +190,9 @@ describe('Section4Analyzer', () => {
 
     it('should provide technical guidance for implementation', async () => {
       const results = await analyzer.analyze(
-        mockSection1Results,
-        mockSection2Results,
-        mockSection3Results
+        mockSection1Result,
+        mockSection2Result,
+        mockSection3Result
       );
 
       const guidance = results.visualizationAnalysis.technicalGuidance;
@@ -201,14 +203,14 @@ describe('Section4Analyzer', () => {
 
     it('should handle missing or incomplete data gracefully', async () => {
       const incompleteSection3 = {
-        ...mockSection3Results,
+        ...mockSection3Result,
         univariateAnalysis: {},
         bivariateAnalysis: []
       };
 
       const results = await analyzer.analyze(
-        mockSection1Results,
-        mockSection2Results,
+        mockSection1Result,
+        mockSection2Result,
         incompleteSection3
       );
 
@@ -220,9 +222,9 @@ describe('Section4Analyzer', () => {
       const start = Date.now();
       
       const results = await analyzer.analyze(
-        mockSection1Results,
-        mockSection2Results,
-        mockSection3Results
+        mockSection1Result,
+        mockSection2Result,
+        mockSection3Result
       );
 
       const end = Date.now();
@@ -238,15 +240,15 @@ describe('Section4Analyzer', () => {
   describe('error handling', () => {
     it('should handle null inputs gracefully', async () => {
       await expect(
-        analyzer.analyze(null as any, mockSection2Results, mockSection3Results)
+        analyzer.analyze(null as any, mockSection2Result, mockSection3Result)
       ).rejects.toThrow();
     });
 
     it('should handle invalid data structures', async () => {
-      const invalidSection1 = { ...mockSection1Results, metadata: null };
+      const invalidSection1 = { ...mockSection1Result, metadata: null };
       
       await expect(
-        analyzer.analyze(invalidSection1 as any, mockSection2Results, mockSection3Results)
+        analyzer.analyze(invalidSection1 as any, mockSection2Result, mockSection3Result)
       ).rejects.toThrow();
     });
   });
@@ -256,9 +258,9 @@ describe('Section4Analyzer', () => {
       const customConfig = { maxRecommendations: 5, includeMultivariate: false };
       
       const results = await analyzer.analyze(
-        mockSection1Results,
-        mockSection2Results,
-        mockSection3Results,
+        mockSection1Result,
+        mockSection2Result,
+        mockSection3Result,
         customConfig
       );
 

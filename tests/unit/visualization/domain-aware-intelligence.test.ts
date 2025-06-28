@@ -349,7 +349,7 @@ describe('DomainAwareIntelligence', () => {
 
   describe('analyzeContext', () => {
     it('should provide comprehensive domain context analysis', () => {
-      const context = DomainAwareIntelligence.analyzeDataContext(mockColumnNames, mockDataSample);
+      const context = DomainAwareIntelligence.analyzeDomainContext(mockColumnNames, mockDataSample);
 
       expect(context.primaryDomain).toBeDefined();
       expect(context.confidence).toBeGreaterThan(0);
@@ -360,7 +360,7 @@ describe('DomainAwareIntelligence', () => {
     });
 
     it('should identify relevant context clues', () => {
-      const context = DomainAwareIntelligence.analyzeDataContext(mockColumnNames, mockDataSample);
+      const context = DomainAwareIntelligence.analyzeDomainContext(mockColumnNames, mockDataSample);
 
       expect(context.contextClues.length).toBeGreaterThan(0);
       
@@ -372,7 +372,7 @@ describe('DomainAwareIntelligence', () => {
     });
 
     it('should provide domain knowledge integration', () => {
-      const context = DomainAwareIntelligence.analyzeDataContext(mockColumnNames, mockDataSample);
+      const context = DomainAwareIntelligence.analyzeDomainContext(mockColumnNames, mockDataSample);
 
       expect(context.domainKnowledge).toBeDefined();
       expect(context.domainKnowledge.bestPractices).toBeInstanceOf(Array);
@@ -383,7 +383,7 @@ describe('DomainAwareIntelligence', () => {
 
   describe('edge cases and error handling', () => {
     it('should handle empty column names gracefully', () => {
-      const context = DomainAwareIntelligence.analyzeDataContext([], []);
+      const context = DomainAwareIntelligence.analyzeDomainContext([], []);
 
       expect(context.primaryDomain.domain).toBe('generic');
       expect(context.confidence).toBeLessThan(0.5);
@@ -395,7 +395,7 @@ describe('DomainAwareIntelligence', () => {
         { revenue: 1000, patient_id: 'P001', student_grade: 'A', order_total: 150 }
       ];
 
-      const context = DomainAwareIntelligence.analyzeDataContext(mixedColumns, mixedData);
+      const context = DomainAwareIntelligence.analyzeDomainContext(mixedColumns, mixedData);
 
       expect(context.confidence).toBeLessThan(0.8); // Should be less confident with mixed signals
       expect(context.subdomains.length).toBeGreaterThan(0); // Should identify multiple domains
@@ -406,7 +406,7 @@ describe('DomainAwareIntelligence', () => {
         { revenue: null, conversion_rate: undefined, campaign_id: 'CMP001' }
       ];
 
-      const context = DomainAwareIntelligence.analyzeDataContext(mockColumnNames, incompleteData);
+      const context = DomainAwareIntelligence.analyzeDomainContext(mockColumnNames, incompleteData);
 
       expect(context.primaryDomain).toBeDefined();
       expect(context.insights).toBeInstanceOf(Array);
@@ -418,7 +418,7 @@ describe('DomainAwareIntelligence', () => {
         { mysterious_metric_x: 42, enigmatic_value_y: 'unknown', cryptic_id_z: 'ABC123' }
       ];
 
-      const context = DomainAwareIntelligence.analyzeDataContext(obscureColumns, obscureData);
+      const context = DomainAwareIntelligence.analyzeDomainContext(obscureColumns, obscureData);
 
       expect(context.primaryDomain.domain).toBe('generic');
       expect(context.stakeholders.length).toBeGreaterThan(0); // Should still provide general stakeholders
@@ -428,7 +428,7 @@ describe('DomainAwareIntelligence', () => {
 
   describe('domain-specific recommendations', () => {
     it('should recommend funnel charts for marketing conversion data', () => {
-      const context = DomainAwareIntelligence.analyzeDataContext(
+      const context = DomainAwareIntelligence.analyzeDomainContext(
         ['visitors', 'leads', 'prospects', 'customers'],
         [{ visitors: 1000, leads: 300, prospects: 100, customers: 30 }]
       );
@@ -437,7 +437,7 @@ describe('DomainAwareIntelligence', () => {
     });
 
     it('should recommend cohort analysis for user retention data', () => {
-      const context = DomainAwareIntelligence.analyzeDataContext(
+      const context = DomainAwareIntelligence.analyzeDomainContext(
         ['user_id', 'signup_date', 'last_activity', 'retention_day'],
         [{ user_id: 'U001', signup_date: '2023-01-01', last_activity: '2023-01-15', retention_day: 14 }]
       );
@@ -447,7 +447,7 @@ describe('DomainAwareIntelligence', () => {
     });
 
     it('should recommend control charts for operations data', () => {
-      const context = DomainAwareIntelligence.analyzeDataContext(
+      const context = DomainAwareIntelligence.analyzeDomainContext(
         ['process_id', 'measurement', 'control_limit', 'specification'],
         [{ process_id: 'PROC001', measurement: 98.5, control_limit: 100, specification: 95 }]
       );
