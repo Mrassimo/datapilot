@@ -140,6 +140,8 @@ Use --verbose for detailed confidence explanations in reports.`,
       .option('--no-health-checks', 'Disable file health checks')
       .option('--no-quick-stats', 'Disable quick column statistics')
       .option('--no-data-preview', 'Disable data preview generation')
+      // Section selection options
+      .option('--sections <sections>', 'Comma-separated list of sections to run (1,2,3,4,5,6)', this.parseSections)
       // Smart sampling options
       .option('--auto-sample', 'Enable automatic sampling for large files (>1GB)')
       .option('--sample <percentage>', 'Sample percentage (e.g., "10%" or "0.1")')
@@ -540,6 +542,11 @@ Use --verbose for detailed confidence explanations in reports.`,
       options.seed = seed;
     }
 
+    // Section selection options
+    if (rawOptions.sections) {
+      options.sections = rawOptions.sections as string[];
+    }
+
     // Behaviour options
     options.force = Boolean(rawOptions.force);
     options.dryRun = Boolean(rawOptions.dryRun);
@@ -600,6 +607,22 @@ Use --verbose for detailed confidence explanations in reports.`,
       throw new ValidationError(`Invalid number: ${value}`);
     }
     return parsed;
+  }
+
+  /**
+   * Parse sections parameter (comma-separated list)
+   */
+  private parseSections(value: string): string[] {
+    const sections = value.split(',').map(s => s.trim());
+    const validSections = ['1', '2', '3', '4', '5', '6'];
+    
+    for (const section of sections) {
+      if (!validSections.includes(section)) {
+        throw new ValidationError(`Invalid section: ${section}. Valid sections are: ${validSections.join(', ')}`);
+      }
+    }
+    
+    return sections;
   }
 
   /**

@@ -607,7 +607,8 @@ ${columnDefs}
     let dimensionalityRecommendations: any = { applicable: false };
 
     try {
-      const multivariateAnalysis = section3Result.edaAnalysis.multivariateAnalysis;
+      // Safely access nested properties
+      const multivariateAnalysis = section3Result?.edaAnalysis?.multivariateAnalysis;
       const pcaAnalysis = multivariateAnalysis?.principalComponentAnalysis;
 
       if (pcaAnalysis && pcaAnalysis.isApplicable) {
@@ -731,11 +732,15 @@ ${columnDefs}
       });
     }
 
+    // Ensure we always return a valid structure
     return {
       enhancingFactors,
       challenges,
       modelingConsiderations,
-      dimensionalityRecommendations,
+      dimensionalityRecommendations: dimensionalityRecommendations.applicable ? dimensionalityRecommendations : {
+        applicable: false,
+        dominantFeatures: []
+      },
     };
   }
 

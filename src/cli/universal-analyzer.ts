@@ -450,11 +450,47 @@ export class UniversalAnalyzer {
     });
 
     // Section5 needs dependencies from previous sections
+    // Create more complete mock data that matches expected structure
     const mockSection1 = {
-      overview: { structuralDimensions: { totalDataRows: dataset.rows.length } },
+      overview: { 
+        structuralDimensions: { 
+          totalDataRows: dataset.rows.length,
+          totalColumns: dataset.headers.length,
+          columnInventory: dataset.headers.map((header, index) => ({
+            name: header,
+            index: index,
+            dataType: 'string',
+            sampleValues: dataset.rows.slice(0, 3).map(row => row[index] || '').filter(v => v)
+          })),
+          estimatedInMemorySizeMB: Math.ceil(dataset.rows.length * dataset.headers.length * 50 / 1024 / 1024)
+        },
+        fileDetails: {
+          originalFilename: dataset.metadata.filePath.split('/').pop() || 'unknown.csv',
+          fileSizeBytes: dataset.metadata.parserStats?.totalBytesRead || dataset.rows.length * dataset.headers.length * 10,
+          fileSizeMB: (dataset.metadata.parserStats?.totalBytesRead || dataset.rows.length * dataset.headers.length * 10) / 1024 / 1024,
+          lastModified: new Date()
+        },
+        parsingMetadata: {
+          encoding: { encoding: 'utf-8' }
+        }
+      }
     };
-    const mockSection2 = { qualityAudit: { overallScore: 85 } };
-    const mockSection3 = { performanceMetrics: { rowsAnalyzed: dataset.rows.length } };
+    
+    const mockSection2 = { 
+      qualityAudit: { 
+        cockpit: {
+          compositeScore: { score: 85 }
+        }
+      } 
+    };
+    
+    const mockSection3 = { 
+      performanceMetrics: { rowsAnalyzed: dataset.rows.length },
+      edaAnalysis: {
+        // Safe structure that won't cause crashes in PCA extraction
+        multivariateAnalysis: null
+      }
+    };
 
     return analyzer.analyze(mockSection1 as any, mockSection2 as any, mockSection3 as any);
   }

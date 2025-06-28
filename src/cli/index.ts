@@ -46,6 +46,11 @@ export class DataPilotCLI {
       // Run analysis
       const result = await this.analyzer.analyzeFile(filePath, context.options);
       
+      // If analysis was successful, format and output the results
+      if (result.success && result.data) {
+        await this.formatAndOutputResults(result, filePath, context.options);
+      }
+      
       return result;
     } catch (error) {
       logger.error(`CLI execution failed: ${error}`);
@@ -58,6 +63,91 @@ export class DataPilotCLI {
       // Ensure cleanup runs
       await this.cleanup();
     }
+  }
+
+  /**
+   * Format and output analysis results using OutputManager
+   */
+  private async formatAndOutputResults(result: CLIResult, filePath: string, options: any): Promise<void> {
+    try {
+      // Update the output manager with current options
+      this.outputManager = new OutputManager(options);
+      
+      const analysisData = result.data;
+      const fileName = filePath.split('/').pop() || filePath;
+      
+      // Output each section that was analyzed
+      if (analysisData.section1) {
+        this.outputManager.outputSection1(analysisData.section1, fileName);
+      }
+      
+      if (analysisData.section2) {
+        this.outputManager.outputSection2(analysisData.section2, fileName);
+      }
+      
+      if (analysisData.section3) {
+        // Generate report content for Section 3
+        const section3Report = this.generateSection3Report(analysisData.section3);
+        this.outputManager.outputSection3(section3Report, analysisData.section3, fileName);
+      }
+      
+      if (analysisData.section4) {
+        // Generate report content for Section 4
+        const section4Report = this.generateSection4Report(analysisData.section4);
+        this.outputManager.outputSection4(section4Report, analysisData.section4, fileName);
+      }
+      
+      if (analysisData.section5) {
+        // Generate report content for Section 5
+        const section5Report = this.generateSection5Report(analysisData.section5);
+        this.outputManager.outputSection5(section5Report, analysisData.section5, fileName);
+      }
+      
+      if (analysisData.section6) {
+        // Generate report content for Section 6
+        const section6Report = this.generateSection6Report(analysisData.section6);
+        this.outputManager.outputSection6(section6Report, analysisData.section6, fileName);
+      }
+      
+    } catch (error) {
+      logger.error('Failed to format and output results:', error);
+      // Fall back to simple output
+      if (!options.quiet) {
+        console.log('\n📊 Analysis Results:');
+        console.log(JSON.stringify(result.data, null, 2));
+      }
+    }
+  }
+
+  /**
+   * Generate Section 3 report content
+   */
+  private generateSection3Report(section3Result: any): string {
+    // Simple report generation - in production this would use a proper formatter
+    return `# Section 3: Exploratory Data Analysis\n\nAnalysis completed successfully.\n\nRows analyzed: ${section3Result.performanceMetrics?.rowsAnalyzed || 'Unknown'}\n`;
+  }
+
+  /**
+   * Generate Section 4 report content
+   */
+  private generateSection4Report(section4Result: any): string {
+    return `# Section 4: Visualization Intelligence\n\nVisualization recommendations generated.\n\nRecommendations: ${section4Result.performanceMetrics?.recommendationsGenerated || 'Unknown'}\n`;
+  }
+
+  /**
+   * Generate Section 5 report content
+   */
+  private generateSection5Report(section5Result: any): string {
+    const { Section5Formatter } = require('../analyzers/engineering');
+    return Section5Formatter.formatMarkdown(section5Result);
+  }
+
+  /**
+   * Generate Section 6 report content
+   */
+  private generateSection6Report(section6Result: any): string {
+    const { Section6Formatter } = require('../analyzers/modeling');
+    return Section6Formatter.formatMarkdown(section6Result);
   }
 
   /**
