@@ -241,7 +241,7 @@ jobs:
         echo "Package created: $PACKAGE_FILE"
         
         # Rename for clarity
-        VERSION=${{ github.event.release.tag_name || github.event.inputs.version }}
+        VERSION=${{ github.event.release.tag_name || github.event.inputs.version || github.ref_name }}
         mv "$PACKAGE_FILE" "datapilot-cli-${VERSION}-prebuilt.tgz"
         
     - name: Create Windows-specific package
@@ -261,12 +261,12 @@ jobs:
         npm pack
         
         # Rename
-        VERSION=${{ github.event.release.tag_name || github.event.inputs.version }}
+        VERSION=${{ github.event.release.tag_name || github.event.inputs.version || github.ref_name }}
         PACKAGE_FILE=$(ls -1 datapilot-cli-*.tgz | grep -v prebuilt | head -1)
         mv "$PACKAGE_FILE" "datapilot-cli-${VERSION}-windows.tgz"
         
     - name: Upload release assets
-      if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
+      if: github.event_name == 'release' || github.event_name == 'workflow_dispatch' || github.event_name == 'push'
       uses: softprops/action-gh-release@v1
       with:
         tag_name: ${{ github.event.inputs.version || github.ref_name }}
@@ -527,7 +527,7 @@ jobs:
       shell: bash
         
     - name: Upload release assets (Unix)
-      if: (github.event_name == 'release' || github.event_name == 'workflow_dispatch') && runner.os != 'Windows'
+      if: (github.event_name == 'release' || github.event_name == 'workflow_dispatch' || github.event_name == 'push') && runner.os != 'Windows'
       uses: softprops/action-gh-release@v1
       with:
         tag_name: ${{ github.event.inputs.version || github.ref_name }}
@@ -538,7 +538,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Upload release assets (Windows)
-      if: (github.event_name == 'release' || github.event_name == 'workflow_dispatch') && runner.os == 'Windows'
+      if: (github.event_name == 'release' || github.event_name == 'workflow_dispatch' || github.event_name == 'push') && runner.os == 'Windows'
       uses: softprops/action-gh-release@v1
       with:
         tag_name: ${{ github.event.inputs.version || github.ref_name }}
@@ -635,7 +635,7 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       with:
-        ref: ${{ github.event.release.tag_name || github.event.inputs.version }}
+        ref: ${{ github.event.release.tag_name || github.event.inputs.version || github.ref_name }}
         
     - name: Download all artifacts
       if: github.event_name == 'workflow_dispatch'
@@ -645,7 +645,7 @@ jobs:
         
     - name: Create enterprise bundle
       run: |
-        VERSION=${{ github.event.release.tag_name || github.event.inputs.version }}
+        VERSION=${{ github.event.release.tag_name || github.event.inputs.version || github.ref_name }}
         mkdir -p enterprise-bundle
         
         # Download release assets if this is a release
@@ -739,7 +739,7 @@ jobs:
         tar -czf datapilot-enterprise-bundle-${VERSION}.tar.gz -C enterprise-bundle .
         
     - name: Upload enterprise bundle
-      if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
+      if: github.event_name == 'release' || github.event_name == 'workflow_dispatch' || github.event_name == 'push'
       uses: softprops/action-gh-release@v1
       with:
         tag_name: ${{ github.event.inputs.version || github.ref_name }}
