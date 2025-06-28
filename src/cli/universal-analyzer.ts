@@ -327,7 +327,13 @@ export class UniversalAnalyzer {
     // Section 6: Modeling Strategy
     if (this.shouldRunSection(6, options)) {
       logger.info('Running Section 6: Modeling Strategy');
-      results.section6 = await this.runSection6Analysis(dataset, options);
+      try {
+        results.section6 = await this.runSection6Analysis(dataset, options);
+        logger.info('Section 6 analysis completed successfully');
+      } catch (error) {
+        logger.error('Section 6 analysis failed:', error);
+        throw new Error(`Section 6 analysis failed: ${error instanceof Error ? error.message : String(error)}`);
+      }
     }
 
     return results;

@@ -43,8 +43,14 @@ export class DataPilotCLI {
       // Get the file path to analyze
       const filePath = context.file || context.args[0];
       
+      // Add command to options for proper section selection
+      const analysisOptions = {
+        ...context.options,
+        command: context.command
+      };
+      
       // Run analysis
-      const result = await this.analyzer.analyzeFile(filePath, context.options);
+      const result = await this.analyzer.analyzeFile(filePath, analysisOptions);
       
       // If analysis was successful, format and output the results
       if (result.success && result.data) {
@@ -124,7 +130,7 @@ export class DataPilotCLI {
    */
   private generateSection3Report(section3Result: any): string {
     const { Section3Formatter } = require('../analyzers/eda');
-    return Section3Formatter.formatMarkdown(section3Result);
+    return Section3Formatter.formatSection3(section3Result);
   }
 
   /**
@@ -132,7 +138,7 @@ export class DataPilotCLI {
    */
   private generateSection4Report(section4Result: any): string {
     const { Section4Formatter } = require('../analyzers/visualization');
-    return Section4Formatter.formatMarkdown(section4Result);
+    return Section4Formatter.formatSection4(section4Result);
   }
 
   /**
