@@ -8,15 +8,12 @@
     "datapilot": "dist/cli/index.js"
   },
   "files": [
-    "dist/**/*",
-    "scripts/**/*",
-    "bin/**/*",
-    "docs/**/*",
-    "examples/**/*",
+    "dist/**/*.js",
+    "dist/**/*.d.ts",
+    "!dist/**/*.map",
     "README.md",
     "LICENSE",
-    "CHANGELOG.md",
-    ".npmrc"
+    "CHANGELOG.md"
   ],
   "scripts": {
     "build": "tsc",
@@ -41,7 +38,6 @@
     "test:package": "npm pack && npm install -g datapilot-cli-*.tgz && npm run test:installation && npm uninstall -g datapilot-cli",
     "release": "node scripts/release-automation.js",
     "pre-release": "npm run lint && npm run typecheck && npm run test:all && npm run build && npm run test:installation",
-    "prepack": "npm run build",
     "build:binaries": "npm run build && node scripts/build-sea.js all",
     "build:win": "npm run build && node scripts/build-sea.js win",
     "build:mac": "npm run build && node scripts/build-sea.js mac",

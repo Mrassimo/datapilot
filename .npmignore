@@ -12,6 +12,8 @@ jest.config.js
 
 # Test and coverage
 coverage/
+.jest-cache/
+.nyc_output/
 *.test.js
 *.test.ts
 *.spec.js
@@ -44,9 +46,13 @@ logs/
 *.swo
 .DS_Store
 Thumbs.db
+.editorconfig
 
 # Build artifacts
 *.tsbuildinfo
+*.map
+*.js.map
+*.d.ts.map
 tmp/
 temp/
 
