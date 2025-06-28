@@ -1,11 +1,11 @@
 {
   "name": "datapilot-cli",
-  "version": "1.4.6",
+  "version": "1.4.7",
   "description": "Enterprise-grade streaming multi-format data analysis with comprehensive statistical insights and intelligent relationship detection - supports CSV, JSON, Excel, TSV, Parquet - memory-efficient, cross-platform",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
-    "datapilot": "./dist/cli/index.js"
+    "datapilot": "dist/cli/index.js"
   },
   "files": [
     "dist/**/*",
@@ -82,7 +82,7 @@
   "homepage": "https://github.com/Mrassimo/datapilot#readme",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Mrassimo/datapilot.git"
+    "url": "git+https://github.com/Mrassimo/datapilot.git"
   },
   "bugs": {
     "url": "https://github.com/Mrassimo/datapilot/issues"
