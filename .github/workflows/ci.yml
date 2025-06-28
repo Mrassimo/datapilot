@@ -151,19 +151,11 @@ jobs:
             exit 1
           fi
 
-      - name: Test binary creation (caxa)
+      - name: Test binary creation (pkg)
         run: |
-          echo "🔨 Testing binary creation with caxa..."
-          npm install -g caxa
+          echo "🔨 Testing binary creation with pkg..."
           
-          caxa \
-            --input . \
-            --output test-binary \
-            --exclude binaries \
-            --exclude ".github" \
-            --exclude "tests" \
-            --exclude "*.test.*" \
-            -- "{{caxa}}/node_modules/.bin/node" "{{caxa}}/dist/cli/index.js"
+          npx pkg --targets node18-linux-x64 --output test-binary dist/cli/index.js
           
           chmod +x test-binary
           ./test-binary --version
@@ -224,9 +216,7 @@ jobs:
 
       - name: Test Windows executable creation
         run: |
-          npm install -g caxa
-          
-          caxa --input . --output datapilot-win-test.exe --exclude-output binaries --exclude ".github" --exclude "tests"
+          npx pkg --targets node18-win-x64 --output datapilot-win-test.exe dist/cli/index.js
           
           .\datapilot-win-test.exe --version
 
