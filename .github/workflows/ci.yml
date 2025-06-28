@@ -333,7 +333,7 @@ jobs:
             echo "✅ NPM_TOKEN secret is configured"
             echo "🔍 Testing NPM authentication..."
             
-            # Test NPM token validity
+            # Test NPM token validity with proper authentication
             if npm whoami --registry https://registry.npmjs.org/; then
               echo "✅ NPM token is valid and authenticated"
               echo "NPM_TOKEN_CONFIGURED=true" >> $GITHUB_ENV
@@ -351,6 +351,7 @@ jobs:
           fi
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         continue-on-error: true
 
       - name: Run semantic release
@@ -361,6 +362,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         continue-on-error: true
 
       - name: Semantic release summary
