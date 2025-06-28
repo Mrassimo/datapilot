@@ -1,3 +1,10 @@
+## [1.4.14](https://github.com/Mrassimo/datapilot/compare/v1.4.13...v1.4.14) (2025-06-28)
+
+
+### Bug Fixes
+
+* resolve Issues [#34](https://github.com/Mrassimo/datapilot/issues/34) and [#35](https://github.com/Mrassimo/datapilot/issues/35) with critical runtime bug fixes ([75b7c72](https://github.com/Mrassimo/datapilot/commit/75b7c724b67d2e5f4714b358a4fa04c98c03a70e)), closes [#36](https://github.com/Mrassimo/datapilot/issues/36)
+
 ## [1.4.13](https://github.com/Mrassimo/datapilot/compare/v1.4.12...v1.4.13) (2025-06-28)
 
 
