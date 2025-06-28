@@ -1,3 +1,10 @@
+## [1.4.16](https://github.com/Mrassimo/datapilot/compare/v1.4.15...v1.4.16) (2025-06-28)
+
+
+### Bug Fixes
+
+* Correct tgz version mismatch in GitHub releases ([fca273e](https://github.com/Mrassimo/datapilot/commit/fca273e3f6043997dcc7068e83a8d549a04f6b5a))
+
 ## [1.4.15](https://github.com/Mrassimo/datapilot/compare/v1.4.14...v1.4.15) (2025-06-28)
 
 
