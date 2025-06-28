@@ -75,6 +75,12 @@ export interface CLIOptions {
   dryRun?: boolean;
   showProgress?: boolean;
 
+  // Execution mode options (for backward compatibility)
+  forceSequential?: boolean;      // Force sequential execution even for single sections
+  forceIndividual?: boolean;      // Force individual execution (legacy mode)
+  fallbackOnError?: boolean;      // Fall back to individual execution if sequential fails
+  continueOnError?: boolean;      // Continue execution even if a section fails
+
   // Smart sampling options
   autoSample?: boolean;
   samplePercentage?: number;

@@ -119,7 +119,12 @@ Use --verbose for detailed confidence explanations in reports.`,
       .option('--cache-size <mb>', 'Cache size limit in MB', this.parseInteger)
       .option('--no-cache', 'Disable all caching')
       .option('--streaming', 'Force streaming optimizations for large files')
-      .option('--progressive', 'Enable progressive analysis reporting');
+      .option('--progressive', 'Enable progressive analysis reporting')
+      // Execution mode options for backward compatibility
+      .option('--force-sequential', 'Force sequential execution with dependency resolution')
+      .option('--force-individual', 'Force individual section execution (legacy mode)')
+      .option('--no-fallback', 'Disable fallback to individual execution on sequential failure')
+      .option('--continue-on-error', 'Continue execution even if sections fail');
 
     // Main command: analyze all sections
     this.program
@@ -551,6 +556,17 @@ Use --verbose for detailed confidence explanations in reports.`,
     options.force = Boolean(rawOptions.force);
     options.dryRun = Boolean(rawOptions.dryRun);
     options.showProgress = !rawOptions.noProgress && !options.quiet;
+
+    // Execution mode options (for backward compatibility)
+    options.forceSequential = Boolean(rawOptions.forceSequential);
+    options.forceIndividual = Boolean(rawOptions.forceIndividual);
+    options.fallbackOnError = rawOptions.noFallback ? false : true;  // Default true unless --no-fallback
+    options.continueOnError = Boolean(rawOptions.continueOnError);
+
+    // Validate execution mode conflicts
+    if (options.forceSequential && options.forceIndividual) {
+      throw new ValidationError('Cannot use both --force-sequential and --force-individual');
+    }
 
     return options;
   }

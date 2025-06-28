@@ -23,7 +23,7 @@ import { Section4Analyzer } from '../analyzers/visualization';
 import { Section5Analyzer } from '../analyzers/engineering';
 import { Section6Analyzer } from '../analyzers/modeling';
 
-interface AnalysisDataset {
+export interface AnalysisDataset {
   headers: string[];
   rows: string[][];
   metadata: {
@@ -290,53 +290,295 @@ export class UniversalAnalyzer {
 
   /**
    * Run the existing 6-section analysis pipeline on the universal dataset
+   * Intelligently uses SequentialExecutor or individual execution based on context
    */
   private async runAnalysisPipeline(dataset: AnalysisDataset, options: CLIOptions): Promise<any> {
+    // Determine which sections to run based on options
+    const requestedSections = this.getRequestedSections(options);
+    
+    if (requestedSections.length === 0) {
+      logger.warn('No sections requested for analysis');
+      return {};
+    }
+
+    // Intelligent execution mode detection for backward compatibility
+    const shouldUseSequentialExecution = this.shouldUseSequentialExecution(requestedSections, options);
+
+    if (shouldUseSequentialExecution) {
+      // Use new sequential execution for complex dependencies
+      return this.runSequentialExecution(dataset, options, requestedSections);
+    } else {
+      // Use traditional individual execution for single sections without dependencies
+      return this.runIndividualExecution(dataset, options, requestedSections);
+    }
+  }
+
+  /**
+   * Determine whether to use sequential execution or individual execution
+   * This maintains backward compatibility while enabling advanced features
+   */
+  private shouldUseSequentialExecution(requestedSections: string[], options: CLIOptions): boolean {
+    // Force sequential execution if explicitly requested
+    if (options.forceSequential) {
+      logger.info('Sequential execution forced by --force-sequential flag');
+      return true;
+    }
+
+    // Force individual execution if explicitly requested (for testing/debugging)
+    if (options.forceIndividual) {
+      logger.info('Individual execution forced by --force-individual flag');
+      return false;
+    }
+
+    // Check if any section with dependencies is requested
+    const sectionsWithDependencies = ['section4', 'section5', 'section6'];
+    const hasDependentSection = requestedSections.some(section => 
+      sectionsWithDependencies.includes(section)
+    );
+
+    // Use sequential execution if:
+    // 1. Multiple sections are requested (better memory management)
+    // 2. Any section with dependencies is requested
+    // 3. Command is 'all' or 'analysis' (full pipeline)
+    if (requestedSections.length > 1 || hasDependentSection || 
+        ['all', 'analysis', 'modeling'].includes(options.command || '')) {
+      logger.info(
+        'Using sequential execution for optimal dependency resolution',
+        { 
+          sections: requestedSections, 
+          reason: hasDependentSection ? 'dependencies' : 'multiple sections',
+          command: options.command 
+        }
+      );
+      return true;
+    }
+
+    // Use individual execution for single sections without dependencies
+    logger.info(
+      'Using individual execution for single section',
+      { section: requestedSections[0], command: options.command }
+    );
+    return false;
+  }
+
+  /**
+   * Run sequential execution with full dependency resolution
+   */
+  private async runSequentialExecution(
+    dataset: AnalysisDataset, 
+    options: CLIOptions, 
+    requestedSections: string[]
+  ): Promise<any> {
+    logger.info(
+      `Starting analysis pipeline with SequentialExecutor for sections: ${requestedSections.join(', ')}`,
+      { sections: requestedSections, executor: 'SequentialExecutor' }
+    );
+
+    try {
+      // Import SequentialExecutor (dynamic import to avoid circular dependencies)
+      const { createSequentialExecutor } = await import('./sequential-executor');
+
+      // Create progress callbacks for CLI feedback
+      const progressCallbacks = {
+        onPhaseStart: (phase: string, message: string) => {
+          if (options.verbose) {
+            logger.info(`Phase started: ${phase} - ${message}`);
+          }
+        },
+        onProgress: (state: any) => {
+          if (options.verbose) {
+            logger.debug(`Progress: ${state.progress}% - ${state.message}`);
+          }
+        },
+        onPhaseComplete: (message: string, timeElapsed: number) => {
+          if (options.verbose) {
+            logger.info(`Phase completed: ${message} (${timeElapsed}ms)`);
+          }
+        },
+        onError: (message: string) => {
+          logger.error(`Execution error: ${message}`);
+        },
+        onWarning: (message: string) => {
+          logger.warn(`Execution warning: ${message}`);
+        },
+      };
+
+      // Create and configure sequential executor
+      const executor = createSequentialExecutor(
+        dataset,
+        options,
+        progressCallbacks,
+        {
+          operation: 'pipeline_execution',
+          filePath: dataset.metadata.filePath,
+          format: dataset.metadata.format,
+        }
+      );
+
+      // Execute with sophisticated dependency resolution and memory management
+      const result = await executor.execute(requestedSections);
+      
+      if (!result.success) {
+        throw new DataPilotError(
+          `Sequential execution failed: ${result.error}`,
+          'SEQUENTIAL_EXECUTION_FAILED',
+          ErrorSeverity.HIGH,
+          ErrorCategory.ANALYSIS,
+          {},
+          result.suggestions?.map(suggestion => ({
+            action: 'Follow suggestion',
+            description: suggestion,
+            severity: ErrorSeverity.MEDIUM,
+          }))
+        );
+      }
+
+      logger.info(
+        'Sequential execution completed successfully',
+        {
+          sectionsCompleted: result.metadata?.sectionsExecuted?.length || 0,
+          executionTime: result.metadata?.executionTime || 0,
+          memoryPeak: result.metadata?.memoryPeakUsage || 0,
+        }
+      );
+
+      return result.data;
+    } catch (error) {
+      // If sequential execution fails, fall back to individual execution
+      if (options.fallbackOnError !== false) {
+        logger.warn(
+          'Sequential execution failed, falling back to individual execution',
+          { error: error.message }
+        );
+        return this.runIndividualExecution(dataset, options, requestedSections);
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Run individual section execution (legacy mode for backward compatibility)
+   * This is used for single sections without dependencies to maintain performance
+   */
+  private async runIndividualExecution(
+    dataset: AnalysisDataset,
+    options: CLIOptions,
+    requestedSections: string[]
+  ): Promise<any> {
+    logger.info(
+      `Running individual section execution for: ${requestedSections.join(', ')}`,
+      { sections: requestedSections, executor: 'Individual' }
+    );
+
     const results: any = {};
+    const sectionStartTime = Date.now();
 
-    // Section 1: Overview Analysis (adapted for universal format)
-    if (this.shouldRunSection(1, options)) {
-      logger.info('Running Section 1: Overview Analysis');
-      results.section1 = await this.runSection1Analysis(dataset, options);
-    }
-
-    // Section 2: Data Quality Analysis
-    if (this.shouldRunSection(2, options)) {
-      logger.info('Running Section 2: Data Quality Analysis');
-      results.section2 = await this.runSection2Analysis(dataset, options);
-    }
-
-    // Section 3: Exploratory Data Analysis
-    if (this.shouldRunSection(3, options)) {
-      logger.info('Running Section 3: EDA');
-      results.section3 = await this.runSection3Analysis(dataset, options);
-    }
-
-    // Section 4: Visualization Intelligence
-    if (this.shouldRunSection(4, options)) {
-      logger.info('Running Section 4: Visualization Intelligence');
-      results.section4 = await this.runSection4Analysis(dataset, options);
-    }
-
-    // Section 5: Data Engineering
-    if (this.shouldRunSection(5, options)) {
-      logger.info('Running Section 5: Data Engineering');
-      results.section5 = await this.runSection5Analysis(dataset, options);
-    }
-
-    // Section 6: Modeling Strategy
-    if (this.shouldRunSection(6, options)) {
-      logger.info('Running Section 6: Modeling Strategy');
+    // Execute each section individually (original behavior)
+    for (const section of requestedSections) {
       try {
-        results.section6 = await this.runSection6Analysis(dataset, options);
-        logger.info('Section 6 analysis completed successfully');
+        switch (section) {
+          case 'section1':
+            if (this.shouldRunSection(1, options)) {
+              results.section1 = await this.runSection1Analysis(dataset, options);
+            }
+            break;
+          case 'section2':
+            if (this.shouldRunSection(2, options)) {
+              results.section2 = await this.runSection2Analysis(dataset, options);
+            }
+            break;
+          case 'section3':
+            if (this.shouldRunSection(3, options)) {
+              results.section3 = await this.runSection3Analysis(dataset, options);
+            }
+            break;
+          case 'section4':
+            if (this.shouldRunSection(4, options)) {
+              // Section 4 needs dependencies - create mocks for individual execution
+              const mockSection1 = results.section1 || await this.runSection1Analysis(dataset, options);
+              const mockSection3 = results.section3 || await this.runSection3Analysis(dataset, options);
+              results.section4 = await this.runSection4Analysis(dataset, options);
+            }
+            break;
+          case 'section5':
+            if (this.shouldRunSection(5, options)) {
+              // Section 5 needs dependencies - create mocks for individual execution
+              const mockSection1 = results.section1 || await this.runSection1Analysis(dataset, options);
+              const mockSection2 = results.section2 || await this.runSection2Analysis(dataset, options);
+              const mockSection3 = results.section3 || await this.runSection3Analysis(dataset, options);
+              results.section5 = await this.runSection5Analysis(dataset, options);
+            }
+            break;
+          case 'section6':
+            if (this.shouldRunSection(6, options)) {
+              // Section 6 needs multiple dependencies - warn about using sequential execution
+              logger.warn(
+                'Section 6 has complex dependencies. Consider using sequential execution for better results.',
+                { hint: 'Sequential execution would provide real dependency data instead of mocks' }
+              );
+              results.section6 = await this.runSection6Analysis(dataset, options);
+            }
+            break;
+        }
       } catch (error) {
-        logger.error('Section 6 analysis failed:', error);
-        throw new Error(`Section 6 analysis failed: ${error instanceof Error ? error.message : String(error)}`);
+        logger.error(`Section ${section} failed in individual execution`, error);
+        if (options.continueOnError) {
+          continue;
+        }
+        throw error;
       }
     }
 
+    const totalTime = Date.now() - sectionStartTime;
+    logger.info(
+      'Individual execution completed',
+      { 
+        sectionsCompleted: Object.keys(results).length,
+        totalTime,
+        mode: 'legacy'
+      }
+    );
+
     return results;
+  }
+
+  /**
+   * Determine which sections to run based on CLI options
+   */
+  private getRequestedSections(options: CLIOptions): string[] {
+    if (options.sections && options.sections.length > 0) {
+      // Convert numbered sections to section names
+      return options.sections.map(section => {
+        if (section.startsWith('section')) {
+          return section;
+        }
+        return `section${section}`;
+      }).filter(section => {
+        // Validate section exists
+        const validSections = ['section1', 'section2', 'section3', 'section4', 'section5', 'section6'];
+        return validSections.includes(section);
+      });
+    }
+
+    // Default sections based on command
+    switch (options.command) {
+      case 'overview':
+        return ['section1'];
+      case 'quality':
+        return ['section2'];
+      case 'eda':
+        return ['section3'];
+      case 'visualization':
+        return ['section4'];
+      case 'engineering':
+        return ['section5'];
+      case 'modeling':
+        return ['section6'];
+      case 'all':
+        return ['section1', 'section2', 'section3', 'section4', 'section5', 'section6'];
+      default:
+        return ['section1', 'section2', 'section3', 'section4', 'section5', 'section6'];
+    }
   }
 
   private shouldRunSection(sectionNumber: number, options: CLIOptions): boolean {
