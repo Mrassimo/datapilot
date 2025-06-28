@@ -1,3 +1,12 @@
+## [1.4.11](https://github.com/Mrassimo/datapilot/compare/v1.4.10...v1.4.11) (2025-06-28)
+
+
+### Bug Fixes
+
+* add NPM token authentication test documentation ([c4771f7](https://github.com/Mrassimo/datapilot/commit/c4771f7f29aaf5745c8296b21bffd4e738d2552e))
+* correct NPM token authentication in CI workflow ([eecdd29](https://github.com/Mrassimo/datapilot/commit/eecdd29fbf6a67f7ca00d41befacd7915ffeb340))
+* test NPM token configuration with automated release ([e96186c](https://github.com/Mrassimo/datapilot/commit/e96186ccdea5266afa1b5eb7649c582b74457e33))
+
 # Changelog
 
 All notable changes to DataPilot will be documented in this file.
