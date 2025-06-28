@@ -1,3 +1,10 @@
+## [1.4.12](https://github.com/Mrassimo/datapilot/compare/v1.4.11...v1.4.12) (2025-06-28)
+
+
+### Bug Fixes
+
+* resolve critical v1.4.11 issues and add automated tgz publishing ([3644926](https://github.com/Mrassimo/datapilot/commit/3644926feb7ff5af70e5f58d4df630599ac71052)), closes [#34](https://github.com/Mrassimo/datapilot/issues/34) [#35](https://github.com/Mrassimo/datapilot/issues/35) [#36](https://github.com/Mrassimo/datapilot/issues/36)
+
 ## [1.4.11](https://github.com/Mrassimo/datapilot/compare/v1.4.10...v1.4.11) (2025-06-28)
 
 
