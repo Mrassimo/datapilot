@@ -18,3 +18,4 @@ DataPilot v${VERSION}
 A lightweight, powerful CLI statistical computation engine
 DataPilot does the maths, so AI (or you) can derive the meaning.
 `;
+// NPM token test comment
