@@ -126,7 +126,11 @@ try {
         // For Windows, we need a real executable, not a script with .exe extension
         if (platform === 'win') {
           log(`❌ Windows requires a real executable. Cannot create fake .exe file.`);
-          log(`💡 Suggestion: Run this on a Windows machine for proper SEA builds`);
+          log(`💡 Node.js SEA is experimental and may not work on all platforms`);
+          log(`🔧 To create Windows executables:`);
+          log(`   1. Run this on a Windows machine with Node.js 20+`);
+          log(`   2. Or use: npm pack && npm install -g datapilot-cli-*.tgz`);
+          log(`   3. Or run directly: node dist/cli/index.js`);
           throw new Error(`Failed to create Windows executable: ${error.message}`);
         }
         
@@ -140,7 +144,11 @@ try {
       // For Windows cross-platform builds, we can't create real executables
       if (platform === 'win') {
         log(`❌ Cannot create Windows .exe from non-Windows platform`);
-        log(`💡 Windows executables must be built on Windows machines`);
+        log(`💡 Windows executables require Windows machines with Node.js SEA support`);
+        log(`🔧 Alternative installation methods for Windows users:`);
+        log(`   1. Use npm: npm install -g datapilot-cli`);
+        log(`   2. Use npx: npx datapilot-cli [command]`);
+        log(`   3. Clone and build: git clone [repo] && npm install && npm run build`);
         throw new Error(`Cross-platform Windows executable creation not supported`);
       }
       
