@@ -26,8 +26,8 @@
       {
         "assets": [
           {
-            "path": "dist/**/*",
-            "label": "Distribution files"
+            "path": "*.tgz",
+            "label": "DataPilot CLI Package (npm install ready)"
           },
           {
             "path": "CHANGELOG.md",

@@ -314,6 +314,12 @@ jobs:
       - name: Build project
         run: npm run build:clean
 
+      - name: Create tgz package for release
+        run: |
+          echo "📦 Creating tgz package for semantic-release upload..."
+          npm pack
+          ls -la *.tgz
+
       - name: Validate NPM token
         run: |
           echo "🔍 Checking NPM token configuration..."
@@ -365,62 +371,6 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         continue-on-error: true
 
-      - name: Create distribution package
-        if: env.NPM_TOKEN_CONFIGURED == 'true'
-        run: |
-          echo "📦 Creating production-ready tgz package..."
-          
-          # Get the latest version after semantic release
-          PACKAGE_VERSION=$(node -p "require('./package.json').version")
-          echo "Package version: $PACKAGE_VERSION"
-          
-          # Create the package
-          npm pack
-          
-          # Rename to include version for clarity
-          TGZ_FILE="datapilot-cli-${PACKAGE_VERSION}.tgz"
-          if ls datapilot-cli-*.tgz >/dev/null 2>&1; then
-            mv datapilot-cli-*.tgz "$TGZ_FILE" || true
-            echo "✅ Package created: $TGZ_FILE"
-            ls -la "$TGZ_FILE"
-            echo "TGZ_FILE=$TGZ_FILE" >> $GITHUB_ENV
-            echo "PACKAGE_VERSION=$PACKAGE_VERSION" >> $GITHUB_ENV
-          else
-            echo "⚠️ No tgz file found - semantic release may have failed"
-          fi
-
-      - name: Upload tgz to release
-        if: env.NPM_TOKEN_CONFIGURED == 'true' && env.TGZ_FILE != ''
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ${{ env.TGZ_FILE }}
-          asset_name: ${{ env.TGZ_FILE }}
-          asset_content_type: application/gzip
-        continue-on-error: true
-
-      - name: Alternative tgz upload via gh CLI
-        if: env.NPM_TOKEN_CONFIGURED == 'true' && env.TGZ_FILE != ''
-        run: |
-          echo "📦 Attempting to upload tgz file to latest release..."
-          
-          # Get the latest release tag
-          LATEST_TAG=$(gh api repos/${{ github.repository }}/releases/latest --jq '.tag_name' 2>/dev/null || echo "")
-          
-          if [ -n "$LATEST_TAG" ] && [ -f "$TGZ_FILE" ]; then
-            echo "🎯 Uploading $TGZ_FILE to release $LATEST_TAG..."
-            gh release upload "$LATEST_TAG" "$TGZ_FILE" --clobber || {
-              echo "⚠️ Upload failed, but this is optional functionality"
-              echo "💡 The tgz file was created successfully: $TGZ_FILE"
-            }
-          else
-            echo "ℹ️ No release found or tgz file missing - this is expected for non-release builds"
-          fi
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        continue-on-error: true
 
       - name: Semantic release summary
         run: |
@@ -429,14 +379,8 @@ jobs:
           
           if [ "$NPM_TOKEN_CONFIGURED" = "true" ]; then
             echo "✅ NPM token configured and semantic release attempted"
-            echo "📦 Check above logs for release status"
-            
-            if [ -n "$TGZ_FILE" ]; then
-              echo "📦 Production tgz package created: $TGZ_FILE"
-              echo "🚀 Automated tgz publishing to GitHub releases enabled"
-            else
-              echo "⚠️ No tgz package created - check semantic release output"
-            fi
+            echo "📦 TGZ package created and uploaded via semantic-release"
+            echo "🚀 Automated publishing to NPM and GitHub releases enabled"
           else
             echo "⚠️ Semantic release skipped - NPM token not configured"
             echo "💡 This is optional for development but required for automated publishing"
