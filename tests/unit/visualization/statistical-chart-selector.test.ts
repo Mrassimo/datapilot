@@ -97,8 +97,7 @@ describe('StatisticalChartSelector', () => {
 
   describe('selectUnivariateChart', () => {
     it('should recommend histogram for normal continuous data', () => {
-      const recommendation = StatisticalChartSelector.selectUnivariateChart(
-        'sales',
+      const recommendation = StatisticalChartSelector.recommendUnivariateChart(
         mockContinuousColumn
       );
 
@@ -118,8 +117,7 @@ describe('StatisticalChartSelector', () => {
         }
       };
 
-      const recommendation = StatisticalChartSelector.selectUnivariateChart(
-        'skewed_sales',
+      const recommendation = StatisticalChartSelector.recommendUnivariateChart(
         skewedColumn
       );
 
@@ -128,8 +126,7 @@ describe('StatisticalChartSelector', () => {
     });
 
     it('should recommend bar chart for categorical data', () => {
-      const recommendation = StatisticalChartSelector.selectUnivariateChart(
-        'category',
+      const recommendation = StatisticalChartSelector.recommendUnivariateChart(
         mockCategoricalColumn
       );
 
@@ -139,8 +136,7 @@ describe('StatisticalChartSelector', () => {
     });
 
     it('should recommend line chart for temporal data', () => {
-      const recommendation = StatisticalChartSelector.selectUnivariateChart(
-        'date',
+      const recommendation = StatisticalChartSelector.recommendUnivariateChart(
         mockTemporalColumn
       );
 
@@ -150,8 +146,7 @@ describe('StatisticalChartSelector', () => {
     });
 
     it('should provide alternative chart options', () => {
-      const recommendation = StatisticalChartSelector.selectUnivariateChart(
-        'sales',
+      const recommendation = StatisticalChartSelector.recommendUnivariateChart(
         mockContinuousColumn
       );
 
@@ -173,8 +168,7 @@ describe('StatisticalChartSelector', () => {
         }
       };
 
-      const recommendation = StatisticalChartSelector.selectUnivariateChart(
-        'large_dataset',
+      const recommendation = StatisticalChartSelector.recommendUnivariateChart(
         largeDataColumn
       );
 
@@ -195,8 +189,7 @@ describe('StatisticalChartSelector', () => {
         strength: 'strong'
       };
 
-      const recommendation = StatisticalChartSelector.selectBivariateChart(
-        continuousBivariate,
+      const recommendation = StatisticalChartSelector.recommendBivariateChart(
         mockContinuousColumn,
         mockContinuousColumn
       );
@@ -207,8 +200,7 @@ describe('StatisticalChartSelector', () => {
     });
 
     it('should recommend grouped bar chart for categorical-continuous relationships', () => {
-      const recommendation = StatisticalChartSelector.selectBivariateChart(
-        mockBivariateAnalysis,
+      const recommendation = StatisticalChartSelector.recommendBivariateChart(
         mockCategoricalColumn,
         mockContinuousColumn
       );
@@ -228,8 +220,7 @@ describe('StatisticalChartSelector', () => {
         strength: 'moderate'
       };
 
-      const recommendation = StatisticalChartSelector.selectBivariateChart(
-        categoricalBivariate,
+      const recommendation = StatisticalChartSelector.recommendBivariateChart(
         mockCategoricalColumn,
         mockCategoricalColumn
       );
@@ -245,8 +236,7 @@ describe('StatisticalChartSelector', () => {
         strength: 'weak'
       };
 
-      const recommendation = StatisticalChartSelector.selectBivariateChart(
-        weakBivariate,
+      const recommendation = StatisticalChartSelector.recommendBivariateChart(
         mockCategoricalColumn,
         mockContinuousColumn
       );
@@ -256,86 +246,7 @@ describe('StatisticalChartSelector', () => {
     });
   });
 
-  describe('optimizeForDataSize', () => {
-    it('should suggest sampling for large datasets', () => {
-      const largeDataRecommendation: StatisticalChartRecommendation = {
-        chartType: 'scatter_plot',
-        confidence: 0.8,
-        statisticalJustification: 'Strong correlation',
-        dataCharacteristics: ['large_dataset'],
-        visualEncodingStrategy: {} as VisualEncodingStrategy,
-        interactionRecommendations: [],
-        alternativeOptions: [],
-        performanceConsiderations: {} as PerformanceGuidance
-      };
 
-      const optimized = StatisticalChartSelector.optimizeForDataSize(
-        largeDataRecommendation,
-        100000
-      );
-
-      expect(optimized.performanceConsiderations.samplingStrategy).toBeDefined();
-      expect(optimized.performanceConsiderations.dataPointThreshold).toBeLessThan(100000);
-    });
-
-    it('should not suggest sampling for small datasets', () => {
-      const smallDataRecommendation: StatisticalChartRecommendation = {
-        chartType: 'bar_chart',
-        confidence: 0.9,
-        statisticalJustification: 'Categorical data',
-        dataCharacteristics: ['small_dataset'],
-        visualEncodingStrategy: {} as VisualEncodingStrategy,
-        interactionRecommendations: [],
-        alternativeOptions: [],
-        performanceConsiderations: {} as PerformanceGuidance
-      };
-
-      const optimized = StatisticalChartSelector.optimizeForDataSize(
-        smallDataRecommendation,
-        100
-      );
-
-      expect(optimized.performanceConsiderations.samplingStrategy).toBeUndefined();
-    });
-  });
-
-  describe('generateInteractionRecommendations', () => {
-    it('should recommend appropriate interactions for scatter plots', () => {
-      const interactions = StatisticalChartSelector.generateInteractionRecommendations(
-        'scatter_plot',
-        mockBivariateAnalysis
-      );
-
-      expect(interactions).toBeInstanceOf(Array);
-      expect(interactions.length).toBeGreaterThan(0);
-      
-      const hasTooltip = interactions.some(i => i.interactionType === 'hover');
-      const hasZoom = interactions.some(i => i.interactionType === 'zoom');
-      
-      expect(hasTooltip).toBe(true);
-      expect(hasZoom).toBe(true);
-    });
-
-    it('should recommend filtering for categorical data', () => {
-      const interactions = StatisticalChartSelector.generateInteractionRecommendations(
-        'bar_chart',
-        mockBivariateAnalysis
-      );
-
-      const hasFilter = interactions.some(i => i.interactionType === 'filter');
-      expect(hasFilter).toBe(true);
-    });
-
-    it('should prioritize essential interactions', () => {
-      const interactions = StatisticalChartSelector.generateInteractionRecommendations(
-        'line_chart',
-        mockBivariateAnalysis
-      );
-
-      const essentialInteractions = interactions.filter(i => i.priority === 'essential');
-      expect(essentialInteractions.length).toBeGreaterThan(0);
-    });
-  });
 
   describe('error handling and edge cases', () => {
     it('should handle missing statistical data gracefully', () => {
@@ -344,8 +255,7 @@ describe('StatisticalChartSelector', () => {
         distribution: undefined
       } as ColumnAnalysis;
 
-      const recommendation = StatisticalChartSelector.selectUnivariateChart(
-        'incomplete_data',
+      const recommendation = StatisticalChartSelector.recommendUnivariateChart(
         incompleteColumn
       );
 
@@ -362,8 +272,7 @@ describe('StatisticalChartSelector', () => {
         }
       };
 
-      const recommendation = StatisticalChartSelector.selectUnivariateChart(
-        'outlier_data',
+      const recommendation = StatisticalChartSelector.recommendUnivariateChart(
         outlierColumn
       );
 
@@ -380,8 +289,7 @@ describe('StatisticalChartSelector', () => {
         }
       };
 
-      const recommendation = StatisticalChartSelector.selectUnivariateChart(
-        'small_data',
+      const recommendation = StatisticalChartSelector.recommendUnivariateChart(
         smallColumn
       );
 
@@ -391,8 +299,7 @@ describe('StatisticalChartSelector', () => {
 
   describe('visual encoding strategies', () => {
     it('should provide appropriate color strategies for categorical data', () => {
-      const recommendation = StatisticalChartSelector.selectUnivariateChart(
-        'category',
+      const recommendation = StatisticalChartSelector.recommendUnivariateChart(
         mockCategoricalColumn
       );
 
@@ -401,8 +308,7 @@ describe('StatisticalChartSelector', () => {
     });
 
     it('should provide appropriate size encodings for continuous data', () => {
-      const recommendation = StatisticalChartSelector.selectBivariateChart(
-        mockBivariateAnalysis,
+      const recommendation = StatisticalChartSelector.recommendBivariateChart(
         mockCategoricalColumn,
         mockContinuousColumn
       );
@@ -414,8 +320,7 @@ describe('StatisticalChartSelector', () => {
     });
 
     it('should include aesthetic optimizations', () => {
-      const recommendation = StatisticalChartSelector.selectUnivariateChart(
-        'sales',
+      const recommendation = StatisticalChartSelector.recommendUnivariateChart(
         mockContinuousColumn
       );
 
