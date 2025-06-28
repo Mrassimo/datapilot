@@ -122,12 +122,28 @@ try {
         log(`✅ Successfully created ${config.outputName}`);
       } catch (error) {
         log(`❌ SEA build failed: ${error.message}`);
-        // Fallback to simple bundling
+        
+        // For Windows, we need a real executable, not a script with .exe extension
+        if (platform === 'win') {
+          log(`❌ Windows requires a real executable. Cannot create fake .exe file.`);
+          log(`💡 Suggestion: Run this on a Windows machine for proper SEA builds`);
+          throw new Error(`Failed to create Windows executable: ${error.message}`);
+        }
+        
+        // For Unix platforms, fallback to script bundle is acceptable
         createSimpleBundle(platform, config);
       }
     } else {
       // Cross-platform build - create a simple bundle
       log(`Cross-platform build detected, creating simple bundle for ${platform}...`);
+      
+      // For Windows cross-platform builds, we can't create real executables
+      if (platform === 'win') {
+        log(`❌ Cannot create Windows .exe from non-Windows platform`);
+        log(`💡 Windows executables must be built on Windows machines`);
+        throw new Error(`Cross-platform Windows executable creation not supported`);
+      }
+      
       createSimpleBundle(platform, config);
     }
 

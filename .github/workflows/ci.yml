@@ -216,9 +216,13 @@ jobs:
 
       - name: Test Windows executable creation
         run: |
+          echo "🔨 Building Windows executable with Node.js SEA..."
           node scripts/build-sea.js win
           
+          echo "✅ Testing Windows executable..."
           .\binaries\datapilot-win.exe --version
+          
+          echo "🎉 Windows executable creation successful!"
 
   summary:
     name: CI Summary
