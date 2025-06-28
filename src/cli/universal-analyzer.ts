@@ -334,8 +334,12 @@ export class UniversalAnalyzer {
   }
 
   private shouldRunSection(sectionNumber: number, options: CLIOptions): boolean {
-    if (options.sections) {
-      return options.sections.includes(sectionNumber.toString());
+    if (options.sections && options.sections.length > 0) {
+      const shouldRun = options.sections.includes(sectionNumber.toString());
+      if (options.verbose) {
+        logger.info(`Section ${sectionNumber} ${shouldRun ? 'ENABLED' : 'SKIPPED'} by --sections parameter`);
+      }
+      return shouldRun;
     }
 
     // Default sections based on command
@@ -504,11 +508,58 @@ export class UniversalAnalyzer {
 
     // Section6 needs dependencies from previous sections
     const mockSection1 = {
-      overview: { structuralDimensions: { totalDataRows: dataset.rows.length } },
+      overview: { 
+        structuralDimensions: { 
+          totalDataRows: dataset.rows.length,
+          columnInventory: dataset.headers.map((header, index) => ({
+            name: header,
+            index: index,
+            dataType: 'string',
+            sampleValues: dataset.rows.slice(0, 3).map(row => row[index] || '').filter(v => v)
+          }))
+        } 
+      },
     };
     const mockSection2 = { qualityAudit: { overallScore: 85 } };
-    const mockSection3 = { performanceMetrics: { rowsAnalyzed: dataset.rows.length } };
-    const mockSection5 = { engineeringGuidance: { recommendations: [] } };
+    const mockSection3 = { 
+      performanceMetrics: { rowsAnalyzed: dataset.rows.length },
+      edaAnalysis: {
+        multivariateAnalysis: null
+      }
+    };
+    const mockSection5 = { 
+      engineeringAnalysis: {
+        mlReadiness: {
+          overallScore: 85,
+          enhancingFactors: [
+            {
+              factor: "Clean Data Structure",
+              impact: "high" as const,
+              description: "Well-structured data with consistent formatting"
+            }
+          ],
+          remainingChallenges: [
+            {
+              challenge: "Type Detection",
+              severity: "medium" as const,
+              impact: "May require manual type specification",
+              mitigationStrategy: "Implement enhanced type detection",
+              estimatedEffort: "2-4 hours"
+            }
+          ],
+          featurePreparationMatrix: dataset.headers.map(header => ({
+            featureName: `ml_${header}`,
+            originalColumn: header,
+            finalDataType: "String",
+            keyIssues: ["Type detection needed"],
+            engineeringSteps: ["Type inference", "Encoding if categorical"],
+            finalMLFeatureType: "Categorical",
+            modelingNotes: []
+          })),
+          modelingConsiderations: []
+        }
+      }
+    };
 
     return analyzer.analyze(
       mockSection1 as any,

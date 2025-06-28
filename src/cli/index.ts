@@ -123,15 +123,16 @@ export class DataPilotCLI {
    * Generate Section 3 report content
    */
   private generateSection3Report(section3Result: any): string {
-    // Simple report generation - in production this would use a proper formatter
-    return `# Section 3: Exploratory Data Analysis\n\nAnalysis completed successfully.\n\nRows analyzed: ${section3Result.performanceMetrics?.rowsAnalyzed || 'Unknown'}\n`;
+    const { Section3Formatter } = require('../analyzers/eda');
+    return Section3Formatter.formatMarkdown(section3Result);
   }
 
   /**
    * Generate Section 4 report content
    */
   private generateSection4Report(section4Result: any): string {
-    return `# Section 4: Visualization Intelligence\n\nVisualization recommendations generated.\n\nRecommendations: ${section4Result.performanceMetrics?.recommendationsGenerated || 'Unknown'}\n`;
+    const { Section4Formatter } = require('../analyzers/visualization');
+    return Section4Formatter.formatMarkdown(section4Result);
   }
 
   /**
