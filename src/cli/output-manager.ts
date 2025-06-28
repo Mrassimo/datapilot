@@ -442,6 +442,73 @@ export class OutputManager {
   }
 
   /**
+   * Output Join Analysis results in the specified format
+   */
+  outputJoinAnalysis(joinReport: string, result: any, filename?: string): string[] {
+    const outputFiles: string[] = [];
+
+    // Generate content based on format
+    let content: string;
+    let extension: string;
+
+    switch (this.options.output) {
+      case 'json':
+        content = this.formatJoinAsJSON(result);
+        extension = '.json';
+        break;
+
+      case 'yaml':
+        content = this.formatJoinAsYAML(result);
+        extension = '.yaml';
+        break;
+
+      case 'txt':
+        content = joinReport;
+        extension = '.txt';
+        break;
+
+      case 'markdown':
+      default:
+        content = joinReport;
+        extension = '.md';
+        break;
+    }
+
+    // In combine mode, just collect the content
+    if (this.combineMode && (this.options.output === 'markdown' || this.options.output === 'txt')) {
+      this.addToCombinedOutput(content);
+      return outputFiles;
+    }
+
+    // Output to file or stdout
+    if (this.options.outputFile) {
+      const outputPath = this.ensureExtension(this.options.outputFile, extension);
+      this.writeToFile(outputPath, content);
+      outputFiles.push(outputPath);
+    } else if (filename) {
+      // Auto-generate filename based on input
+      const outputPath = this.generateJoinOutputFilename(filename, extension);
+      this.writeToFile(outputPath, content);
+      outputFiles.push(outputPath);
+    } else {
+      // Output to stdout
+      console.log(content);
+    }
+
+    // Also generate summary if verbose and not quiet
+    if (this.options.verbose && !this.options.quiet) {
+      const summary = result.summary;
+      console.log('\n🔗 Join Analysis Quick Summary:');
+      console.log(`   • Tables Analyzed: ${summary?.tablesAnalyzed || 0}`);
+      console.log(`   • Join Candidates Found: ${summary?.joinCandidatesFound || 0}`);
+      console.log(`   • High Confidence Joins: ${summary?.highConfidenceJoins || 0}`);
+      console.log(`   • Analysis Time: ${summary?.analysisTime || 0}ms`);
+    }
+
+    return outputFiles;
+  }
+
+  /**
    * Output validation results
    */
   outputValidation(filePath: string, isValid: boolean, errors: string[]): void {
@@ -823,6 +890,48 @@ export class OutputManager {
   private generateSection6OutputFilename(inputFilename: string, extension: string): string {
     const baseName = inputFilename.replace(/\.[^/.]+$/, ''); // Remove extension
     return `${baseName}_datapilot_modeling${extension}`;
+  }
+
+  /**
+   * Generate Join Analysis output filename
+   */
+  private generateJoinOutputFilename(inputFilename: string, extension: string): string {
+    const baseName = inputFilename.replace(/\.[^/.]+$/, ''); // Remove extension
+    return `${baseName}_datapilot_join_analysis${extension}`;
+  }
+
+  /**
+   * Format Join Analysis result as JSON
+   */
+  private formatJoinAsJSON(result: any): string {
+    const jsonOutput = {
+      metadata: {
+        version: '1.0.0',
+        generatedAt: new Date().toISOString(),
+        command: 'datapilot engineering (multi-file)',
+        analysisType: 'Multi-File Join Analysis',
+      },
+      joinAnalysis: result,
+    };
+
+    return JSON.stringify(jsonOutput, null, 2);
+  }
+
+  /**
+   * Format Join Analysis result as YAML
+   */
+  private formatJoinAsYAML(result: any): string {
+    const yaml = this.objectToYAML({
+      metadata: {
+        version: '1.0.0',
+        generatedAt: new Date().toISOString(),
+        command: 'datapilot engineering (multi-file)',
+        analysisType: 'Multi-File Join Analysis',
+      },
+      joinAnalysis: result,
+    });
+
+    return yaml;
   }
 
   /**

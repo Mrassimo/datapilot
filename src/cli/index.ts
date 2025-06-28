@@ -40,8 +40,8 @@ export class DataPilotCLI {
         };
       }
       
-      // Get the file path to analyze
-      const filePath = context.file || context.args[0];
+      // Detect multi-file scenarios for engineering command
+      const isMultiFileEngineering = context.command === 'engineering' && context.args && context.args.length > 1;
       
       // Add command to options for proper section selection
       const analysisOptions = {
@@ -49,12 +49,21 @@ export class DataPilotCLI {
         command: context.command
       };
       
-      // Run analysis
-      const result = await this.analyzer.analyzeFile(filePath, analysisOptions);
+      // Run analysis - route to appropriate analyzer method
+      let result;
+      if (isMultiFileEngineering) {
+        // Multi-file join analysis
+        result = await this.analyzer.analyzeMultipleFiles(context.args, analysisOptions);
+      } else {
+        // Single file analysis (existing behavior)
+        const filePath = context.file || context.args[0];
+        result = await this.analyzer.analyzeFile(filePath, analysisOptions);
+      }
       
       // If analysis was successful, format and output the results
       if (result.success && result.data) {
-        await this.formatAndOutputResults(result, filePath, context.options);
+        const primaryFilePath = isMultiFileEngineering ? context.args[0] : (context.file || context.args[0]);
+        await this.formatAndOutputResults(result, primaryFilePath, context.options);
       }
       
       return result;
@@ -115,6 +124,12 @@ export class DataPilotCLI {
         this.outputManager.outputSection6(section6Report, analysisData.section6, fileName);
       }
       
+      // Handle join analysis results
+      if (analysisData.joinAnalysis) {
+        const joinReport = this.generateJoinAnalysisReport(analysisData.joinAnalysis);
+        this.outputManager.outputJoinAnalysis(joinReport, analysisData.joinAnalysis, fileName);
+      }
+      
     } catch (error) {
       logger.error('Failed to format and output results:', error);
       // Fall back to simple output
@@ -155,6 +170,15 @@ export class DataPilotCLI {
   private generateSection6Report(section6Result: any): string {
     const { Section6Formatter } = require('../analyzers/modeling');
     return Section6Formatter.formatMarkdown(section6Result);
+  }
+
+  /**
+   * Generate Join Analysis report content
+   */
+  private generateJoinAnalysisReport(joinResult: any): string {
+    const { JoinFormatter } = require('../analyzers/joins');
+    const formatter = new JoinFormatter();
+    return formatter.format(joinResult, { type: 'MARKDOWN' });
   }
 
   /**
