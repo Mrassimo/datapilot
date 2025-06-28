@@ -8,8 +8,8 @@
 /// <reference path="../../jest-custom-matchers.d.ts" />
 
 import { StatisticalChartSelector } from '../../../src/analyzers/visualization/engines/statistical-chart-selector';
-import type { ColumnAnalysis, BivariateAnalysis } from '../../../src/analyzers/eda/types';
-import { EdaDataType } from '../../../src/analyzers/eda/types';
+import type { ColumnAnalysis, BivariateAnalysis, NumericalColumnAnalysis, CategoricalColumnAnalysis, DateTimeAnalysis } from '../../../src/analyzers/eda/types';
+import { EdaDataType, SemanticType } from '../../../src/analyzers/eda/types';
 import type {
   StatisticalChartRecommendation,
   VisualEncodingStrategy,
@@ -21,78 +21,190 @@ import type {
 describe('StatisticalChartSelector', () => {
   // Test data fixtures
   const mockContinuousColumn: ColumnAnalysis = {
-    dataType: EdaDataType.CONTINUOUS,
-    basicStats: {
-      count: 1000,
+    columnName: 'test_continuous',
+    detectedDataType: EdaDataType.NUMERICAL_FLOAT,
+    inferredSemanticType: SemanticType.UNKNOWN,
+    dataQualityFlag: 'good',
+    totalValues: 1000,
+    missingValues: 20,
+    missingPercentage: 2,
+    uniqueValues: 950,
+    uniquePercentage: 95,
+    descriptiveStats: {
+      minimum: 10,
+      maximum: 100,
+      range: 90,
+      sum: 50500,
       mean: 50.5,
-      std: 15.2,
-      min: 10,
-      max: 100,
       median: 52,
-      q1: 40,
-      q3: 65
+      modes: [{ value: 50, frequency: 10, percentage: 1 }],
+      standardDeviation: 15.2,
+      variance: 231.04,
+      coefficientOfVariation: 0.301
     },
-    distribution: {
+    quantileStats: {
+      percentile1st: 15,
+      percentile5th: 20,
+      percentile10th: 25,
+      quartile1st: 40,
+      quartile3rd: 65,
+      percentile90th: 85,
+      percentile95th: 90,
+      percentile99th: 95,
+      interquartileRange: 25,
+      medianAbsoluteDeviation: 12.5
+    },
+    distributionAnalysis: {
       skewness: 0.2,
+      skewnessInterpretation: 'nearly symmetric',
       kurtosis: -0.5,
-      normality: 0.85,
-      outliers: [5, 95, 98]
+      kurtosisInterpretation: 'platykurtic',
+      histogramSummary: 'normal distribution'
     },
-    quality: {
-      completeness: 0.98,
-      uniqueness: 0.95
-    }
-  } as ColumnAnalysis;
-
-  const mockCategoricalColumn: ColumnAnalysis = {
-    dataType: EdaDataType.CATEGORICAL,
-    basicStats: {
-      count: 1000,
-      uniqueCount: 5,
-      mode: 'Category A',
-      modeFrequency: 300
+    normalityTests: {
+      shapiroWilk: { statistic: 0.98, pValue: 0.15, interpretation: 'normal' },
+      jarqueBera: { statistic: 2.1, pValue: 0.35, interpretation: 'normal' },
+      kolmogorovSmirnov: { statistic: 0.03, pValue: 0.8, interpretation: 'normal' }
     },
-    distribution: {
-      frequencies: {
-        'Category A': 300,
-        'Category B': 250,
-        'Category C': 200,
-        'Category D': 150,
-        'Category E': 100
+    outlierAnalysis: {
+      iqrMethod: {
+        lowerFence: 2.5,
+        upperFence: 102.5,
+        lowerOutliers: 1,
+        upperOutliers: 2,
+        lowerPercentage: 0.1,
+        upperPercentage: 0.2,
+        extremeOutliers: 0,
+        extremePercentage: 0
+      },
+      zScoreMethod: { threshold: 3, lowerOutliers: 1, upperOutliers: 2 },
+      modifiedZScoreMethod: { threshold: 3.5, outliers: 3 },
+      summary: {
+        totalOutliers: 3,
+        totalPercentage: 0.3,
+        minOutlierValue: 5,
+        maxOutlierValue: 98,
+        potentialImpact: 'minimal'
       }
     },
-    quality: {
-      completeness: 1.0,
-      uniqueness: 0.5
+    numericalPatterns: {
+      zeroValuePercentage: 0,
+      negativeValuePercentage: 0,
+      roundNumbersNote: 'few round numbers',
+      logTransformationPotential: 'not needed'
     }
-  } as ColumnAnalysis;
+  } as NumericalColumnAnalysis;
+
+  const mockCategoricalColumn: ColumnAnalysis = {
+    columnName: 'test_categorical',
+    detectedDataType: EdaDataType.CATEGORICAL,
+    inferredSemanticType: SemanticType.CATEGORY,
+    dataQualityFlag: 'excellent',
+    totalValues: 1000,
+    missingValues: 0,
+    missingPercentage: 0,
+    uniqueValues: 5,
+    uniquePercentage: 0.5,
+    uniqueCategories: 5,
+    mostFrequentCategory: { label: 'Category A', count: 300, percentage: 30, cumulativePercentage: 30 },
+    secondMostFrequentCategory: { label: 'Category B', count: 250, percentage: 25, cumulativePercentage: 55 },
+    leastFrequentCategory: { label: 'Category E', count: 100, percentage: 10, cumulativePercentage: 100 },
+    frequencyDistribution: [
+      { label: 'Category A', count: 300, percentage: 30, cumulativePercentage: 30 },
+      { label: 'Category B', count: 250, percentage: 25, cumulativePercentage: 55 },
+      { label: 'Category C', count: 200, percentage: 20, cumulativePercentage: 75 },
+      { label: 'Category D', count: 150, percentage: 15, cumulativePercentage: 90 },
+      { label: 'Category E', count: 100, percentage: 10, cumulativePercentage: 100 }
+    ],
+    diversityMetrics: {
+      shannonEntropy: 2.2,
+      maxEntropy: 2.32,
+      giniImpurity: 0.72,
+      balanceInterpretation: 'well balanced',
+      majorCategoryDominance: 'moderate'
+    },
+    labelAnalysis: {
+      minLabelLength: 10,
+      maxLabelLength: 10,
+      avgLabelLength: 10,
+      emptyLabelsCount: 0
+    },
+    recommendations: {}
+  } as CategoricalColumnAnalysis;
 
   const mockTemporalColumn: ColumnAnalysis = {
-    dataType: EdaDataType.TEMPORAL,
-    basicStats: {
-      count: 365,
-      min: '2023-01-01',
-      max: '2023-12-31'
-    },
-    distribution: {
-      timeGranularity: 'daily',
-      seasonality: true,
-      trend: 'increasing'
-    },
-    quality: {
-      completeness: 0.99
-    }
+    columnName: 'test_datetime',
+    detectedDataType: EdaDataType.DATE_TIME,
+    inferredSemanticType: SemanticType.DATE_TRANSACTION,
+    dataQualityFlag: 'good',
+    totalValues: 365,
+    missingValues: 4,
+    missingPercentage: 1.1,
+    uniqueValues: 361,
+    uniquePercentage: 98.9,
+    minDateTime: new Date('2023-01-01'),
+    maxDateTime: new Date('2023-12-31'),
+    timeSpan: '365 days',
+    detectedGranularity: 'daily',
+    implicitPrecision: 'day',
+    mostCommonYears: ['2023'],
+    mostCommonMonths: ['January', 'February', 'March'],
+    mostCommonDaysOfWeek: ['Monday', 'Tuesday', 'Wednesday'],
+    mostCommonHours: [],
+    temporalPatterns: 'regular daily pattern',
+    gapAnalysis: 'few missing dates',
+    validityNotes: 'all dates valid'
   } as ColumnAnalysis;
 
   const mockBivariateAnalysis: BivariateAnalysis = {
-    variable1: 'sales',
-    variable2: 'category',
-    analysisType: 'categorical_continuous',
-    correlation: 0.65,
-    pValue: 0.001,
-    effectSize: 0.4,
-    strength: 'strong',
-    confidence: 0.95
+    numericalVsNumerical: {
+      totalPairsAnalyzed: 1,
+      correlationPairs: [{
+        variable1: 'sales',
+        variable2: 'profit',
+        correlation: 0.65,
+        pearsonCorrelation: 0.65,
+        spearmanCorrelation: 0.62,
+        pValue: 0.001,
+        strength: 'strong',
+        direction: 'positive',
+        significance: 'significant',
+        sampleSize: 1000,
+        interpretation: 'strong positive correlation'
+      }],
+      strongestPositiveCorrelation: {
+        variable1: 'sales',
+        variable2: 'profit',
+        correlation: 0.65,
+        pearsonCorrelation: 0.65,
+        spearmanCorrelation: 0.62,
+        pValue: 0.001,
+        strength: 'strong',
+        direction: 'positive',
+        significance: 'significant',
+        sampleSize: 1000,
+        interpretation: 'strong positive correlation'
+      },
+      strongestNegativeCorrelation: null,
+      strongCorrelations: [],
+      scatterPlotInsights: [{
+        variable1: 'sales',
+        variable2: 'profit',
+        pattern: 'linear',
+        outlierCount: 5,
+        recommendedVisualization: 'scatter_plot',
+        insights: 'strong linear relationship'
+      }],
+      regressionInsights: [{
+        dependent: 'profit',
+        independent: 'sales',
+        rSquared: 0.42,
+        slope: 0.8,
+        intercept: 100
+      }]
+    },
+    numericalVsCategorical: [],
+    categoricalVsCategorical: []
   };
 
   describe('selectUnivariateChart', () => {
@@ -110,10 +222,13 @@ describe('StatisticalChartSelector', () => {
     it('should recommend box plot for skewed continuous data', () => {
       const skewedColumn = {
         ...mockContinuousColumn,
-        distribution: {
-          ...mockContinuousColumn.distribution!,
+        distributionAnalysis: {
+          ...mockContinuousColumn.distributionAnalysis!,
           skewness: 2.5,
-          normality: 0.3
+          skewnessInterpretation: 'highly skewed',
+          kurtosis: 1.2,
+          kurtosisInterpretation: 'leptokurtic',
+          histogramSummary: 'right skewed distribution'
         }
       };
 
@@ -162,10 +277,11 @@ describe('StatisticalChartSelector', () => {
     it('should include performance considerations', () => {
       const largeDataColumn = {
         ...mockContinuousColumn,
-        basicStats: {
-          ...mockContinuousColumn.basicStats,
-          count: 100000
-        }
+        descriptiveStats: {
+          ...mockContinuousColumn.descriptiveStats,
+          sum: 5050000
+        },
+        totalValues: 100000
       };
 
       const recommendation = StatisticalChartSelector.recommendUnivariateChart(
@@ -179,15 +295,7 @@ describe('StatisticalChartSelector', () => {
 
   describe('selectBivariateChart', () => {
     it('should recommend scatter plot for continuous-continuous relationships', () => {
-      const continuousBivariate: BivariateAnalysis = {
-        variable1: 'sales',
-        variable2: 'profit',
-        analysisType: 'continuous_continuous',
-        correlation: 0.8,
-        pValue: 0.001,
-        effectSize: 0.6,
-        strength: 'strong'
-      };
+      // Use the existing mock bivariate analysis
 
       const recommendation = StatisticalChartSelector.recommendBivariateChart(
         mockContinuousColumn,
@@ -210,15 +318,7 @@ describe('StatisticalChartSelector', () => {
     });
 
     it('should recommend heatmap for categorical-categorical relationships', () => {
-      const categoricalBivariate: BivariateAnalysis = {
-        variable1: 'category1',
-        variable2: 'category2',
-        analysisType: 'categorical_categorical',
-        correlation: 0.4,
-        pValue: 0.05,
-        effectSize: 0.3,
-        strength: 'moderate'
-      };
+      // Use categorical-categorical bivariate analysis
 
       const recommendation = StatisticalChartSelector.recommendBivariateChart(
         mockCategoricalColumn,
@@ -230,10 +330,17 @@ describe('StatisticalChartSelector', () => {
     });
 
     it('should handle weak relationships appropriately', () => {
-      const weakBivariate: BivariateAnalysis = {
+      // Use mock bivariate analysis with weak correlation
+      const weakBivariate = {
         ...mockBivariateAnalysis,
-        correlation: 0.1,
-        strength: 'weak'
+        numericalVsNumerical: {
+          ...mockBivariateAnalysis.numericalVsNumerical,
+          correlationPairs: [{
+            ...mockBivariateAnalysis.numericalVsNumerical.correlationPairs[0],
+            correlation: 0.1,
+            strength: 'weak'
+          }]
+        }
       };
 
       const recommendation = StatisticalChartSelector.recommendBivariateChart(
@@ -252,7 +359,7 @@ describe('StatisticalChartSelector', () => {
     it('should handle missing statistical data gracefully', () => {
       const incompleteColumn = {
         ...mockContinuousColumn,
-        distribution: undefined
+        distributionAnalysis: undefined
       } as ColumnAnalysis;
 
       const recommendation = StatisticalChartSelector.recommendUnivariateChart(
@@ -266,9 +373,13 @@ describe('StatisticalChartSelector', () => {
     it('should handle extreme outliers', () => {
       const outlierColumn = {
         ...mockContinuousColumn,
-        distribution: {
-          ...mockContinuousColumn.distribution!,
-          outliers: Array.from({ length: 100 }, (_, i) => i * 1000)
+        outlierAnalysis: {
+          ...mockContinuousColumn.outlierAnalysis!,
+          summary: {
+            ...mockContinuousColumn.outlierAnalysis!.summary,
+            totalOutliers: 100,
+            totalPercentage: 10
+          }
         }
       };
 
@@ -283,10 +394,11 @@ describe('StatisticalChartSelector', () => {
     it('should handle very small datasets', () => {
       const smallColumn = {
         ...mockContinuousColumn,
-        basicStats: {
-          ...mockContinuousColumn.basicStats,
-          count: 5
-        }
+        descriptiveStats: {
+          ...mockContinuousColumn.descriptiveStats,
+          sum: 25
+        },
+        totalValues: 5
       };
 
       const recommendation = StatisticalChartSelector.recommendUnivariateChart(
