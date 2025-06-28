@@ -22,7 +22,7 @@ permissions:
   actions: read
 
 env:
-  NODE_VERSION: '18'
+  NODE_VERSION: '20'
 
 jobs:
   validate:
@@ -62,8 +62,8 @@ jobs:
           npm audit --audit-level=moderate
           
           echo "🔍 Checking for banned dependencies..."
-          if npm ls | grep -E "(xlsx|pkg)" >/dev/null 2>&1; then
-            echo "❌ Found banned dependencies (xlsx/pkg)"
+          if npm ls | grep -E "(xlsx)" >/dev/null 2>&1; then
+            echo "❌ Found banned dependencies (xlsx)"
             exit 1
           fi
           
@@ -151,14 +151,14 @@ jobs:
             exit 1
           fi
 
-      - name: Test binary creation (pkg)
+      - name: Test binary creation (Node.js SEA)
         run: |
-          echo "🔨 Testing binary creation with pkg..."
+          echo "🔨 Testing binary creation with Node.js Single Executable Applications..."
           
-          npx pkg --targets node18-linux-x64 --output test-binary dist/cli/index.js
+          node scripts/build-sea.js linux
           
-          chmod +x test-binary
-          ./test-binary --version
+          chmod +x binaries/datapilot-linux
+          ./binaries/datapilot-linux --version
           
           echo "✅ Binary creation test passed"
 
@@ -216,9 +216,9 @@ jobs:
 
       - name: Test Windows executable creation
         run: |
-          npx pkg --targets node18-win-x64 --output datapilot-win-test.exe dist/cli/index.js
+          node scripts/build-sea.js win
           
-          .\datapilot-win-test.exe --version
+          .\binaries\datapilot-win.exe --version
 
   summary:
     name: CI Summary
