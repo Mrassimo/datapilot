@@ -517,20 +517,57 @@ export class UniversalAnalyzer {
       overview: { 
         structuralDimensions: { 
           totalDataRows: dataset.rows.length,
+          totalColumns: dataset.headers.length,
           columnInventory: dataset.headers.map((header, index) => ({
             name: header,
             index: index,
+            originalIndex: index,
             dataType: 'string',
             sampleValues: dataset.rows.slice(0, 3).map(row => row[index] || '').filter(v => v)
-          }))
-        } 
+          })),
+          estimatedInMemorySizeMB: Math.ceil(dataset.rows.length * dataset.headers.length * 50 / 1024 / 1024)
+        },
+        fileDetails: {
+          originalFilename: dataset.metadata.filePath.split('/').pop() || 'unknown.csv',
+          fileSizeBytes: dataset.metadata.parserStats?.totalBytesRead || dataset.rows.length * dataset.headers.length * 10,
+          fileSizeMB: (dataset.metadata.parserStats?.totalBytesRead || dataset.rows.length * dataset.headers.length * 10) / 1024 / 1024,
+          lastModified: new Date()
+        },
+        parsingMetadata: {
+          encoding: { encoding: 'utf-8' }
+        }
       },
     };
     const mockSection2 = { qualityAudit: { overallScore: 85 } };
     const mockSection3 = { 
       performanceMetrics: { rowsAnalyzed: dataset.rows.length },
       edaAnalysis: {
-        multivariateAnalysis: null
+        univariateAnalysis: [], // Empty array for safe iteration
+        bivariateAnalysis: {
+          numericalVsNumerical: {
+            correlationPairs: [] // Empty array for safe iteration
+          }
+        },
+        multivariateAnalysis: {
+          principalComponentAnalysis: null,
+          clusteringAnalysis: null,
+          outlierAnalysis: {
+            multivariateOutliers: [],
+            outlierSummary: {
+              totalOutliers: 0,
+              outlierPercentage: 0,
+              method: 'IQR',
+              detectionThreshold: 1.5,
+            }
+          },
+          normalityTests: {
+            overallNormality: {
+              isNormal: true,
+              confidence: 0.95,
+              testMethod: 'Shapiro-Wilk',
+            }
+          }
+        }
       }
     };
     const mockSection5 = { 

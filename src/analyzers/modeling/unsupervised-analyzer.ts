@@ -79,10 +79,11 @@ export class UnsupervisedAnalyzer {
       section3Result,
     );
     
+    const fileSizeMB = section1Result.overview.fileDetails?.fileSizeMB || 1; // Safe fallback for missing fileDetails
     const autoMLRecommendations = await this.generateAutoMLRecommendations(
       edaColumns,
       qualityScores,
-      section1Result.overview.fileDetails.fileSizeMB,
+      fileSizeMB,
     );
     
     const featureEngineeringRecipes = await this.generateFeatureEngineeringRecipes(
@@ -93,7 +94,7 @@ export class UnsupervisedAnalyzer {
     
     const deploymentConsiderations = await this.generateDeploymentConsiderations(
       edaColumns,
-      section1Result.overview.fileDetails.fileSizeMB,
+      fileSizeMB, // Reuse the safe fallback
     );
 
     return {

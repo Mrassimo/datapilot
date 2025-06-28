@@ -41,6 +41,7 @@ export class Section6Analyzer {
   private config: Section6Config;
   private warnings: Section6Warning[] = [];
   private startTime: number = 0;
+  private currentPhase: string = 'initialization';
   private algorithmRecommender: AlgorithmRecommender;
   private workflowEngine: WorkflowEngine;
   private ethicsAnalyzer: EthicsAnalyzer;
@@ -559,12 +560,14 @@ export class Section6Analyzer {
     progressCallback?: (progress: Section6Progress) => void,
   ): Promise<Section6Result> {
     this.startTime = Date.now();
+    this.setPhase('initialization');
     logger.info('Starting Section 6: Predictive Modeling & Advanced Analytics analysis');
 
     try {
       this.reportProgress(progressCallback, 'initialization', 0, 'Initializing modeling analysis');
 
       // Phase 1: Identify potential modeling tasks
+      this.setPhase('task_identification');
       const identifiedTasks = await this.identifyModelingTasks(
         section1Result,
         section2Result,
@@ -606,6 +609,7 @@ export class Section6Analyzer {
       }
 
       // Phase 2: Generate algorithm recommendations
+      this.setPhase('algorithm_recommendations');
       const algorithmRecommendations = await this.generateAlgorithmRecommendations(
         identifiedTasks,
         section1Result,
@@ -615,6 +619,7 @@ export class Section6Analyzer {
       );
 
       // Phase 3: Create specialized analyses (CART, Residuals)
+      this.setPhase('specialized_analyses');
       const { cartAnalysis, residualAnalysis } = await this.generateSpecializedAnalyses(
         identifiedTasks,
         algorithmRecommendations,
@@ -623,6 +628,7 @@ export class Section6Analyzer {
       );
 
       // Phase 4: Build workflow guidance
+      this.setPhase('workflow_guidance');
       const workflowGuidance = await this.generateWorkflowGuidance(
         identifiedTasks,
         algorithmRecommendations,
@@ -632,6 +638,7 @@ export class Section6Analyzer {
       );
 
       // Phase 5: Create evaluation framework
+      this.setPhase('evaluation_framework');
       const evaluationFramework = await this.generateEvaluationFramework(
         identifiedTasks,
         algorithmRecommendations,
@@ -639,12 +646,14 @@ export class Section6Analyzer {
       );
 
       // Phase 6: Generate interpretation guidance
+      this.setPhase('interpretation_guidance');
       const interpretationGuidance = await this.generateInterpretationGuidance(
         algorithmRecommendations,
         progressCallback,
       );
 
       // Phase 7: Perform ethics analysis
+      this.setPhase('ethics_analysis');
       const ethicsAnalysis = await this.performEthicsAnalysis(
         identifiedTasks,
         section1Result,
@@ -653,12 +662,14 @@ export class Section6Analyzer {
       );
 
       // Phase 8: Create implementation roadmap
+      this.setPhase('implementation_roadmap');
       const implementationRoadmap = await this.generateImplementationRoadmap(
         identifiedTasks,
         algorithmRecommendations,
         progressCallback,
       );
 
+      this.setPhase('finalization');
       const analysisTime = Date.now() - this.startTime;
       this.reportProgress(progressCallback, 'finalization', 100, 'Modeling analysis complete');
 
@@ -695,11 +706,35 @@ export class Section6Analyzer {
         },
       };
     } catch (error) {
-      logger.error('Section 6 analysis failed:', {
-        error: error instanceof Error ? error.message : String(error),
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : 'No stack trace available';
+      
+      logger.error('Section 6 analysis failed with detailed error:', {
+        error: errorMessage,
+        stack: errorStack,
+        phase: this.getCurrentPhase(),
       });
-      throw error;
+      
+      // Create a more descriptive error for debugging
+      const detailedError = new Error(`Section 6 analysis failed in ${this.getCurrentPhase()}: ${errorMessage}`);
+      detailedError.stack = errorStack;
+      throw detailedError;
     }
+  }
+
+  /**
+   * Get current analysis phase for error reporting
+   */
+  private getCurrentPhase(): string {
+    return this.currentPhase;
+  }
+
+  /**
+   * Update current analysis phase
+   */
+  private setPhase(phase: string): void {
+    this.currentPhase = phase;
+    logger.debug(`Section 6 phase: ${phase}`);
   }
 
   /**
@@ -1155,21 +1190,50 @@ export class Section6Analyzer {
 
     const recommendations: AlgorithmRecommendation[] = [];
 
-    for (const task of tasks) {
-      const taskRecommendations = await this.algorithmRecommender.recommendAlgorithms(
-        task,
-        section1Result,
-        section3Result,
-        section5Result,
-      );
-      recommendations.push(...taskRecommendations);
+    try {
+      for (const task of tasks) {
+        try {
+          logger.debug(`Generating recommendations for task: ${task.taskType} (target: ${task.targetVariable || 'none'})`);
+          
+          const taskRecommendations = await this.algorithmRecommender.recommendAlgorithms(
+            task,
+            section1Result,
+            section3Result,
+            section5Result,
+          );
+          
+          logger.debug(`Generated ${taskRecommendations.length} recommendations for task ${task.taskType}`);
+          recommendations.push(...taskRecommendations);
+          
+        } catch (taskError) {
+          logger.warn(`Failed to generate recommendations for task ${task.taskType}:`, {
+            error: taskError instanceof Error ? taskError.message : String(taskError),
+            taskType: task.taskType,
+            targetVariable: task.targetVariable,
+          });
+          
+          // Continue with other tasks instead of failing completely
+          continue;
+        }
+      }
+
+      // Sort by suitability score
+      recommendations.sort((a, b) => b.suitabilityScore - a.suitabilityScore);
+
+      logger.info(`Generated ${recommendations.length} algorithm recommendations from ${tasks.length} tasks`);
+      return recommendations;
+      
+    } catch (error) {
+      logger.error('Critical failure in algorithm recommendation generation:', {
+        error: error instanceof Error ? error.message : String(error),
+        tasksCount: tasks.length,
+        recommendationsGenerated: recommendations.length,
+      });
+      
+      // Return empty recommendations rather than failing completely
+      logger.warn('Returning empty recommendations due to critical failure');
+      return [];
     }
-
-    // Sort by suitability score
-    recommendations.sort((a, b) => b.suitabilityScore - a.suitabilityScore);
-
-    logger.info(`Generated ${recommendations.length} algorithm recommendations`);
-    return recommendations;
   }
 
   /**
