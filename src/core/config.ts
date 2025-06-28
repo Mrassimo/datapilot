@@ -517,7 +517,8 @@ class CoreConfigManager {
   getConfig() { return this.config; }
   getCoreConfig() { return this.config; }
   
-  updateConfig(updates: Partial<DataPilotConfig>) { 
+  updateConfig(updates?: Partial<DataPilotConfig>) { 
+    if (!updates) return;
     this.config = { ...this.config, ...updates }; 
   }
   
@@ -525,32 +526,37 @@ class CoreConfigManager {
     this.config = { ...DEFAULT_CONFIG }; 
   }
 
-  getPerformanceConfig() { return this.config.performance; }
-  getStatisticalConfig() { return this.config.statistical; }
-  getQualityConfig() { return this.config.quality; }
-  getAnalysisConfig() { return this.config.analysis; }
-  getStreamingConfig() { return this.config.streaming; }
-  getVisualizationConfig() { return this.config.visualization; }
-  getModelingConfig() { return this.config.modeling; }
-  getOutputConfig() { return this.config.output; }
+  getPerformanceConfig() { return JSON.parse(JSON.stringify(this.config.performance)); }
+  getStatisticalConfig() { return JSON.parse(JSON.stringify(this.config.statistical)); }
+  getQualityConfig() { return JSON.parse(JSON.stringify(this.config.quality)); }
+  getAnalysisConfig() { return JSON.parse(JSON.stringify(this.config.analysis)); }
+  getStreamingConfig() { return JSON.parse(JSON.stringify(this.config.streaming)); }
+  getVisualizationConfig() { return JSON.parse(JSON.stringify(this.config.visualization)); }
+  getModelingConfig() { return JSON.parse(JSON.stringify(this.config.modeling)); }
+  getOutputConfig() { return JSON.parse(JSON.stringify(this.config.output)); }
 
-  updatePerformanceConfig(updates: Partial<PerformanceConfig>) {
+  updatePerformanceConfig(updates?: Partial<PerformanceConfig>) {
+    if (!updates) return;
     this.config.performance = { ...this.config.performance, ...updates };
   }
 
-  updateStatisticalConfig(updates: Partial<StatisticalConfig>) {
+  updateStatisticalConfig(updates?: Partial<StatisticalConfig>) {
+    if (!updates) return;
     this.config.statistical = { ...this.config.statistical, ...updates };
   }
 
-  updateQualityConfig(updates: Partial<QualityConfig>) {
+  updateQualityConfig(updates?: Partial<QualityConfig>) {
+    if (!updates) return;
     this.config.quality = { ...this.config.quality, ...updates };
   }
 
-  updateAnalysisConfig(updates: Partial<AnalysisConfig>) {
+  updateAnalysisConfig(updates?: Partial<AnalysisConfig>) {
+    if (!updates) return;
     this.config.analysis = { ...this.config.analysis, ...updates };
   }
 
-  updateStreamingConfig(updates: Partial<StreamingConfig>) {
+  updateStreamingConfig(updates?: Partial<StreamingConfig>) {
+    if (!updates) return;
     this.config.streaming = { 
       ...this.config.streaming, 
       ...updates,
@@ -561,15 +567,18 @@ class CoreConfigManager {
     };
   }
 
-  updateVisualizationConfig(updates: Partial<VisualizationConfig>) {
+  updateVisualizationConfig(updates?: Partial<VisualizationConfig>) {
+    if (!updates) return;
     this.config.visualization = { ...this.config.visualization, ...updates };
   }
 
-  updateModelingConfig(updates: Partial<ModelingConfig>) {
+  updateModelingConfig(updates?: Partial<ModelingConfig>) {
+    if (!updates) return;
     this.config.modeling = { ...this.config.modeling, ...updates };
   }
 
-  updateOutputConfig(updates: Partial<OutputConfig>) {
+  updateOutputConfig(updates?: Partial<OutputConfig>) {
+    if (!updates) return;
     this.config.output = { ...this.config.output, ...updates };
   }
 }
@@ -621,10 +630,10 @@ class EnvironmentConfigManager {
 
     // Cross-section validation
     if (config.streaming.memoryThresholdMB * 1024 * 1024 > config.performance.memoryThresholdBytes) {
-      errors.push('streaming.memoryThresholdMB exceeds performance.memoryThresholdBytes');
+      warnings.push('streaming.memoryThresholdMB should not exceed performance memory threshold');
     }
     if (config.streaming.maxRowsAnalyzed > config.performance.maxRows) {
-      errors.push('streaming.maxRowsAnalyzed exceeds performance.maxRows');
+      warnings.push('streaming.maxRowsAnalyzed should not exceed performance.maxRows');
     }
 
     return {
@@ -639,8 +648,143 @@ class RuntimeConfigManager {
   private runtimeOverrides: Partial<DataPilotConfig> = {};
   private adaptiveCache: Map<string, any> = new Map();
 
-  getPresetConfig(preset: string) { return DEFAULT_CONFIG; }
-  getUseCaseConfig(useCase: string) { return DEFAULT_CONFIG; }
+  private deepMerge(target: any, source: any): any {
+    const result = JSON.parse(JSON.stringify(target));
+    
+    for (const key in source) {
+      if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
+        result[key] = this.deepMerge(result[key] || {}, source[key]);
+      } else {
+        result[key] = source[key];
+      }
+    }
+    
+    return result;
+  }
+
+  getPresetConfig(preset: string) { 
+    const presetConfigs = {
+      'small': {
+        performance: {
+          maxRows: 10000,
+        },
+        streaming: {
+          memoryThresholdMB: 25,
+        },
+        analysis: {
+          enableMultivariate: false,
+        },
+      },
+      'medium': {
+        performance: {
+          maxRows: 100000,
+        },
+        streaming: {
+          memoryThresholdMB: 50,
+        },
+        analysis: {
+          enableMultivariate: true,
+        },
+      },
+      'large': {
+        performance: {
+          maxRows: 1000000,
+        },
+        streaming: {
+          memoryThresholdMB: 100,
+          adaptiveChunkSizing: {
+            expansionFactor: 1.2,
+          },
+        },
+      },
+      'xlarge': {
+        performance: {
+          maxRows: 5000000,
+        },
+        streaming: {
+          memoryThresholdMB: 200,
+          memoryManagement: {
+            cleanupInterval: 10,
+          },
+        },
+        analysis: {
+          samplingThreshold: 50000,
+        },
+      },
+    };
+    
+    const presetConfig = presetConfigs[preset as keyof typeof presetConfigs];
+    return presetConfig ? this.deepMerge(DEFAULT_CONFIG, presetConfig) : JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+  }
+  
+  getUseCaseConfig(useCase: string) { 
+    const useCaseConfigs = {
+      'data-quality': {
+        quality: {
+          qualityWeights: {
+            completeness: 0.25,
+            uniqueness: 0.15,
+            validity: 0.2,
+            consistency: 0.15,
+            accuracy: 0.15,
+            timeliness: 0.05,
+            integrity: 0.05,
+            reasonableness: 0.03,
+            precision: 0.01,
+            representational: 0.01,
+          },
+        },
+        analysis: {
+          enabledAnalyses: ['univariate'],
+        },
+      },
+      'eda-focused': {
+        analysis: {
+          enableMultivariate: true,
+          maxCorrelationPairs: 100,
+        },
+        statistical: {
+          significanceLevel: 0.01,
+        },
+      },
+      'ml-pipeline': {
+        analysis: {
+          enableMultivariate: true,
+        },
+        modeling: {
+          algorithmScoringWeights: {
+            performance: 0.5,
+            interpretability: 0.3,
+            scalability: 0.2,
+            robustness: 0.0,
+          },
+        },
+      },
+      'visualization': {
+        visualization: {
+          maxDataPoints: 50000,
+          chartScoringWeights: {
+            dataFit: 0.3,
+            clarity: 0.3,
+            insightPotential: 0.2,
+            accessibility: 0.2,
+          },
+        },
+      },
+      'quick-scan': {
+        performance: {
+          maxRows: 5000,
+        },
+        analysis: {
+          enableMultivariate: false,
+          maxCorrelationPairs: 10,
+        },
+      },
+    };
+    
+    const useCaseConfig = useCaseConfigs[useCase as keyof typeof useCaseConfigs];
+    return useCaseConfig ? this.deepMerge(DEFAULT_CONFIG, useCaseConfig) : JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+  }
 
   mergeConfigs(base: DataPilotConfig, override: DataPilotConfig): DataPilotConfig {
     return { ...base, ...override };
@@ -763,7 +907,9 @@ export class ConfigManager {
   /**
    * Update configuration dynamically
    */
-  updateConfig(updates: Partial<DataPilotConfig>): void {
+  updateConfig(updates?: Partial<DataPilotConfig>): void {
+    if (!updates) return;
+    
     // Update core config sections
     if (updates.performance) {
       this.coreConfigManager.updatePerformanceConfig(updates.performance);
