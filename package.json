@@ -41,7 +41,6 @@
     "test:package": "npm pack && npm install -g datapilot-cli-*.tgz && npm run test:installation && npm uninstall -g datapilot-cli",
     "release": "node scripts/release-automation.js",
     "pre-release": "npm run lint && npm run typecheck && npm run test:all && npm run build && npm run test:installation",
-    "prepublishOnly": "npm run build:clean",
     "prepack": "npm run build",
     "build:binaries": "npm run build && node scripts/build-sea.js all",
     "build:win": "npm run build && node scripts/build-sea.js win",
