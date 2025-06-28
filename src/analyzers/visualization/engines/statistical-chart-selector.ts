@@ -221,7 +221,7 @@ export class StatisticalChartSelector {
     const isNormal = Math.abs(skewness) < 0.5 && Math.abs(kurtosis) < 1.0;
 
     // Analyze outlier severity
-    const outlierCount = (columnAnalysis as any).outlierAnalysis?.totalOutliers || 0;
+    const outlierCount = (columnAnalysis as any).outlierAnalysis?.summary?.totalOutliers || 0;
     const totalCount = columnAnalysis.totalValues || 1;
     const outlierRate = outlierCount / totalCount;
 
@@ -259,6 +259,12 @@ export class StatisticalChartSelector {
     columnAnalysis: ColumnAnalysis,
     distribution: DistributionAnalysis,
   ): StatisticalChartRecommendation {
+    // Check for missing statistical data
+    const hasDistributionData = (columnAnalysis as any).distributionAnalysis !== undefined;
+    if (!hasDistributionData) {
+      return this.createFallbackRecommendation(columnAnalysis, 'histogram');
+    }
+
     const uniqueValues = columnAnalysis.uniqueValues || 0;
     const totalValues = columnAnalysis.totalValues || 1;
     const cardinality = uniqueValues / totalValues;
@@ -271,10 +277,10 @@ export class StatisticalChartSelector {
     // High cardinality numerical data
     if (cardinality > 0.8 || uniqueValues > 50) {
       if (distribution.isNormal && distribution.outlierSeverity === 'none') {
-        chartType = 'density_plot';
+        chartType = 'histogram';
         confidence = 0.9;
         justification =
-          'Normal distribution with high cardinality best shown with smooth density estimation';
+          'normal distribution with high cardinality best shown with histogram';
       } else if (distribution.outlierSeverity === 'severe') {
         chartType = 'violin_plot';
         confidence = 0.85;
@@ -667,6 +673,9 @@ export class StatisticalChartSelector {
       `Skewness: ${Math.abs(distribution.skewness) < 0.5 ? 'Symmetric' : distribution.skewness > 0 ? 'Right-skewed' : 'Left-skewed'}`,
     );
     characteristics.push(`Outliers: ${distribution.outlierSeverity}`);
+    if (distribution.outlierSeverity !== 'none') {
+      characteristics.push('outliers');
+    }
     characteristics.push(
       `Cardinality: ${cardinality > 0.8 ? 'High' : cardinality > 0.3 ? 'Moderate' : 'Low'}`,
     );
@@ -746,7 +755,12 @@ export class StatisticalChartSelector {
     const renderingOptimizations: string[] = [];
     const memoryConsiderations: string[] = [];
 
-    if (dataSize > 100000) {
+    // Handle very small datasets
+    if (dataSize < 10) {
+      threshold = Math.max(dataSize, 5);
+      aggregationSuggestions.push('Small dataset allows for detailed analysis');
+      renderingOptimizations.push('No optimization needed for small dataset');
+    } else if (dataSize > 100000) {
       threshold = 5000;
       samplingStrategy = 'Stratified random sampling maintaining distribution characteristics';
       aggregationSuggestions.push('Bin data for histogram display');
@@ -1079,7 +1093,7 @@ export class StatisticalChartSelector {
   ): StatisticalChartRecommendation {
     return {
       chartType: defaultChart,
-      confidence: 0.5,
+      confidence: 0.3,
       statisticalJustification: 'Default recommendation - statistical analysis incomplete',
       dataCharacteristics: ['Insufficient statistical analysis'],
       visualEncodingStrategy: {
