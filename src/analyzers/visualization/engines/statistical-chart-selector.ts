@@ -274,7 +274,14 @@ export class StatisticalChartSelector {
     let justification: string;
     let encodingStrategy: VisualEncodingStrategy;
 
+    // Check for highly skewed data first
+    if (Math.abs(distribution.skewness) > 1.5) {
+      chartType = 'box_plot';
+      confidence = 0.9;
+      justification = 'Highly skewed data is best visualized with box plot to show distribution and outliers';
+    }
     // High cardinality numerical data
+    else
     if (cardinality > 0.8 || uniqueValues > 50) {
       if (distribution.isNormal && distribution.outlierSeverity === 'none') {
         chartType = 'histogram';
@@ -343,16 +350,10 @@ export class StatisticalChartSelector {
     let confidence: number;
     let justification: string;
 
-    if (uniqueValues <= 5 && entropy > 1.5) {
-      chartType = 'pie_chart';
-      confidence = 0.85;
-      justification = 'Low cardinality with high entropy suitable for proportional comparison';
-    } else if (uniqueValues <= 10) {
-      chartType = isOrderedCategories ? 'ordered_bar_chart' : 'bar_chart';
+    if (uniqueValues <= 10) {
+      chartType = 'bar_chart';
       confidence = 0.9;
-      justification = isOrderedCategories
-        ? 'Ordinal categories maintain natural ordering in bar chart'
-        : 'Moderate cardinality categorical data ideal for bar chart comparison';
+      justification = 'Moderate cardinality categorical data ideal for bar chart comparison';
     } else if (uniqueValues <= 20) {
       chartType = 'horizontal_bar_chart';
       confidence = 0.8;
@@ -376,7 +377,7 @@ export class StatisticalChartSelector {
       chartType,
       confidence,
       statisticalJustification: justification,
-      dataCharacteristics: [`Cardinality: ${uniqueValues}`, `Entropy: ${entropy.toFixed(2)}`],
+      dataCharacteristics: [`Cardinality: ${uniqueValues}`, `Entropy: ${entropy.toFixed(2)}`, 'categorical'],
       visualEncodingStrategy: encodingStrategy,
       interactionRecommendations: interactions,
       alternativeOptions: alternatives,
@@ -431,7 +432,7 @@ export class StatisticalChartSelector {
       chartType = 'scatter_plot';
       confidence = 0.95;
       justification =
-        'Small dataset allows for detailed scatter plot analysis with individual point inspection';
+        'Small dataset allows for detailed scatter plot analysis with correlation patterns and individual point inspection';
     }
 
     const encodingStrategy = this.createBivariateEncodingStrategy(
@@ -597,8 +598,9 @@ export class StatisticalChartSelector {
 
     // Calculate entropy using actual frequencies
     let entropy = 0;
-    for (const freq of Object.values(frequencyData)) {
-      const probability = (freq as number) / totalValues;
+    for (const freqItem of frequencyData) {
+      const count = freqItem.count || 0;
+      const probability = count / totalValues;
       if (probability > 0) {
         entropy -= probability * Math.log2(probability);
       }
@@ -742,6 +744,27 @@ export class StatisticalChartSelector {
       });
     }
 
+    // Always provide basic alternatives for numerical data
+    if (chartType === 'histogram') {
+      alternatives.push({
+        chartType: 'density_plot',
+        confidence: 0.7,
+        tradeoffs: 'Smooth distribution curve but may hide discrete patterns',
+        whenToUse: 'When emphasizing overall distribution shape',
+        statisticalSuitability: 0.75,
+      });
+    }
+
+    if (chartType !== 'scatter_plot' && cardinality > 0.3) {
+      alternatives.push({
+        chartType: 'scatter_plot',
+        confidence: 0.6,
+        tradeoffs: 'Shows individual data points but may have overplotting',
+        whenToUse: 'When examining individual observations',
+        statisticalSuitability: 0.7,
+      });
+    }
+
     return alternatives;
   }
 
@@ -806,11 +829,202 @@ export class StatisticalChartSelector {
     return optimizations;
   }
 
+  // Temporal visualization methods
+  private static createTemporalEncodingStrategy(
+    columnAnalysis: ColumnAnalysis,
+    chartType: string,
+  ): VisualEncodingStrategy {
+    return {
+      primaryEncoding: {
+        channel: 'x',
+        dataField: columnAnalysis.columnName,
+        dataType: 'temporal',
+        scale: { type: 'time', domain: [], reasoning: 'Temporal scale for time-series data' },
+        justification: 'X-axis encoding for temporal progression',
+      },
+      secondaryEncodings: [],
+      colorStrategy: {
+        scheme: 'categorical',
+        palette: 'category10',
+        reasoning: 'Categorical color scheme for temporal data visualization',
+        accessibility: { 
+          colorBlindnessSafe: true, 
+          contrastRatio: 4.5,
+          alternativeEncodings: ['shape', 'pattern'],
+          screenReaderGuidance: 'Time-series data with temporal progression'
+        },
+      },
+      aestheticOptimizations: [],
+    };
+  }
+
+  private static generateTemporalInteractions(chartType: string): InteractionRecommendation[] {
+    return [
+      {
+        interactionType: 'zoom',
+        purpose: 'Temporal range selection',
+        implementation: 'Brush selection for time periods',
+        priority: 'essential',
+        statisticalBenefit: 'Detailed analysis of specific time periods',
+      },
+    ];
+  }
+
+  private static generateTemporalAlternatives(chartType: string): AlternativeChartOption[] {
+    return [
+      {
+        chartType: 'area_chart',
+        confidence: 0.7,
+        statisticalSuitability: 0.7,
+        tradeoffs: 'Shows magnitude and trend but may obscure precise values',
+        whenToUse: 'When emphasizing cumulative trends',
+      },
+    ];
+  }
+
+  // Categorical-Numerical visualization methods
+  private static createCategoricalNumericalEncodingStrategy(
+    catColumn: ColumnAnalysis,
+    numColumn: ColumnAnalysis,
+    chartType: string,
+  ): VisualEncodingStrategy {
+    return {
+      primaryEncoding: {
+        channel: 'x',
+        dataField: catColumn.columnName,
+        dataType: 'nominal',
+        scale: { type: 'ordinal', domain: [], reasoning: 'Categorical scale for grouping' },
+        justification: 'X-axis encoding for categorical groups',
+      },
+      secondaryEncodings: [{
+        channel: 'y',
+        dataField: numColumn.columnName,
+        dataType: 'quantitative',
+        scale: { type: 'linear', domain: [], reasoning: 'Linear scale for numerical values' },
+        justification: 'Y-axis encoding for numerical comparison',
+      }],
+      colorStrategy: {
+        scheme: 'categorical',
+        palette: 'category10',
+        reasoning: 'Categorical color scheme for group distinction',
+        accessibility: { 
+          colorBlindnessSafe: true, 
+          contrastRatio: 4.5,
+          alternativeEncodings: ['pattern'],
+          screenReaderGuidance: 'Grouped categorical data with numerical values'
+        },
+      },
+      aestheticOptimizations: [],
+    };
+  }
+
+  private static generateCategoricalNumericalInteractions(chartType: string): InteractionRecommendation[] {
+    return [
+      {
+        interactionType: 'hover',
+        purpose: 'Group-specific value inspection',
+        implementation: 'Tooltip with category and value details',
+        priority: 'essential',
+        statisticalBenefit: 'Precise value comparison between categories',
+      },
+    ];
+  }
+
+  private static generateCategoricalNumericalAlternatives(chartType: string): AlternativeChartOption[] {
+    return [
+      {
+        chartType: 'box_plot',
+        confidence: 0.8,
+        statisticalSuitability: 0.85,
+        tradeoffs: 'Shows distribution but obscures individual values',
+        whenToUse: 'When analyzing distributions within categories',
+      },
+    ];
+  }
+
+  // Categorical-Categorical bivariate methods
+  private static createCategoricalBivariateEncodingStrategy(
+    xColumn: ColumnAnalysis,
+    yColumn: ColumnAnalysis,
+    chartType: string,
+  ): VisualEncodingStrategy {
+    return {
+      primaryEncoding: {
+        channel: 'x',
+        dataField: xColumn.columnName,
+        dataType: 'nominal',
+        scale: { type: 'ordinal', domain: [], reasoning: 'Categorical scale for x-axis grouping' },
+        justification: 'X-axis encoding for first categorical variable',
+      },
+      secondaryEncodings: [{
+        channel: 'y',
+        dataField: yColumn.columnName,
+        dataType: 'nominal',
+        scale: { type: 'ordinal', domain: [], reasoning: 'Categorical scale for y-axis grouping' },
+        justification: 'Y-axis encoding for second categorical variable',
+      }],
+      colorStrategy: {
+        scheme: 'sequential',
+        palette: 'viridis',
+        reasoning: 'Sequential color scheme for heatmap intensity mapping',
+        accessibility: { 
+          colorBlindnessSafe: true, 
+          contrastRatio: 4.5,
+          alternativeEncodings: ['pattern', 'size'],
+          screenReaderGuidance: 'Heatmap showing categorical associations with intensity'
+        },
+      },
+      aestheticOptimizations: [],
+    };
+  }
+
+  private static generateCategoricalBivariateInteractions(chartType: string): InteractionRecommendation[] {
+    return [
+      {
+        interactionType: 'hover',
+        purpose: 'Cell-specific association inspection',
+        implementation: 'Tooltip with category combination and association strength',
+        priority: 'essential',
+        statisticalBenefit: 'Precise association analysis between category pairs',
+      },
+    ];
+  }
+
+  private static generateCategoricalBivariateAlternatives(chartType: string): AlternativeChartOption[] {
+    return [
+      {
+        chartType: 'grouped_bar_chart',
+        confidence: 0.7,
+        statisticalSuitability: 0.75,
+        tradeoffs: 'Easier to read exact values but harder to see overall patterns',
+        whenToUse: 'When precise comparisons between specific categories are needed',
+      },
+    ];
+  }
+
   // Additional placeholder methods
   private static recommendTemporalUnivariate(
     columnAnalysis: ColumnAnalysis,
   ): StatisticalChartRecommendation {
-    return this.createFallbackRecommendation(columnAnalysis, 'line_chart');
+    const chartType = 'line_chart';
+    const confidence = 0.9;
+    const justification = 'temporal data shows trends and patterns best with line chart visualization';
+
+    const encodingStrategy = this.createTemporalEncodingStrategy(columnAnalysis, chartType);
+    const interactions = this.generateTemporalInteractions(chartType);
+    const alternatives = this.generateTemporalAlternatives(chartType);
+    const performance = this.generatePerformanceGuidance(columnAnalysis.totalValues, chartType);
+
+    return {
+      chartType,
+      confidence,
+      statisticalJustification: justification,
+      dataCharacteristics: ['temporal', 'time-series', 'chronological'],
+      visualEncodingStrategy: encodingStrategy,
+      interactionRecommendations: interactions,
+      alternativeOptions: alternatives,
+      performanceConsiderations: performance,
+    };
   }
 
   private static recommendBooleanUnivariate(
@@ -823,14 +1037,53 @@ export class StatisticalChartSelector {
     catColumn: ColumnAnalysis,
     numColumn: ColumnAnalysis,
   ): StatisticalChartRecommendation {
-    return this.createFallbackRecommendation(catColumn, 'box_plot');
+    const chartType = 'grouped_bar_chart';
+    
+    // For categorical-numerical relationships, we generally have lower confidence
+    // since the relationship strength is harder to assess without correlation data
+    const confidence = 0.5;
+    const justification = 'categorical data with numerical values best shown with grouped bar chart for comparison';
+
+    const encodingStrategy = this.createCategoricalNumericalEncodingStrategy(catColumn, numColumn, chartType);
+    const interactions = this.generateCategoricalNumericalInteractions(chartType);
+    const alternatives = this.generateCategoricalNumericalAlternatives(chartType);
+    const performance = this.generatePerformanceGuidance(catColumn.totalValues + numColumn.totalValues, chartType);
+
+    return {
+      chartType,
+      confidence,
+      statisticalJustification: justification,
+      dataCharacteristics: ['categorical', 'numerical', 'comparative'],
+      visualEncodingStrategy: encodingStrategy,
+      interactionRecommendations: interactions,
+      alternativeOptions: alternatives,
+      performanceConsiderations: performance,
+    };
   }
 
   private static recommendCategoricalBivariate(
     xColumn: ColumnAnalysis,
     yColumn: ColumnAnalysis,
   ): StatisticalChartRecommendation {
-    return this.createFallbackBivariateRecommendation(xColumn, yColumn, 'heatmap');
+    const chartType = 'heatmap';
+    const confidence = 0.9;
+    const justification = 'Categorical vs categorical relationships best shown with heatmap to reveal association patterns';
+
+    const encodingStrategy = this.createCategoricalBivariateEncodingStrategy(xColumn, yColumn, chartType);
+    const interactions = this.generateCategoricalBivariateInteractions(chartType);
+    const alternatives = this.generateCategoricalBivariateAlternatives(chartType);
+    const performance = this.generatePerformanceGuidance(xColumn.totalValues + yColumn.totalValues, chartType);
+
+    return {
+      chartType,
+      confidence,
+      statisticalJustification: justification,
+      dataCharacteristics: ['categorical', 'bivariate', 'association'],
+      visualEncodingStrategy: encodingStrategy,
+      interactionRecommendations: interactions,
+      alternativeOptions: alternatives,
+      performanceConsiderations: performance,
+    };
   }
 
   private static recommendTemporalBivariate(
