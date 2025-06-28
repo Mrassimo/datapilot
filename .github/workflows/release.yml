@@ -408,11 +408,12 @@ jobs:
 
     - name: Debug - List files before upload
       run: |
-        echo "📁 Current directory contents:"
-        ls -la
-        echo ""
-        echo "🔍 Looking for datapilot-${{ matrix.platform }}-* files:"
-        ls -la datapilot-${{ matrix.platform }}-* || echo "No matching files found"
+        if [[ "$RUNNER_OS" == "Windows" ]]; then
+          dir
+        else
+          ls -la
+        fi
+      shell: bash
         
     - name: Upload release assets (Unix)
       if: (github.event_name == 'release' || github.event_name == 'workflow_dispatch') && runner.os != 'Windows'
