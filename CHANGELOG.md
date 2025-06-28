@@ -1,3 +1,10 @@
+## [1.4.17](https://github.com/Mrassimo/datapilot/compare/v1.4.16...v1.4.17) (2025-06-28)
+
+
+### Bug Fixes
+
+* COMPLETE Section 6 fix - all modeling task failures resolved ([7fe3541](https://github.com/Mrassimo/datapilot/commit/7fe3541fcb512bc46b2ce4af02b78a83192ba989)), closes [#36](https://github.com/Mrassimo/datapilot/issues/36)
+
 ## [1.4.16](https://github.com/Mrassimo/datapilot/compare/v1.4.15...v1.4.16) (2025-06-28)
 
 
