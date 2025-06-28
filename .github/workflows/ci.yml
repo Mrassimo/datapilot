@@ -159,10 +159,11 @@ jobs:
           caxa \
             --input . \
             --output test-binary \
-            --exclude-output binaries \
+            --exclude binaries \
             --exclude ".github" \
             --exclude "tests" \
-            --exclude "*.test.*"
+            --exclude "*.test.*" \
+            -- "{{caxa}}/node_modules/.bin/node" "{{caxa}}/dist/cli/index.js"
           
           chmod +x test-binary
           ./test-binary --version
