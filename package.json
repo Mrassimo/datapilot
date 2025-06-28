@@ -102,6 +102,8 @@
     "commander",
     "exceljs",
     "hyparquet",
+    "reflect-metadata",
+    "tsyringe",
     "uuid"
   ],
   "devDependencies": {
