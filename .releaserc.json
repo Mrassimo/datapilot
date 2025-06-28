@@ -18,7 +18,8 @@
     [
       "@semantic-release/npm",
       {
-        "npmPublish": true
+        "npmPublish": true,
+        "tarballDir": "."
       }
     ],
     [
