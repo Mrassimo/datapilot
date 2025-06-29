@@ -1,3 +1,10 @@
+## [1.6.2](https://github.com/Mrassimo/datapilot/compare/v1.6.1...v1.6.2) (2025-06-29)
+
+
+### Bug Fixes
+
+* COMPLETE resolution of all 4 critical issues from review v1.6.1 ([64f2cdb](https://github.com/Mrassimo/datapilot/commit/64f2cdb21671ba2cc3efd006dc820abd38c0d821)), closes [#42](https://github.com/Mrassimo/datapilot/issues/42) [#43](https://github.com/Mrassimo/datapilot/issues/43) [#44](https://github.com/Mrassimo/datapilot/issues/44) [#45](https://github.com/Mrassimo/datapilot/issues/45)
+
 ## [1.6.1](https://github.com/Mrassimo/datapilot/compare/v1.6.0...v1.6.1) (2025-06-29)
 
 
