@@ -1,3 +1,10 @@
+## [1.6.1](https://github.com/Mrassimo/datapilot/compare/v1.6.0...v1.6.1) (2025-06-29)
+
+
+### Bug Fixes
+
+* resolve 4 critical issues for v1.6.1 bug-fix release ([98380ec](https://github.com/Mrassimo/datapilot/commit/98380eccad33471112ceb904dcc6d79267b15e38))
+
 # [1.6.0](https://github.com/Mrassimo/datapilot/compare/v1.5.0...v1.6.0) (2025-06-29)
 
 
