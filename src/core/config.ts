@@ -361,10 +361,10 @@ export const DEFAULT_CONFIG: DataPilotConfig = {
       representational: 0.01,
     },
     qualityThresholds: {
-      excellent: 95,
-      good: 85,
-      fair: 70,
-      needsImprovement: 50,
+      excellent: 90,
+      good: 80,
+      fair: 65,
+      needsImprovement: 45,
     },
     duplicateThresholds: {
       exactDuplicateThreshold: 1.0,
