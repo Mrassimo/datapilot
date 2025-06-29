@@ -728,6 +728,7 @@ export class StreamingDateTimeAnalyzer implements StreamingColumnAnalyzer {
   private dateValues: Date[] = [];
   private originalStringValues: string[] = []; // Store original format for proper granularity detection
   private maxDateSamples = 50; // Strict limit
+  private dateValueFrequencies = new BoundedFrequencyCounter<string>(200); // Track unique date values
   private yearCounts = new BoundedFrequencyCounter<number>(50);
   private monthCounts = new BoundedFrequencyCounter<number>(12);
   private dayOfWeekCounts = new BoundedFrequencyCounter<number>(7);
@@ -755,6 +756,9 @@ export class StreamingDateTimeAnalyzer implements StreamingColumnAnalyzer {
     }
 
     this.validValues++;
+
+    // Track unique date values
+    this.dateValueFrequencies.update(String(value).trim());
 
     // Store a sample of dates (strict limit to prevent memory growth)
     if (this.dateValues.length < this.maxDateSamples) {
@@ -822,8 +826,8 @@ export class StreamingDateTimeAnalyzer implements StreamingColumnAnalyzer {
       totalValues: this.totalValues,
       missingValues: this.nullValues,
       missingPercentage: Number(((this.nullValues / this.totalValues) * 100).toFixed(2)),
-      uniqueValues: this.dateValues.length,
-      uniquePercentage: this.calculateUniquePercentage(this.dateValues.length, this.validValues),
+      uniqueValues: this.dateValueFrequencies.getFrequencies().size,
+      uniquePercentage: this.calculateUniquePercentage(this.dateValueFrequencies.getFrequencies().size, this.validValues),
     };
   }
 
@@ -1069,7 +1073,7 @@ export class StreamingBooleanAnalyzer implements StreamingColumnAnalyzer {
       uniquePercentage: Number(
         (
           ((validValues > 0 ? (this.trueCount > 0 && this.falseCount > 0 ? 2 : 1) : 0) /
-            this.totalValues) *
+            validValues) *
           100
         ).toFixed(2),
       ),
@@ -1132,6 +1136,7 @@ export class StreamingTextAnalyzer implements StreamingColumnAnalyzer {
   private urlCount = 0;
   private emailCount = 0;
   private wordFrequencies = new BoundedFrequencyCounter<string>(50); // Reduced from 1000
+  private valueFrequencies = new BoundedFrequencyCounter<string>(100); // Track unique text values
 
   constructor(
     private columnName: string,
@@ -1156,6 +1161,9 @@ export class StreamingTextAnalyzer implements StreamingColumnAnalyzer {
     }
 
     this.validValues++;
+
+    // Track unique text values
+    this.valueFrequencies.update(strValue);
 
     // Analyze text characteristics
     const charLength = strValue.length;
@@ -1230,8 +1238,8 @@ export class StreamingTextAnalyzer implements StreamingColumnAnalyzer {
       totalValues: this.totalValues,
       missingValues: this.nullValues,
       missingPercentage: Number(((this.nullValues / this.totalValues) * 100).toFixed(2)),
-      uniqueValues: this.validValues, // Approximation
-      uniquePercentage: this.calculateUniquePercentage(this.validValues, this.totalValues),
+      uniqueValues: this.valueFrequencies.getFrequencies().size,
+      uniquePercentage: this.calculateUniquePercentage(this.valueFrequencies.getFrequencies().size, this.validValues),
     };
   }
 
