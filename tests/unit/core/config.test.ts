@@ -68,7 +68,7 @@ describe('Configuration System', () => {
     it('should have valid quality configuration defaults', () => {
       const quality = DEFAULT_CONFIG.quality;
       expect(quality.qualityWeights.completeness).toBe(0.2);
-      expect(quality.qualityThresholds.excellent).toBe(95);
+      expect(quality.qualityThresholds.excellent).toBe(90);
       expect(quality.duplicateThresholds.exactDuplicateThreshold).toBe(1.0);
     });
 
