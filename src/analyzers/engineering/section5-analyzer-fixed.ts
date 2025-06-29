@@ -113,14 +113,28 @@ export class Section5Analyzer {
     // Schema Analysis
     const schemaAnalysis = {
       currentSchema: {
-        columns: section1Result.overview.structuralDimensions.columnInventory.map((col) => ({
-          originalName: col.name,
-          detectedType: 'string', // Simplified
-          inferredSemanticType: 'unknown',
-          nullabilityPercentage: 5,
-          uniquenessPercentage: 80,
-          sampleValues: ['sample1', 'sample2'],
-        })),
+        columns: section1Result.overview.structuralDimensions.columnInventory.map((col) => {
+          // Get actual missing percentage from Section 2
+          const completenessInfo = section2Result.qualityAudit?.completeness?.columnLevel?.find(
+            (c) => c.columnName === col.name
+          );
+          const actualMissingPercentage = completenessInfo?.missingPercentage ?? 0;
+          
+          // Get actual uniqueness percentage from Section 2  
+          const uniquenessInfo = section2Result.qualityAudit?.uniqueness?.columnUniqueness?.find(
+            (u) => u.columnName === col.name
+          );
+          const actualUniquenessPercentage = uniquenessInfo?.uniquePercentage ?? 100;
+
+          return {
+            originalName: col.name,
+            detectedType: 'string', // Simplified
+            inferredSemanticType: 'unknown',
+            nullabilityPercentage: Math.round(actualMissingPercentage * 100) / 100,
+            uniquenessPercentage: Math.round(actualUniquenessPercentage * 100) / 100,
+            sampleValues: ['sample1', 'sample2'],
+          };
+        }),
         estimatedRowCount: section1Result.overview.structuralDimensions.totalDataRows,
         estimatedSizeBytes: section1Result.overview.fileDetails.fileSizeBytes,
         detectedEncoding: section1Result.overview.parsingMetadata.encoding.encoding,
