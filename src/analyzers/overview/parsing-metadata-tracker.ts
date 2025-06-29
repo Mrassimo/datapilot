@@ -15,6 +15,7 @@ import type {
   Section1Config,
   Section1Warning,
 } from './types';
+import { getDataPilotVersion } from '../../utils/version';
 
 export class ParsingMetadataTracker {
   private warnings: Section1Warning[] = [];
@@ -284,8 +285,7 @@ export class ParsingMetadataTracker {
    * Get parser version
    */
   private getParserVersion(): string {
-    // In a real implementation, this would come from package.json
-    return '1.0.0';
+    return getDataPilotVersion();
   }
 
   /**

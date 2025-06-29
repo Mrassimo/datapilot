@@ -4,6 +4,7 @@
 
 import { writeFileSync, mkdirSync } from 'fs';
 import { dirname, extname } from 'path';
+import { getDataPilotVersion } from '../utils/version';
 import type { CLIOptions } from './types';
 import type { Section1Result } from '../analyzers/overview/types';
 import type { Section2Result } from '../analyzers/quality/types';
@@ -547,7 +548,7 @@ export class OutputManager {
     // Create a clean object for JSON output
     const jsonOutput = {
       metadata: {
-        version: '1.0.0',
+        version: getDataPilotVersion(),
         generatedAt: new Date().toISOString(),
         command: 'datapilot',
       },
@@ -574,7 +575,7 @@ export class OutputManager {
 
     const yaml = this.objectToYAML({
       metadata: {
-        version: '1.0.0',
+        version: getDataPilotVersion(),
         generatedAt: new Date().toISOString(),
         command: 'datapilot',
       },
@@ -660,7 +661,7 @@ export class OutputManager {
   private formatSection2AsJSON(result: Section2Result): string {
     const jsonOutput = {
       metadata: {
-        version: '1.0.0',
+        version: getDataPilotVersion(),
         generatedAt: new Date().toISOString(),
         command: 'datapilot quality',
         analysisType: 'Data Quality & Integrity Audit',
@@ -679,7 +680,7 @@ export class OutputManager {
   private formatSection2AsYAML(result: Section2Result): string {
     const yaml = this.objectToYAML({
       metadata: {
-        version: '1.0.0',
+        version: getDataPilotVersion(),
         generatedAt: new Date().toISOString(),
         command: 'datapilot quality',
         analysisType: 'Data Quality & Integrity Audit',
@@ -698,7 +699,7 @@ export class OutputManager {
   private formatSection3AsJSON(result: Section3Result): string {
     const jsonOutput = {
       metadata: {
-        version: '1.0.0',
+        version: getDataPilotVersion(),
         generatedAt: new Date().toISOString(),
         command: 'datapilot eda',
         analysisType: 'Exploratory Data Analysis',
@@ -718,7 +719,7 @@ export class OutputManager {
   private formatSection3AsYAML(result: Section3Result): string {
     const yaml = this.objectToYAML({
       metadata: {
-        version: '1.0.0',
+        version: getDataPilotVersion(),
         generatedAt: new Date().toISOString(),
         command: 'datapilot eda',
         analysisType: 'Exploratory Data Analysis',
@@ -738,7 +739,7 @@ export class OutputManager {
   private formatSection4AsJSON(result: Section4Result): string {
     const jsonOutput = {
       metadata: {
-        version: '1.0.0',
+        version: getDataPilotVersion(),
         generatedAt: new Date().toISOString(),
         command: 'datapilot viz',
         analysisType: 'Visualization Intelligence',
@@ -758,7 +759,7 @@ export class OutputManager {
   private formatSection4AsYAML(result: Section4Result): string {
     const yaml = this.objectToYAML({
       metadata: {
-        version: '1.0.0',
+        version: getDataPilotVersion(),
         generatedAt: new Date().toISOString(),
         command: 'datapilot viz',
         analysisType: 'Visualization Intelligence',
@@ -778,7 +779,7 @@ export class OutputManager {
   private formatSection5AsJSON(result: Section5Result): string {
     const jsonOutput = {
       metadata: {
-        version: '1.0.0',
+        version: getDataPilotVersion(),
         generatedAt: new Date().toISOString(),
         command: 'datapilot engineering',
         analysisType: 'Data Engineering & Structural Insights',
@@ -798,7 +799,7 @@ export class OutputManager {
   private formatSection5AsYAML(result: Section5Result): string {
     const yaml = this.objectToYAML({
       metadata: {
-        version: '1.0.0',
+        version: getDataPilotVersion(),
         generatedAt: new Date().toISOString(),
         command: 'datapilot engineering',
         analysisType: 'Data Engineering & Structural Insights',
@@ -818,7 +819,7 @@ export class OutputManager {
   private formatSection6AsJSON(result: Section6Result): string {
     const jsonOutput = {
       metadata: {
-        version: '1.0.0',
+        version: getDataPilotVersion(),
         generatedAt: new Date().toISOString(),
         command: 'datapilot modeling',
         analysisType: 'Predictive Modeling & Advanced Analytics Guidance',
@@ -838,7 +839,7 @@ export class OutputManager {
   private formatSection6AsYAML(result: Section6Result): string {
     const yaml = this.objectToYAML({
       metadata: {
-        version: '1.0.0',
+        version: getDataPilotVersion(),
         generatedAt: new Date().toISOString(),
         command: 'datapilot modeling',
         analysisType: 'Predictive Modeling & Advanced Analytics Guidance',
@@ -906,7 +907,7 @@ export class OutputManager {
   private formatJoinAsJSON(result: any): string {
     const jsonOutput = {
       metadata: {
-        version: '1.0.0',
+        version: getDataPilotVersion(),
         generatedAt: new Date().toISOString(),
         command: 'datapilot engineering (multi-file)',
         analysisType: 'Multi-File Join Analysis',
@@ -923,7 +924,7 @@ export class OutputManager {
   private formatJoinAsYAML(result: any): string {
     const yaml = this.objectToYAML({
       metadata: {
-        version: '1.0.0',
+        version: getDataPilotVersion(),
         generatedAt: new Date().toISOString(),
         command: 'datapilot engineering (multi-file)',
         analysisType: 'Multi-File Join Analysis',

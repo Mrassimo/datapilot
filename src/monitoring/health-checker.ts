@@ -6,6 +6,7 @@
 import { globalMemoryManager } from '../utils/memory-manager';
 import { globalErrorHandler } from '../utils/error-handler';
 import { logger } from '../utils/logger';
+import { getDataPilotVersion } from '../utils/version';
 
 export interface HealthStatus {
   status: 'healthy' | 'degraded' | 'unhealthy';
@@ -105,7 +106,7 @@ class HealthChecker {
       status,
       timestamp: new Date().toISOString(),
       uptime: Date.now() - this.startTime,
-      version: process.env.npm_package_version || '1.0.0',
+      version: process.env.npm_package_version || getDataPilotVersion(),
       checks,
       summary: {
         total: checks.length,

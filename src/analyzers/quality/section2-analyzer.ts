@@ -23,6 +23,7 @@ import { ValidityAnalyzer } from './validity-analyzer';
 import { BusinessRuleEngine, type BusinessRuleConfig } from './business-rule-engine';
 import { PatternValidationEngine, type PatternValidationConfig } from './pattern-validation-engine';
 import { getConfig } from '../../core/config';
+import { getDataPilotVersion } from '../../utils/version';
 
 export interface Section2AnalyzerInput {
   data: (string | null | undefined)[][];
@@ -201,7 +202,7 @@ export class Section2Analyzer {
         representational,
         profilingInsights,
         generatedAt: new Date(),
-        version: '1.0.0',
+        version: getDataPilotVersion(),
       };
 
       const totalAnalysisTime = performance.now() - this.startTime;

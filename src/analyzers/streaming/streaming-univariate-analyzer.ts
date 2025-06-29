@@ -705,6 +705,7 @@ export class StreamingDateTimeAnalyzer implements StreamingColumnAnalyzer {
   private validValues = 0;
   private nullValues = 0;
   private dateValues: Date[] = [];
+  private originalStringValues: string[] = []; // Store original format for proper granularity detection
   private maxDateSamples = 50; // Strict limit
   private yearCounts = new BoundedFrequencyCounter<number>(50);
   private monthCounts = new BoundedFrequencyCounter<number>(12);
@@ -737,6 +738,7 @@ export class StreamingDateTimeAnalyzer implements StreamingColumnAnalyzer {
     // Store a sample of dates (strict limit to prevent memory growth)
     if (this.dateValues.length < this.maxDateSamples) {
       this.dateValues.push(dateValue);
+      this.originalStringValues.push(String(value).trim());
     }
 
     // Update frequency counters
@@ -821,14 +823,53 @@ export class StreamingDateTimeAnalyzer implements StreamingColumnAnalyzer {
   }
 
   private detectGranularity(): string {
-    // Analyze the precision of timestamps
-    const hasSeconds = this.dateValues.some((d) => d.getSeconds() !== 0);
-    const hasMinutes = this.dateValues.some((d) => d.getMinutes() !== 0);
-    const hasHours = this.dateValues.some((d) => d.getHours() !== 0);
+    // Analyze granularity based on original string formats to avoid timezone conversion issues
+    if (this.originalStringValues.length === 0) {
+      return 'Day'; // Safe fallback
+    }
 
+    let hasSeconds = false;
+    let hasMinutes = false;
+    let hasHours = false;
+    let hasTimeComponent = false;
+
+    for (const dateStr of this.originalStringValues) {
+      // Check for explicit time components in the string format
+      // This avoids timezone conversion issues that occur with Date object methods
+      
+      // Look for seconds: patterns like :SS or seconds decimal
+      if (/:\d{2}:\d{2}(\.\d+)?([+-]\d{2}:?\d{2}|Z)?$/i.test(dateStr) || 
+          /:\d{2}\.\d+([+-]\d{2}:?\d{2}|Z)?$/i.test(dateStr)) {
+        hasSeconds = true;
+        hasTimeComponent = true;
+      }
+      // Look for minutes: patterns like HH:MM
+      else if (/\d{1,2}:\d{2}([+-]\d{2}:?\d{2}|Z)?$/i.test(dateStr) ||
+               /T\d{1,2}:\d{2}([+-]\d{2}:?\d{2}|Z)?$/i.test(dateStr)) {
+        hasMinutes = true;
+        hasTimeComponent = true;
+      }
+      // Look for hours: patterns like HH or THH
+      else if (/T\d{1,2}([+-]\d{2}:?\d{2}|Z)?$/i.test(dateStr) ||
+               /\s+\d{1,2}([+-]\d{2}:?\d{2}|Z)?$/i.test(dateStr)) {
+        hasHours = true;
+        hasTimeComponent = true;
+      }
+      // Check for any time separator (T, space followed by time pattern)
+      else if (/[T\s]\d{1,2}(:\d{2})?(:\d{2})?/.test(dateStr)) {
+        hasTimeComponent = true;
+        if (/:\d{2}:\d{2}/.test(dateStr)) hasSeconds = true;
+        else if (/:\d{2}/.test(dateStr)) hasMinutes = true;
+        else hasHours = true;
+      }
+    }
+
+    // Return the highest precision found
     if (hasSeconds) return 'Second';
     if (hasMinutes) return 'Minute';
     if (hasHours) return 'Hour';
+    
+    // If no explicit time components found in strings, it's date-only data
     return 'Day';
   }
 

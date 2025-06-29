@@ -994,20 +994,26 @@ export class Section6Analyzer {
       .map(col => col.name)
       .slice(0, 10);
 
+    // Determine if this should be binary or multiclass classification
+    const uniqueCount = this.getUniqueValueCount(targetColumn, section3Result);
+    const isBinary = uniqueCount === 2;
+    const taskType = isBinary ? 'binary_classification' : 'multiclass_classification';
+    const targetType = isBinary ? 'binary' : 'multiclass';
+
     return {
-      taskType: 'binary_classification',
+      taskType,
       targetVariable: targetColumn.name,
-      targetType: 'binary',
+      targetType,
       inputFeatures,
       businessObjective: `Classify instances based on ${targetColumn.name} categories`,
       technicalObjective: `Build classification model to predict ${targetColumn.name} categories`,
       justification: [
-        `${targetColumn.name} selected as potential categorical target variable`,
-        'Classification can identify decision patterns in the data',
+        `${targetColumn.name} selected as potential categorical target variable with ${uniqueCount} unique values`,
+        `${isBinary ? 'Binary' : 'Multiclass'} classification can identify decision patterns in the data`,
         'Useful for understanding discriminative features',
-        'Can be adapted for binary or multiclass problems'
+        `Appropriate for ${isBinary ? 'binary' : 'multiclass'} problem based on target cardinality`
       ],
-      dataRequirements: this.generateDataRequirements('binary_classification', mlReadiness),
+      dataRequirements: this.generateDataRequirements(taskType, mlReadiness),
       feasibilityScore: Math.max(65, mlReadiness.overallScore - 5), // Moderate-high feasibility
       confidenceLevel: 'medium' as const,
       estimatedComplexity: 'moderate' as const,
@@ -1629,8 +1635,34 @@ export class Section6Analyzer {
   }
 
   private getUniqueValueCount(column: ColumnInventory, section3Result: Section3Result): number {
-    // Simplified - would normally extract from EDA results
-    return 2; // Default for demonstration
+    // Find the column analysis from Section 3 EDA results
+    const univariateAnalysis = section3Result.edaAnalysis?.univariateAnalysis;
+    
+    // Check if univariateAnalysis exists and is an array
+    if (!Array.isArray(univariateAnalysis)) {
+      // Conservative fallback for binary classification when no proper analysis data
+      return 2;
+    }
+    
+    const columnAnalysis = univariateAnalysis.find(
+      analysis => analysis.columnName === column.name
+    );
+    
+    if (columnAnalysis && 'uniqueCategories' in columnAnalysis) {
+      // For categorical analysis, use the unique categories count
+      const categoricalAnalysis = columnAnalysis as any; // Type assertion for categorical
+      return categoricalAnalysis.uniqueCategories || 
+             categoricalAnalysis.frequencyDistribution?.length || 
+             categoricalAnalysis.uniqueValues || 0;
+    }
+    
+    if (columnAnalysis) {
+      // For any analysis, try to get unique values from base profile
+      return columnAnalysis.uniqueValues || 2;
+    }
+    
+    // Conservative fallback for binary classification
+    return 2;
   }
 
   private hasAnomalyPotential(

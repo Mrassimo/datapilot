@@ -9,6 +9,7 @@ import { StructuralAnalyzer } from './structural-analyzer';
 import { EnvironmentProfiler } from './environment-profiler';
 import { DataPreviewGenerator } from './data-preview-generator';
 import { logger } from '../../utils/logger';
+import { getDataPilotVersion } from '../../utils/version';
 import type { Section1Result, Section1Config, Section1Progress, Section1Warning } from './types';
 
 export class Section1Analyzer {
@@ -152,7 +153,7 @@ export class Section1Analyzer {
         executionContext,
         dataPreview,
         generatedAt: new Date(),
-        version: this.getDataPilotVersion(),
+        version: this.getDataPilotVersionInternal(),
       };
 
       const performanceMetrics = {
@@ -227,9 +228,8 @@ export class Section1Analyzer {
   /**
    * Get DataPilot version
    */
-  private getDataPilotVersion(): string {
-    // In production, this would read from package.json
-    return '1.0.0';
+  private getDataPilotVersionInternal(): string {
+    return getDataPilotVersion();
   }
 
   /**

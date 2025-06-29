@@ -11,7 +11,7 @@
  */
 
 import type { ColumnAnalysis, BivariateAnalysis } from '../../eda/types';
-import { EdaDataType } from '../../eda/types';
+import { EdaDataType, SemanticType } from '../../eda/types';
 
 export interface StatisticalChartRecommendation {
   chartType: string;
@@ -343,8 +343,15 @@ export class StatisticalChartSelector {
     columnAnalysis: ColumnAnalysis,
   ): StatisticalChartRecommendation {
     const uniqueValues = columnAnalysis.uniqueValues || 0;
+    const uniquePercentage = columnAnalysis.uniquePercentage || 0;
     const entropy = this.calculateEntropy(columnAnalysis);
     const isOrderedCategories = this.detectOrderedCategories(columnAnalysis);
+
+    // Check if this is an identifier column first - avoid meaningless frequency charts
+    if (columnAnalysis.inferredSemanticType === SemanticType.IDENTIFIER || 
+        (uniquePercentage >= 95 && uniqueValues > 10)) {
+      return this.createIdentifierRecommendation(columnAnalysis);
+    }
 
     let chartType: string;
     let confidence: number;
@@ -1429,6 +1436,122 @@ export class StatisticalChartSelector {
         aggregationSuggestions: [],
         renderingOptimizations: [],
         memoryConsiderations: [],
+      },
+    };
+  }
+
+  /**
+   * Create recommendation for identifier columns - avoid meaningless frequency charts
+   */
+  private static createIdentifierRecommendation(
+    columnAnalysis: ColumnAnalysis,
+  ): StatisticalChartRecommendation {
+    return {
+      chartType: 'summary_table',
+      confidence: 0.9,
+      statisticalJustification: `Column '${columnAnalysis.columnName}' appears to be an identifier with ${columnAnalysis.uniquePercentage?.toFixed(1)}% unique values. Frequency-based visualizations are not meaningful for unique identifiers.`,
+      dataCharacteristics: [
+        `Unique identifier column (${columnAnalysis.uniqueValues} unique values)`,
+        `${columnAnalysis.uniquePercentage?.toFixed(1)}% uniqueness indicates identifier nature`,
+        'Individual values do not represent meaningful categories for frequency analysis',
+      ],
+      visualEncodingStrategy: {
+        primaryEncoding: {
+          channel: 'x',
+          dataField: columnAnalysis.columnName,
+          dataType: 'nominal',
+          scale: {
+            type: 'ordinal',
+            domain: [],
+            range: [],
+            reasoning: 'Identifier columns use simple ordinal scale',
+          },
+          justification: 'Identifier columns should use simple text display',
+        },
+        secondaryEncodings: [],
+        colorStrategy: {
+          scheme: 'categorical',
+          palette: 'category10',
+          accessibility: {
+            colorBlindnessSafe: true,
+            contrastRatio: 4.5,
+            alternativeEncodings: ['pattern'],
+            screenReaderGuidance: `${columnAnalysis.columnName} is an identifier column with unique values`,
+          },
+          reasoning: 'Identifier columns should use simple text display',
+        },
+        aestheticOptimizations: [
+          {
+            property: 'display',
+            value: 'sample_only',
+            reasoning: 'Show sample values only to avoid overwhelming display',
+            impact: 'high',
+          },
+          {
+            property: 'aggregation',
+            value: 'count',
+            reasoning: 'Display row count rather than individual frequencies',
+            impact: 'high',
+          },
+          {
+            property: 'pagination',
+            value: true,
+            reasoning: 'Use pagination for large identifier lists',
+            impact: 'medium',
+          },
+        ],
+      },
+      interactionRecommendations: [
+        {
+          interactionType: 'filter',
+          purpose: 'Enable identifier-based filtering',
+          implementation: 'Search box for identifier lookup and filtering',
+          priority: 'recommended',
+          statisticalBenefit: 'Allows efficient data subset selection using unique identifiers',
+        },
+        {
+          interactionType: 'click',
+          purpose: 'Show related record details',
+          implementation: 'Click to view full record or drill-down information',
+          priority: 'optional',
+          statisticalBenefit: 'Provides context for individual identifier values',
+        },
+      ],
+      alternativeOptions: [
+        {
+          chartType: 'row_count_summary',
+          confidence: 0.95,
+          tradeoffs: 'Shows count rather than individual values',
+          whenToUse: 'When you need to understand data volume',
+          statisticalSuitability: 0.9,
+        },
+        {
+          chartType: 'uniqueness_display',
+          confidence: 0.9,
+          tradeoffs: 'Shows uniqueness percentage and statistics',
+          whenToUse: 'When validating data quality or identifier nature',
+          statisticalSuitability: 0.85,
+        },
+        {
+          chartType: 'sample_preview',
+          confidence: 0.8,
+          tradeoffs: 'Shows only first 10-20 values as examples',
+          whenToUse: 'When users need to see identifier format/pattern',
+          statisticalSuitability: 0.7,
+        },
+        {
+          chartType: 'no_visualization',
+          confidence: 0.95,
+          tradeoffs: 'No chart generated, use as grouping/filter variable only',
+          whenToUse: 'When identifiers are purely functional (keys, IDs)',
+          statisticalSuitability: 0.95,
+        },
+      ],
+      performanceConsiderations: {
+        dataPointThreshold: columnAnalysis.uniqueValues || 0,
+        aggregationSuggestions: ['Display count of unique values instead of listing all'],
+        renderingOptimizations: ['Virtualize large identifier lists', 'Use search/filter for navigation'],
+        memoryConsiderations: ['Do not render all unique values simultaneously'],
       },
     };
   }
