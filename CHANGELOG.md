@@ -1,3 +1,11 @@
+## [1.6.6](https://github.com/Mrassimo/datapilot/compare/v1.6.5...v1.6.6) (2025-06-29)
+
+
+### Bug Fixes
+
+* complete minor issue resolution for v1.6.5+ perfection ([5cd467b](https://github.com/Mrassimo/datapilot/commit/5cd467b8bd686240a12ffb9da71819f8941e1514))
+* display actual sample values in Section 5 schema analysis ([27c0a24](https://github.com/Mrassimo/datapilot/commit/27c0a24a3c173b6e6554b387cce808844de21717))
+
 ## [1.6.5](https://github.com/Mrassimo/datapilot/compare/v1.6.4...v1.6.5) (2025-06-29)
 
 
