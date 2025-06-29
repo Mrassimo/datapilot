@@ -1,3 +1,11 @@
+## [1.6.5](https://github.com/Mrassimo/datapilot/compare/v1.6.4...v1.6.5) (2025-06-29)
+
+
+### Bug Fixes
+
+* calibrate Section 2 quality scoring thresholds for realistic assessment ([380691e](https://github.com/Mrassimo/datapilot/commit/380691e8ab1c14cd8ff9839ea79229d3267ca40a))
+* resolve Section 5 schema accuracy issues - use real statistics ([2791eae](https://github.com/Mrassimo/datapilot/commit/2791eae1e88aea9947763c5caf22602669702ef6))
+
 ## [1.6.4](https://github.com/Mrassimo/datapilot/compare/v1.6.3...v1.6.4) (2025-06-29)
 
 
