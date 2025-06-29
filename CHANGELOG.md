@@ -1,3 +1,10 @@
+# [1.6.0](https://github.com/Mrassimo/datapilot/compare/v1.5.0...v1.6.0) (2025-06-29)
+
+
+### Features
+
+* consolidate CI and Release workflows into unified CI/CD pipeline ([ea2c045](https://github.com/Mrassimo/datapilot/commit/ea2c04568b6a493f709141ba67152a293dbfd10e))
+
 # [1.5.0](https://github.com/Mrassimo/datapilot/compare/v1.4.17...v1.5.0) (2025-06-28)
 
 
