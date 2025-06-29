@@ -10,6 +10,7 @@ import {
   BoundedFrequencyCounter,
 } from './online-statistics';
 import { ShapiroWilkTest, JarqueBeraTest, KolmogorovSmirnovTest } from './statistical-tests';
+import { defaultNormalizeValue } from '../../utils/data-quality-utils';
 import type {
   BaseColumnProfile,
   NumericalColumnAnalysis,
@@ -145,7 +146,7 @@ export class StreamingNumericalAnalyzer implements StreamingColumnAnalyzer {
       missingValues: this.nullValues,
       missingPercentage: Number(((this.nullValues / this.totalValues) * 100).toFixed(2)),
       uniqueValues,
-      uniquePercentage: Number(((uniqueValues / this.validValues) * 100).toFixed(2)),
+      uniquePercentage: this.calculateUniquePercentage(uniqueValues, this.validValues),
     };
   }
 
@@ -494,6 +495,16 @@ export class StreamingNumericalAnalyzer implements StreamingColumnAnalyzer {
     // Clear reservoir sample to free memory
     this.reservoir = new ReservoirSampler<number>(100, 42);
   }
+
+  /**
+   * Calculate uniqueness percentage using consistent formula across all sections
+   * Fixes inter-section consistency bug
+   */
+  private calculateUniquePercentage(uniqueCount: number, validValueCount: number): number {
+    if (validValueCount === 0) return 0;
+    const percentage = (uniqueCount / validValueCount) * 100;
+    return Number(percentage.toFixed(2));
+  }
 }
 
 /**
@@ -579,7 +590,7 @@ export class StreamingCategoricalAnalyzer implements StreamingColumnAnalyzer {
       missingValues: this.nullValues,
       missingPercentage: Number(((this.nullValues / this.totalValues) * 100).toFixed(2)),
       uniqueValues,
-      uniquePercentage: Number(((uniqueValues / this.validValues) * 100).toFixed(2)),
+      uniquePercentage: this.calculateUniquePercentage(uniqueValues, this.validValues),
     };
   }
 
@@ -694,6 +705,16 @@ export class StreamingCategoricalAnalyzer implements StreamingColumnAnalyzer {
   getWarnings(): Section3Warning[] {
     return [...this.warnings];
   }
+
+  /**
+   * Calculate uniqueness percentage using consistent formula across all sections
+   * Fixes inter-section consistency bug
+   */
+  private calculateUniquePercentage(uniqueCount: number, validValueCount: number): number {
+    if (validValueCount === 0) return 0;
+    const percentage = (uniqueCount / validValueCount) * 100;
+    return Number(percentage.toFixed(2));
+  }
 }
 
 /**
@@ -802,7 +823,7 @@ export class StreamingDateTimeAnalyzer implements StreamingColumnAnalyzer {
       missingValues: this.nullValues,
       missingPercentage: Number(((this.nullValues / this.totalValues) * 100).toFixed(2)),
       uniqueValues: this.dateValues.length,
-      uniquePercentage: Number(((this.dateValues.length / this.validValues) * 100).toFixed(2)),
+      uniquePercentage: this.calculateUniquePercentage(this.dateValues.length, this.validValues),
     };
   }
 
@@ -970,6 +991,16 @@ export class StreamingDateTimeAnalyzer implements StreamingColumnAnalyzer {
   getWarnings(): Section3Warning[] {
     return [...this.warnings];
   }
+
+  /**
+   * Calculate uniqueness percentage using consistent formula across all sections
+   * Fixes inter-section consistency bug
+   */
+  private calculateUniquePercentage(uniqueCount: number, validValueCount: number): number {
+    if (validValueCount === 0) return 0;
+    const percentage = (uniqueCount / validValueCount) * 100;
+    return Number(percentage.toFixed(2));
+  }
 }
 
 /**
@@ -1072,6 +1103,16 @@ export class StreamingBooleanAnalyzer implements StreamingColumnAnalyzer {
 
   getWarnings(): Section3Warning[] {
     return [...this.warnings];
+  }
+
+  /**
+   * Calculate uniqueness percentage using consistent formula across all sections
+   * Fixes inter-section consistency bug
+   */
+  private calculateUniquePercentage(uniqueCount: number, validValueCount: number): number {
+    if (validValueCount === 0) return 0;
+    const percentage = (uniqueCount / validValueCount) * 100;
+    return Number(percentage.toFixed(2));
   }
 }
 
@@ -1190,7 +1231,7 @@ export class StreamingTextAnalyzer implements StreamingColumnAnalyzer {
       missingValues: this.nullValues,
       missingPercentage: Number(((this.nullValues / this.totalValues) * 100).toFixed(2)),
       uniqueValues: this.validValues, // Approximation
-      uniquePercentage: Number(((this.validValues / this.totalValues) * 100).toFixed(2)),
+      uniquePercentage: this.calculateUniquePercentage(this.validValues, this.totalValues),
     };
   }
 
@@ -1254,5 +1295,15 @@ export class StreamingTextAnalyzer implements StreamingColumnAnalyzer {
 
   getWarnings(): Section3Warning[] {
     return [...this.warnings];
+  }
+
+  /**
+   * Calculate uniqueness percentage using consistent formula across all sections
+   * Fixes inter-section consistency bug
+   */
+  private calculateUniquePercentage(uniqueCount: number, validValueCount: number): number {
+    if (validValueCount === 0) return 0;
+    const percentage = (uniqueCount / validValueCount) * 100;
+    return Number(percentage.toFixed(2));
   }
 }

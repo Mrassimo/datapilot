@@ -12,6 +12,7 @@ import type {
 } from './types';
 import { DataType } from '../../core/types';
 import { logger } from '../../utils/logger';
+import { calculateColumnUniqueness, defaultNormalizeValue } from '../../utils/data-quality-utils';
 
 export interface UniquenessAnalyzerInput {
   data: (string | null | undefined)[][];
@@ -164,24 +165,23 @@ export class UniquenessAnalyzer {
   }
 
   private analyzeColumnUniqueness() {
-    return this.headers.map((columnName, colIdx) => {
-      const valueMap = new Map<string, number>();
-      let nonNullCount = 0;
+    // Use shared data quality utility for consistent calculations across sections
+    const standardResults = calculateColumnUniqueness(this.data, this.headers, this.normalizeValue.bind(this));
 
+    // Add the most frequent duplicate analysis on top of the standard calculation
+    return standardResults.map(result => {
+      const colIdx = this.headers.indexOf(result.columnName);
+      
+      // Find most frequent duplicate using the same normalization
+      const valueMap = new Map<string, number>();
       for (let rowIdx = 0; rowIdx < this.rowCount; rowIdx++) {
         const value = this.normalizeValue(this.data[rowIdx]?.[colIdx]);
         if (value !== null) {
-          nonNullCount++;
           const key = String(value);
           valueMap.set(key, (valueMap.get(key) || 0) + 1);
         }
       }
 
-      const uniqueCount = valueMap.size;
-      const uniquePercentage = nonNullCount > 0 ? (uniqueCount / nonNullCount) * 100 : 0;
-      const duplicateCount = nonNullCount - uniqueCount;
-
-      // Find most frequent duplicate
       let mostFrequentDuplicate = undefined;
       let maxFrequency = 1;
 
@@ -193,9 +193,9 @@ export class UniquenessAnalyzer {
       }
 
       return {
-        columnName,
-        uniquePercentage,
-        duplicateCount,
+        columnName: result.columnName,
+        uniquePercentage: result.uniquePercentage, // Now consistent across sections
+        duplicateCount: result.duplicateCount,
         mostFrequentDuplicate,
       };
     });
