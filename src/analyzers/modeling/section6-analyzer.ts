@@ -763,16 +763,16 @@ export class Section6Analyzer {
     const categoricalColumns = this.identifyCategoricalColumns(columns, section3Result);
     const temporalColumns = this.identifyTemporalColumns(columns, section3Result);
 
-    // Identify regression tasks
+    // Identify regression tasks (excluding inappropriate business targets)
     for (const numCol of numericalColumns) {
-      if (this.isPotentialTarget(numCol, section3Result)) {
+      if (this.isPotentialTarget(numCol, section3Result) && this.isBusinessAppropriateTarget(numCol)) {
         tasks.push(this.createRegressionTask(numCol, columns, section3Result, mlReadiness));
       }
     }
 
-    // Identify classification tasks
+    // Identify classification tasks (excluding inappropriate business targets)
     for (const catCol of categoricalColumns) {
-      if (this.isPotentialCategoricalTarget(catCol, section3Result)) {
+      if (this.isPotentialCategoricalTarget(catCol, section3Result) && this.isBusinessAppropriateTarget(catCol)) {
         const uniqueValues = this.getUniqueValueCount(catCol, section3Result);
         if (uniqueValues === 2) {
           tasks.push(
@@ -865,35 +865,32 @@ export class Section6Analyzer {
       logger.info('Added fallback clustering task');
     }
     
-    // Strategy 2: Try regression with any numerical-looking or last column as target
-    const potentialNumericalColumns = this.identifyNumericalColumns(columns, section3Result);
+    // Strategy 2: Try regression with business-appropriate numerical columns as targets
+    const potentialNumericalColumns = this.identifyNumericalColumns(columns, section3Result)
+      .filter(col => this.isBusinessAppropriateTarget(col));
+    
     if (potentialNumericalColumns.length > 0) {
-      // Use the first numerical column as target, others as features
+      // Use the first business-appropriate numerical column as target
       const targetColumn = potentialNumericalColumns[0];
       const regressionTask = this.createFallbackRegressionTask(targetColumn, columns, section3Result, mlReadiness);
       fallbackTasks.push(regressionTask);
-      logger.info(`Added fallback regression task with target: ${targetColumn.name}`);
-    } else if (columns.length > 1) {
-      // No obvious numerical columns, use the last column as a potential numerical target
-      const targetColumn = columns[columns.length - 1];
-      const regressionTask = this.createFallbackRegressionTask(targetColumn, columns, section3Result, mlReadiness);
-      fallbackTasks.push(regressionTask);
-      logger.info(`Added fallback regression task with generic target: ${targetColumn.name}`);
+      logger.info(`Added fallback regression task with business-appropriate target: ${targetColumn.name}`);
+    } else {
+      // No business-appropriate numerical targets found - skip regression fallback
+      logger.info(`No business-appropriate numerical targets found - skipping regression fallback`);
     }
     
-    // Strategy 3: Try classification with any categorical-looking or second-to-last column as target
-    const potentialCategoricalColumns = this.identifyCategoricalColumns(columns, section3Result);
+    // Strategy 3: Try classification with business-appropriate categorical columns as targets
+    const potentialCategoricalColumns = this.identifyCategoricalColumns(columns, section3Result)
+      .filter(col => this.isBusinessAppropriateTarget(col));
+      
     if (potentialCategoricalColumns.length > 0) {
       const targetColumn = potentialCategoricalColumns[0];
       const classificationTask = this.createFallbackClassificationTask(targetColumn, columns, section3Result, mlReadiness);
       fallbackTasks.push(classificationTask);
-      logger.info(`Added fallback classification task with target: ${targetColumn.name}`);
-    } else if (columns.length > 2) {
-      // No obvious categorical columns, use second-to-last column as potential categorical target
-      const targetColumn = columns[columns.length - 2];
-      const classificationTask = this.createFallbackClassificationTask(targetColumn, columns, section3Result, mlReadiness);
-      fallbackTasks.push(classificationTask);
-      logger.info(`Added fallback classification task with generic target: ${targetColumn.name}`);
+      logger.info(`Added fallback classification task with business-appropriate target: ${targetColumn.name}`);
+    } else {
+      logger.info(`No business-appropriate categorical targets found - skipping classification fallback`);
     }
     
     // Strategy 4: If we still have no tasks and have data, create a generic exploration task
@@ -1311,12 +1308,13 @@ export class Section6Analyzer {
         /^(x|y|z|var|feature|field|col|column)$/i.test(col.name) ||
         numericKeywords.some((keyword) => lowerName.includes(keyword));
       
-      // Method 4: Exclude obvious identifiers
+      // Method 4: Exclude obvious identifiers and unsuitable targets
       const isNotIdentifier = 
         !lowerName.includes('id') && !lowerName.includes('_id') && 
         !lowerName.includes('uuid') && !lowerName.includes('guid') &&
         !lowerName.endsWith('_id') && !lowerName.startsWith('id_') &&
-        col.name !== 'id' && col.name !== 'ID';
+        !lowerName.includes('key') && !lowerName.endsWith('_key') &&
+        col.name !== 'id' && col.name !== 'ID' && col.name !== 'index';
 
       // Default to numerical for generic column names if no other info available
       const hasGenericNumericalName = /^(column_?\d+|field_?\d+|var_?\d+|x\d+|feature_?\d+)$/i.test(col.name);
@@ -1527,6 +1525,32 @@ export class Section6Analyzer {
     const couldBeDefaultTarget = !hasExcludeKeyword && (hasTargetKeyword || hasTargetPattern);
     
     return couldBeDefaultTarget;
+  }
+
+  /**
+   * Check if a column is business-appropriate as a prediction target
+   * Excludes IDs, keys, and other identifier columns
+   */
+  private isBusinessAppropriateTarget(column: ColumnInventory): boolean {
+    const lowerName = column.name.toLowerCase();
+    
+    // Exclude identifiers, keys, and system columns
+    const isIdentifier = 
+      lowerName.includes('id') || lowerName.includes('_id') || 
+      lowerName.includes('uuid') || lowerName.includes('guid') ||
+      lowerName.endsWith('_id') || lowerName.startsWith('id_') ||
+      lowerName.includes('key') || lowerName.endsWith('_key') ||
+      lowerName === 'id' || lowerName === 'index' ||
+      lowerName.startsWith('key_') || lowerName.endsWith('_key');
+    
+    // Exclude system metadata columns
+    const isSystemColumn = 
+      lowerName.includes('created') || lowerName.includes('updated') ||
+      lowerName.includes('modified') || lowerName.includes('deleted') ||
+      lowerName.includes('timestamp') || lowerName.includes('version') ||
+      lowerName === 'row_number' || lowerName === 'sequence';
+    
+    return !isIdentifier && !isSystemColumn;
   }
 
   /**

@@ -1,0 +1,6 @@
+order_id,customer_id,product_name,quantity,unit_price,total_amount,order_date,status
+1001,C001,Widget A,5,19.99,99.95,2024-01-15,completed
+1002,C002,Gadget B,2,49.99,99.98,2024-01-16,completed
+1003,C001,Widget A,3,19.99,59.97,2024-01-17,pending
+1004,C003,Tool C,1,149.99,149.99,2024-01-18,completed
+1005,C002,Widget A,10,19.99,199.90,2024-01-19,completed

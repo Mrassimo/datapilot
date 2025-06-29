@@ -519,9 +519,9 @@ export class Section2Analyzer {
     let details = 'Timeliness analysis based on available date/timestamp columns';
 
     if (dateColumns.length === 0) {
-      score = 50;
-      interpretation = 'Needs Improvement';
-      details = 'No date/timestamp columns found for timeliness assessment';
+      score = 85;
+      interpretation = 'Good';
+      details = 'Timeliness not applicable - dataset contains static reference data without temporal elements';
     } else if (dataFreshness.latestTimestamp) {
       const daysSinceUpdate = dataFreshness.daysSinceLatest || 0;
 
@@ -794,7 +794,7 @@ export class Section2Analyzer {
       categoricalSpecificity.filter((c: any) => c.lowSpecificity).length;
 
     if (precisionIssues > 0) {
-      score -= precisionIssues * 10; // 10 points per issue
+      score -= Math.min(precisionIssues * 5, 30); // 5 points per issue, max 30 point penalty
 
       if (score >= 90) {
         interpretation = 'Excellent';
@@ -1684,7 +1684,7 @@ export class Section2Analyzer {
       if (sampleCount > 0) {
         const uniqueDecimalPlaces = [...new Set(decimalPlaces)];
         const maxDecimalPlaces = Math.max(...decimalPlaces);
-        const inconsistentPrecision = uniqueDecimalPlaces.length > 3; // More than 3 different precisions
+        const inconsistentPrecision = uniqueDecimalPlaces.length > 6; // More than 6 different precisions (more lenient)
 
         results.push({
           columnName,
