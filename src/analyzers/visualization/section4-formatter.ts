@@ -512,6 +512,7 @@ ${implementationPriorities.map((priority, index) => `${index + 1}. **${priority.
       [ChartType.GAUGE_CHART]: 'Gauge Chart',
       [ChartType.WORD_CLOUD]: 'Word Cloud',
       [ChartType.DASHBOARD_GRID]: 'Dashboard Grid',
+      [ChartType.TEXT_SUMMARY]: 'Text Summary',
     };
     return names[chartType] || chartType;
   }

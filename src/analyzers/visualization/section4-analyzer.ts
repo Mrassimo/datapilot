@@ -805,7 +805,7 @@ export class Section4Analyzer {
 
       case EdaDataType.TEXT_GENERAL:
       case EdaDataType.TEXT_ADDRESS:
-        recommendations.push(...this.generateTextRecommendations(columnAnalysis));
+        recommendations.push(...this.generateTextRecommendations(columnAnalysis, cardinality));
         break;
 
       default:
@@ -939,6 +939,27 @@ export class Section4Analyzer {
   ): ChartRecommendation[] {
     const recommendations: ChartRecommendation[] = [];
 
+    // Check if this is a unique identifier column (>95% unique values)
+    const uniquenessRatio = columnAnalysis.uniquePercentage || 0;
+    if (uniquenessRatio > 95) {
+      // This is likely a unique identifier - don't recommend frequency-based charts
+      recommendations.push({
+        chartType: ChartType.TEXT_SUMMARY,
+        purpose: ChartPurpose.INFORMATION,
+        priority: RecommendationPriority.PRIMARY,
+        confidence: 0.8,
+        reasoning: `This column appears to be a unique identifier (${uniquenessRatio.toFixed(1)}% unique values). Frequency-based visualizations would not be meaningful.`,
+        encoding: this.createBasicSummaryEncoding(columnAnalysis),
+        interactivity: this.createBasicInteractivity(),
+        accessibility: Section4Analyzer.createAccessibilityGuidance(ChartType.TEXT_SUMMARY),
+        performance: Section4Analyzer.createPerformanceConsiderations(ChartType.TEXT_SUMMARY),
+        libraryRecommendations: this.getLibraryRecommendations(ChartType.TEXT_SUMMARY),
+        dataPreparation: this.createCategoricalDataPreparation(columnAnalysis),
+        designGuidelines: Section4Analyzer.createDesignGuidelines(ChartType.TEXT_SUMMARY),
+      });
+      return recommendations;
+    }
+
     // Bar chart - Primary for most categorical data
     recommendations.push({
       chartType: cardinality > 8 ? ChartType.HORIZONTAL_BAR : ChartType.BAR_CHART,
@@ -1052,8 +1073,29 @@ export class Section4Analyzer {
   /**
    * Generate recommendations for text columns
    */
-  private generateTextRecommendations(columnAnalysis: any): ChartRecommendation[] {
+  private generateTextRecommendations(columnAnalysis: any, cardinality: number): ChartRecommendation[] {
     const recommendations: ChartRecommendation[] = [];
+
+    // Check if this is a unique identifier column (>95% unique values)
+    const uniquenessRatio = columnAnalysis.uniquePercentage || 0;
+    if (uniquenessRatio > 95) {
+      // This is likely a unique identifier - don't recommend frequency-based charts
+      recommendations.push({
+        chartType: ChartType.TEXT_SUMMARY,
+        purpose: ChartPurpose.INFORMATION,
+        priority: RecommendationPriority.PRIMARY,
+        confidence: 0.8,
+        reasoning: `This text column appears to be a unique identifier (${uniquenessRatio.toFixed(1)}% unique values). Frequency-based visualizations would not be meaningful.`,
+        encoding: this.createBasicSummaryEncoding(columnAnalysis),
+        interactivity: this.createBasicInteractivity(),
+        accessibility: Section4Analyzer.createAccessibilityGuidance(ChartType.TEXT_SUMMARY),
+        performance: Section4Analyzer.createPerformanceConsiderations(ChartType.TEXT_SUMMARY),
+        libraryRecommendations: this.getLibraryRecommendations(ChartType.TEXT_SUMMARY),
+        dataPreparation: Section4Analyzer.createTextDataPreparation(columnAnalysis),
+        designGuidelines: Section4Analyzer.createDesignGuidelines(ChartType.TEXT_SUMMARY),
+      });
+      return recommendations;
+    }
 
     // Word frequency analysis as horizontal bar chart
     if (columnAnalysis.topFrequentWords && columnAnalysis.topFrequentWords.length > 0) {
@@ -1989,6 +2031,16 @@ export class Section4Analyzer {
         width: 'responsive',
         height: 300,
         margins: { top: 20, right: 30, bottom: 40, left: 100 },
+      },
+    };
+  }
+
+  private createBasicSummaryEncoding(columnAnalysis: any): VisualEncoding {
+    return {
+      layout: {
+        width: 'responsive',
+        height: 300,
+        margins: { top: 20, right: 20, bottom: 20, left: 20 },
       },
     };
   }
@@ -3790,7 +3842,24 @@ export class Section4Analyzer {
     switch (dataType) {
       case EdaDataType.NUMERICAL_FLOAT:
       case EdaDataType.NUMERICAL_INTEGER:
-        // For numerical data, use histogram
+        // Check if this is a unique identifier (high uniqueness ratio) even for numerical data
+        const numericalUniquenessRatio = columnAnalysis.uniquePercentage || 0;
+        const numericalTotalRows = columnAnalysis.totalValues || 0;
+        
+        // If uniqueness is very high (>95%) or cardinality equals total rows, it's likely an ID
+        if (numericalUniquenessRatio > 95 || (numericalTotalRows > 0 && cardinality >= numericalTotalRows * 0.95)) {
+          return {
+            chartType: ChartType.TEXT_SUMMARY,
+            confidence: 0.8,
+            reasoning: `Unique identifier column detected (${numericalUniquenessRatio.toFixed(1)}% unique). Frequency charts not meaningful.`,
+            encoding: {
+              x: { field: columnName, type: 'quantitative' },
+              y: { field: 'count', type: 'quantitative' },
+            },
+          };
+        }
+        
+        // For normal numerical data, use histogram
         return {
           chartType: ChartType.HISTOGRAM,
           confidence: 0.9,
@@ -3802,7 +3871,24 @@ export class Section4Analyzer {
         };
 
       case EdaDataType.CATEGORICAL:
-        // For categorical data, choose based on cardinality
+        // Check if this is a unique identifier (high uniqueness ratio)
+        const uniquenessRatio = columnAnalysis.uniquePercentage || 0;
+        const totalRows = columnAnalysis.totalValues || 0;
+        
+        // If uniqueness is very high (>95%) or cardinality equals total rows, it's likely an ID
+        if (uniquenessRatio > 95 || (totalRows > 0 && cardinality >= totalRows * 0.95)) {
+          return {
+            chartType: ChartType.TEXT_SUMMARY,
+            confidence: 0.7,
+            reasoning: `Unique identifier column detected (${uniquenessRatio.toFixed(1)}% unique). Frequency charts not meaningful.`,
+            encoding: {
+              x: { field: columnName, type: 'nominal' },
+              y: { field: 'count', type: 'quantitative' },
+            },
+          };
+        }
+        
+        // For non-unique categorical data, choose based on cardinality
         if (cardinality <= 5) {
           return {
             chartType: ChartType.PIE_CHART,
@@ -3859,8 +3945,77 @@ export class Section4Analyzer {
           },
         };
 
+      case EdaDataType.TEXT_GENERAL:
+      case EdaDataType.TEXT_ADDRESS:
+        // Check if this is a unique identifier (high uniqueness ratio)
+        const textUniquenessRatio = columnAnalysis.uniquePercentage || 0;
+        const textTotalRows = columnAnalysis.totalValues || 0;
+        
+        // If uniqueness is very high (>95%) or cardinality equals total rows, it's likely an ID
+        if (textUniquenessRatio > 95 || (textTotalRows > 0 && cardinality >= textTotalRows * 0.95)) {
+          return {
+            chartType: ChartType.TEXT_SUMMARY,
+            confidence: 0.8,
+            reasoning: `Unique identifier column detected (${textUniquenessRatio.toFixed(1)}% unique). Frequency charts not meaningful.`,
+            encoding: {
+              x: { field: columnName, type: 'nominal' },
+              y: { field: 'count', type: 'quantitative' },
+            },
+          };
+        }
+        
+        // For non-unique text data, treat as categorical and choose based on cardinality
+        if (cardinality <= 5) {
+          return {
+            chartType: ChartType.PIE_CHART,
+            confidence: 0.8,
+            reasoning: 'Low cardinality text data suitable for pie chart proportional comparison',
+            encoding: {
+              theta: { field: 'count', type: 'quantitative' },
+              color: { field: columnName, type: 'nominal' },
+            },
+          };
+        } else if (cardinality <= 15) {
+          return {
+            chartType: ChartType.BAR_CHART,
+            confidence: 0.85,
+            reasoning: 'Moderate cardinality text data ideal for bar chart comparison',
+            encoding: {
+              x: { field: columnName, type: 'nominal' },
+              y: { field: 'count', type: 'quantitative' },
+            },
+          };
+        } else {
+          return {
+            chartType: ChartType.BAR_CHART,
+            confidence: 0.75,
+            reasoning: 'High cardinality text data requires horizontal bar chart for label readability',
+            encoding: {
+              y: { field: columnName, type: 'nominal' },
+              x: { field: 'count', type: 'quantitative' },
+            },
+          };
+        }
+
       default:
-        // Fallback for unknown types
+        // Fallback for unknown types - but still check for unique identifiers
+        const fallbackUniquenessRatio = columnAnalysis.uniquePercentage || 0;
+        const fallbackTotalRows = columnAnalysis.totalValues || 0;
+        
+        // Even for unknown types, check if it's a unique identifier
+        if (fallbackUniquenessRatio > 95 || (fallbackTotalRows > 0 && cardinality >= fallbackTotalRows * 0.95)) {
+          return {
+            chartType: ChartType.TEXT_SUMMARY,
+            confidence: 0.7,
+            reasoning: `Unknown data type but appears to be unique identifier (${fallbackUniquenessRatio.toFixed(1)}% unique). Frequency charts not meaningful.`,
+            encoding: {
+              x: { field: columnName, type: 'nominal' },
+              y: { field: 'count', type: 'quantitative' },
+            },
+          };
+        }
+        
+        // Default fallback for truly unknown types
         return {
           chartType: ChartType.BAR_CHART,
           confidence: 0.5,

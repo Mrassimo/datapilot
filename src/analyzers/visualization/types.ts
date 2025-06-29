@@ -81,6 +81,7 @@ export enum ChartType {
   GAUGE_CHART = 'gauge_chart',
   WORD_CLOUD = 'word_cloud',
   DASHBOARD_GRID = 'dashboard_grid',
+  TEXT_SUMMARY = 'text_summary', // For unique identifiers or metadata
 }
 
 export enum ChartPurpose {
@@ -92,6 +93,7 @@ export enum ChartPurpose {
   RANKING = 'ranking',
   OUTLIER_DETECTION = 'outlier_detection',
   PATTERN_RECOGNITION = 'pattern_recognition',
+  INFORMATION = 'information', // For displaying metadata or unique identifiers
 }
 
 export enum RecommendationPriority {

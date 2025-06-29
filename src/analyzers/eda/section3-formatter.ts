@@ -243,6 +243,27 @@ ${!recommendations.highCardinalityWarning && !recommendations.rareCategoriesNote
       hours: analysis.mostCommonHours?.join(', ') || 'Not available',
     };
 
+    // Check if we have hour-level precision
+    const hasHourPrecision = 
+      analysis.detectedGranularity?.toLowerCase().includes('hour') ||
+      analysis.detectedGranularity?.toLowerCase().includes('minute') ||
+      analysis.detectedGranularity?.toLowerCase().includes('second') ||
+      analysis.implicitPrecision?.toLowerCase().includes('hour') ||
+      analysis.implicitPrecision?.toLowerCase().includes('minute') ||
+      analysis.implicitPrecision?.toLowerCase().includes('second');
+
+    // Build component analysis lines dynamically
+    const componentLines = [
+      `* Most Common Year(s): [${components.years}]`,
+      `* Most Common Month(s): [${components.months}]`,
+      `* Most Common Day of Week: [${components.daysOfWeek}]`
+    ];
+    
+    // Only include hour analysis if we have hour-level precision
+    if (hasHourPrecision) {
+      componentLines.push(`* Most Common Hour of Day: [${components.hours}]`);
+    }
+
     return `**3.2.C. Date/Time Column Analysis:**
 
 **Range & Span:**
@@ -255,10 +276,7 @@ ${!recommendations.highCardinalityWarning && !recommendations.rareCategoriesNote
 * Implicit Precision: ${analysis.implicitPrecision}
 
 **Component Analysis & Common Values:**
-* Most Common Year(s): [${components.years}]
-* Most Common Month(s): [${components.months}]
-* Most Common Day of Week: [${components.daysOfWeek}]
-* Most Common Hour of Day: [${components.hours}]
+${componentLines.join('\n')}
 
 **Temporal Patterns (Univariate):**
 * Pattern Analysis: ${analysis.temporalPatterns}
