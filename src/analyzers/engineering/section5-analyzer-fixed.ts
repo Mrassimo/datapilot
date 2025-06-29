@@ -113,7 +113,7 @@ export class Section5Analyzer {
     // Schema Analysis
     const schemaAnalysis = {
       currentSchema: {
-        columns: section1Result.overview.structuralDimensions.columnInventory.map((col) => {
+        columns: section1Result.overview.structuralDimensions.columnInventory.map((col, index) => {
           // Get actual missing percentage from Section 2
           const completenessInfo = section2Result.qualityAudit?.completeness?.columnLevel?.find(
             (c) => c.columnName === col.name
@@ -126,13 +126,16 @@ export class Section5Analyzer {
           );
           const actualUniquenessPercentage = uniquenessInfo?.uniquePercentage ?? 100;
 
+          // Get actual sample values from Section 1 data preview
+          const sampleValues = this.extractSampleValues(section1Result, index, col.name);
+
           return {
             originalName: col.name,
             detectedType: 'string', // Simplified
             inferredSemanticType: 'unknown',
             nullabilityPercentage: Math.round(actualMissingPercentage * 100) / 100,
             uniquenessPercentage: Math.round(actualUniquenessPercentage * 100) / 100,
-            sampleValues: ['sample1', 'sample2'],
+            sampleValues,
           };
         }),
         estimatedRowCount: section1Result.overview.structuralDimensions.totalDataRows,
@@ -834,6 +837,46 @@ ${columnDefs}
 
       return baseFeature;
     });
+  }
+
+  /**
+   * Extract actual sample values from Section 1 data preview
+   */
+  private extractSampleValues(section1Result: Section1Result, columnIndex: number, columnName: string): string[] {
+    try {
+      // Try to get sample values from data preview
+      const dataPreview = section1Result.overview.dataPreview;
+      if (dataPreview && dataPreview.sampleRows && dataPreview.sampleRows.length > 0) {
+        const sampleValues: string[] = [];
+        
+        // Extract values from the specific column across sample rows
+        for (const row of dataPreview.sampleRows) {
+          if (row[columnIndex] !== undefined && row[columnIndex] !== null && row[columnIndex] !== '') {
+            const value = String(row[columnIndex]).trim();
+            if (value && !sampleValues.includes(value)) {
+              sampleValues.push(value);
+              // Limit to 3 sample values for brevity
+              if (sampleValues.length >= 3) break;
+            }
+          }
+        }
+        
+        // Return actual sample values if found
+        if (sampleValues.length > 0) {
+          return sampleValues;
+        }
+      }
+    } catch (error) {
+      logger.warn('Could not extract sample values from data preview', {
+        section: 'engineering',
+        analyzer: 'Section5Analyzer',
+        columnName,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+    
+    // Fallback to generic samples if no actual data available
+    return [`${columnName}_value1`, `${columnName}_value2`];
   }
 
   private reportProgress(
