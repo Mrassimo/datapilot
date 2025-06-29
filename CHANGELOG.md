@@ -1,3 +1,11 @@
+## [1.6.3](https://github.com/Mrassimo/datapilot/compare/v1.6.2...v1.6.3) (2025-06-29)
+
+
+### Bug Fixes
+
+* resolve inter-section data consistency bug ([#46](https://github.com/Mrassimo/datapilot/issues/46)) ([b1d5305](https://github.com/Mrassimo/datapilot/commit/b1d53058b64953d734fa90542fdb428bc69f04c8))
+* update yaml-formatter test to expect version 1.6.2 ([adb00a6](https://github.com/Mrassimo/datapilot/commit/adb00a613d5c5b64d2c4f7b1703c837085a17958))
+
 ## [1.6.2](https://github.com/Mrassimo/datapilot/compare/v1.6.1...v1.6.2) (2025-06-29)
 
 
