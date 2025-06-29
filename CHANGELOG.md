@@ -1,3 +1,10 @@
+## [1.6.4](https://github.com/Mrassimo/datapilot/compare/v1.6.3...v1.6.4) (2025-06-29)
+
+
+### Bug Fixes
+
+* comprehensive resolution of inter-section uniqueness consistency bugs ([737d659](https://github.com/Mrassimo/datapilot/commit/737d65968b206c09344c4ca811a67bde919134f3)), closes [#46](https://github.com/Mrassimo/datapilot/issues/46)
+
 ## [1.6.3](https://github.com/Mrassimo/datapilot/compare/v1.6.2...v1.6.3) (2025-06-29)
 
 
