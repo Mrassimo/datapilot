@@ -7,6 +7,7 @@ import { existsSync, statSync } from 'fs';
 import { resolve } from 'path';
 import type { CLIOptions, CLIContext } from './types';
 import { ValidationError, FileError } from './types';
+import * as packageJson from '../../package.json';
 
 export class ArgumentParser {
   private program: Command;
@@ -32,10 +33,21 @@ export class ArgumentParser {
         };
       }
 
-      // Check for help flag to avoid process.exit
+      // Check for help flags to avoid process.exit
       if (argv.includes('--help') || argv.includes('-h')) {
         return {
           command: 'help',
+          args: [],
+          options: {},
+          startTime: Date.now(),
+          workingDirectory: process.cwd(),
+        };
+      }
+
+      // Check for Windows-specific help flag
+      if (argv.includes('--help-windows')) {
+        return {
+          command: 'help-windows',
           args: [],
           options: {},
           startTime: Date.now(),
@@ -85,7 +97,7 @@ export class ArgumentParser {
       .description(
         'A lightweight CLI statistical computation engine for comprehensive CSV data analysis',
       )
-      .version('1.4.0')
+      .version(packageJson.version)
       .helpOption(false) // Disable automatic help to handle it manually
       .addHelpText(
         'after',
@@ -111,6 +123,7 @@ Use --verbose for detailed confidence explanations in reports.`,
       .option('--no-progress', 'Disable progress indicators')
       .option('--dry-run', 'Validate inputs without performing analysis')
       .option('-h, --help', 'Display help information')
+      .option('--help-windows', 'Show Windows-specific installation and PATH setup guide')
       // Performance and auto-configuration options
       .option('--auto-config', 'Enable smart auto-configuration based on system resources')
       .option('--preset <name>', 'Use performance preset (ultra-large-files, large-files, balanced, speed-optimized, memory-constrained)')

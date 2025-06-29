@@ -24,40 +24,47 @@ console.log('\n🎉 DataPilot installed successfully!\n');
 const platform = os.platform();
 const isWindows = platform === 'win32';
 
-// Windows-specific prominent warnings
+// Windows-specific setup assistance
 if (isWindows) {
-  console.log('🚨 WINDOWS USERS - IMPORTANT SETUP REQUIRED:');
-  console.log('═══════════════════════════════════════════════════════════');
-  console.log('⚠️  The "datapilot" command may not work immediately on Windows');
-  console.log('⚠️  due to PATH configuration issues. Here are your options:\n');
-  
-  console.log('🟢 OPTION 1 - Use npx (Recommended, no setup needed):');
-  console.log('   npx datapilot-cli --version');
-  console.log('   npx datapilot-cli all data.csv\n');
-  
-  console.log('🟡 OPTION 2 - Add to PATH (One-time setup):');
+  // Run the comprehensive Windows installation helper
   try {
-    const { execSync } = require('child_process');
-    const npmPrefix = execSync('npm config get prefix', { encoding: 'utf8' }).trim();
-    console.log(`   1. Add this to your PATH: ${npmPrefix}`);
-    console.log('   2. Restart PowerShell/Command Prompt');
-    console.log('   3. Then run: datapilot --version\n');
+    const windowsSetupScript = path.join(__dirname, 'post-install-windows.js');
+    if (fs.existsSync(windowsSetupScript)) {
+      // Import and run the Windows helper (it has its own main function)
+      const windowsHelper = require(windowsSetupScript);
+      // The Windows script runs automatically on import, no need to call anything
+    } else {
+      // Fallback to basic instructions if helper script is not available
+      console.log('🚨 WINDOWS USERS - IMPORTANT SETUP REQUIRED:');
+      console.log('═══════════════════════════════════════════════════════════');
+      console.log('⚠️  The "datapilot" command may not work immediately on Windows');
+      console.log('⚠️  due to PATH configuration issues. Here are your options:\n');
+      
+      console.log('🟢 OPTION 1 - Use npx (Recommended, no setup needed):');
+      console.log('   npx datapilot-cli --version');
+      console.log('   npx datapilot-cli all data.csv\n');
+      
+      console.log('🟡 OPTION 2 - Add to PATH (One-time setup):');
+      try {
+        const { execSync } = require('child_process');
+        const npmPrefix = execSync('npm config get prefix', { encoding: 'utf8' }).trim();
+        console.log(`   1. Add this to your PATH: ${npmPrefix}`);
+        console.log('   2. Restart PowerShell/Command Prompt');
+        console.log('   3. Then run: datapilot --version\n');
+      } catch (error) {
+        console.log('   1. Run: npm config get prefix');
+        console.log('   2. Add the returned path to your PATH environment variable');
+        console.log('   3. Restart PowerShell/Command Prompt\n');
+      }
+      
+      console.log('═══════════════════════════════════════════════════════════\n');
+    }
   } catch (error) {
-    console.log('   1. Run: npm config get prefix');
-    console.log('   2. Add the returned path to your PATH environment variable');
-    console.log('   3. Restart PowerShell/Command Prompt\n');
+    // If there's any error with the Windows helper, continue with basic setup
+    console.log('🚨 WINDOWS USERS - BASIC SETUP INFORMATION:');
+    console.log('Please refer to the documentation for PATH configuration help.');
+    console.log('For detailed setup assistance, run: datapilot --help-windows\n');
   }
-  
-  console.log('🟠 OPTION 3 - Use full path:');
-  try {
-    const { execSync } = require('child_process');
-    const npmPrefix = execSync('npm config get prefix', { encoding: 'utf8' }).trim();
-    console.log(`   ${npmPrefix}\\datapilot --version\n`);
-  } catch (error) {
-    console.log('   Find your npm prefix and use: [npm-prefix]\\datapilot\n');
-  }
-  
-  console.log('═══════════════════════════════════════════════════════════\n');
 }
 
 console.log('📚 Quick Start:');

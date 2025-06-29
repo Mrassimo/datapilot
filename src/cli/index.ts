@@ -11,6 +11,7 @@ import { OutputManager } from './output-manager';
 import type { CLIResult, CLIOptions } from './types';
 import { globalCleanupHandler, globalMemoryManager } from '../utils/memory-manager';
 import { logger } from '../utils/logger';
+import { WindowsPathHelper } from './windows-path-helper';
 
 export class DataPilotCLI {
   private parser: ArgumentParser;
@@ -232,6 +233,23 @@ export class DataPilotCLI {
 // Main execution when run directly
 async function main(): Promise<void> {
   try {
+    // Check for Windows-specific help flag
+    if (process.argv.includes('--help-windows')) {
+      WindowsPathHelper.showWindowsHelp();
+      return;
+    }
+
+    // Proactive Windows installation health check
+    if (WindowsPathHelper.isWindows()) {
+      // Only check if this looks like the first run or if there might be issues
+      const hasMinimalArgs = process.argv.length <= 2 || process.argv.includes('--version');
+      const hasHelpFlag = process.argv.includes('--help') || process.argv.includes('-h');
+      
+      if (hasMinimalArgs || hasHelpFlag) {
+        WindowsPathHelper.checkInstallationHealth();
+      }
+    }
+
     const cli = new DataPilotCLI();
     const result = await cli.run();
 
@@ -239,6 +257,10 @@ async function main(): Promise<void> {
     process.exit(result.exitCode || (result.success ? 0 : 1));
   } catch (error) {
     console.error('Fatal CLI error:', error);
+    
+    // Provide Windows-specific guidance if this looks like a PATH issue
+    WindowsPathHelper.provideErrorGuidance(error);
+    
     process.exit(1);
   }
 }

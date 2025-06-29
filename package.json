@@ -11,6 +11,8 @@
     "dist/**/*.js",
     "dist/**/*.d.ts",
     "!dist/**/*.map",
+    "scripts/postinstall.js",
+    "scripts/post-install-windows.js",
     "README.md",
     "LICENSE",
     "CHANGELOG.md"
