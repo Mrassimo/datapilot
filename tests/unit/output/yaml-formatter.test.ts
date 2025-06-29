@@ -789,7 +789,7 @@ describe('YAML Formatter', () => {
       const parsed = SimpleYAMLParser.parse(content);
       expect(parsed.metadata).toBeDefined();
       expect(parsed.overview).toBeDefined();
-      expect(parsed.metadata.version).toBe('1.6.1');
+      expect(parsed.metadata.version).toBe('1.6.2');
     });
   });
 });
