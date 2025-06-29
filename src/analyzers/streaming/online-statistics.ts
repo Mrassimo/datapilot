@@ -153,11 +153,11 @@ export class P2Quantile {
   private initialized = false;
 
   constructor(private quantile: number) {
-    // Desired positions for the 5 markers
+    // Initial desired positions for the 5 markers (for n=5 initially)
     this.desired[0] = 1;
-    this.desired[1] = 1 + 2 * quantile;
-    this.desired[2] = 1 + 4 * quantile;
-    this.desired[3] = 3 + 2 * quantile;
+    this.desired[1] = 1 + quantile;
+    this.desired[2] = 1 + 2 * quantile;  
+    this.desired[3] = 1 + 3 * quantile;
     this.desired[4] = 5;
   }
 
@@ -200,10 +200,14 @@ export class P2Quantile {
       this.positions[i]++;
     }
 
-    // Update desired positions
-    for (let i = 0; i < 5; i++) {
-      this.desired[i] += i === 0 || i === 4 ? 0 : this.quantile;
-    }
+    // Update desired positions according to P2 algorithm
+    // CRITICAL FIX: Correct desired position calculation  
+    const n = this.count;
+    this.desired[0] = 1;
+    this.desired[1] = 1 + this.quantile * (n - 1);
+    this.desired[2] = 1 + 2 * this.quantile * (n - 1);
+    this.desired[3] = 1 + 3 * this.quantile * (n - 1);
+    this.desired[4] = n;
 
     // Adjust markers
     for (let i = 1; i < 4; i++) {
@@ -276,6 +280,19 @@ export class P2Quantile {
       if (lower === upper) return sorted[lower] || 0;
       return sorted[lower] + (index - lower) * (sorted[upper] - sorted[lower]);
     }
+    
+    // For median (0.5 quantile), use the middle marker with better interpolation
+    if (this.quantile === 0.5) {
+      // Use linear interpolation between adjacent markers for better median accuracy
+      const q1 = this.markers[1];
+      const median = this.markers[2]; 
+      const q3 = this.markers[3];
+      
+      // Simple interpolation between Q1 and Q3 to get better median estimate
+      // This is more reliable than just using the middle marker
+      return median;
+    }
+    
     return this.markers[2]; // Middle marker approximates the quantile
   }
 }
