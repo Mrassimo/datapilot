@@ -1,3 +1,14 @@
+## [1.7.1](https://github.com/Mrassimo/datapilot/compare/v1.7.0...v1.7.1) (2025-07-06)
+
+
+### Bug Fixes
+
+* add missing package-lock.json for CI/CD pipeline ([feb6242](https://github.com/Mrassimo/datapilot/commit/feb6242c8f8aa87e4c98f3f1927799a94dd224ab))
+* comprehensive CLI testing and critical bug fixes ([0a3cfb4](https://github.com/Mrassimo/datapilot/commit/0a3cfb411413abae2514200b8ed381497c967b06))
+* Enhance Jest configuration for CI compatibility and fix E2E test timeouts ([54c5231](https://github.com/Mrassimo/datapilot/commit/54c5231e63d1ebc61144d06bde7dd2c31aca8f01))
+* Move build step before tests in CI workflow to fix E2E test failures ([875968c](https://github.com/Mrassimo/datapilot/commit/875968cb3ca36f17e4703116a24b9b554b1ec975))
+* update hardcoded version references for v1.7.0 ([85d5262](https://github.com/Mrassimo/datapilot/commit/85d526224f75a94561af8d2331d8be1228cdb498))
+
 # [1.7.0](https://github.com/Mrassimo/datapilot/compare/v1.6.7...v1.7.0) (2025-07-06)
 
 
