@@ -185,7 +185,7 @@ export class UniversalAnalyzer {
         const parseOptions: any = {
           maxRows: options.maxRows,
           encoding: options.encoding as BufferEncoding,
-          format: options.format,
+          // NOTE: Do NOT pass options.format here - that's for OUTPUT format, not input file format
           delimiter: options.delimiter,
           quote: options.quote,
           hasHeader: options.hasHeader,

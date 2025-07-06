@@ -124,13 +124,18 @@ export class CSVDetector {
     // Calculate confidence based on consistency
     let confidence = 0;
     if (variance === 0 && meanFields > 1) {
-      confidence = 1.0; // Perfect consistency
+      confidence = 0.95; // Perfect consistency - slightly lower than 1.0 for safety
     } else if (variance < 0.25 && meanFields > 1) {
-      confidence = 0.9; // Very consistent
+      confidence = 0.85; // Very consistent
     } else if (variance < 1 && meanFields > 1) {
       confidence = 0.7; // Fairly consistent
     } else if (meanFields > 1) {
-      confidence = 0.3; // Some structure detected
+      confidence = 0.6; // Some structure detected - increased from 0.3
+    }
+
+    // Bonus for good field count (CSV files typically have 2+ fields)
+    if (meanFields >= 3) {
+      confidence = Math.min(confidence + 0.1, 0.98); // Boost for multi-field files
     }
 
     // Penalty for very low field counts

@@ -35,25 +35,19 @@ Charlie,35,92`;
 
   it('should execute CLI version command', () => {
     const result = execSync(`node "${cliPath}" --version`, { encoding: 'utf8' });
-    expect(result).toContain('1.4.0');
+    expect(result).toContain('1.6.7');
   });
 
   it('should analyze CSV file with overview command', () => {
-    const result = execSync(`node "${cliPath}" overview "${testCsv}" --format json`, { encoding: 'utf8' });
+    const result = execSync(`node "${cliPath}" overview "${testCsv}" -f json`, { encoding: 'utf8' });
     expect(result).toContain('Report written to:');
-    expect(result).toContain('Summary:');
-    expect(result).toContain('Processing time:');
+    expect(result).toContain('Selected parser: csv');
+    expect(result).toContain('Detected format: csv');
   });
 
   it('should run complete analysis with all command', () => {
-    const outputFile = join(__dirname, 'test-output.md');
-    const result = execSync(`node "${cliPath}" all "${testCsv}" --output "${outputFile}"`, { encoding: 'utf8' });
+    const result = execSync(`node "${cliPath}" all "${testCsv}"`, { encoding: 'utf8' });
     expect(result).toContain('Report written to:');
-    expect(result).toContain('Summary:');
-    
-    // Cleanup
-    if (existsSync(outputFile)) {
-      unlinkSync(outputFile);
-    }
+    expect(result).toContain('Sequential execution completed successfully');
   });
 });

@@ -76,7 +76,7 @@ describe('Full Analysis E2E', () => {
 
     // Check in tempDir first
     const tempFiles = await fs.readdir(tempDir);
-    outputFile = tempFiles.find(f => f.endsWith('_datapilot_full_report.md'));
+    outputFile = tempFiles.find(f => f.endsWith('_datapilot_report.md')); // Fixed: actual filename pattern
     
     outputPath = join(tempDir, outputFile!);
 

@@ -178,3 +178,4 @@ test-datasets/large/yellow_tripdata_2023-01.csv
 
 # Compiled binaries
 binaries/
+.datapilot-cache/

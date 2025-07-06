@@ -33,10 +33,6 @@ export class DataPilotCLI {
       // Parse command line arguments
       const context = this.parser.parse(argv);
 
-      if (context.command === 'help') {
-        this.parser.showHelp();
-        return { success: true, exitCode: 0 };
-      }
 
       if (context.command === 'version') {
         console.log(this.parser.getVersion());

@@ -27,8 +27,13 @@ export class ArgumentParser {
       // Get the parsed command and options
       const lastContext = (this.program as any)._lastContext;
       if (lastContext) {
+        // Merge global options with command-specific options and validate them
+        const globalOptions = this.program.opts();
+        const mergedOptions = { ...globalOptions, ...lastContext.options };
+        
         return {
           ...lastContext,
+          options: this.validateOptions(mergedOptions),
           startTime: Date.now(),
           workingDirectory: process.cwd(),
         };
@@ -36,8 +41,8 @@ export class ArgumentParser {
 
       // Fallback for basic parsing (e.g., no command specified, just global options)
       const remainingArgs = this.program.args;
-      const command = remainingArgs.length > 0 ? remainingArgs[0] : 'help';
       const globalOptions = this.program.opts();
+      const command = remainingArgs.length > 0 ? remainingArgs[0] : 'help';
 
       return {
         command,
@@ -64,7 +69,6 @@ export class ArgumentParser {
         'A lightweight CLI statistical computation engine for comprehensive CSV data analysis',
       )
       .version(packageJson.version)
-      .helpOption(false) // Disable automatic help to handle it manually
       .addHelpText(
         'after',
         `
@@ -88,7 +92,6 @@ Use --verbose for detailed confidence explanations in reports.`,
       .option('-q, --quiet', 'Suppress all output except errors')
       .option('--no-progress', 'Disable progress indicators')
       .option('--dry-run', 'Validate inputs without performing analysis')
-      .option('-h, --help', 'Display help information')
       .option('--help-windows', 'Show Windows-specific installation and PATH setup guide')
       // Performance and auto-configuration options
       .option('--auto-config', 'Enable smart auto-configuration based on system resources')
@@ -110,7 +113,7 @@ Use --verbose for detailed confidence explanations in reports.`,
       .command('all')
       .argument('<file>', 'CSV file to analyze')
       .description('Run complete analysis on a CSV file (all sections)')
-      .option('-f, --format <format>', 'Output format (txt, markdown, json, yaml)', 'markdown')
+      .option('-f, --format <format>', 'Output format (txt, markdown, json, yaml)', 'json')
       .option('-o, --output <file>', 'Write output to file instead of stdout')
       .option('--delimiter <char>', 'Specify delimiter character (e.g., ";" for semicolon)')
       .option('--max-rows <number>', 'Maximum rows to process', this.parseInteger)
@@ -142,7 +145,7 @@ Use --verbose for detailed confidence explanations in reports.`,
       .alias('ove')
       .argument('<file>', 'CSV file to analyze')
       .description('Generate dataset overview (Section 1 only)')
-      .option('-f, --format <format>', 'Output format (txt, markdown, json, yaml)', 'markdown')
+      .option('-f, --format <format>', 'Output format (txt, markdown, json, yaml)', 'json')
       .option('-o, --output <file>', 'Write output to file instead of stdout')
       .option('--delimiter <char>', 'Specify delimiter character (e.g., ";" for semicolon)')
       .option('--no-hashing', 'Disable file hashing for faster processing')
@@ -160,7 +163,7 @@ Use --verbose for detailed confidence explanations in reports.`,
       .alias('qua')
       .argument('<file>', 'CSV file to analyze')
       .description('Run data quality audit (Section 2)')
-      .option('-f, --format <format>', 'Output format (txt, markdown, json, yaml)', 'markdown')
+      .option('-f, --format <format>', 'Output format (txt, markdown, json, yaml)', 'json')
       .option('-o, --output <file>', 'Write output to file instead of stdout')
       .option('--delimiter <char>', 'Specify delimiter character (e.g., ";" for semicolon)')
       .option('--max-rows <number>', 'Maximum rows to process', this.parseInteger)
@@ -171,7 +174,7 @@ Use --verbose for detailed confidence explanations in reports.`,
       .command('eda')
       .argument('<file>', 'CSV file to analyze')
       .description('Perform exploratory data analysis (Section 3)')
-      .option('-f, --format <format>', 'Output format (txt, markdown, json, yaml)', 'markdown')
+      .option('-f, --format <format>', 'Output format (txt, markdown, json, yaml)', 'json')
       .option('-o, --output <file>', 'Write output to file instead of stdout')
       .option('--delimiter <char>', 'Specify delimiter character (e.g., ";" for semicolon)')
       .option('--max-rows <number>', 'Maximum rows to analyze', this.parseInteger)
@@ -192,7 +195,7 @@ Use --verbose for detailed confidence explanations in reports.`,
       .alias('vis')
       .argument('<file>', 'CSV file to analyze')
       .description('Generate visualization recommendations (Section 4)')
-      .option('-f, --format <format>', 'Output format (txt, markdown, json, yaml)', 'markdown')
+      .option('-f, --format <format>', 'Output format (txt, markdown, json, yaml)', 'json')
       .option('-o, --output <file>', 'Write output to file instead of stdout')
       .option('--accessibility <level>', 'Accessibility level (excellent, good, adequate)', 'good')
       .option(
@@ -213,7 +216,7 @@ Use --verbose for detailed confidence explanations in reports.`,
       .alias('eng')
       .argument('<files...>', 'CSV file(s) to analyze - single file for schema analysis, multiple files for join analysis')
       .description('Provide data engineering insights (Section 5) - supports multi-file join analysis')
-      .option('-f, --format <format>', 'Output format (txt, markdown, json, yaml)', 'markdown')
+      .option('-f, --format <format>', 'Output format (txt, markdown, json, yaml)', 'json')
       .option('-o, --output <file>', 'Write output to file instead of stdout')
       .option('--confidence <threshold>', 'Join confidence threshold (0-1)', this.parseFloat, 0.7)
       .action(this.createJoinCommandHandler('engineering'));
@@ -223,7 +226,7 @@ Use --verbose for detailed confidence explanations in reports.`,
       .alias('mod')
       .argument('<file>', 'CSV file to analyze')
       .description('Generate predictive modeling guidance (Section 6)')
-      .option('-f, --format <format>', 'Output format (txt, markdown, json, yaml)', 'markdown')
+      .option('-f, --format <format>', 'Output format (txt, markdown, json, yaml)', 'json')
       .option('-o, --output <file>', 'Write output to file instead of stdout')
       .action(this.createCommandHandler('modeling'));
 
@@ -232,7 +235,7 @@ Use --verbose for detailed confidence explanations in reports.`,
       .command('join')
       .argument('<files...>', 'CSV files to analyze for join relationships')
       .description('Analyze join relationships between multiple CSV files')
-      .option('-f, --format <format>', 'Output format (txt, markdown, json, yaml)', 'markdown')
+      .option('-f, --format <format>', 'Output format (txt, markdown, json, yaml)', 'json')
       .option('-o, --output <file>', 'Write output to file instead of stdout')
       .option('--confidence <threshold>', 'Minimum confidence threshold (0-1)', this.parseFloat, 0.7)
       .option('--max-tables <number>', 'Maximum number of tables to analyze', this.parseInteger, 10)
@@ -246,7 +249,7 @@ Use --verbose for detailed confidence explanations in reports.`,
       .command('discover')
       .argument('<directory>', 'Directory containing CSV files to discover relationships')
       .description('Auto-discover join relationships in a directory of CSV files')
-      .option('-f, --format <format>', 'Output format (txt, markdown, json, yaml)', 'markdown')
+      .option('-f, --format <format>', 'Output format (txt, markdown, json, yaml)', 'json')
       .option('-o, --output <file>', 'Write output to file instead of stdout')
       .option('--pattern <glob>', 'File pattern to match (e.g., "*.csv")', '*.csv')
       .option('--confidence <threshold>', 'Minimum confidence threshold (0-1)', this.parseFloat, 0.7)
@@ -266,7 +269,7 @@ Use --verbose for detailed confidence explanations in reports.`,
       .command('optimize-joins')
       .argument('<files...>', 'CSV files to optimize for joining')
       .description('Analyze and recommend join optimizations')
-      .option('-f, --format <format>', 'Output format (txt, markdown, json, yaml)', 'markdown')
+      .option('-f, --format <format>', 'Output format (txt, markdown, json, yaml)', 'json')
       .option('-o, --output <file>', 'Write output to file instead of stdout')
       .option('--include-sql', 'Generate SQL optimization suggestions')
       .option('--include-indexing', 'Include indexing recommendations')

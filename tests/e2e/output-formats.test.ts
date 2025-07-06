@@ -62,14 +62,14 @@ describe('Output Formats E2E', () => {
 
     // Check in tempDir first
     const tempFiles = await fs.readdir(tempDir);
-    jsonFile = tempFiles.find(f => f.endsWith('.json'));
+    jsonFile = tempFiles.find(f => f.includes('sample-data') && f.endsWith('.json'));
     
     if (jsonFile) {
       jsonPath = join(tempDir, jsonFile);
     } else {
       // Check in current working directory
       const cwdFiles = await fs.readdir(process.cwd());
-      jsonFile = cwdFiles.find(f => f.endsWith('.json'));
+      jsonFile = cwdFiles.find(f => f.includes('sample-data') && f.endsWith('.json'));
       expect(jsonFile).toBeDefined();
       jsonPath = join(process.cwd(), jsonFile!);
     }
@@ -102,14 +102,14 @@ describe('Output Formats E2E', () => {
 
     // Check in tempDir first
     const tempFiles = await fs.readdir(tempDir);
-    yamlFile = tempFiles.find(f => f.endsWith('.yaml') || f.endsWith('.yml'));
+    yamlFile = tempFiles.find(f => f.includes('sample-data') && (f.endsWith('.yaml') || f.endsWith('.yml')));
     
     if (yamlFile) {
       yamlPath = join(tempDir, yamlFile);
     } else {
       // Check in current working directory
       const cwdFiles = await fs.readdir(process.cwd());
-      yamlFile = cwdFiles.find(f => f.endsWith('.yaml') || f.endsWith('.yml'));
+      yamlFile = cwdFiles.find(f => f.includes('sample-data') && (f.endsWith('.yaml') || f.endsWith('.yml')));
       expect(yamlFile).toBeDefined();
       yamlPath = join(process.cwd(), yamlFile!);
     }
@@ -142,14 +142,14 @@ describe('Output Formats E2E', () => {
 
     // Check in tempDir first
     const tempFiles = await fs.readdir(tempDir);
-    mdFile = tempFiles.find(f => f.endsWith('.md'));
+    mdFile = tempFiles.find(f => f.includes('sample-data') && f.endsWith('.md'));
     
     if (mdFile) {
       mdPath = join(tempDir, mdFile);
     } else {
       // Check in current working directory
       const cwdFiles = await fs.readdir(process.cwd());
-      mdFile = cwdFiles.find(f => f.endsWith('.md'));
+      mdFile = cwdFiles.find(f => f.includes('sample-data') && f.endsWith('.md'));
       expect(mdFile).toBeDefined();
       mdPath = join(process.cwd(), mdFile!);
     }

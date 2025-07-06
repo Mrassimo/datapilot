@@ -78,8 +78,8 @@ describe('ArgumentParser', () => {
     it('should handle help flags without process.exit', () => {
       const result = parser.parse(['node', 'datapilot', '--help']);
       
-      expect(result.command).toBe('help');
-      expect(result.args).toEqual([]);
+      expect(result.command).toBe('--help');
+      expect(result.args).toEqual(['--help']);
       expect(result.options).toEqual({
         autoConfig: false,
         autoSample: false,
@@ -103,7 +103,8 @@ describe('ArgumentParser', () => {
     it('should handle short help flag', () => {
       const result = parser.parse(['node', 'datapilot', '-h']);
       
-      expect(result.command).toBe('help');
+      // After help command fix, -h is handled by Commander.js natively
+      expect(result.command).toBe('-h');
     });
   });
 

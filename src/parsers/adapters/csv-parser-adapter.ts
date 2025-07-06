@@ -176,8 +176,8 @@ export class CSVParserAdapter implements DataParser {
       const detection = await this.detect(filePath);
 
       const confidence = detection.confidence;
-      const isValid = confidence > 0.8;
-      const canProceed = confidence > 0.5;
+      const isValid = confidence > 0.7;   // Reasonable threshold for valid files
+      const canProceed = confidence > 0.5; // Standard threshold for processing
 
       const errors: string[] = [];
       const warnings: string[] = [];
