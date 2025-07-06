@@ -1,3 +1,15 @@
+# [1.7.0](https://github.com/Mrassimo/datapilot/compare/v1.6.7...v1.7.0) (2025-07-06)
+
+
+### Bug Fixes
+
+* resolve Jest worker crashes in CLI integration tests ([a97ca74](https://github.com/Mrassimo/datapilot/commit/a97ca748587ccd2e758410b6f525a0dc527fde24))
+
+
+### Features
+
+* comprehensive testing and cleanup improvements ([8ce02ab](https://github.com/Mrassimo/datapilot/commit/8ce02ab57f42de3d0b01a94f157a106d1c5e731a))
+
 ## [1.6.6](https://github.com/Mrassimo/datapilot/compare/v1.6.5...v1.6.6) (2025-06-29)
 
 
