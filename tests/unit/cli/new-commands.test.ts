@@ -110,15 +110,7 @@ describe('New CLI Commands', () => {
 
   describe('Clear Cache Command', () => {
     it('should clear all caches successfully when caches have data', async () => {
-      console.log('Mock setup:', {
-        sectionCacheManager: typeof mockSectionCacheManager,
-        resultCache: typeof mockResultCache,
-        sectionCacheManagerGetStats: typeof mockSectionCacheManager.getStats
-      });
-      
       const result = await cli.run(['node', 'datapilot', 'clear-cache']);
-      
-      console.log('Result:', JSON.stringify(result, null, 2));
 
       expect(result.success).toBe(true);
       expect(result.exitCode).toBe(0);

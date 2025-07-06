@@ -323,8 +323,6 @@ export class DataPilotCLI {
     try {
       // Clear section caches using SectionCacheManager
       const sectionCacheManager = new SectionCacheManager();
-      logger.debug(`SectionCacheManager instance created: ${typeof sectionCacheManager}`);
-      logger.debug(`SectionCacheManager.getStats type: ${typeof sectionCacheManager.getStats}`);
       
       const sectionStats = await sectionCacheManager.getStats();
       if (sectionStats.totalEntries > 0) {
