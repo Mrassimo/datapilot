@@ -4,6 +4,7 @@
  */
 
 import { EdaDataType, SemanticType } from '../eda/types';
+import { EMAIL_PATTERN, URL_PATTERN } from '../../utils/validation-patterns';
 
 export interface TypeDetectionResult {
   dataType: EdaDataType;
@@ -22,8 +23,8 @@ interface ColumnSample {
  * Enhanced Type Detector for sophisticated column type inference
  */
 export class EnhancedTypeDetector {
-  private static readonly EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  private static readonly URL_PATTERN = /^https?:\/\/[^\s]+$/;
+  // Using shared validation patterns for consistency
+  // EMAIL_PATTERN, URL_PATTERN imported from validation-patterns
 
   // Date patterns (various formats)
   private static readonly DATE_PATTERNS = [
@@ -366,7 +367,7 @@ export class EnhancedTypeDetector {
 
     // Test values against email pattern
     for (const value of values.slice(0, 100)) {
-      if (this.EMAIL_PATTERN.test(value)) {
+      if (EMAIL_PATTERN.test(value)) {
         emailCount++;
       }
     }
@@ -406,7 +407,7 @@ export class EnhancedTypeDetector {
 
     // Test values against URL pattern
     for (const value of values.slice(0, 100)) {
-      if (this.URL_PATTERN.test(value)) {
+      if (URL_PATTERN.test(value)) {
         urlCount++;
       }
     }

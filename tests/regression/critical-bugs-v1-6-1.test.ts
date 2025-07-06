@@ -45,7 +45,7 @@ describe('Critical Bug Regression Tests v1.6.1', () => {
       const result = await analyzer.analyze(testFile);
 
       // Check that version is reported correctly
-      expect(result.metadata?.version).toBe('1.6.1');
+      expect(result.metadata?.version).toBe('1.6.7');
       
       // Check Section 1 specifically
       if (result.section1) {
@@ -318,7 +318,7 @@ CUST005,2023-05-12,Standard,500.00,false`;
       const result = await analyzer.analyze(testFile);
 
       // Version should be correct
-      expect(result.metadata?.version).toBe('1.6.1');
+      expect(result.metadata?.version).toBe('1.6.7');
 
       // Date precision should be day-level
       if (result.section3?.univariate_analysis) {

@@ -13,6 +13,7 @@ import type {
 } from './types';
 import { DataType } from '../../core/types';
 import { logger } from '../../utils/logger';
+import { EMAIL_PATTERN, PHONE_PATTERN, URL_PATTERN } from '../../utils/validation-patterns';
 
 export interface ValidityAnalyzerInput {
   data: (string | null | undefined)[][];
@@ -35,9 +36,8 @@ export class ValidityAnalyzer {
   private customPatterns: Record<string, string>;
   private customRanges: Record<string, { min?: number; max?: number }>;
 
-  private static readonly EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  private static readonly PHONE_PATTERN = /^[\+]?[\d\s\-\(\)]{10,}$/;
-  private static readonly URL_PATTERN = /^https?:\/\/[^\s]+$/;
+  // Using shared validation patterns for consistency
+  // EMAIL_PATTERN, PHONE_PATTERN, URL_PATTERN imported from validation-patterns
   private static readonly DATE_PATTERNS = [
     /^\d{4}-\d{2}-\d{2}$/, // YYYY-MM-DD
     /^\d{2}\/\d{2}\/\d{4}$/, // MM/DD/YYYY
@@ -411,17 +411,17 @@ export class ValidityAnalyzer {
 
     // Email patterns
     if (lower.includes('email') || lower.includes('mail')) {
-      return { pattern: ValidityAnalyzer.EMAIL_PATTERN.source, name: 'Email Format' };
+      return { pattern: EMAIL_PATTERN.source, name: 'Email Format' };
     }
 
     // Phone patterns
     if (lower.includes('phone') || lower.includes('tel') || lower.includes('mobile')) {
-      return { pattern: ValidityAnalyzer.PHONE_PATTERN.source, name: 'Phone Number Format' };
+      return { pattern: PHONE_PATTERN.source, name: 'Phone Number Format' };
     }
 
     // URL patterns
     if (lower.includes('url') || lower.includes('website') || lower.includes('link')) {
-      return { pattern: ValidityAnalyzer.URL_PATTERN.source, name: 'URL Format' };
+      return { pattern: URL_PATTERN.source, name: 'URL Format' };
     }
 
     // Sample values to infer pattern

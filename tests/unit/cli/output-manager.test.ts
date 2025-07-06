@@ -560,7 +560,7 @@ describe('OutputManager', () => {
         
         const parsed = JSON.parse(jsonContent);
         expect(parsed.metadata).toBeDefined();
-        expect(parsed.metadata.version).toBe('1.6.1');
+        expect(parsed.metadata.version).toBe('1.6.7');
         expect(parsed.metadata.command).toBe('datapilot');
         expect(parsed.overview).toBeDefined();
         expect(parsed.warnings).toBeDefined();

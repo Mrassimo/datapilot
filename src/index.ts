@@ -3,9 +3,10 @@
  */
 
 export * from './core/types';
+import { getDataPilotVersion } from './utils/version';
 
-// Version will be updated from package.json during build
-export const VERSION = '0.1.0';
+// Version dynamically loaded from package.json
+export const VERSION = getDataPilotVersion();
 
 export const DATAPILOT_ASCII_ART = `
 ╔╦╗╔═╗╔╦╗╔═╗╔═╗╦╦  ╔═╗╔╦╗

@@ -4,6 +4,7 @@
  */
 
 import type { PatternValidation, FormatConsistency } from './types';
+import { EMAIL_PATTERN } from '../../utils/validation-patterns';
 
 export interface PatternRule {
   id: string;
@@ -105,7 +106,7 @@ export class PatternValidationEngine {
       name: 'Email Format Validation',
       description: 'Email addresses should follow standard email format',
       columnPattern: /(email|e-mail|mail)/i,
-      valuePattern: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/,
+      valuePattern: EMAIL_PATTERN,
       severity: 'high',
       examples: ['user@example.com', 'john.doe+newsletter@company.co.uk'],
       enabled: true,

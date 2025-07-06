@@ -27,6 +27,6 @@ export function getDataPilotVersion(): string {
   } catch (error) {
     // Fallback in case package.json can't be read
     // This should only happen in unusual deployment scenarios
-    return '1.6.1';
+    return '1.6.7';
   }
 }

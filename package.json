@@ -92,16 +92,12 @@
     "commander": "^12.1.0",
     "exceljs": "^4.4.0",
     "hyparquet": "^1.16.0",
-    "reflect-metadata": "^0.2.2",
-    "tsyringe": "^4.10.0",
     "uuid": "^10.0.0"
   },
   "bundleDependencies": [
     "commander",
     "exceljs",
     "hyparquet",
-    "reflect-metadata",
-    "tsyringe",
     "uuid"
   ],
   "devDependencies": {
