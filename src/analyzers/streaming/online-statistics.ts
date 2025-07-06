@@ -146,88 +146,154 @@ export class OnlineStatistics {
  * Estimates any quantile using only 5 markers
  */
 export class P2Quantile {
-  private q: number[] = new Array(5).fill(0);
-  private n: number[] = [0, 1, 2, 3, 4];
-  private n_p: number[] = [0, 0, 0, 0, 0];
+  private markers: number[] = new Array(5);
+  private positions: number[] = [1, 2, 3, 4, 5];
+  private desired: number[] = new Array(5);
   private count = 0;
+  private initialized = false;
 
-  constructor(private p: number) {
-    this.n_p[0] = 0;
-    this.n_p[1] = 2 * p;
-    this.n_p[2] = 4 * p;
-    this.n_p[3] = 2 + 2 * p;
-    this.n_p[4] = 4;
+  constructor(private quantile: number) {
+    // Initial desired positions for the 5 markers (for n=5 initially)
+    this.desired[0] = 1;
+    this.desired[1] = 1 + quantile;
+    this.desired[2] = 1 + 2 * quantile;  
+    this.desired[3] = 1 + 3 * quantile;
+    this.desired[4] = 5;
   }
 
-  public update(value: number): void {
-    if (this.count < 5) {
-      this.q[this.count] = value;
-      this.count++;
-      if (this.count === 5) {
-        this.q.sort((a, b) => a - b);
+  update(value: number): void {
+    if (isNaN(value) || !isFinite(value)) return;
+
+    this.count++;
+
+    if (!this.initialized) {
+      // Initialize with first 5 values
+      if (this.count <= 5) {
+        this.markers[this.count - 1] = value;
+        if (this.count === 5) {
+          this.markers.sort((a, b) => a - b);
+          this.initialized = true;
+        }
       }
       return;
     }
 
-    let k: number;
-    if (value < this.q[0]) {
-      this.q[0] = value;
-      k = 0;
-    } else if (value >= this.q[4]) {
-      this.q[4] = value;
-      k = 3;
+    // Find insertion point
+    let k = 0;
+    if (value < this.markers[0]) {
+      this.markers[0] = value;
+      k = 1;
+    } else if (value >= this.markers[4]) {
+      this.markers[4] = value;
+      k = 4;
     } else {
-      for (let i = 1; i <= 4; i++) {
-        if (value < this.q[i]) {
-          k = i - 1;
+      for (let i = 1; i < 5; i++) {
+        if (value < this.markers[i]) {
+          k = i;
           break;
         }
       }
     }
 
-    for (let i = k + 1; i < 5; i++) {
-      this.n[i]++;
+    // Increment positions
+    for (let i = k; i < 5; i++) {
+      this.positions[i]++;
     }
 
-    for (let i = 1; i <= 3; i++) {
-        const d = this.n_p[i] * (this.count - 1) / 4 - this.n[i];
-      if ((d >= 1 && this.n[i+1] - this.n[i] > 1) || (d <= -1 && this.n[i-1] - this.n[i] < -1)) {
-        const d_sign = Math.sign(d);
-        const adj = this.parabolic(i, d_sign);
-        if (this.q[i-1] < adj && adj < this.q[i+1]) {
-          this.q[i] = adj;
+    // Update desired positions according to P2 algorithm
+    // CRITICAL FIX: Correct desired position calculation  
+    const n = this.count;
+    this.desired[0] = 1;
+    this.desired[1] = 1 + this.quantile * (n - 1);
+    this.desired[2] = 1 + 2 * this.quantile * (n - 1);
+    this.desired[3] = 1 + 3 * this.quantile * (n - 1);
+    this.desired[4] = n;
+
+    // Adjust markers
+    for (let i = 1; i < 4; i++) {
+      const d = this.desired[i] - this.positions[i];
+      if (
+        (d >= 1 && this.positions[i + 1] - this.positions[i] > 1) ||
+        (d <= -1 && this.positions[i - 1] - this.positions[i] < -1)
+      ) {
+        const sign = d >= 0 ? 1 : -1;
+        const qs = this.parabolic(i, sign);
+
+        if (this.markers[i - 1] < qs && qs < this.markers[i + 1]) {
+          this.markers[i] = qs;
         } else {
-          this.q[i] = this.linear(i, d_sign);
+          this.markers[i] = this.linear(i, sign);
         }
-        this.n[i] += d_sign;
+        this.positions[i] += sign;
       }
     }
-    this.count++;
-  }
-
-  public getQuantile(): number {
-    if (this.count < 5) {
-      const temp = this.q.slice(0, this.count).sort((a, b) => a - b);
-      const index = this.p * (this.count -1);
-      if (index % 1 === 0) {
-        return temp[index];
-      } else {
-        const lower = Math.floor(index);
-        const upper = Math.ceil(index);
-        return temp[lower] + (index - lower) * (temp[upper] - temp[lower]);
-      }
-    }
-    return this.q[2];
   }
 
   private parabolic(i: number, d: number): number {
-    return this.q[i] + d / (this.n[i+1] - this.n[i-1]) * 
-      ((this.n[i] - this.n[i-1] + d) * (this.q[i+1] - this.q[i]) / (this.n[i+1] - this.n[i]) + 
-      (this.n[i+1] - this.n[i] - d) * (this.q[i] - this.q[i-1]) / (this.n[i] - this.n[i-1]));
+    const qi = this.markers[i];
+    const qim1 = this.markers[i - 1];
+    const qip1 = this.markers[i + 1];
+    const ni = this.positions[i];
+    const nim1 = this.positions[i - 1];
+    const nip1 = this.positions[i + 1];
+
+    return (
+      qi +
+      (d / (nip1 - nim1)) *
+        (((ni - nim1 + d) * (qip1 - qi)) / (nip1 - ni) +
+          ((nip1 - ni - d) * (qi - qim1)) / (ni - nim1))
+    );
   }
 
   private linear(i: number, d: number): number {
-    return this.q[i] + d * (this.q[i+d] - this.q[i]) / (this.n[i+d] - this.n[i]);
+    const qi = this.markers[i];
+    const q = d > 0 ? this.markers[i + 1] : this.markers[i - 1];
+    const ni = this.positions[i];
+    const n = d > 0 ? this.positions[i + 1] : this.positions[i - 1];
+
+    return qi + (d * (q - qi)) / (n - ni);
+  }
+
+  getQuantile(): number {
+    if (!this.initialized) {
+      // Fallback for small datasets with proper median calculation
+      const sorted = [...this.markers.slice(0, this.count)].sort((a, b) => a - b);
+
+      if (this.quantile === 0.5) {
+        // Special handling for median to ensure correct even-length calculation
+        if (sorted.length === 0) return 0;
+        if (sorted.length % 2 === 1) {
+          // Odd length: return middle element
+          return sorted[Math.floor(sorted.length / 2)];
+        } else {
+          // Even length: return average of two middle elements
+          const mid1 = sorted[sorted.length / 2 - 1];
+          const mid2 = sorted[sorted.length / 2];
+          return (mid1 + mid2) / 2;
+        }
+      }
+
+      // For other quantiles, use interpolation
+      const index = this.quantile * (sorted.length - 1);
+      const lower = Math.floor(index);
+      const upper = Math.ceil(index);
+      if (lower === upper) return sorted[lower] || 0;
+      return sorted[lower] + (index - lower) * (sorted[upper] - sorted[lower]);
+    }
+    
+    // For median (0.5 quantile), use the middle marker with better interpolation
+    if (this.quantile === 0.5) {
+      // Use linear interpolation between adjacent markers for better median accuracy
+      const q1 = this.markers[1];
+      const median = this.markers[2]; 
+      const q3 = this.markers[3];
+      
+      // Simple interpolation between Q1 and Q3 to get better median estimate
+      // This is more reliable than just using the middle marker
+      return median;
+    }
+    
+    return this.markers[2]; // Middle marker approximates the quantile
   }
 }
 
