@@ -32,8 +32,19 @@ export class DataPilotCLI {
     try {
       // Parse command line arguments
       const context = this.parser.parse(argv);
+
+      if (context.command === 'help') {
+        this.parser.showHelp();
+        return { success: true, exitCode: 0 };
+      }
+
+      if (context.command === 'version') {
+        console.log(this.parser.getVersion());
+        return { success: true, exitCode: 0 };
+      }
       
       if (!context.file && (!context.args || context.args.length === 0)) {
+        this.parser.showHelp();
         return {
           success: false,
           exitCode: 1,
@@ -52,6 +63,10 @@ export class DataPilotCLI {
       
       // Run analysis - route to appropriate analyzer method
       let result;
+      if (context.command === 'all') {
+        this.outputManager.startCombinedOutput();
+      }
+
       if (isMultiFileEngineering) {
         // Multi-file join analysis
         result = await this.analyzer.analyzeMultipleFiles(context.args, analysisOptions);
@@ -65,6 +80,9 @@ export class DataPilotCLI {
       if (result.success && result.data) {
         const primaryFilePath = isMultiFileEngineering ? context.args[0] : (context.file || context.args[0]);
         await this.formatAndOutputResults(result, primaryFilePath, context.options);
+        if (context.command === 'all') {
+          this.outputManager.outputCombined(primaryFilePath);
+        }
       }
       
       return result;

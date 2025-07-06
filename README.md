@@ -1,138 +1,121 @@
 # DataPilot 🚁📊
+**Turn any data file into insights in 30 seconds**
 
-[![npm version](https://img.shields.io/npm/v/datapilot-cli.svg)](https://www.npmjs.com/package/datapilot-cli)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Node.js Version](https://img.shields.io/node/v/datapilot-cli.svg)](https://nodejs.org)
-[![TypeScript](https://img.shields.io/badge/TypeScript-100%25-blue.svg)](https://www.typescriptlang.org/)
-[![Build Status](https://github.com/Mrassimo/datapilot/workflows/CI%2FCD%20Pipeline/badge.svg)](https://github.com/Mrassimo/datapilot/actions)
+DataPilot analyzes your CSV, Excel, JSON, and other data files to give you instant statistical insights - perfect for students, researchers, and anyone working with data.
 
-**Transform any data file into comprehensive statistical insights in seconds.**
+## 🚀 Three Ways to Use DataPilot
 
-Get instant analysis of CSV, JSON, Excel, TSV, and Parquet files with ML-ready recommendations, relationship detection, and production-grade streaming processing.
-
-## 🚀 Quick Start
-
-**Install and analyze your first file in 30 seconds:**
-
+### Option 1: 📦 **No Installation** (Easiest)
 ```bash
-# Install globally
+# Just run this with your file - no setup needed!
+npx datapilot-cli all your-data.csv
+```
+
+### Option 2: 🔧 **Install Once, Use Everywhere**
+```bash
+# Install once
 npm install -g datapilot-cli
 
-# Analyze any data file
-datapilot all data.csv
+# Then use anytime
+datapilot all your-data.csv
 ```
 
-**Windows users:** If you get `'datapilot' is not recognized`, use `npx datapilot-cli all data.csv` instead.
-
-## 📊 Common Commands
-
+### Option 3: 📥 **Download & Run**
 ```bash
-# Complete analysis (all 6 sections)
-datapilot all data.csv              # CSV, JSON, Excel, TSV, Parquet
-datapilot all data.xlsx             # Auto-detects format
-
-# Individual analysis sections
-datapilot quality data.csv          # Data quality assessment
-datapilot eda data.csv              # Statistical analysis
-datapilot engineering data.csv      # ML readiness & schema optimization
-
-# Multi-file relationship analysis
-datapilot engineering customers.csv orders.csv  # Detect joins & generate SQL
-datapilot discover /data/directory/             # Analyze all files in directory
-```
-
-## ✨ Key Features
-
-- **Universal format support**: CSV, JSON, Excel, TSV, Parquet with auto-detection
-- **6-section analysis pipeline**: Overview → Quality → EDA → Visualization → Engineering → Modeling  
-- **Multi-file relationship detection**: Smart join analysis with SQL generation
-- **Memory efficient**: Process 100GB+ files with <512MB RAM usage
-- **Production ready**: Enterprise security, audit logging, proxy support
-
-## 📁 Supported Formats
-
-| Format | Extensions | Auto-Detection |
-|--------|------------|----------------|
-| **CSV** | `.csv` | ✅ Delimiter detection |
-| **JSON** | `.json`, `.jsonl` | ✅ Structure validation |
-| **Excel** | `.xlsx`, `.xls` | ✅ Binary signature |
-| **TSV** | `.tsv`, `.tab` | ✅ Tab consistency |
-| **Parquet** | `.parquet` | ✅ Metadata inspection |
-
-## 📊 Analysis Sections
-
-| Section | Purpose | Output |
-|---------|---------|--------|
-| **Overview** | File metadata & structure | Size, encoding, headers, data types |
-| **Quality** | Missing data & outliers | Quality scores, completeness patterns |
-| **EDA** | Statistical analysis | Distributions, correlations, hypothesis tests |
-| **Visualization** | Chart recommendations | Optimal chart types, accessibility compliance |
-| **Engineering** | ML readiness & relationships | Schema optimization, join detection, SQL generation |
-| **Modeling** | Algorithm selection | ML recommendations, bias detection, ethics |
-
-## 🔧 Basic Configuration
-
-Create `.datapilotrc` in your project root:
-
-```yaml
-performance:
-  memoryLimit: "512mb"
-  chunkSize: 10000
-
-output:
-  format: "markdown"
-  quiet: false
-```
-
-## 🪟 Windows Installation
-
-If `datapilot` command isn't recognized after installation:
-
-```bash
-# Option 1: Use npx (recommended - no setup needed)
-npx datapilot-cli all data.csv
-
-# Option 2: Add npm to PATH
-npm config get prefix
-# Add the returned path to Windows PATH environment variable
-# Restart PowerShell/Command Prompt
-```
-
-## 🔍 Quick Troubleshooting
-
-**Command not found?** Use `npx datapilot-cli` instead of `datapilot`
-
-**Large files slow?** Add `--memory-limit 2gb --chunk-size 5000`
-
-**Need help?** Run `datapilot --help` or `datapilot [command] --help`
-
-## 📚 Resources
-
-- 📖 [Full Documentation](docs/README.md)
-- 🎯 [Complete Installation Guide](docs/INSTALLATION.md)
-- 🔧 [Advanced Configuration](docs/CONFIGURATION.md)
-- 🔍 [Troubleshooting Guide](docs/TROUBLESHOOTING.md)
-- 📊 [Example Outputs](examples/outputs/)
-
-## 🤝 Contributing
-
-```bash
+# Download the project
 git clone https://github.com/Mrassimo/datapilot.git
 cd datapilot
-npm install && npm run build && npm test
+npm install && npm run build
+
+# Use it
+node dist/datapilot.js all your-data.csv
 ```
 
-See [Contributing Guide](CONTRIBUTING.md) for details.
+## 📊 The Three Commands You Need
 
-## 📄 License
+### 1. `all` - Complete Analysis (Most Popular)
+Get everything: statistics, data quality, charts, and ML recommendations
+```bash
+npx datapilot-cli all sales-data.csv
+npx datapilot-cli all survey-results.xlsx
+npx datapilot-cli all experiment-data.json
+```
 
-MIT License - see [LICENSE](LICENSE) for details.
+### 2. `quality` - Check Your Data Health
+Find missing values, outliers, and data problems
+```bash
+npx datapilot-cli quality messy-data.csv
+```
 
-## 📞 Support
+### 3. `eda` - Statistical Analysis
+Get averages, distributions, correlations, and more
+```bash
+npx datapilot-cli eda research-data.csv
+```
 
-- 🐛 [Report Issues](https://github.com/Mrassimo/datapilot/issues)
-- 💬 [Discussions](https://github.com/Mrassimo/datapilot/discussions)
+## 💡 Real Examples
+
+**For Students:**
+```bash
+# Analyze your survey data
+npx datapilot-cli all class-survey.csv
+
+# Check your experiment results
+npx datapilot-cli quality lab-results.xlsx
+```
+
+**For Researchers:**
+```bash
+# Analyze multiple data files together
+npx datapilot-cli all participants.csv measurements.csv
+
+# Get publication-ready statistics
+npx datapilot-cli eda research-data.csv > analysis-report.txt
+```
+
+**For Business Analysis:**
+```bash
+# Analyze sales data
+npx datapilot-cli all quarterly-sales.xlsx
+
+# Check data before presenting
+npx datapilot-cli quality customer-data.csv
+```
+
+## 🎯 Pro Tips
+
+- **Save results**: Add `> report.txt` to save analysis to a file
+- **Multiple files**: List multiple files to find relationships between them
+- **AI-ready**: Perfect output format for ChatGPT, Claude, and other AI tools
+- **Works everywhere**: Mac, Windows, Linux - no special setup needed
+
+## 🔧 What File Types Work?
+
+✅ CSV files (`.csv`)  
+✅ Excel files (`.xlsx`, `.xls`)  
+✅ JSON files (`.json`)  
+✅ TSV files (`.tsv`)  
+✅ Parquet files (`.parquet`)  
+
+## ❓ Common Questions
+
+**Q: The command isn't working on Windows**  
+A: Use `npx datapilot-cli` instead of just `datapilot`
+
+**Q: My file is really big and it's slow**  
+A: Add `--memory-limit 2gb` to your command
+
+**Q: Can I use this with ChatGPT/Claude?**  
+A: Yes! The output is designed to work perfectly with AI assistants
+
+**Q: Need more help?**  
+A: Run `npx datapilot-cli --help` or check our [detailed documentation](FULL-README.md)
+
+## 📚 More Resources
+
+- 📖 [Complete Documentation](FULL-README.md) - All features and technical details
+- 🔧 [Installation Help](docs/INSTALLATION.md) - Detailed setup instructions  
+- 🔍 [Troubleshooting](docs/TROUBLESHOOTING.md) - Fix common problems
 
 ---
-
-**DataPilot v1.4.9** - Transform your data into comprehensive insights in seconds. 🚁📊
+Transform your data into insights in seconds! 🚁📊

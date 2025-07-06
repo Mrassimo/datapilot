@@ -20,45 +20,12 @@ export class ArgumentParser {
   /**
    * Parse command line arguments
    */
-  parse(argv: string[]): CLIContext {
+  public parse(argv: string[]): CLIContext {
     try {
-      // Handle empty arguments case
-      if (argv.length <= 2) {
-        return {
-          command: 'help',
-          args: [],
-          options: {},
-          startTime: Date.now(),
-          workingDirectory: process.cwd(),
-        };
-      }
-
-      // Check for help flags to avoid process.exit
-      if (argv.includes('--help') || argv.includes('-h')) {
-        return {
-          command: 'help',
-          args: [],
-          options: {},
-          startTime: Date.now(),
-          workingDirectory: process.cwd(),
-        };
-      }
-
-      // Check for Windows-specific help flag
-      if (argv.includes('--help-windows')) {
-        return {
-          command: 'help-windows',
-          args: [],
-          options: {},
-          startTime: Date.now(),
-          workingDirectory: process.cwd(),
-        };
-      }
-
       this.program.parse(argv);
 
       // Get the parsed command and options
-      const lastContext = this.getLastContext();
+      const lastContext = (this.program as any)._lastContext;
       if (lastContext) {
         return {
           ...lastContext,
@@ -67,8 +34,7 @@ export class ArgumentParser {
         };
       }
 
-      // Fallback for basic parsing
-      // Check if we have any remaining args after parsing
+      // Fallback for basic parsing (e.g., no command specified, just global options)
       const remainingArgs = this.program.args;
       const command = remainingArgs.length > 0 ? remainingArgs[0] : 'help';
       const globalOptions = this.program.opts();
@@ -587,7 +553,7 @@ Use --verbose for detailed confidence explanations in reports.`,
   /**
    * Validate file path and accessibility
    */
-  validateFile(filePath: string): string {
+  public validateFile(filePath: string): string {
     const resolvedPath = resolve(filePath);
 
     if (!existsSync(resolvedPath)) {
@@ -680,7 +646,7 @@ Use --verbose for detailed confidence explanations in reports.`,
   /**
    * Get the stored command context (used by main CLI)
    */
-  getLastContext(): CLIContext | null {
+  public getLastContext(): CLIContext | null {
     const context = (this.program as any)._lastContext;
     if (context) {
       // Merge global options with command-specific options
@@ -698,7 +664,7 @@ Use --verbose for detailed confidence explanations in reports.`,
   /**
    * Show help for specific command or general help
    */
-  showHelp(command?: string): void {
+  public showHelp(command?: string): void {
     if (command) {
       const cmd = this.program.commands.find((c) => c.name() === command);
       if (cmd) {
@@ -711,5 +677,9 @@ Use --verbose for detailed confidence explanations in reports.`,
     } else {
       process.stdout.write(this.program.helpInformation());
     }
+  }
+
+  public getVersion(): string {
+    return packageJson.version;
   }
 }

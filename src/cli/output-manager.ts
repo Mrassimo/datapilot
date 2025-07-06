@@ -1051,7 +1051,9 @@ export class OutputManager {
    */
   private generateCombinedOutputFilename(inputFilename: string, extension: string): string {
     const baseName = inputFilename.replace(/\.[^/.]+$/, ''); // Remove extension
-    return `${baseName}_datapilot_full_report${extension}`;
+    const filename = `${baseName}_datapilot_full_report${extension}`;
+    console.log(`Generated combined output filename: ${filename}`);
+    return filename;
   }
 
   /**

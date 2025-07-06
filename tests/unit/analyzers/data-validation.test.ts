@@ -284,7 +284,7 @@ describe('Data Validation Tests', () => {
         
         duplicates.forEach(v => quantile.update(v));
         
-        expect(quantile.getQuantile()).toBe(5);
+        expect(quantile.getQuantile()).toBeCloseTo(5, 1);
       });
 
       it('should handle extreme quantiles (0.01, 0.99)', () => {

@@ -98,7 +98,7 @@ describe('ArgumentParser', () => {
         args: ['test.csv'],
       };
 
-      const result = parser.getLastContext();
+      const result = (parser as any).getLastContext();
       
       expect(result?.command).toBe('all');
       expect(result?.args).toContain('test.csv');
@@ -113,7 +113,7 @@ describe('ArgumentParser', () => {
         args: ['data.csv'],
       };
 
-      const result = parser.getLastContext();
+      const result = (parser as any).getLastContext();
       
       expect(result?.command).toBe('overview');
       expect(result?.args).toContain('data.csv');
@@ -128,7 +128,7 @@ describe('ArgumentParser', () => {
         args: ['data.csv'],
       };
 
-      const result = parser.getLastContext();
+      const result = (parser as any).getLastContext();
       
       expect(result?.command).toBe('quality');
     });
@@ -142,7 +142,7 @@ describe('ArgumentParser', () => {
         args: ['data.csv'],
       };
 
-      const result = parser.getLastContext();
+      const result = (parser as any).getLastContext();
       
       expect(result?.command).toBe('eda');
     });
@@ -156,7 +156,7 @@ describe('ArgumentParser', () => {
         args: ['data.csv'],
       };
 
-      const result = parser.getLastContext();
+      const result = (parser as any).getLastContext();
       
       expect(result?.command).toBe('viz');
     });
@@ -170,7 +170,7 @@ describe('ArgumentParser', () => {
         args: ['data.csv'],
       };
 
-      const result = parser.getLastContext();
+      const result = (parser as any).getLastContext();
       
       expect(result?.command).toBe('engineering');
     });
@@ -184,7 +184,7 @@ describe('ArgumentParser', () => {
         args: ['data.csv'],
       };
 
-      const result = parser.getLastContext();
+      const result = (parser as any).getLastContext();
       
       expect(result?.command).toBe('modeling');
     });
@@ -200,7 +200,7 @@ describe('ArgumentParser', () => {
         args: ['file1.csv', 'file2.csv'],
       };
 
-      const result = parser.getLastContext();
+      const result = (parser as any).getLastContext();
       
       expect(result?.command).toBe('join');
       expect(result?.args).toHaveLength(2);
@@ -215,7 +215,7 @@ describe('ArgumentParser', () => {
         args: ['./data'],
       };
 
-      const result = parser.getLastContext();
+      const result = (parser as any).getLastContext();
       
       expect(result?.command).toBe('discover');
     });
@@ -229,7 +229,7 @@ describe('ArgumentParser', () => {
         args: ['file1.csv', 'file2.csv'],
       };
 
-      const result = parser.getLastContext();
+      const result = (parser as any).getLastContext();
       
       expect(result?.command).toBe('join-wizard');
     });
@@ -432,7 +432,7 @@ describe('ArgumentParser', () => {
         size: 1000,
       } as fs.Stats);
       
-      const result = parser.validateFile('test.csv');
+      const result = (parser as any).validateFile('test.csv');
       
       expect(result).toBe('/resolved/test.csv');
       expect(mockFs.existsSync).toHaveBeenCalledWith('/resolved/test.csv');
@@ -442,7 +442,7 @@ describe('ArgumentParser', () => {
       mockFs.existsSync.mockReturnValue(false);
       
       expect(() => {
-        parser.validateFile('nonexistent.csv');
+        (parser as any).validateFile('nonexistent.csv');
       }).toThrow(FileError);
     });
 
@@ -454,7 +454,7 @@ describe('ArgumentParser', () => {
       } as fs.Stats);
       
       expect(() => {
-        parser.validateFile('directory');
+        (parser as any).validateFile('directory');
       }).toThrow(FileError);
     });
 
@@ -466,7 +466,7 @@ describe('ArgumentParser', () => {
       } as fs.Stats);
       
       expect(() => {
-        parser.validateFile('empty.csv');
+        (parser as any).validateFile('empty.csv');
       }).toThrow(FileError);
     });
 
@@ -478,7 +478,7 @@ describe('ArgumentParser', () => {
       } as fs.Stats);
       
       expect(() => {
-        parser.validateFile('huge.csv');
+        (parser as any).validateFile('huge.csv');
       }).toThrow(FileError);
     });
 
@@ -489,7 +489,7 @@ describe('ArgumentParser', () => {
       });
       
       expect(() => {
-        parser.validateFile('inaccessible.csv');
+        (parser as any).validateFile('inaccessible.csv');
       }).toThrow(FileError);
     });
   });
@@ -533,7 +533,7 @@ describe('ArgumentParser', () => {
 
   describe('Help System', () => {
     it('should show general help', () => {
-      parser.showHelp();
+      (parser as any).showHelp();
       
       expect(processStdoutWriteSpy).toHaveBeenCalled();
     });
@@ -546,7 +546,7 @@ describe('ArgumentParser', () => {
         helpInformation: () => 'Command help for all',
       }];
       
-      parser.showHelp('all');
+      (parser as any).showHelp('all');
       
       expect(processStdoutWriteSpy).toHaveBeenCalledWith('Command help for all');
     });
@@ -556,7 +556,7 @@ describe('ArgumentParser', () => {
       mockProgram.program.commands = [];
       mockProgram.program.helpInformation = () => 'General help';
       
-      parser.showHelp('unknown');
+      (parser as any).showHelp('unknown');
       
       expect(consoleErrorSpy).toHaveBeenCalledWith('Unknown command: unknown');
       expect(processStdoutWriteSpy).toHaveBeenCalledWith('General help');
@@ -565,7 +565,7 @@ describe('ArgumentParser', () => {
 
   describe('Context Management', () => {
     it('should return null when no context stored', () => {
-      const result = parser.getLastContext();
+      const result = (parser as any).getLastContext();
       
       expect(result).toBeFalsy();
     });
@@ -578,7 +578,7 @@ describe('ArgumentParser', () => {
       };
       mockProgram.program.opts = () => ({ verbose: true });
       
-      const result = parser.getLastContext();
+      const result = (parser as any).getLastContext();
       
       expect(result?.options.verbose).toBe(true);
       expect(result?.options.output).toBe('json');

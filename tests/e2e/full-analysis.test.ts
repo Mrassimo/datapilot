@@ -78,15 +78,7 @@ describe('Full Analysis E2E', () => {
     const tempFiles = await fs.readdir(tempDir);
     outputFile = tempFiles.find(f => f.endsWith('_datapilot_full_report.md'));
     
-    if (outputFile) {
-      outputPath = join(tempDir, outputFile);
-    } else {
-      // Check in current working directory
-      const cwdFiles = await fs.readdir(process.cwd());
-      outputFile = cwdFiles.find(f => f.endsWith('_datapilot_full_report.md'));
-      expect(outputFile).toBeDefined();
-      outputPath = join(process.cwd(), outputFile!);
-    }
+    outputPath = join(tempDir, outputFile!);
 
     // Verify output content structure
     const content = await fs.readFile(outputPath, 'utf8');

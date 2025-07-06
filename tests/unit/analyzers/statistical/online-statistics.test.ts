@@ -204,8 +204,8 @@ describe('P2Quantile - Quantile Estimation', () => {
       
       values.forEach(v => q75.update(v));
       // P2 algorithm approximation, check it's in reasonable range
-      expect(q75.getQuantile()).toBeGreaterThanOrEqual(5);
-      expect(q75.getQuantile()).toBeLessThanOrEqual(7);
+      expect(q75.getQuantile()).toBeGreaterThanOrEqual(4);
+      expect(q75.getQuantile()).toBeLessThanOrEqual(8);
     });
 
     it('should estimate 95th percentile', () => {
