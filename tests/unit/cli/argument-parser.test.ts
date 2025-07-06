@@ -53,7 +53,24 @@ describe('ArgumentParser', () => {
       
       expect(result.command).toBe('help');
       expect(result.args).toEqual([]);
-      expect(result.options).toEqual({});
+      expect(result.options).toEqual({
+        autoConfig: false,
+        autoSample: false,
+        continueOnError: false,
+        dryRun: false,
+        enableCaching: undefined,
+        enableHashing: true,
+        fallbackOnError: true,
+        force: false,
+        forceIndividual: false,
+        forceSequential: false,
+        includeEnvironment: true,
+        progressiveReporting: false,
+        quiet: false,
+        showProgress: true,
+        streamingOptimizations: false,
+        verbose: false,
+      });
       expect(result.startTime).toBeDefined();
       expect(result.workingDirectory).toBe(process.cwd());
     });
@@ -63,7 +80,24 @@ describe('ArgumentParser', () => {
       
       expect(result.command).toBe('help');
       expect(result.args).toEqual([]);
-      expect(result.options).toEqual({});
+      expect(result.options).toEqual({
+        autoConfig: false,
+        autoSample: false,
+        continueOnError: false,
+        dryRun: false,
+        enableCaching: undefined,
+        enableHashing: true,
+        fallbackOnError: true,
+        force: false,
+        forceIndividual: false,
+        forceSequential: false,
+        includeEnvironment: true,
+        progressiveReporting: false,
+        quiet: false,
+        showProgress: true,
+        streamingOptimizations: false,
+        verbose: false,
+      });
     });
 
     it('should handle short help flag', () => {
