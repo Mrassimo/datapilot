@@ -14,8 +14,8 @@ global.console = {
   error: originalConsole.error, // Keep errors for debugging
 };
 
-// Global test timeout (should be fast)
-jest.setTimeout(5000);
+// Global test timeout - defer to jest.config.js for CI compatibility
+// jest.setTimeout is handled by jest.config.js based on environment
 
 // Clean up after each test
 afterEach(() => {

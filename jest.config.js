@@ -1,4 +1,23 @@
 /** @type {import('jest').Config} */
+
+// Enhanced CI detection for various environments
+function isCI() {
+  return !!(
+    process.env.CI ||                    // Standard CI environment variable
+    process.env.GITHUB_ACTIONS ||       // GitHub Actions
+    process.env.GITLAB_CI ||            // GitLab CI
+    process.env.CIRCLECI ||             // CircleCI
+    process.env.TRAVIS ||               // Travis CI
+    process.env.BUILDKITE ||            // Buildkite
+    process.env.JENKINS_URL ||          // Jenkins
+    process.env.TEAMCITY_VERSION ||     // TeamCity
+    process.env.TF_BUILD ||             // Azure DevOps
+    process.env.CODEBUILD_BUILD_ID ||   // AWS CodeBuild
+    process.env.BUILD_ID ||             // Generic build ID
+    process.env.NODE_ENV === 'test'     // Test environment
+  );
+}
+
 module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
@@ -31,18 +50,18 @@ module.exports = {
       statements: 65,
     },
   },
-  // Fast test execution
-  testTimeout: 5000,
-  maxWorkers: '50%',
+  // CI-friendly test execution - detect various CI environments
+  testTimeout: isCI() ? 30000 : 10000, // Longer timeout for CI environments
+  maxWorkers: isCI() ? 1 : '50%', // Single worker in CI to avoid resource conflicts
   
   // Clean test environment
   clearMocks: true,
   restoreMocks: true,
   resetMocks: true,
   
-  // No hanging tests allowed
-  forceExit: false,
-  detectOpenHandles: false,
+  // Better error detection and handling
+  forceExit: isCI() ? true : false, // Force exit in CI to prevent hanging
+  detectOpenHandles: true, // Enable to detect process leaks
   
   // Coverage reporting
   coverageDirectory: 'coverage',
@@ -53,8 +72,8 @@ module.exports = {
   cache: true,
   cacheDirectory: '<rootDir>/.jest-cache',
   
-  // Error handling
-  bail: 1, // Stop on first test failure for faster feedback
+  // Error handling - show all failures in CI, bail locally for speed
+  bail: isCI() ? false : 1,
   
   // Custom matchers and setup
   setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
