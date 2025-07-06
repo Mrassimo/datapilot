@@ -23,39 +23,35 @@ const mockOs = os as jest.Mocked<typeof os>;
 let mockSectionCacheManager: any;
 let mockResultCache: any;
 
-// Setup mocks
-beforeAll(() => {
-  // Mock SectionCacheManager
-  mockSectionCacheManager = {
-    getStats: jest.fn().mockResolvedValue({
-      totalEntries: 5,
-      totalSizeBytes: 10485760, // 10MB
-      hitRate: 0.85
-    }),
-    clearAll: jest.fn().mockResolvedValue(undefined)
-  };
+// Create the mocks
+mockSectionCacheManager = {
+  getStats: jest.fn().mockResolvedValue({
+    totalEntries: 5,
+    totalSizeBytes: 10485760, // 10MB
+    hitRate: 0.85
+  }),
+  clearAll: jest.fn().mockResolvedValue(undefined)
+};
 
-  // Mock ResultCache
-  mockResultCache = {
-    getStats: jest.fn().mockReturnValue({
-      totalEntries: 3,
-      totalSizeBytes: 5242880, // 5MB
-      hitCount: 15,
-      missCount: 5
-    }),
-    clear: jest.fn().mockResolvedValue(undefined),
-    dispose: jest.fn().mockResolvedValue(undefined)
-  };
+mockResultCache = {
+  getStats: jest.fn().mockReturnValue({
+    totalEntries: 3,
+    totalSizeBytes: 5242880, // 5MB
+    hitCount: 15,
+    missCount: 5
+  }),
+  clear: jest.fn().mockResolvedValue(undefined),
+  dispose: jest.fn().mockResolvedValue(undefined)
+};
 
-  // Mock the module imports
-  jest.doMock('@/performance/section-cache-manager', () => ({
-    SectionCacheManager: jest.fn(() => mockSectionCacheManager)
-  }));
+// Mock the modules using jest.mock at the top level
+jest.mock('@/performance/section-cache-manager', () => ({
+  SectionCacheManager: jest.fn().mockImplementation(() => mockSectionCacheManager)
+}));
 
-  jest.doMock('@/cli/result-cache', () => ({
-    createResultCache: jest.fn(() => mockResultCache)
-  }));
-});
+jest.mock('@/cli/result-cache', () => ({
+  createResultCache: jest.fn(() => mockResultCache)
+}));
 
 describe('New CLI Commands', () => {
   let cli: DataPilotCLI;
@@ -71,6 +67,23 @@ describe('New CLI Commands', () => {
     
     // Reset all mocks
     jest.clearAllMocks();
+    
+    // Reset cache mocks to default state
+    mockSectionCacheManager.getStats.mockResolvedValue({
+      totalEntries: 5,
+      totalSizeBytes: 10485760, // 10MB
+      hitRate: 0.85
+    });
+    mockSectionCacheManager.clearAll.mockResolvedValue(undefined);
+    
+    mockResultCache.getStats.mockReturnValue({
+      totalEntries: 3,
+      totalSizeBytes: 5242880, // 5MB
+      hitCount: 15,
+      missCount: 5
+    });
+    mockResultCache.clear.mockResolvedValue(undefined);
+    mockResultCache.dispose.mockResolvedValue(undefined);
 
     // Setup default fs mocks
     mockFs.existsSync.mockReturnValue(true);
@@ -97,7 +110,15 @@ describe('New CLI Commands', () => {
 
   describe('Clear Cache Command', () => {
     it('should clear all caches successfully when caches have data', async () => {
+      console.log('Mock setup:', {
+        sectionCacheManager: typeof mockSectionCacheManager,
+        resultCache: typeof mockResultCache,
+        sectionCacheManagerGetStats: typeof mockSectionCacheManager.getStats
+      });
+      
       const result = await cli.run(['node', 'datapilot', 'clear-cache']);
+      
+      console.log('Result:', JSON.stringify(result, null, 2));
 
       expect(result.success).toBe(true);
       expect(result.exitCode).toBe(0);

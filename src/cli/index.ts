@@ -12,11 +12,14 @@ import type { CLIResult, CLIOptions, CLIContext } from './types';
 import { globalCleanupHandler, globalMemoryManager } from '../utils/memory-manager';
 import { logger } from '../utils/logger';
 import { WindowsPathHelper } from './windows-path-helper';
+import { SectionCacheManager } from '../performance/section-cache-manager';
+import { createResultCache } from './result-cache';
 
 export class DataPilotCLI {
   private parser: ArgumentParser;
   private analyzer: UniversalAnalyzer;
   private outputManager: OutputManager;
+  private static processListenersRegistered = false;
 
   constructor() {
     this.parser = new ArgumentParser();
@@ -115,10 +118,19 @@ export class DataPilotCLI {
       return result;
     } catch (error) {
       logger.error(`CLI execution failed: ${error}`);
+      
+      // Check if this is a missing file argument error
+      const errorMessage = String(error);
+      let finalError = errorMessage;
+      
+      if (errorMessage.includes('missing required argument') || errorMessage.includes('required argument')) {
+        finalError = 'No input files specified';
+      }
+      
       return {
         success: false,
         exitCode: 1,
-        data: { error: String(error) }
+        data: { error: finalError }
       };
     } finally {
       // Ensure cleanup runs
@@ -247,7 +259,7 @@ export class DataPilotCLI {
       const result = await this.analyzer.validateAndPreview(filePaths, analysisOptions);
       
       if (!context.options.quiet) {
-        console.log('\n🔍 DRY RUN MODE - No analysis was performed');
+        console.log('🔍 DRY RUN MODE - No analysis was performed');
         console.log('=' .repeat(60));
       }
       
@@ -258,7 +270,9 @@ export class DataPilotCLI {
       return {
         success: false,
         exitCode: 1,
-        error: `Dry-run validation failed: ${error.message || error}`,
+        data: {
+          error: `Dry-run validation failed: ${error.message || error}`
+        },
         suggestions: [
           'Check that all input files exist and are readable',
           'Verify file formats are supported',
@@ -308,8 +322,9 @@ export class DataPilotCLI {
     
     try {
       // Clear section caches using SectionCacheManager
-      const { SectionCacheManager } = await import('../performance/section-cache-manager');
       const sectionCacheManager = new SectionCacheManager();
+      logger.debug(`SectionCacheManager instance created: ${typeof sectionCacheManager}`);
+      logger.debug(`SectionCacheManager.getStats type: ${typeof sectionCacheManager.getStats}`);
       
       const sectionStats = await sectionCacheManager.getStats();
       if (sectionStats.totalEntries > 0) {
@@ -319,7 +334,6 @@ export class DataPilotCLI {
       }
       
       // Clear result caches using ResultCache
-      const { createResultCache } = await import('./result-cache');
       const resultCache = createResultCache();
       
       const resultStats = resultCache.getStats();
@@ -385,7 +399,7 @@ export class DataPilotCLI {
   private async showPerformanceDashboard(options: CLIOptions): Promise<CLIResult> {
     try {
       if (!options.quiet) {
-        console.log('\n📊 DataPilot Performance Dashboard');
+        console.log('📊 DataPilot Performance Dashboard');
         console.log('='.repeat(50));
       }
       
@@ -393,7 +407,7 @@ export class DataPilotCLI {
       const systemInfo = await this.getSystemInfo();
       
       if (!options.quiet) {
-        console.log('\n🖥️  System Information:');
+        console.log('🖥️  System Information:');
         console.log(`   Platform: ${systemInfo.platform}/${systemInfo.arch}`);
         console.log(`   Node.js: ${systemInfo.nodeVersion}`);
         console.log(`   CPU Cores: ${systemInfo.cpuCount}`);
@@ -407,7 +421,7 @@ export class DataPilotCLI {
         const cacheStats = await this.getCacheStatistics();
         
         if (!options.quiet) {
-          console.log('\n💾 Cache Statistics:');
+          console.log('💾 Cache Statistics:');
           if (cacheStats.sectionCache) {
             console.log(`   Section Cache Entries: ${cacheStats.sectionCache.totalEntries}`);
             console.log(`   Section Cache Size: ${(cacheStats.sectionCache.totalSizeBytes / 1024 / 1024).toFixed(1)} MB`);
@@ -422,7 +436,7 @@ export class DataPilotCLI {
       }
       
       if (!options.quiet) {
-        console.log('\n🔧 Available Commands:');
+        console.log('🔧 Available Commands:');
         console.log('   datapilot clear-cache    Clear all cached analysis results');
         console.log('   datapilot perf --cache-stats    Show detailed cache statistics');
         console.log('   datapilot --help    Show all available commands');
@@ -480,7 +494,6 @@ export class DataPilotCLI {
       
       // Get section cache stats
       try {
-        const { SectionCacheManager } = await import('../performance/section-cache-manager');
         const sectionCacheManager = new SectionCacheManager();
         stats.sectionCache = await sectionCacheManager.getStats();
       } catch (error) {
@@ -489,7 +502,6 @@ export class DataPilotCLI {
       
       // Get result cache stats
       try {
-        const { createResultCache } = await import('./result-cache');
         const resultCache = createResultCache();
         stats.resultCache = resultCache.getStats();
         await resultCache.dispose();
@@ -525,18 +537,23 @@ export class DataPilotCLI {
       globalMemoryManager.stopMonitoring();
     });
 
-    // Handle process exit gracefully
-    process.on('SIGINT', async () => {
-      logger.info('Received SIGINT, cleaning up...');
-      await this.cleanup();
-      process.exit(0);
-    });
+    // Don't add process listeners in test environment or if already registered
+    if (process.env.NODE_ENV !== 'test' && !DataPilotCLI.processListenersRegistered) {
+      DataPilotCLI.processListenersRegistered = true;
+      
+      // Handle process exit gracefully
+      process.on('SIGINT', async () => {
+        logger.info('Received SIGINT, cleaning up...');
+        await this.cleanup();
+        process.exit(0);
+      });
 
-    process.on('SIGTERM', async () => {
-      logger.info('Received SIGTERM, cleaning up...');
-      await this.cleanup();
-      process.exit(0);
-    });
+      process.on('SIGTERM', async () => {
+        logger.info('Received SIGTERM, cleaning up...');
+        await this.cleanup();
+        process.exit(0);
+      });
+    }
   }
 
   /**
