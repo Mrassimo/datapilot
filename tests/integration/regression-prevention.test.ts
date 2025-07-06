@@ -113,16 +113,16 @@ describe('Regression Prevention', () => {
       expect(Object.keys(result.data.eda.univariate).length).toBeGreaterThan(0);
     });
 
-    it('should maintain visualisation command functionality', async () => {
-      const result = await cli.run(['node', 'datapilot', 'visualisation', standardCsvPath]);
+    it('should maintain visualization command functionality', async () => {
+      const result = await cli.run(['node', 'datapilot', 'visualization', standardCsvPath]);
       
       expect(result.success).toBe(true);
       expect(result.exitCode).toBe(0);
-      expect(result.data.visualisation).toBeDefined();
-      expect(result.data.visualisation.recommendations).toBeDefined();
+      expect(result.data.visualization).toBeDefined();
+      expect(result.data.visualization.recommendations).toBeDefined();
       
-      // Verify visualisation recommendations are generated
-      expect(result.data.visualisation.recommendations.length).toBeGreaterThan(0);
+      // Verify visualization recommendations are generated
+      expect(result.data.visualization.recommendations.length).toBeGreaterThan(0);
     });
 
     it('should maintain engineering command functionality', async () => {
