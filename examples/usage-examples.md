@@ -2,7 +2,7 @@
 
 ## Basic Usage
 
-### Analyze a CSV file with all sections
+### Analyse a CSV file with all sections
 ```bash
 datapilot all data.csv
 ```
@@ -118,7 +118,7 @@ datapilot quality data.csv -o json --quiet | \
 
 ### Batch processing
 ```bash
-# Analyze multiple files
+# Analyse multiple files
 for file in *.csv; do
   datapilot all "$file" --output "reports/${file%.csv}_report.md"
 done
@@ -142,7 +142,7 @@ datapilot all data.csv --format json | Out-File results.json
 
 ### Unix/Linux piping
 ```bash
-# Analyze from stdin
+# Analyse from stdin
 cat data.csv | datapilot all -
 
 # Chain with other tools

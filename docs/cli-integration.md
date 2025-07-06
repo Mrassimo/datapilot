@@ -153,7 +153,7 @@ datapilot eda sales.csv
 # Modeling with real dependencies - uses sequential
 datapilot modeling sales.csv
 
-# Full pipeline - uses sequential with memory optimization
+# Full pipeline - uses sequential with memory optimisation
 datapilot all sales.csv
 
 # Multi-file analysis with caching

@@ -1,25 +1,25 @@
 # Quality Analyzer Unit Tests
 
-This directory contains comprehensive unit tests for the Section 2 (Quality) analyzer module.
+This directory contains comprehensive unit tests for the Section 2 (Quality) analyser module.
 
 ## Test Files Overview
 
 ### Core Tests
-- **`section2-analyzer.test.ts`** - Main orchestrator tests (existing, comprehensive)
-- **`completeness-analyzer.test.ts`** - Missing value detection and analysis (existing)
-- **`uniqueness-analyzer.test.ts`** - Duplicate detection and analysis (existing)
+- **`section2-analyser.test.ts`** - Main orchestrator tests (existing, comprehensive)
+- **`completeness-analyser.test.ts`** - Missing value detection and analysis (existing)
+- **`uniqueness-analyser.test.ts`** - Duplicate detection and analysis (existing)
 - **`business-rule-engine.test.ts`** - Business rule validation (existing)
-- **`outlier-analyzer.test.ts`** - Outlier detection tests (existing)
+- **`outlier-analyser.test.ts`** - Outlier detection tests (existing)
 
 ### New Comprehensive Tests
-- **`validity-analyzer.test.ts`** - Type conformance, range validation, pattern matching
+- **`validity-analyser.test.ts`** - Type conformance, range validation, pattern matching
 - **`pattern-validation-engine.test.ts`** - Built-in patterns, custom patterns, format standardization
-- **`section2-analyzer-enhanced.test.ts`** - Edge cases, error handling, performance scenarios
-- **`section2-integration.test.ts`** - Integration between component analyzers
+- **`section2-analyser-enhanced.test.ts`** - Edge cases, error handling, performance scenarios
+- **`section2-integration.test.ts`** - Integration between component analysers
 
 ## Test Coverage Areas
 
-### 1. ValidityAnalyzer Tests (`validity-analyzer.test.ts`)
+### 1. ValidityAnalyzer Tests (`validity-analyser.test.ts`)
 - **Type Conformance Analysis**: Validates data types match expected types
 - **Range Conformance Analysis**: Detects numeric values outside reasonable ranges
 - **Pattern Conformance Analysis**: Email, phone, URL, custom pattern validation
@@ -36,7 +36,7 @@ This directory contains comprehensive unit tests for the Section 2 (Quality) ana
 - **Pattern Summary and Reporting**: Comprehensive validation reports
 - **Edge Cases**: Null values, no matching patterns, special characters
 
-### 3. Enhanced Section2Analyzer Tests (`section2-analyzer-enhanced.test.ts`)
+### 3. Enhanced Section2Analyzer Tests (`section2-analyser-enhanced.test.ts`)
 - **Edge Cases and Boundary Conditions**: Single row/column, all missing values, extreme values
 - **Error Handling and Resilience**: Inconsistent rows, corrupted data, circular references
 - **Performance and Scalability**: Large datasets, memory constraints, concurrent analysis
@@ -45,9 +45,9 @@ This directory contains comprehensive unit tests for the Section 2 (Quality) ana
 - **Warning Generation**: Appropriate warnings for quality issues
 
 ### 4. Integration Tests (`section2-integration.test.ts`)
-- **Component Integration**: How analyzers work together
+- **Component Integration**: How analysers work together
 - **Cross-Dimensional Impact**: How quality issues in one dimension affect others
-- **Component Isolation**: Ensuring analyzers work independently
+- **Component Isolation**: Ensuring analysers work independently
 - **Error Propagation**: Graceful handling of component failures
 - **Performance Integration**: Coordinated performance across components
 
@@ -61,7 +61,7 @@ const data = [
   // ... more test data
 ];
 
-const analyzer = new Section2Analyzer({
+const analyser = new Section2Analyzer({
   data,
   headers: ['id', 'name', 'email', 'age'],
   columnTypes: [DataType.INTEGER, DataType.STRING, DataType.STRING, DataType.INTEGER],
@@ -81,13 +81,13 @@ expect(result.qualityAudit.completeness.datasetLevel.totalMissingValues).toBe(ex
 expect(result.qualityAudit.uniqueness.exactDuplicates.count).toBeGreaterThanOrEqual(1);
 
 // Configuration and error handling
-expect(() => analyzer.analyze()).not.toThrow();
+expect(() => analyser.analyse()).not.toThrow();
 ```
 
 ### Performance Testing
 ```typescript
 const start = Date.now();
-const result = await analyzer.analyze();
+const result = await analyser.analyse();
 const duration = Date.now() - start;
 
 expect(duration).toBeLessThan(5000); // 5 seconds max
@@ -98,17 +98,17 @@ expect(result.performanceMetrics.totalAnalysisTime).toBeGreaterThan(0);
 
 ### Individual Test Files
 ```bash
-npm test -- tests/unit/quality/validity-analyzer.test.ts
+npm test -- tests/unit/quality/validity-analyser.test.ts
 npm test -- tests/unit/quality/pattern-validation-engine.test.ts
-npm test -- tests/unit/quality/section2-analyzer-enhanced.test.ts
+npm test -- tests/unit/quality/section2-analyser-enhanced.test.ts
 npm test -- tests/unit/quality/section2-integration.test.ts
 ```
 
 ### Existing Quality Tests
 ```bash
-npm test -- tests/unit/quality/section2-analyzer.test.ts
-npm test -- tests/unit/quality/completeness-analyzer.test.ts
-npm test -- tests/unit/quality/uniqueness-analyzer.test.ts
+npm test -- tests/unit/quality/section2-analyser.test.ts
+npm test -- tests/unit/quality/completeness-analyser.test.ts
+npm test -- tests/unit/quality/uniqueness-analyser.test.ts
 ```
 
 ### All Quality Tests (Memory Intensive)

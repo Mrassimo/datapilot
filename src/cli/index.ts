@@ -8,7 +8,7 @@
 import { ArgumentParser } from './argument-parser';
 import { UniversalAnalyzer } from './universal-analyzer';
 import { OutputManager } from './output-manager';
-import type { CLIResult, CLIOptions } from './types';
+import type { CLIResult, CLIOptions, CLIContext } from './types';
 import { globalCleanupHandler, globalMemoryManager } from '../utils/memory-manager';
 import { logger } from '../utils/logger';
 import { WindowsPathHelper } from './windows-path-helper';
@@ -39,6 +39,12 @@ export class DataPilotCLI {
         return { success: true, exitCode: 0 };
       }
       
+      // Handle no-file commands (clear-cache, perf, etc.)
+      const noFileCommands = ['clear-cache', 'perf'];
+      if (noFileCommands.includes(context.command)) {
+        return await this.handleNoFileCommand(context.command, context.options);
+      }
+      
       if (!context.file && (!context.args || context.args.length === 0)) {
         this.parser.showHelp();
         return {
@@ -48,8 +54,33 @@ export class DataPilotCLI {
         };
       }
       
-      // Detect multi-file scenarios for engineering command
-      const isMultiFileEngineering = context.command === 'engineering' && context.args && context.args.length > 1;
+      // Handle dry-run mode - validate and preview without executing
+      if (context.options.dryRun) {
+        return await this.handleDryRun(context);
+      }
+
+      // Handle lightweight commands (validate, info) separately
+      const lightweightCommands = ['validate', 'info'];
+      if (lightweightCommands.includes(context.command)) {
+        const filePath = context.file || context.args[0];
+        const analysisOptions = {
+          ...context.options,
+          command: context.command
+        };
+
+        let result;
+        if (context.command === 'validate') {
+          result = await this.analyzer.validateCSVFile(filePath, analysisOptions);
+        } else if (context.command === 'info') {
+          result = await this.analyzer.getFileInfo(filePath, analysisOptions);
+        }
+
+        return result;
+      }
+
+      // Detect multi-file scenarios for join-related commands
+      const multiFileCommands = ['engineering', 'join', 'discover', 'join-wizard', 'optimize-joins'];
+      const isMultiFileCommand = multiFileCommands.includes(context.command) && context.args && context.args.length > 1;
       
       // Add command to options for proper section selection
       const analysisOptions = {
@@ -63,7 +94,7 @@ export class DataPilotCLI {
         this.outputManager.startCombinedOutput();
       }
 
-      if (isMultiFileEngineering) {
+      if (isMultiFileCommand) {
         // Multi-file join analysis
         result = await this.analyzer.analyzeMultipleFiles(context.args, analysisOptions);
       } else {
@@ -74,7 +105,7 @@ export class DataPilotCLI {
       
       // If analysis was successful, format and output the results
       if (result.success && result.data) {
-        const primaryFilePath = isMultiFileEngineering ? context.args[0] : (context.file || context.args[0]);
+        const primaryFilePath = isMultiFileCommand ? context.args[0] : (context.file || context.args[0]);
         await this.formatAndOutputResults(result, primaryFilePath, context.options);
         if (context.command === 'all') {
           this.outputManager.outputCombined(primaryFilePath);
@@ -194,6 +225,283 @@ export class DataPilotCLI {
     const { JoinFormatter } = require('../analyzers/joins');
     const formatter = new JoinFormatter();
     return formatter.format(joinResult, { type: 'MARKDOWN' });
+  }
+
+  /**
+   * Handle dry-run mode - validate inputs and show analysis plan without executing
+   */
+  private async handleDryRun(context: CLIContext): Promise<CLIResult> {
+    try {
+      logger.info('Running in dry-run mode - validating inputs and showing analysis plan');
+      
+      const multiFileCommands = ['engineering', 'join', 'discover', 'join-wizard', 'optimize-joins'];
+      const isMultiFileCommand = multiFileCommands.includes(context.command) && context.args && context.args.length > 1;
+      const filePaths = isMultiFileCommand ? context.args : [context.file || context.args[0]];
+      
+      const analysisOptions = {
+        ...context.options,
+        command: context.command
+      };
+
+      // Validate all input files
+      const result = await this.analyzer.validateAndPreview(filePaths, analysisOptions);
+      
+      if (!context.options.quiet) {
+        console.log('\n🔍 DRY RUN MODE - No analysis was performed');
+        console.log('=' .repeat(60));
+      }
+      
+      return result;
+      
+    } catch (error) {
+      logger.error(`Dry-run validation failed: ${error}`);
+      return {
+        success: false,
+        exitCode: 1,
+        error: `Dry-run validation failed: ${error.message || error}`,
+        suggestions: [
+          'Check that all input files exist and are readable',
+          'Verify file formats are supported',
+          'Use --verbose for more detailed error information'
+        ]
+      };
+    }
+  }
+
+  /**
+   * Handle commands that don't require file arguments
+   */
+  private async handleNoFileCommand(command: string, options: CLIOptions): Promise<CLIResult> {
+    try {
+      switch (command) {
+        case 'clear-cache':
+          return await this.clearCache(options);
+        case 'perf':
+          return await this.showPerformanceDashboard(options);
+        default:
+          return {
+            success: false,
+            exitCode: 1,
+            error: `Unknown no-file command: ${command}`,
+            suggestions: ['Use --help to see available commands']
+          };
+      }
+    } catch (error) {
+      logger.error(`No-file command failed: ${error}`);
+      return {
+        success: false,
+        exitCode: 1,
+        error: `Command '${command}' failed: ${error.message || error}`,
+        suggestions: ['Check system permissions', 'Use --verbose for more details']
+      };
+    }
+  }
+
+  /**
+   * Clear all cached analysis results
+   */
+  private async clearCache(options: CLIOptions): Promise<CLIResult> {
+    logger.info('Clearing all cached analysis results...');
+    
+    let totalCleared = 0;
+    const results: string[] = [];
+    
+    try {
+      // Clear section caches using SectionCacheManager
+      const { SectionCacheManager } = await import('../performance/section-cache-manager');
+      const sectionCacheManager = new SectionCacheManager();
+      
+      const sectionStats = await sectionCacheManager.getStats();
+      if (sectionStats.totalEntries > 0) {
+        await sectionCacheManager.clearAll();
+        totalCleared += sectionStats.totalEntries;
+        results.push(`Cleared ${sectionStats.totalEntries} section cache entries (${(sectionStats.totalSizeBytes / 1024 / 1024).toFixed(1)}MB)`);
+      }
+      
+      // Clear result caches using ResultCache
+      const { createResultCache } = await import('./result-cache');
+      const resultCache = createResultCache();
+      
+      const resultStats = resultCache.getStats();
+      if (resultStats.totalEntries > 0) {
+        await resultCache.clear();
+        totalCleared += resultStats.totalEntries;
+        results.push(`Cleared ${resultStats.totalEntries} result cache entries (${(resultStats.totalSizeBytes / 1024 / 1024).toFixed(1)}MB)`);
+      }
+      
+      // Dispose of the result cache to clean up resources
+      await resultCache.dispose();
+      
+      if (totalCleared === 0) {
+        results.push('No cache entries found to clear');
+      }
+      
+      const message = results.join('\n');
+      
+      if (!options.quiet) {
+        console.log(`\n✅ Cache clearing completed`);
+        console.log(`📊 Summary:`);
+        results.forEach(result => console.log(`   • ${result}`));
+        console.log(`\n🗑️  Total entries cleared: ${totalCleared}`);
+      }
+      
+      logger.info(`Cache clearing completed: ${totalCleared} entries cleared`);
+      
+      return {
+        success: true,
+        exitCode: 0,
+        data: {
+          message,
+          totalCleared,
+          details: results
+        },
+        metadata: {
+          command: 'clear-cache',
+          timestamp: new Date().toISOString(),
+          entriesCleared: totalCleared
+        }
+      };
+      
+    } catch (error) {
+      const errorMessage = `Failed to clear cache: ${error.message || error}`;
+      logger.error(errorMessage);
+      
+      return {
+        success: false,
+        exitCode: 1,
+        error: errorMessage,
+        suggestions: [
+          'Check if cache directories are accessible',
+          'Ensure no other DataPilot processes are running',
+          'Use --verbose for detailed error information'
+        ]
+      };
+    }
+  }
+
+  /**
+   * Show performance dashboard and system information
+   */
+  private async showPerformanceDashboard(options: CLIOptions): Promise<CLIResult> {
+    try {
+      if (!options.quiet) {
+        console.log('\n📊 DataPilot Performance Dashboard');
+        console.log('='.repeat(50));
+      }
+      
+      // Show system information
+      const systemInfo = await this.getSystemInfo();
+      
+      if (!options.quiet) {
+        console.log('\n🖥️  System Information:');
+        console.log(`   Platform: ${systemInfo.platform}/${systemInfo.arch}`);
+        console.log(`   Node.js: ${systemInfo.nodeVersion}`);
+        console.log(`   CPU Cores: ${systemInfo.cpuCount}`);
+        console.log(`   Total Memory: ${systemInfo.totalMemoryGB.toFixed(1)} GB`);
+        console.log(`   Free Memory: ${systemInfo.freeMemoryGB.toFixed(1)} GB`);
+        console.log(`   Load Average: ${systemInfo.loadAverage.toFixed(2)}`);
+      }
+      
+      // Show cache statistics if requested
+      if (options.cacheStats) {
+        const cacheStats = await this.getCacheStatistics();
+        
+        if (!options.quiet) {
+          console.log('\n💾 Cache Statistics:');
+          if (cacheStats.sectionCache) {
+            console.log(`   Section Cache Entries: ${cacheStats.sectionCache.totalEntries}`);
+            console.log(`   Section Cache Size: ${(cacheStats.sectionCache.totalSizeBytes / 1024 / 1024).toFixed(1)} MB`);
+            console.log(`   Section Cache Hit Rate: ${(cacheStats.sectionCache.hitRate * 100).toFixed(1)}%`);
+          }
+          if (cacheStats.resultCache) {
+            console.log(`   Result Cache Entries: ${cacheStats.resultCache.totalEntries}`);
+            console.log(`   Result Cache Size: ${(cacheStats.resultCache.totalSizeBytes / 1024 / 1024).toFixed(1)} MB`);
+            console.log(`   Result Cache Hit Rate: ${((cacheStats.resultCache.hitCount / (cacheStats.resultCache.hitCount + cacheStats.resultCache.missCount)) * 100 || 0).toFixed(1)}%`);
+          }
+        }
+      }
+      
+      if (!options.quiet) {
+        console.log('\n🔧 Available Commands:');
+        console.log('   datapilot clear-cache    Clear all cached analysis results');
+        console.log('   datapilot perf --cache-stats    Show detailed cache statistics');
+        console.log('   datapilot --help    Show all available commands');
+      }
+      
+      return {
+        success: true,
+        exitCode: 0,
+        data: {
+          systemInfo,
+          cacheStats: options.cacheStats ? await this.getCacheStatistics() : undefined
+        },
+        metadata: {
+          command: 'perf',
+          timestamp: new Date().toISOString()
+        }
+      };
+      
+    } catch (error) {
+      const errorMessage = `Failed to show performance dashboard: ${error.message || error}`;
+      logger.error(errorMessage);
+      
+      return {
+        success: false,
+        exitCode: 1,
+        error: errorMessage,
+        suggestions: ['Check system permissions', 'Use --verbose for more details']
+      };
+    }
+  }
+
+  /**
+   * Get system information
+   */
+  private async getSystemInfo() {
+    const os = await import('os');
+    
+    return {
+      platform: os.platform(),
+      arch: os.arch(),
+      nodeVersion: process.version,
+      cpuCount: os.cpus().length,
+      totalMemoryGB: os.totalmem() / (1024 * 1024 * 1024),
+      freeMemoryGB: os.freemem() / (1024 * 1024 * 1024),
+      loadAverage: os.loadavg()[0] // 1-minute load average
+    };
+  }
+
+  /**
+   * Get cache statistics from both cache systems
+   */
+  private async getCacheStatistics() {
+    try {
+      const stats: any = {};
+      
+      // Get section cache stats
+      try {
+        const { SectionCacheManager } = await import('../performance/section-cache-manager');
+        const sectionCacheManager = new SectionCacheManager();
+        stats.sectionCache = await sectionCacheManager.getStats();
+      } catch (error) {
+        logger.warn(`Could not get section cache stats: ${error.message}`);
+      }
+      
+      // Get result cache stats
+      try {
+        const { createResultCache } = await import('./result-cache');
+        const resultCache = createResultCache();
+        stats.resultCache = resultCache.getStats();
+        await resultCache.dispose();
+      } catch (error) {
+        logger.warn(`Could not get result cache stats: ${error.message}`);
+      }
+      
+      return stats;
+    } catch (error) {
+      logger.warn(`Could not get cache statistics: ${error.message}`);
+      return {};
+    }
   }
 
   /**

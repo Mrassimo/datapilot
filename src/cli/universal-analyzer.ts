@@ -1061,6 +1061,760 @@ export class UniversalAnalyzer {
   }
 
   /**
+   * Validate CSV file format without full analysis (validate command)
+   */
+  async validateCSVFile(filePath: string, options: CLIOptions): Promise<CLIResult> {
+    this.initializeParsers();
+
+    try {
+      // Enable verbose mode in error handler if verbose CLI option is set
+      globalErrorHandler.setVerboseMode(options.verbose || false);
+
+      logger.info(`Starting CSV validation for: ${filePath}`);
+
+      // 1. Basic file existence and accessibility check
+      const fs = await import('fs');
+      const path = await import('path');
+      
+      if (!fs.existsSync(filePath)) {
+        return {
+          success: false,
+          exitCode: 1,
+          error: `File not found: ${filePath}`,
+          suggestions: [
+            'Check the file path is correct',
+            'Ensure the file exists and is accessible'
+          ]
+        };
+      }
+
+      const stats = fs.statSync(filePath);
+      if (!stats.isFile()) {
+        return {
+          success: false,
+          exitCode: 1,
+          error: `Path is not a file: ${filePath}`,
+          suggestions: ['Provide a path to a file, not a directory']
+        };
+      }
+
+      if (stats.size === 0) {
+        return {
+          success: false,
+          exitCode: 1,
+          error: `File is empty: ${filePath}`,
+          suggestions: ['Provide a non-empty CSV file']
+        };
+      }
+
+      // 2. Format detection and parser validation
+      const parseOptions: any = {
+        encoding: options.encoding as BufferEncoding || 'utf8',
+        delimiter: options.delimiter,
+        maxRows: 100, // Only validate structure, don't process full file
+      };
+
+      const { parser, format, detection } = await this.registry.getParser(filePath, parseOptions);
+
+      if (detection.confidence < 0.7) {
+        return {
+          success: false,
+          exitCode: 1,
+          error: `Low confidence in file format detection (${(detection.confidence * 100).toFixed(1)}%)`,
+          suggestions: [
+            `Detected format: ${format}`,
+            'Try specifying format options manually',
+            '--delimiter "," --encoding utf8',
+            'Ensure file has proper CSV structure'
+          ]
+        };
+      }
+
+      // 3. Parser validation
+      const validation = await parser.validate(filePath);
+      
+      if (!validation.canProceed) {
+        return {
+          success: false,
+          exitCode: 1,
+          error: `CSV format validation failed: ${validation.errors.join(', ')}`,
+          suggestions: [
+            'Check CSV formatting and structure',
+            'Ensure proper delimiter usage',
+            'Verify quote character consistency',
+            ...validation.warnings.map(w => `Warning: ${w}`)
+          ]
+        };
+      }
+
+      // 4. Quick structure check - parse first few rows to validate CSV structure
+      let rowCount = 0;
+      let columnCount = 0;
+      let hasHeader = false;
+      const detectedDelimiter = detection.metadata?.delimiter || ',';
+      const detectedEncoding = detection.metadata?.encoding || 'utf8';
+
+      try {
+        let firstRowProcessed = false;
+        for await (const row of parser.parse(filePath, { 
+          maxRows: 10, 
+          hasHeader: true,
+          encoding: parseOptions.encoding,
+          delimiter: parseOptions.delimiter
+        })) {
+          if (!firstRowProcessed) {
+            columnCount = row.data.length;
+            hasHeader = this.detectHeaderRow(row.data, format);
+            firstRowProcessed = true;
+          }
+          rowCount++;
+          if (rowCount >= 10) break; // Limit validation to first 10 rows
+        }
+      } catch (parseError) {
+        return {
+          success: false,
+          exitCode: 1,
+          error: `CSV parsing validation failed: ${parseError.message}`,
+          suggestions: [
+            'Check CSV syntax and formatting',
+            'Ensure consistent delimiter usage',
+            'Verify file encoding is correct'
+          ]
+        };
+      }
+
+      // Estimate total rows (rough calculation)
+      const estimatedRows = Math.floor(stats.size / (columnCount * 10)); // Rough estimate
+
+      const result = {
+        success: true,
+        exitCode: 0,
+        data: {
+          validation: {
+            isValid: true,
+            format,
+            confidence: detection.confidence,
+            fileSize: stats.size,
+            fileSizeMB: Math.round(stats.size / 1024 / 1024 * 100) / 100,
+            estimatedRows: Math.max(rowCount, estimatedRows),
+            columns: columnCount,
+            hasHeader,
+            detectedDelimiter,
+            detectedEncoding,
+            warnings: validation.warnings
+          }
+        },
+        metadata: {
+          command: 'validate',
+          filePath,
+          timestamp: new Date().toISOString(),
+          validationTime: Date.now()
+        }
+      };
+
+      // Output validation results if not quiet
+      if (!options.quiet) {
+        console.log(`\n✅ CSV Validation Results for: ${path.basename(filePath)}`);
+        console.log(`📊 File Status: VALID`);
+        console.log(`📁 File Size: ${result.data.validation.fileSizeMB} MB`);
+        console.log(`🔍 Format Confidence: ${(detection.confidence * 100).toFixed(1)}%`);
+        console.log(`📋 Estimated Rows: ${result.data.validation.estimatedRows.toLocaleString()}`);
+        console.log(`📊 Columns: ${columnCount}`);
+        console.log(`🏷️  Has Header: ${hasHeader ? 'Yes' : 'No'}`);
+        console.log(`🔹 Delimiter: "${detectedDelimiter}"`);
+        console.log(`📝 Encoding: ${detectedEncoding}`);
+        
+        if (validation.warnings.length > 0) {
+          console.log(`\n⚠️  Warnings:`);
+          validation.warnings.forEach(warning => console.log(`   • ${warning}`));
+        }
+      }
+
+      return result;
+
+    } catch (error) {
+      return this.handleAnalysisError(error, filePath, options);
+    }
+  }
+
+  /**
+   * Show quick file information and format detection (info command)
+   */
+  async getFileInfo(filePath: string, options: CLIOptions): Promise<CLIResult> {
+    this.initializeParsers();
+
+    try {
+      logger.info(`Getting file info for: ${filePath}`);
+
+      // 1. Basic file information
+      const fs = await import('fs');
+      const path = await import('path');
+      
+      if (!fs.existsSync(filePath)) {
+        return {
+          success: false,
+          exitCode: 1,
+          error: `File not found: ${filePath}`,
+          suggestions: ['Check the file path is correct']
+        };
+      }
+
+      const stats = fs.statSync(filePath);
+      if (!stats.isFile()) {
+        return {
+          success: false,
+          exitCode: 1,
+          error: `Path is not a file: ${filePath}`,
+          suggestions: ['Provide a path to a file, not a directory']
+        };
+      }
+
+      // 2. Format detection
+      const parseOptions: any = {
+        encoding: options.encoding as BufferEncoding || 'utf8',
+        delimiter: options.delimiter,
+        maxRows: 50, // Get preview rows
+      };
+
+      let detectionResult;
+      let formatInfo = {
+        format: 'unknown',
+        confidence: 0,
+        delimiter: ',',
+        encoding: 'utf8',
+        hasHeader: false
+      };
+
+      try {
+        detectionResult = await this.registry.getParser(filePath, parseOptions);
+        formatInfo = {
+          format: detectionResult.format,
+          confidence: detectionResult.detection.confidence,
+          delimiter: detectionResult.detection.metadata?.delimiter || ',',
+          encoding: detectionResult.detection.metadata?.encoding || 'utf8',
+          hasHeader: false
+        };
+      } catch (detectionError) {
+        logger.warn(`Format detection failed: ${detectionError.message}`);
+      }
+
+      // 3. Get preview data
+      let previewRows: string[][] = [];
+      let estimatedTotalRows = 0;
+      let columnCount = 0;
+
+      if (detectionResult) {
+        try {
+          let rowCount = 0;
+          for await (const row of detectionResult.parser.parse(filePath, { 
+            maxRows: 5, 
+            hasHeader: false,
+            encoding: parseOptions.encoding,
+            delimiter: parseOptions.delimiter
+          })) {
+            if (rowCount === 0) {
+              columnCount = row.data.length;
+              formatInfo.hasHeader = this.detectHeaderRow(row.data, formatInfo.format);
+            }
+            previewRows.push(row.data);
+            rowCount++;
+          }
+
+          // Rough estimate of total rows
+          if (columnCount > 0) {
+            estimatedTotalRows = Math.floor(stats.size / (columnCount * 15)); // Very rough estimate
+          }
+        } catch (parseError) {
+          logger.warn(`Preview parsing failed: ${parseError.message}`);
+        }
+      }
+
+      const result = {
+        success: true,
+        exitCode: 0,
+        data: {
+          fileInfo: {
+            filePath: path.resolve(filePath),
+            fileName: path.basename(filePath),
+            fileSize: stats.size,
+            fileSizeMB: Math.round(stats.size / 1024 / 1024 * 100) / 100,
+            lastModified: stats.mtime,
+            format: formatInfo.format,
+            formatConfidence: formatInfo.confidence,
+            estimatedRows: estimatedTotalRows,
+            columns: columnCount,
+            hasHeader: formatInfo.hasHeader,
+            delimiter: formatInfo.delimiter,
+            encoding: formatInfo.encoding,
+            preview: previewRows.slice(0, 3) // Show first 3 rows
+          }
+        },
+        metadata: {
+          command: 'info',
+          filePath,
+          timestamp: new Date().toISOString()
+        }
+      };
+
+      // Output file info if not quiet
+      if (!options.quiet) {
+        console.log(`\n📄 File Information: ${path.basename(filePath)}`);
+        console.log(`📍 Path: ${result.data.fileInfo.filePath}`);
+        console.log(`📁 Size: ${result.data.fileInfo.fileSizeMB} MB (${result.data.fileInfo.fileSize.toLocaleString()} bytes)`);
+        console.log(`📅 Modified: ${result.data.fileInfo.lastModified.toLocaleString()}`);
+        console.log(`\n🔍 Format Detection:`);
+        console.log(`   Format: ${result.data.fileInfo.format}`);
+        console.log(`   Confidence: ${(formatInfo.confidence * 100).toFixed(1)}%`);
+        console.log(`   Delimiter: "${result.data.fileInfo.delimiter}"`);
+        console.log(`   Encoding: ${result.data.fileInfo.encoding}`);
+        console.log(`\n📊 Structure:`);
+        console.log(`   Estimated Rows: ${result.data.fileInfo.estimatedRows.toLocaleString()}`);
+        console.log(`   Columns: ${result.data.fileInfo.columns}`);
+        console.log(`   Has Header: ${result.data.fileInfo.hasHeader ? 'Yes' : 'No'}`);
+        
+        if (previewRows.length > 0) {
+          console.log(`\n👀 Preview (first 3 rows):`);
+          previewRows.slice(0, 3).forEach((row, index) => {
+            const truncatedRow = row.map(cell => 
+              cell.length > 30 ? cell.substring(0, 30) + '...' : cell
+            );
+            console.log(`   ${index + 1}: [${truncatedRow.join(', ')}]`);
+          });
+        }
+      }
+
+      return result;
+
+    } catch (error) {
+      return this.handleAnalysisError(error, filePath, options);
+    }
+  }
+
+  /**
+   * Validate inputs and preview analysis plan without executing (dry-run mode)
+   */
+  async validateAndPreview(filePaths: string[], options: CLIOptions): Promise<CLIResult> {
+    this.initializeParsers();
+
+    try {
+      logger.info(`Starting dry-run validation for: ${filePaths.join(', ')}`);
+
+      const validationResults: any[] = [];
+      let totalEstimatedTime = 0;
+      let totalEstimatedMemory = 0;
+      let allValid = true;
+
+      // Validate each file
+      for (const filePath of filePaths) {
+        const fileValidation = await this.validateFileForDryRun(filePath, options);
+        validationResults.push(fileValidation);
+        
+        if (!fileValidation.valid) {
+          allValid = false;
+        } else {
+          totalEstimatedTime += fileValidation.estimatedProcessingTime;
+          totalEstimatedMemory = Math.max(totalEstimatedMemory, fileValidation.estimatedMemoryUsage);
+        }
+      }
+
+      // Determine analysis plan
+      const analysisPlan = this.generateAnalysisPlan(options, filePaths.length > 1);
+      
+      // Display dry-run results
+      if (!options.quiet) {
+        this.displayDryRunResults(validationResults, analysisPlan, totalEstimatedTime, totalEstimatedMemory, options);
+      }
+
+      const result = {
+        success: allValid,
+        exitCode: allValid ? 0 : 1,
+        data: {
+          dryRun: true,
+          validationResults,
+          analysisPlan,
+          resourceEstimates: {
+            estimatedProcessingTimeMs: totalEstimatedTime,
+            estimatedMemoryUsageMB: totalEstimatedMemory,
+            numberOfFiles: filePaths.length,
+          },
+          wouldExecute: allValid,
+        },
+        metadata: {
+          command: 'dry-run',
+          filePaths,
+          timestamp: new Date().toISOString(),
+          options: {
+            command: options.command,
+            sections: analysisPlan.sections,
+            multiFile: filePaths.length > 1,
+          },
+        },
+      };
+
+      if (!allValid) {
+        return {
+          ...result,
+          error: 'Validation failed for one or more input files',
+          suggestions: [
+            'Fix file validation issues shown above',
+            'Check file paths and permissions',
+            'Ensure files are in supported formats',
+          ],
+        };
+      }
+
+      return result;
+    } catch (error) {
+      return this.handleAnalysisError(error, filePaths.join(', '), options);
+    }
+  }
+
+  /**
+   * Validate individual file for dry-run mode
+   */
+  private async validateFileForDryRun(filePath: string, options: CLIOptions): Promise<{
+    filePath: string;
+    valid: boolean;
+    format?: string;
+    confidence?: number;
+    fileSize: number;
+    fileSizeMB: number;
+    estimatedRows?: number;
+    columns?: number;
+    hasHeader?: boolean;
+    estimatedProcessingTime: number;
+    estimatedMemoryUsage: number;
+    errors: string[];
+    warnings: string[];
+  }> {
+    try {
+      // Basic file existence and accessibility check
+      const fs = await import('fs');
+      
+      if (!fs.existsSync(filePath)) {
+        return {
+          filePath,
+          valid: false,
+          fileSize: 0,
+          fileSizeMB: 0,
+          estimatedProcessingTime: 0,
+          estimatedMemoryUsage: 0,
+          errors: [`File not found: ${filePath}`],
+          warnings: [],
+        };
+      }
+
+      const stats = fs.statSync(filePath);
+      if (!stats.isFile()) {
+        return {
+          filePath,
+          valid: false,
+          fileSize: stats.size,
+          fileSizeMB: stats.size / 1024 / 1024,
+          estimatedProcessingTime: 0,
+          estimatedMemoryUsage: 0,
+          errors: [`Path is not a file: ${filePath}`],
+          warnings: [],
+        };
+      }
+
+      if (stats.size === 0) {
+        return {
+          filePath,
+          valid: false,
+          fileSize: 0,
+          fileSizeMB: 0,
+          estimatedProcessingTime: 0,
+          estimatedMemoryUsage: 0,
+          errors: [`File is empty: ${filePath}`],
+          warnings: [],
+        };
+      }
+
+      // Format detection
+      const parseOptions: any = {
+        encoding: options.encoding as BufferEncoding || 'utf8',
+        delimiter: options.delimiter,
+        maxRows: 100, // Only validate structure
+      };
+
+      let format: string;
+      let confidence: number;
+      let estimatedRows = 0;
+      let columns = 0;
+      let hasHeader = false;
+      const errors: string[] = [];
+      const warnings: string[] = [];
+
+      try {
+        const { parser, format: detectedFormat, detection } = await this.registry.getParser(filePath, parseOptions);
+        format = detectedFormat;
+        confidence = detection.confidence;
+
+        if (confidence < 0.7) {
+          warnings.push(`Low confidence in format detection (${(confidence * 100).toFixed(1)}%)`);
+        }
+
+        // Parser validation
+        const validation = await parser.validate(filePath);
+        if (!validation.canProceed) {
+          errors.push(...validation.errors);
+        }
+        warnings.push(...validation.warnings);
+
+        // Quick structure analysis
+        let rowCount = 0;
+        try {
+          for await (const row of parser.parse(filePath, { 
+            maxRows: 10, 
+            hasHeader: true,
+            encoding: parseOptions.encoding,
+            delimiter: parseOptions.delimiter
+          })) {
+            if (rowCount === 0) {
+              columns = row.data.length;
+              hasHeader = this.detectHeaderRow(row.data, format);
+            }
+            rowCount++;
+            if (rowCount >= 10) break;
+          }
+
+          // Estimate total rows
+          estimatedRows = Math.floor(stats.size / (columns * 15)); // Rough estimate
+        } catch (parseError) {
+          errors.push(`Structure validation failed: ${parseError.message}`);
+        }
+      } catch (detectionError) {
+        errors.push(`Format detection failed: ${detectionError.message}`);
+        format = 'unknown';
+        confidence = 0;
+      }
+
+      // Resource estimation
+      const fileSizeMB = stats.size / 1024 / 1024;
+      const estimatedProcessingTime = this.estimateProcessingTime(fileSizeMB, estimatedRows, options);
+      const estimatedMemoryUsage = this.estimateMemoryUsage(fileSizeMB, columns, options);
+
+      // Large file warnings
+      if (fileSizeMB > 500) {
+        warnings.push(`Large file detected (${fileSizeMB.toFixed(1)}MB) - consider using sampling options`);
+      }
+      if (estimatedRows > 1000000) {
+        warnings.push(`High row count estimated (${estimatedRows.toLocaleString()}) - processing may be slow`);
+      }
+
+      return {
+        filePath,
+        valid: errors.length === 0,
+        format,
+        confidence,
+        fileSize: stats.size,
+        fileSizeMB,
+        estimatedRows,
+        columns,
+        hasHeader,
+        estimatedProcessingTime,
+        estimatedMemoryUsage,
+        errors,
+        warnings,
+      };
+    } catch (error) {
+      return {
+        filePath,
+        valid: false,
+        fileSize: 0,
+        fileSizeMB: 0,
+        estimatedProcessingTime: 0,
+        estimatedMemoryUsage: 0,
+        errors: [`Validation error: ${error.message || error}`],
+        warnings: [],
+      };
+    }
+  }
+
+  /**
+   * Generate analysis plan based on command and options
+   */
+  private generateAnalysisPlan(options: CLIOptions, isMultiFile: boolean): {
+    command: string;
+    sections: string[];
+    analysisType: string;
+    executionMode: string;
+    description: string;
+    estimatedSteps: number;
+  } {
+    const requestedSections = this.getRequestedSections(options);
+    const shouldUseSequential = this.shouldUseSequentialExecution(requestedSections, options);
+    
+    let analysisType = 'single-file';
+    let description = 'Standard single-file analysis';
+    
+    if (isMultiFile) {
+      analysisType = 'multi-file-join';
+      description = 'Multi-file join relationship analysis';
+    }
+
+    const executionMode = shouldUseSequential ? 'sequential-dependency-resolved' : 'individual-sections';
+    const estimatedSteps = requestedSections.length + (isMultiFile ? 2 : 1); // +1 for parsing, +1 for join analysis
+
+    return {
+      command: options.command || 'all',
+      sections: requestedSections,
+      analysisType,
+      executionMode,
+      description,
+      estimatedSteps,
+    };
+  }
+
+  /**
+   * Display comprehensive dry-run results
+   */
+  private displayDryRunResults(
+    validationResults: any[],
+    analysisPlan: any,
+    totalEstimatedTime: number,
+    totalEstimatedMemory: number,
+    options: CLIOptions
+  ): void {
+    const path = require('path');
+
+    // File validation results
+    console.log('\n📁 FILE VALIDATION RESULTS:');
+    validationResults.forEach((result, index) => {
+      const fileName = path.basename(result.filePath);
+      const status = result.valid ? '✅ VALID' : '❌ INVALID';
+      
+      console.log(`\n   ${index + 1}. ${fileName} - ${status}`);
+      console.log(`      Path: ${result.filePath}`);
+      console.log(`      Size: ${result.fileSizeMB.toFixed(1)} MB (${result.fileSize.toLocaleString()} bytes)`);
+      
+      if (result.format) {
+        console.log(`      Format: ${result.format} (${(result.confidence * 100).toFixed(1)}% confidence)`);
+      }
+      
+      if (result.estimatedRows) {
+        console.log(`      Estimated Rows: ${result.estimatedRows.toLocaleString()}`);
+        console.log(`      Columns: ${result.columns}`);
+        console.log(`      Has Header: ${result.hasHeader ? 'Yes' : 'No'}`);
+      }
+
+      if (result.errors.length > 0) {
+        console.log(`      ❌ Errors:`);
+        result.errors.forEach(error => console.log(`         • ${error}`));
+      }
+
+      if (result.warnings.length > 0) {
+        console.log(`      ⚠️  Warnings:`);
+        result.warnings.forEach(warning => console.log(`         • ${warning}`));
+      }
+    });
+
+    // Analysis plan
+    console.log('\n📋 ANALYSIS PLAN:');
+    console.log(`   Command: ${analysisPlan.command}`);
+    console.log(`   Description: ${analysisPlan.description}`);
+    console.log(`   Analysis Type: ${analysisPlan.analysisType}`);
+    console.log(`   Execution Mode: ${analysisPlan.executionMode}`);
+    console.log(`   Sections to Execute: ${analysisPlan.sections.join(', ')}`);
+    console.log(`   Estimated Steps: ${analysisPlan.estimatedSteps}`);
+
+    // Section descriptions
+    console.log('\n🔍 SECTIONS THAT WOULD BE EXECUTED:');
+    const sectionDescriptions = {
+      section1: 'Overview - File metadata, structure analysis, data profiling',
+      section2: 'Quality - Data quality audit, missing values, outliers, duplicates',
+      section3: 'EDA - Exploratory data analysis, statistical distributions, correlations',
+      section4: 'Visualization - Chart recommendations, accessibility optimization',
+      section5: 'Engineering - Schema optimization, ML readiness, feature engineering',
+      section6: 'Modeling - Algorithm selection, model validation strategies',
+    };
+
+    analysisPlan.sections.forEach((section: string, index: number) => {
+      const description = sectionDescriptions[section] || 'Unknown section';
+      console.log(`   ${index + 1}. ${section.toUpperCase()}: ${description}`);
+    });
+
+    // Resource estimates
+    console.log('\n⚡ RESOURCE ESTIMATES:');
+    console.log(`   Estimated Processing Time: ${this.formatTime(totalEstimatedTime)}`);
+    console.log(`   Estimated Memory Usage: ${totalEstimatedMemory.toFixed(1)} MB`);
+    console.log(`   Files to Process: ${validationResults.length}`);
+
+    // Configuration summary
+    console.log('\n⚙️  CONFIGURATION SUMMARY:');
+    if (options.maxRows) {
+      console.log(`   Max Rows: ${options.maxRows.toLocaleString()}`);
+    }
+    if (options.delimiter) {
+      console.log(`   Delimiter: "${options.delimiter}"`);
+    }
+    if (options.encoding) {
+      console.log(`   Encoding: ${options.encoding}`);
+    }
+    if (options.samplePercentage) {
+      console.log(`   Sampling: ${(options.samplePercentage * 100).toFixed(1)}%`);
+    }
+    if (options.preset) {
+      console.log(`   Performance Preset: ${options.preset}`);
+    }
+    
+    console.log(`   Output Format: ${options.format || 'json'}`);
+    console.log(`   Verbose Mode: ${options.verbose ? 'Enabled' : 'Disabled'}`);
+
+    console.log('\n✨ This is a dry run - no analysis was performed.');
+    console.log('   Remove --dry-run flag to execute the analysis.');
+  }
+
+  /**
+   * Estimate processing time based on file characteristics
+   */
+  private estimateProcessingTime(fileSizeMB: number, estimatedRows: number, options: CLIOptions): number {
+    const baseTimePerMB = 2000; // 2 seconds per MB baseline
+    const sectionsCount = this.getRequestedSections(options).length;
+    
+    let multiplier = sectionsCount * 0.2; // Each section adds time
+    
+    // Adjust for specific operations
+    if (options.enableHashing !== false) multiplier += 0.1;
+    if (options.maxRows && options.maxRows < estimatedRows) {
+      multiplier *= (options.maxRows / estimatedRows); // Sampling reduces time
+    }
+    
+    return Math.ceil(fileSizeMB * baseTimePerMB * multiplier);
+  }
+
+  /**
+   * Estimate memory usage based on file characteristics
+   */
+  private estimateMemoryUsage(fileSizeMB: number, columns: number, options: CLIOptions): number {
+    const baseMemoryRatio = 2.5; // 2.5x file size as baseline
+    let memoryUsage = fileSizeMB * baseMemoryRatio;
+    
+    // Adjust for operations
+    if (columns > 50) memoryUsage *= 1.2; // More columns need more memory
+    if (options.enableCaching) memoryUsage *= 1.3; // Caching uses more memory
+    if (options.chunkSize && options.chunkSize < 1000) memoryUsage *= 0.8; // Smaller chunks use less memory
+    
+    return Math.min(memoryUsage, options.maxMemory || 1000); // Cap at max memory setting
+  }
+
+  /**
+   * Format time duration for display
+   */
+  private formatTime(milliseconds: number): string {
+    if (milliseconds < 1000) {
+      return `${milliseconds}ms`;
+    } else if (milliseconds < 60000) {
+      return `${(milliseconds / 1000).toFixed(1)}s`;
+    } else {
+      const minutes = Math.floor(milliseconds / 60000);
+      const seconds = Math.floor((milliseconds % 60000) / 1000);
+      return `${minutes}m ${seconds}s`;
+    }
+  }
+
+  /**
    * Validate file format is supported
    */
   async validateFile(filePath: string): Promise<{

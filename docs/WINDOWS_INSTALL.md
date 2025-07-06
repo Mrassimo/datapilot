@@ -42,7 +42,7 @@ npm cache verify
 
 #### Solution 2: Use Windows-Optimized Settings
 ```cmd
-# Install with optimized flags
+# Install with optimised flags
 npm install -g datapilot-cli --no-audit --prefer-offline
 ```
 

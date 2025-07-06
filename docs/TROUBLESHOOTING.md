@@ -5,7 +5,7 @@ This guide provides solutions to common issues and debugging strategies for Data
 ## Quick Fixes
 
 ### Command Not Found
-**Problem:** `datapilot: command not found` or `'datapilot' is not recognized`
+**Problem:** `datapilot: command not found` or `'datapilot' is not recognised`
 
 **Quick Solutions:**
 ```bash
@@ -33,7 +33,7 @@ datapilot all data.csv --verbose --progress
 ```
 
 ### File Format Issues
-**Problem:** File not recognized or parsing errors
+**Problem:** File not recognised or parsing errors
 
 **Quick Solutions:**
 ```bash
@@ -51,7 +51,7 @@ datapilot info data.csv
 
 ### Windows-Specific Problems
 
-#### Problem: `'datapilot' is not recognized as an internal or external command`
+#### Problem: `'datapilot' is not recognised as an internal or external command`
 
 **Root Cause:** Windows PATH environment variable doesn't include npm global directory.
 
@@ -182,8 +182,8 @@ datapilot all data.csv --memory-limit 256mb
 # Reduce chunk size
 datapilot all data.csv --chunk-size 5000
 
-# Disable parallel processing (for single-core systems)
-datapilot all data.csv --no-parallel
+# Use single thread (for single-core systems)
+datapilot all data.csv --threads 1
 
 # Skip expensive sections
 datapilot overview data.csv  # Only run section 1
@@ -219,7 +219,7 @@ datapilot eda data.csv
 
 **Symptoms:**
 - CSV parsed as single column
-- JSON files not recognized
+- JSON files not recognised
 - Excel files fail to load
 
 **Solutions:**
@@ -242,14 +242,14 @@ datapilot all data.csv --delimiter ";" --quote "'"
 
 **Solutions:**
 ```bash
-# Force UTF-8 encoding
-datapilot all data.csv --encoding utf8
+# Force UTF-8 encoding (for validate command)
+datapilot validate data.csv --encoding utf8
 
-# Auto-detect encoding
-datapilot all data.csv --encoding auto
+# Auto-detect encoding (for validate command)
+datapilot validate data.csv --encoding auto
 
-# For Windows files with BOM
-datapilot all data.csv --encoding utf8-bom
+# For Windows files with BOM (for validate command)
+datapilot validate data.csv --encoding utf8-bom
 
 # Check file encoding externally
 file -i data.csv  # Linux/macOS
@@ -264,9 +264,6 @@ file -i data.csv  # Linux/macOS
 
 **Solutions:**
 ```bash
-# Increase file size limit
-datapilot all huge-file.csv --max-file-size 20gb
-
 # Use streaming mode explicitly  
 datapilot all huge-file.csv --streaming
 
@@ -297,7 +294,7 @@ datapilot overview file2.csv
 datapilot join-wizard file1.csv file2.csv
 ```
 
-#### Problem: Too many files to analyze
+#### Problem: Too many files to analyse
 
 **Solutions:**
 ```bash
@@ -389,14 +386,11 @@ iostat -x 1  # Check disk I/O
 ### Configuration Debugging
 
 ```bash
-# Validate configuration
-datapilot config --validate
+# Check DataPilot version and verbose info
+datapilot --version --verbose
 
-# Show effective configuration
-datapilot config --show
-
-# Test with minimal configuration
-datapilot all data.csv --config-file /dev/null
+# Test with minimal options
+datapilot all data.csv --quiet
 ```
 
 ## Error Code Reference
@@ -485,7 +479,7 @@ uname -a  # Linux/macOS
 systeminfo | findstr /B /C:"OS Name" /C:"OS Version"  # Windows
 
 # Configuration
-datapilot config --show
+datapilot --version --verbose
 
 # Error with full output
 datapilot all problematic-file.csv --verbose 2>&1 | tee error.log
@@ -530,12 +524,12 @@ datapilot all data.csv --chunk-size 100000 --memory-limit 2gb --progress --strea
 
 **Single-core systems:**
 ```bash
-datapilot all data.csv --no-parallel --chunk-size 5000
+datapilot all data.csv --threads 1 --chunk-size 5000
 ```
 
 **Multi-core systems:**
 ```bash
-datapilot all data.csv --parallel --workers 4
+datapilot all data.csv --threads 4
 ```
 
 **Limited RAM systems:**
@@ -545,7 +539,7 @@ datapilot all data.csv --memory-limit 256mb --chunk-size 2000 --no-cache
 
 **High-end workstations:**
 ```bash
-datapilot all data.csv --memory-limit 4gb --chunk-size 100000 --parallel --workers 8
+datapilot all data.csv --memory-limit 4gb --chunk-size 100000 --threads 8
 ```
 
 ## Preventive Measures
@@ -559,8 +553,8 @@ npm update -g datapilot-cli
 # Clear npm cache periodically
 npm cache clean --force
 
-# Validate configuration regularly
-datapilot config --validate
+# Keep your CLI updated
+datapilot --version
 ```
 
 ### Best Practices

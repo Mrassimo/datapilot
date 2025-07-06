@@ -1,7 +1,7 @@
 # DataPilot 🚁📊
 **Turn any data file into insights in 30 seconds**
 
-DataPilot analyzes your CSV, Excel, JSON, and other data files to give you instant statistical insights - perfect for students, researchers, and anyone working with data.
+DataPilot analyses your CSV, Excel, JSON, and other data files to give you instant statistical insights - perfect for students, researchers, and anyone working with data.
 
 ## 🚀 Three Ways to Use DataPilot
 
@@ -57,7 +57,7 @@ npx datapilot-cli eda research-data.csv
 
 **For Students:**
 ```bash
-# Analyze your survey data
+# Analyse your survey data
 npx datapilot-cli all class-survey.csv
 
 # Check your experiment results
@@ -66,7 +66,7 @@ npx datapilot-cli quality lab-results.xlsx
 
 **For Researchers:**
 ```bash
-# Analyze multiple data files together
+# Analyse multiple data files together
 npx datapilot-cli all participants.csv measurements.csv
 
 # Get publication-ready statistics
@@ -75,7 +75,7 @@ npx datapilot-cli eda research-data.csv > analysis-report.txt
 
 **For Business Analysis:**
 ```bash
-# Analyze sales data
+# Analyse sales data
 npx datapilot-cli all quarterly-sales.xlsx
 
 # Check data before presenting

@@ -11,14 +11,14 @@ The DataPilot visualization engine suffered a catastrophic deletion in commit `b
 ## 📊 Scope of Damage
 
 ### Files Deleted (with line counts):
-- **aesthetic-optimization.ts**: 3,630 lines → 57 stub lines (98.4% loss)
+- **aesthetic-optimisation.ts**: 3,630 lines → 57 stub lines (98.4% loss)
 - **chart-composer.ts**: 1,999 lines → 295 stub lines (85.2% loss)  
 - **dashboard-layout-engine.ts**: 1,619 lines → MISSING (100% loss)
 - **domain-aware-intelligence.ts**: 2,157 lines → MISSING (100% loss)
-- **performance-optimizer.ts**: 785 lines → MISSING (100% loss)
+- **performance-optimiser.ts**: 785 lines → MISSING (100% loss)
 - **statistical-chart-selector.ts**: 1,168 lines → MISSING (100% loss)
 - **wcag-accessibility-engine.ts**: 2,152 lines → 171 stub lines (92.1% loss)
-- **section4-analyzer.ts**: 4,676 lines → 80 lines basic fallback (98.3% loss)
+- **section4-analyser.ts**: 4,676 lines → 80 lines basic fallback (98.3% loss)
 
 **Total Loss**: 22,539 lines of production code
 
@@ -47,7 +47,7 @@ The DataPilot visualization engine suffered a catastrophic deletion in commit `b
 The deleted code represented sophisticated AI-driven visualization intelligence:
 
 ### Chart Composer Engine
-- **Multi-dimensional encoding analysis** with cognitive load optimization
+- **Multi-dimensional encoding analysis** with cognitive load optimisation
 - **Perceptual psychology** application (Gestalt principles, memorability factors)
 - **Cultural adaptation** (color symbolism, reading direction, numerical formats)
 - **Accessibility compliance** (WCAG 2.1, screen reader compatibility)
@@ -55,7 +55,7 @@ The deleted code represented sophisticated AI-driven visualization intelligence:
 
 ### Aesthetic Optimization Engine  
 - **Color harmony calculation** with psychological impact analysis
-- **Typography system optimization** with readability analysis
+- **Typography system optimisation** with readability analysis
 - **Brand integration** and style consistency evaluation
 - **Emotional design** principles application
 - **Responsive aesthetic** adaptation
@@ -76,7 +76,7 @@ The deleted code represented sophisticated AI-driven visualization intelligence:
    ```json
    "test:ci": "jest tests/unit tests/integration --testPathIgnorePatterns=visualization"
    ```
-3. **Create workflow bypass** for Section 4 analyzer
+3. **Create workflow bypass** for Section 4 analyser
 4. **Emergency release** to restore CI/CD functionality
 
 ### Phase 2: Interface Restoration (4-6 hours) 🔨
@@ -101,7 +101,7 @@ The deleted code represented sophisticated AI-driven visualization intelligence:
 
 1. **Engine restoration**:
    - Implement simplified but functional chart selection
-   - Basic aesthetic optimization algorithms
+   - Basic aesthetic optimisation algorithms
    - Essential accessibility checking
 
 2. **Test compatibility**:
@@ -120,7 +120,7 @@ The deleted code represented sophisticated AI-driven visualization intelligence:
 2. **Advanced features**:
    - Perceptual psychology algorithms
    - Cultural adaptation systems
-   - AI-driven optimization
+   - AI-driven optimisation
 
 ## 💡 Immediate Recommendations
 

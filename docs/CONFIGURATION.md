@@ -1,6 +1,6 @@
 # DataPilot Configuration Guide
 
-This guide covers all configuration options for optimizing DataPilot performance and customizing analysis behavior.
+This guide covers all configuration options for optimising DataPilot performance and customising analysis behaviour.
 
 ## Configuration Overview
 
@@ -30,7 +30,7 @@ performance:
   chunkSize: 10000
   memoryLimit: "512mb"
   parallelProcessing: true
-  workerThreads: 4
+  threads: 4
 
 analysis:
   sections: [1, 2, 3, 4, 5, 6]
@@ -62,7 +62,7 @@ performance:
   # Chunk size for streaming processing
   chunkSize: 10000          # Rows per chunk: 1000-100000
   
-  # Enable garbage collection optimization
+  # Enable garbage collection optimisation
   gcOptimization: true
   
   # Memory usage monitoring
@@ -80,7 +80,7 @@ performance:
   parallelProcessing: true
   
   # Number of worker threads (0 = auto-detect)
-  workerThreads: 0
+  threads: 0
   
   # Enable adaptive chunking based on system performance
   adaptiveChunking: true
@@ -98,12 +98,12 @@ performance:
 # Use predefined performance presets
 preset: "high-performance"  # Options: "low-memory", "balanced", "high-performance", "enterprise"
 
-# Or customize individual settings
+# Or customise individual settings
 performance:
   preset: "custom"
   chunkSize: 50000
   memoryLimit: "2gb"
-  workerThreads: 8
+  threads: 8
   parallelProcessing: true
 ```
 
@@ -168,7 +168,7 @@ analysis:
 ```yaml
 analysis:
   multiFile:
-    # Maximum files to analyze simultaneously
+    # Maximum files to analyse simultaneously
     maxFiles: 50
     
     # Join confidence threshold
@@ -183,7 +183,7 @@ analysis:
     # SQL generation settings
     sqlGeneration:
       dialect: "standard"      # Options: "standard", "mysql", "postgresql", "sqlite"
-      optimizeQueries: true
+      optimiseQueries: true
 ```
 
 ## File Format Configuration
@@ -238,11 +238,11 @@ formats:
 ```yaml
 formats:
   excel:
-    # Default sheet to analyze
+    # Default sheet to analyse
     defaultSheet: 0            # Sheet index or name
     
-    # Analyze all sheets
-    analyzeAllSheets: false
+    # Analyse all sheets
+    analyseAllSheets: false
     
     # Skip hidden sheets
     skipHiddenSheets: true
@@ -287,8 +287,8 @@ output:
     # Include detailed statistics
     includeDetailedStats: true
     
-    # Include visualizations recommendations
-    includeVisualizations: true
+    # Include visualisations recommendations
+    includeVisualisations: true
     
     # Include SQL queries for joins
     includeSqlQueries: true
@@ -489,14 +489,11 @@ integration:
 DataPilot validates configuration on startup:
 
 ```bash
-# Test configuration
-datapilot config --validate
+# Check DataPilot version and verbose info
+datapilot --version --verbose
 
-# Show current configuration
-datapilot config --show
-
-# Show configuration sources
-datapilot config --sources
+# Test with minimal configuration
+datapilot all data.csv --quiet
 ```
 
 ## Performance Tuning Guide
@@ -515,7 +512,7 @@ performance:
   chunkSize: 10000
   memoryLimit: "512mb"
   parallelProcessing: true
-  workerThreads: 4
+  threads: 4
 ```
 
 ### For Large Files (1GB-10GB)
@@ -524,7 +521,7 @@ performance:
   chunkSize: 50000
   memoryLimit: "2gb"
   parallelProcessing: true
-  workerThreads: 8
+  threads: 8
   adaptiveChunking: true
 ```
 
@@ -534,7 +531,7 @@ performance:
   chunkSize: 100000
   memoryLimit: "4gb"
   parallelProcessing: true
-  workerThreads: 16
+  threads: 16
   adaptiveChunking: true
   enableCaching: false      # Disable to save memory
 ```
@@ -546,7 +543,7 @@ performance:
 **Configuration not loaded:**
 - Check file location and permissions
 - Verify YAML syntax with online validator
-- Use `datapilot config --validate`
+- Use `datapilot --version --verbose` to check configuration loading
 
 **Performance issues:**
 - Reduce `chunkSize` if running out of memory
@@ -566,7 +563,7 @@ preset: "high-performance"
 performance:
   memoryLimit: "4gb"
   chunkSize: 100000
-  workerThreads: 16
+  threads: 16
 output:
   format: "json"
   includeDetailedStats: true

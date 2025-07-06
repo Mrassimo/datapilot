@@ -21,7 +21,7 @@ The **median calculation bug** identified in DataPilot v1.6.4-v1.6.6 has been **
 ## 🔧 **Technical Changes Made**
 
 ### 1. Fixed P2 Algorithm Desired Position Calculation
-**File**: `src/analyzers/streaming/online-statistics.ts`
+**File**: `src/analysers/streaming/online-statistics.ts`
 
 **Problem**: Incorrect incremental updates to desired positions
 ```typescript

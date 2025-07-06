@@ -36,7 +36,7 @@ Use [Conventional Commits](https://www.conventionalcommits.org/) format:
 
 ### **Patch Release (Bug Fixes)**
 ```bash
-git commit -m "fix: resolve memory leak in streaming analyzer"
+git commit -m "fix: resolve memory leak in streaming analyser"
 git commit -m "fix(csv): handle malformed headers correctly"
 ```
 
@@ -65,7 +65,7 @@ git commit -m "style: fix linting issues"
 1. **Developer pushes to main branch**
 2. **CI Pipeline runs** (linting, testing, building)
 3. **All CI jobs pass** ✅
-4. **Semantic Release analyzes commits** since last release
+4. **Semantic Release analyses commits** since last release
 5. **Determines version bump** based on commit messages
 6. **Updates package.json** and CHANGELOG.md
 7. **Creates GitHub release** with generated notes

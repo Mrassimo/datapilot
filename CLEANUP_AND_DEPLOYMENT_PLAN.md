@@ -41,7 +41,7 @@ rm -f *_datapilot_*.txt
 ### Step 3: Verify Core Fix
 ```bash
 # Ensure our median fix is properly in place
-git show HEAD:src/analyzers/streaming/online-statistics.ts | grep -A 10 "desired\[0\] = 1"
+git show HEAD:src/analysers/streaming/online-statistics.ts | grep -A 10 "desired\[0\] = 1"
 ```
 
 ### Step 4: Test Suite Validation

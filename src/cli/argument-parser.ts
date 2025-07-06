@@ -77,8 +77,8 @@ Confidence Metrics Guide:
 DataPilot reports confidence scores throughout the analysis. These indicate the reliability of automated decisions:
 
 • Parsing Confidence (Section 1): 95% = High certainty in CSV parameter detection
-• Type Detection Confidence (Section 3): 0.85+ = Strong evidence for data type classification  
-• Visualization Confidence (Section 4): 0.9+ = Chart type strongly recommended
+• Type Detection Confidence (Section 3): 85%+ = Strong evidence for data type classification  
+• Visualization Confidence (Section 4): 90%+ = Chart type strongly recommended
 • Quality Scores (Section 2): Based on completeness of quality dimension analysis
 • ML Readiness (Section 5): Reflects assessment completeness and data suitability
 • Modeling Confidence (Section 6): Categorical levels based on task clarity and algorithm fit

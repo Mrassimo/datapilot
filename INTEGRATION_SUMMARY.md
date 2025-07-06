@@ -85,7 +85,7 @@ try {
 ## Implementation Details
 
 ### Modified Files
-1. **`src/cli/universal-analyzer.ts`**
+1. **`src/cli/universal-analyser.ts`**
    - Added `shouldUseSequentialExecution()` method
    - Split `runAnalysisPipeline()` into two paths
    - Added `runSequentialExecution()` and `runIndividualExecution()`

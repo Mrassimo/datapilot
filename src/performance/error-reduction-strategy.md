@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document outlines the multi-layered error reduction and prevention strategy implemented in the DataPilot performance optimization system. The strategy employs defense-in-depth principles with multiple error detection, prevention, and recovery mechanisms.
+This document outlines the multi-layered error reduction and prevention strategy implemented in the DataPilot performance optimisation system. The strategy employs defense-in-depth principles with multiple error detection, prevention, and recovery mechanisms.
 
 ## 🔍 Error Vector Analysis
 
@@ -231,12 +231,12 @@ class RobustStreamingAnalyzer {
   private adaptiveStreamer = getGlobalAdaptiveStreamer();
   private errorHandler = getGlobalEnhancedErrorHandler();
 
-  async analyzeFile(filePath: string): Promise<Section3Result> {
+  async analyseFile(filePath: string): Promise<Section3Result> {
     // Layer 1: File validation
     const fileValidation = await InputValidator.validateFilePath(filePath);
     InputValidator.validateAndThrow(fileValidation, 'file analysis');
 
-    // Layer 2: Memory optimization wrapper
+    // Layer 2: Memory optimisation wrapper
     return this.memoryOptimizer.withOptimization(async () => {
       // Layer 3: Adaptive streaming with error recovery
       const sessionId = await this.adaptiveStreamer.createSession(filePath);
@@ -265,7 +265,7 @@ function getSystemHealthStatus() {
       pools: workerPoolManager.getAllStats()
     },
     memory: {
-      optimization: memoryOptimizer.getDetailedStats(),
+      optimisation: memoryOptimizer.getDetailedStats(),
       leaks: leakDetector.getLeakAnalysis()
     },
     circuitBreakers: {
@@ -295,14 +295,14 @@ function getSystemHealthStatus() {
 ### 2. Short-term Response (1-30 seconds)
 - **Worker recovery** with health monitor intervention
 - **Error recovery strategies** with context-aware selection
-- **Resource pool optimization** with leak prevention
+- **Resource pool optimisation** with leak prevention
 - **Performance adaptation** with intelligent chunking
 
 ### 3. Long-term Response (30+ seconds)
 - **Learning algorithm** updates for better prediction
 - **System health analysis** with trend identification
 - **Capacity planning** based on error patterns
-- **Performance optimization** with historical data
+- **Performance optimisation** with historical data
 
 ## 🎯 Error Reduction Metrics
 

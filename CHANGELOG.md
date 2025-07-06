@@ -102,7 +102,7 @@
 
 ### Bug Fixes
 
-* optimize npm package size by excluding source maps and development files ([44ba35f](https://github.com/Mrassimo/datapilot/commit/44ba35fa91a685687df76c331e46689a1f9212c3))
+* optimise npm package size by excluding source maps and development files ([44ba35f](https://github.com/Mrassimo/datapilot/commit/44ba35fa91a685687df76c331e46689a1f9212c3))
 * resolve 400+ files in releases by fixing semantic-release configuration ([1fcc844](https://github.com/Mrassimo/datapilot/commit/1fcc844eec6ca87bd91720198d374f1167be6ece))
 
 ## [1.4.12](https://github.com/Mrassimo/datapilot/compare/v1.4.11...v1.4.12) (2025-06-28)
@@ -139,12 +139,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Section 6 now always provides modeling opportunities, never returns "0 tasks"
 
 - **Major Feature**: Smart performance auto-configuration (GitHub Issue #23)
-  - SmartResourceManager for automatic system resource detection and optimization
+  - SmartResourceManager for automatic system resource detection and optimisation
   - SectionCacheManager with intelligent memory/disk caching and TTL management
   - CLI performance options: --auto-config, --preset, --threads, --cache, --streaming
-  - 5 performance presets (ultra-large-files, large-files, balanced, speed-optimized, memory-constrained)
+  - 5 performance presets (ultra-large-files, large-files, balanced, speed-optimised, memory-constrained)
   - Performance dashboard (datapilot perf) and cache management (datapilot clear-cache)
-  - Automatic performance optimization based on file size and system capabilities
+  - Automatic performance optimisation based on file size and system capabilities
 
 ### Technical Implementation
 - Added 4 new TypeScript files with 3,000+ lines of production-ready code
@@ -159,13 +159,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - UnsupervisedAnalyzer column property access errors
 - CI/CD pipeline linting stage failures
 
-## [1.3.3] - 2024-12-XX
+## [1.3.3] - 2024-12-15
 
 ### Fixed
 - Comprehensive CI/CD pipeline test failures resolution
 - E2E CLI command parsing errors
 - Windows privacy mode test compatibility across CI environments
-- Large file test performance optimization with caching system
+- Large file test performance optimisation with caching system
 - Security vulnerability management (CVE-2023-30533, CVE-2024-22363)
 - GitHub Actions workflow permissions for binary uploads
 - Jest test infrastructure and coverage reporting
@@ -173,17 +173,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Enhanced
 - Cross-platform testing compatibility (Windows, macOS, Linux)
 - Test performance with reduced file sizes and caching
-- Repository organization and file structure cleanup
+- Repository organisation and file structure cleanup
 - GitHub Release automation for git tags
 
-## [1.3.2] - 2024-12-XX
+## [1.3.2] - 2024-12-10
 
 ### Fixed
 - Critical test infrastructure issues
 - Jest functionality restoration
 - CI/CD pipeline resolution with 97.5% test success rate
 
-## [1.3.1] - 2024-12-XX
+## [1.3.1] - 2024-12-05
 
 ### Added
 - Complete WCAG accessibility compliance implementation
@@ -195,7 +195,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Visualization rendering performance
 - Output formatting consistency
 
-## [1.2.0] - 2024-11-XX
+## [1.2.0] - 2024-11-15
 
 ### Added
 - Enhanced engineering analysis features
@@ -204,11 +204,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 6-section analysis pipeline architecture
 
 ### Enhanced
-- Memory management and resource optimization
+- Memory management and resource optimisation
 - Error handling and reporting system
 - Configuration system with environment overrides
 
-## [1.1.x] - 2024-10-XX
+## [1.1.0] - 2024-10-15
 
 ### Added
 - Core CSV processing and analysis functionality
@@ -216,7 +216,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Statistical analysis modules
 - Quality assessment features
 
-## [1.0.x] - 2024-09-XX
+## [1.0.0] - 2024-09-15
 
 ### Added
 - Initial release of DataPilot

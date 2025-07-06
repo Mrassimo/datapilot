@@ -194,7 +194,7 @@ Total: 0.35s (103x speedup!)
 ### **🚀 PERFORMANCE REQUIREMENTS: EXCEEDED**
 
 ✅ Sub-second cache lookups (< 1ms achieved)  
-✅ 100MB+ dataset support with streaming optimization  
+✅ 100MB+ dataset support with streaming optimisation  
 ✅ 10MB+ section result support with efficient storage  
 ✅ Memory-aware automatic management under all conditions  
 ✅ Optional persistent caching across CLI invocations  

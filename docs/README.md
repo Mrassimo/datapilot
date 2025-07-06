@@ -24,7 +24,7 @@ Welcome to the complete DataPilot documentation. This guide provides comprehensi
 ### Basic Commands
 ```bash
 # Complete analysis
-datapilot all data.csv              # Analyze all sections
+datapilot all data.csv              # Analyse all sections
 datapilot info data.csv             # File information only
 datapilot validate data.csv         # Format validation
 
@@ -40,13 +40,13 @@ datapilot modeling data.csv         # Section 6: Predictive modeling
 ### Multi-File Analysis
 ```bash
 # Relationship detection
-datapilot join customers.csv orders.csv        # Analyze relationships
+datapilot join customers.csv orders.csv        # Analyse relationships
 datapilot engineering customers.csv orders.csv # Engineering + joins
 datapilot discover /path/to/directory/         # Auto-discover all files
 
 # Interactive wizards
 datapilot join-wizard *.csv                   # Step-by-step join wizard
-datapilot optimize-joins *.csv                # Performance optimization
+datapilot optimise-joins *.csv                # Performance optimisation
 ```
 
 ### Advanced Options
@@ -93,12 +93,12 @@ DataPilot uses a 6-section analysis pipeline:
 
 ### Section 4: Visualization
 - Optimal chart type recommendations
-- Aesthetic optimization for readability
+- Aesthetic optimisation for readability
 - WCAG accessibility compliance
 - Dashboard layout suggestions
 
 ### Section 5: Engineering
-- Schema optimization and indexing recommendations
+- Schema optimisation and indexing recommendations
 - Feature engineering suggestions for ML
 - Multi-file relationship detection and join analysis
 - SQL generation for discovered relationships
@@ -139,7 +139,7 @@ DataPilot uses a 6-section analysis pipeline:
 
 ## LLM Integration
 
-DataPilot outputs are optimized for Large Language Model consumption:
+DataPilot outputs are optimised for Large Language Model consumption:
 
 ```bash
 # Generate JSON for LLM processing
@@ -151,7 +151,7 @@ datapilot engineering *.csv --format json > relationships.json
 
 ### Recommended LLM Prompts
 ```
-Analyze this DataPilot report and provide:
+Analyse this DataPilot report and provide:
 1. Top 3 most significant insights
 2. Data quality issues that need attention
 3. Recommended next steps for analysis

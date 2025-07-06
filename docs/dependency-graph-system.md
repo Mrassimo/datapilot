@@ -2,7 +2,7 @@
 
 ## Overview
 
-The DataPilot dependency graph system is a production-ready solution that solves all ultra-hard challenges for section dependency management. It provides robust dependency resolution, circular detection, memory optimization, and conditional execution capabilities.
+The DataPilot dependency graph system is a production-ready solution that solves all ultra-hard challenges for section dependency management. It provides robust dependency resolution, circular detection, memory optimisation, and conditional execution capabilities.
 
 ## Ultra-Hard Challenges Solved
 
@@ -17,7 +17,7 @@ The DataPilot dependency graph system is a production-ready solution that solves
 - **Features**: Detailed cycle reporting with exact dependency chains
 
 ### ✅ 3. Optimal Execution Order
-- **Solution**: Modified Kahn's algorithm with memory-aware optimization
+- **Solution**: Modified Kahn's algorithm with memory-aware optimisation
 - **Implementation**: `topologicalSort()` with weight-based node selection
 - **Features**: Memory-efficient ordering and parallel group identification
 
@@ -141,7 +141,7 @@ const resolver = createDependencyResolver('/path/to/file.csv', {
 const plan = resolver.planExecution(['section4', 'section5']);
 console.log('Execution order:', plan.order);
 console.log('Parallel groups:', plan.parallelGroups);
-console.log('Memory optimized:', plan.memoryOptimized);
+console.log('Memory optimised:', plan.memoryOptimized);
 ```
 
 ### Parallel Execution
@@ -158,7 +158,7 @@ const resolver = createDependencyResolver('/path/to/file.csv', {
   streamingOptimizations: true
 });
 
-// System automatically optimizes for memory efficiency
+// System automatically optimises for memory efficiency
 ```
 
 ## Performance Features
@@ -237,7 +237,7 @@ if (readiness.ready) {
 ### Memory Insights
 ```typescript
 const insights = resolver.getDependencyInsights();
-console.log('Memory optimized:', insights.memoryOptimization);
+console.log('Memory optimised:', insights.memoryOptimization);
 console.log('Recommendations:', insights.recommendations);
 ```
 
@@ -277,7 +277,7 @@ Supports all existing CLI options:
 ### Performance Monitoring
 - Execution time tracking
 - Memory usage monitoring  
-- Performance optimization
+- Performance optimisation
 - Resource cleanup
 
 ## Migration Guide

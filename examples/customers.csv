@@ -1,0 +1,6 @@
+customer_id,customer_name,email,phone,address,city,state,country,registration_date,customer_type
+C001,John Smith,john.smith@email.com,555-0101,123 Main St,New York,NY,USA,2023-01-10,premium
+C002,Sarah Johnson,sarah.j@email.com,555-0102,456 Oak Ave,Los Angeles,CA,USA,2023-02-15,standard
+C003,Michael Brown,m.brown@email.com,555-0103,789 Pine St,Chicago,IL,USA,2023-03-20,premium
+C004,Emily Davis,emily.d@email.com,555-0104,321 Elm St,Houston,TX,USA,2023-04-05,standard
+C005,David Wilson,d.wilson@email.com,555-0105,654 Maple Dr,Phoenix,AZ,USA,2023-05-12,standard

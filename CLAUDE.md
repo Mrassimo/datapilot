@@ -36,7 +36,7 @@ node test-sections-456.js         # Test sections 4-6 individually
 ```bash
 datapilot eng file.csv                    # Single file: normal Section 5 analysis
 datapilot eng customers.csv orders.csv    # Multi-file: Section 5 + relationship analysis
-datapilot eng *.csv --confidence 0.8      # Analyze all CSV files with custom confidence
+datapilot eng *.csv --confidence 0.8      # Analyse all CSV files with custom confidence
 ```
 
 ## Architecture Overview
@@ -46,16 +46,16 @@ DataPilot is a streaming statistical computation engine built around a **6-secti
 1. **Section 1 (Overview)**: File metadata, parsing detection, structural analysis
 2. **Section 2 (Quality)**: Data quality assessment, missing values, outliers, duplicates  
 3. **Section 3 (EDA)**: Streaming univariate/bivariate statistical analysis
-4. **Section 4 (Visualization)**: Chart selection, aesthetic optimization, accessibility
-5. **Section 5 (Engineering)**: Schema optimization, feature engineering, ML readiness, **multi-file relationship analysis**
+4. **Section 4 (Visualisation)**: Chart selection, aesthetic optimisation, accessibility
+5. **Section 5 (Engineering)**: Schema optimisation, feature engineering, ML readiness, **multi-file relationship analysis**
 6. **Section 6 (Modeling)**: Algorithm selection, model validation, deployment strategy
 
 ### Core Architecture Patterns
 
-**Streaming Processing**: All analyzers use streaming/chunked processing to handle arbitrarily large datasets within constant memory bounds. The `StreamingAnalyzer` is the foundation for sections 2-3.
+**Streaming Processing**: All analysers use streaming/chunked processing to handle arbitrarily large datasets within constant memory bounds. The `StreamingAnalyser` is the foundation for sections 2-3.
 
-**Analyzer-Formatter Pattern**: Each section follows the pattern:
-- `SectionXAnalyzer`: Core analysis logic with `.analyze()` method
+**Analyser-Formatter Pattern**: Each section follows the pattern:
+- `SectionXAnalyser`: Core analysis logic with `.analyse()` method
 - `SectionXFormatter`: Output formatting with `.format()` method  
 - `types.ts`: TypeScript interfaces for results and configurations
 
@@ -65,7 +65,7 @@ DataPilot is a streaming statistical computation engine built around a **6-secti
 - Section 4-6 require Section 3 (statistical analysis)
 - Section 5-6 may cross-reference each other
 
-**Memory Management**: The `globalMemoryManager` and `globalResourceManager` provide automatic cleanup and resource monitoring across all analyzers.
+**Memory Management**: The `globalMemoryManager` and `globalResourceManager` provide automatic cleanup and resource monitoring across all analysers.
 
 ### Key Subsystems
 
@@ -76,11 +76,11 @@ DataPilot is a streaming statistical computation engine built around a **6-secti
 
 **Error Handling** (`src/utils/error-handler.ts`):
 - `DataPilotError` types with severity and category classification
-- `globalErrorHandler` for centralized error management
+- `globalErrorHandler` for centralised error management
 - Contextual error reporting with file/line information
 
 **Configuration System** (`src/core/config.ts`):
-- Centralized thresholds and performance settings
+- Centralised thresholds and performance settings
 - Environment-specific configurations via `.datapilotrc`
 - Runtime adaptive configuration based on data characteristics
 
@@ -100,7 +100,7 @@ The CLI (`src/cli/`) orchestrates the full pipeline:
 - ✅ **TypeScript compilation**: Clean, no errors
 - ✅ **ESLint**: Clean code quality
 - ✅ **Core modules tested**: Overview, Quality, Parsers, CLI, Utils
-- ⚠️ **Interface evolution**: Some legacy tests removed during modernization
+- ⚠️ **Interface evolution**: Some legacy tests removed during modernisation
 
 **Unit Tests**: Located in `tests/` with same directory structure as `src/`
 - Use Jest with ts-jest preset
@@ -119,7 +119,7 @@ The CLI (`src/cli/`) orchestrates the full pipeline:
 
 **Error Handling**: Always use `DataPilotError` with appropriate severity and category. Wrap external errors with context.
 
-**Logging**: Use the centralized `logger` with `LogContext` for structured logging. Include section, analyzer, and operation context.
+**Logging**: Use the centralised `logger` with `LogContext` for structured logging. Include section, analyser, and operation context.
 
 **Type Safety**: Leverage strict TypeScript settings. Core types are in `src/core/types.ts`.
 
@@ -142,7 +142,7 @@ Generated outputs are stored in `examples/outputs/` with comprehensive analysis 
 
 # Using Gemini CLI for Large Codebase Analysis
 
-When analyzing large codebases or multiple files that might exceed context limits, use the Gemini CLI with its massive
+When analysing large codebases or multiple files that might exceed context limits, use the Gemini CLI with its massive
 context window. Use `gemini -p` to leverage Google Gemini's large context capacity.
 
 ## File and Directory Inclusion Syntax
@@ -156,19 +156,19 @@ Use the `@` syntax to include files and directories in your Gemini prompts. The 
 gemini -p "@src/main.py Explain this file's purpose and structure"
 
 Multiple files:
-gemini -p "@package.json @src/index.js Analyze the dependencies used in the code"
+gemini -p "@package.json @src/index.js Analyse the dependencies used in the code"
 
 Entire directory:
-gemini -p "@src/ Summarize the architecture of this codebase"
+gemini -p "@src/ Summarise the architecture of this codebase"
 
 Multiple directories:
-gemini -p "@src/ @tests/ Analyze test coverage for the source code"
+gemini -p "@src/ @tests/ Analyse test coverage for the source code"
 
 Current directory and subdirectories:
 gemini -p "@./ Give me an overview of this entire project"
 
 # Or use --all_files flag:
-gemini --all_files -p "Analyze the project structure and dependencies"
+gemini --all_files -p "Analyse the project structure and dependencies"
 
 Implementation Verification Examples
 
@@ -191,7 +191,7 @@ Verify caching strategy:
 gemini -p "@src/ @lib/ @services/ Is Redis caching implemented? List all cache-related functions and their usage"
 
 Check for specific security measures:
-gemini -p "@src/ @api/ Are SQL injection protections implemented? Show how user inputs are sanitized"
+gemini -p "@src/ @api/ Are SQL injection protections implemented? Show how user inputs are sanitised"
 
 Verify test coverage for features:
 gemini -p "@src/payment/ @tests/ Is the payment processing module fully tested? List all test cases"
@@ -199,7 +199,7 @@ gemini -p "@src/payment/ @tests/ Is the payment processing module fully tested? 
 When to Use Gemini CLI
 
 Use gemini -p when:
-- Analyzing entire codebases or large directories
+- Analysing entire codebases or large directories
 - Comparing multiple large files
 - Need to understand project-wide patterns or architecture
 - Current context window is insufficient for the task

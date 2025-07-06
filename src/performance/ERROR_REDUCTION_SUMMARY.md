@@ -209,7 +209,7 @@ class EnhancedWorkerPool extends WorkerPool {
 | **Circuit Open** | Immediate | Graceful degradation | Wait for recovery |
 | **File System Error** | Immediate | Retry with backoff | Error recovery |
 | **Network Timeout** | 30s | Exponential backoff | Connection retry |
-| **Memory Pressure** | Real-time | GC + optimization | Memory optimizer |
+| **Memory Pressure** | Real-time | GC + optimisation | Memory optimiser |
 | **Resource Exhaustion** | 1-5min | Emergency cleanup | Leak detector |
 
 ## 📈 Performance Impact
@@ -261,7 +261,7 @@ The error reduction foundation is now complete. Ready to proceed with:
 1. **Format-Specific Optimizations**
    - Parquet performance boost with columnar processing
    - Excel streaming with memory-efficient parsing
-   - JSON optimization with schema detection
+   - JSON optimisation with schema detection
 
 2. **Advanced Performance Features**
    - Performance monitoring dashboard

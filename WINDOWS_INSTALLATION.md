@@ -71,7 +71,7 @@ DataPilot CLI includes automatic Windows setup detection that will:
 
 ### Common Issues
 
-#### "datapilot is not recognized as an internal or external command"
+#### "datapilot is not recognised as an internal or external command"
 - **Cause:** npm global directory is not in PATH
 - **Solution:** Use `npx datapilot-cli` or configure PATH as shown above
 
@@ -112,11 +112,11 @@ Add to your `package.json`:
 ```json
 {
   "scripts": {
-    "analyze": "datapilot all data.csv"
+    "analyse": "datapilot all data.csv"
   }
 }
 ```
-Then run: `npm run analyze`
+Then run: `npm run analyse`
 
 #### Direct Execution
 Find your npm global directory and run directly:

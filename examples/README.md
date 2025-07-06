@@ -15,14 +15,14 @@ examples/
 ## Quick Start
 
 ```bash
-# Analyze the sample CSV
-datapilot analyze examples/sample.csv
+# Analyse the sample CSV
+datapilot analyse examples/sample.csv
 
 # Run specific sections
-datapilot analyze examples/sample.csv --sections 1,2,3
+datapilot analyse examples/sample.csv --sections 1,2,3
 
 # Output to file
-datapilot analyze examples/sample.csv --output my-report.md
+datapilot analyse examples/sample.csv --output my-report.md
 ```
 
 ## Sample Outputs

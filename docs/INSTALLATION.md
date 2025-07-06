@@ -61,7 +61,7 @@ npx datapilot-cli --help
 - Contribute to development
 
 **Requirements:**
-- Node.js 16+ 
+- Node.js 20+ 
 - npm 7+
 - TypeScript compiler
 
@@ -94,7 +94,7 @@ npx datapilot-cli all data.csv
 ```
 
 #### Option B: Fix PATH Issues
-If `datapilot` command is not recognized after global installation:
+If `datapilot` command is not recognised after global installation:
 
 **Step 1: Find your npm global directory**
 ```bash
@@ -278,7 +278,7 @@ datapilot engineering test1.csv test2.csv
 - Solution: Try `npm install -g datapilot-cli --registry https://registry.npmjs.org/`
 
 **TypeScript compilation errors (from source)**
-- Solution: Ensure Node.js 16+ and latest npm version
+- Solution: Ensure Node.js 20+ and latest npm version
 - Check: `node --version` and `npm --version`
 
 ### Advanced Troubleshooting
@@ -334,9 +334,9 @@ datapilot --version  # Should show "command not found"
 ## Version Compatibility
 
 ### Node.js Requirements
-- **Minimum**: Node.js 16.0.0
+- **Minimum**: Node.js 20.0.0
 - **Recommended**: Node.js 18.0.0 or later (LTS)
-- **Maximum tested**: Node.js 20.x
+- **Maximum tested**: Node.js 22.x
 
 ### npm Requirements
 - **Minimum**: npm 7.0.0

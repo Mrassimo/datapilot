@@ -175,8 +175,8 @@ interface CLIOptions {
 
 ### Environment-Specific Configuration
 - **Development**: Shorter TTL, more verbose logging
-- **Production**: Longer TTL, optimized for performance
-- **CI/CD**: Disabled persistent cache, memory-optimized
+- **Production**: Longer TTL, optimised for performance
+- **CI/CD**: Disabled persistent cache, memory-optimised
 - **Testing**: Isolated cache, predictable behavior
 
 ## 🛠️ Usage Examples

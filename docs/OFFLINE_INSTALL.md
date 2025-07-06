@@ -73,7 +73,7 @@ chmod +x datapilot
 Create `.datapilotrc` in your working directory or home directory:
 
 ```yaml
-# Offline-optimized configuration
+# Offline-optimised configuration
 performance:
   chunkSize: 10000
   memoryLimit: "512mb"
@@ -134,7 +134,7 @@ datapilot modeling <file>               # Algorithm recommendations
 datapilot join <files...>               # Analyze relationships
 datapilot discover <directory>          # Auto-discover joins
 datapilot join-wizard <file1> <file2>   # Interactive wizard
-datapilot optimize-joins <files...>     # Performance optimization
+datapilot optimise-joins <files...>     # Performance optimisation
 ```
 
 ### Utility Commands
@@ -215,7 +215,7 @@ datapilot info /dev/null 2>/dev/null || echo "Installation verified"
 
 - **Version**: 1.4.0
 - **Package Size**: ~50MB (includes all dependencies)
-- **Node.js Requirement**: 16+ (bundled dependencies compatible)
+- **Node.js Requirement**: 20+ (bundled dependencies compatible)
 - **Platform Support**: Windows, macOS, Linux
 - **Architecture**: x64, arm64
 
