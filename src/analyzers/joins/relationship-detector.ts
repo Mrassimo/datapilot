@@ -20,20 +20,61 @@ import {
   OrphanedRecord,
   JoinConfidence
 } from './types';
+import { CSVParser } from '../../parsers/csv-parser';
+import { logger } from '../../utils/logger';
+import { DataPilotError } from '../../utils/error-handler';
+
+/**
+ * Configuration for data sampling and validation
+ */
+interface DataSamplingConfig {
+  maxSampleSize: number;
+  minSampleSize: number;
+  confidenceLevel: number;
+  dataOverlapThreshold: number;
+  cardinalityThreshold: number;
+}
+
+/**
+ * Statistical validation results for foreign key relationships
+ */
+interface ValidationResult {
+  dataOverlap: number;
+  cardinalityRatio: number;
+  typeCompatibility: number;
+  uniquenessScore: number;
+  referentialIntegrity: number;
+  overallConfidence: number;
+  violations: any[];
+}
 
 export class RelationshipDetector {
   private confidenceThreshold: number;
   private enableFuzzyMatching: boolean;
   private enableSemanticAnalysis: boolean;
+  private csvParser: CSVParser;
+  private samplingConfig: DataSamplingConfig;
 
   constructor(config: {
     confidenceThreshold?: number;
     enableFuzzyMatching?: boolean;
     enableSemanticAnalysis?: boolean;
+    samplingConfig?: Partial<DataSamplingConfig>;
   } = {}) {
     this.confidenceThreshold = config.confidenceThreshold ?? 0.5; // Lowered from 0.7 to 0.5 
     this.enableFuzzyMatching = config.enableFuzzyMatching ?? true;
     this.enableSemanticAnalysis = config.enableSemanticAnalysis ?? true;
+    this.csvParser = new CSVParser();
+    
+    // Enhanced sampling configuration
+    this.samplingConfig = {
+      maxSampleSize: config.samplingConfig?.maxSampleSize ?? 10000,
+      minSampleSize: config.samplingConfig?.minSampleSize ?? 1000,
+      confidenceLevel: config.samplingConfig?.confidenceLevel ?? 0.95,
+      dataOverlapThreshold: config.samplingConfig?.dataOverlapThreshold ?? 0.7,
+      cardinalityThreshold: config.samplingConfig?.cardinalityThreshold ?? 0.8,
+      ...config.samplingConfig
+    };
   }
 
   /**
@@ -297,28 +338,64 @@ export class RelationshipDetector {
   ): Promise<ForeignKeyCandidate[]> {
     const candidates: ForeignKeyCandidate[] = [];
 
-    for (const col1 of table1.schema) {
-      for (const col2 of table2.schema) {
-        const similarity = this.semanticSimilarity(col1.name, col2.name);
-        
-        if (similarity >= this.confidenceThreshold) {
-          const candidate: ForeignKeyCandidate = {
-            table: table1.tableName,
-            column: col1.name,
-            referencedTable: table2.tableName,
-            referencedColumn: col2.name,
-            confidence: similarity,
-            matchingRows: 0, // Would be calculated from actual data
-            totalRows: table1.rowCount,
-            violations: 0
-          };
+    try {
+      // Load sample data from both tables
+      const table1Data = await this.loadSampleData(table1);
+      const table2Data = await this.loadSampleData(table2);
 
-          candidates.push(candidate);
+      logger.info(`Analyzing relationships between ${table1.tableName} and ${table2.tableName}`, {
+        table1Rows: table1Data.length,
+        table2Rows: table2Data.length
+      });
+
+      for (const col1 of table1.schema) {
+        for (const col2 of table2.schema) {
+          // Check semantic similarity first as a filter
+          const semanticSimilarity = this.semanticSimilarity(col1.name, col2.name);
+          
+          // Only proceed with expensive data analysis if there's some semantic similarity
+          // or if columns have compatible types
+          if (semanticSimilarity >= 0.3 || this.areTypesCompatible(col1.type, col2.type)) {
+            const validationResult = await this.validateForeignKeyRelationship(
+              table1Data, table2Data, col1.name, col2.name, col1, col2
+            );
+
+            // Enhanced confidence calculation based on multiple factors
+            const overallConfidence = this.calculateOverallConfidence(
+              semanticSimilarity,
+              validationResult
+            );
+
+            if (overallConfidence >= this.confidenceThreshold) {
+              const candidate: ForeignKeyCandidate = {
+                table: table1.tableName,
+                column: col1.name,
+                referencedTable: table2.tableName,
+                referencedColumn: col2.name,
+                confidence: overallConfidence,
+                matchingRows: Math.floor(table1Data.length * (validationResult.dataOverlap || 0)),
+                totalRows: table1Data.length,
+                violations: validationResult.violations ? validationResult.violations.length : 0
+              };
+
+              candidates.push(candidate);
+            }
+          }
         }
       }
-    }
 
-    return candidates;
+      return candidates.sort((a, b) => b.confidence - a.confidence);
+
+    } catch (error) {
+      logger.error('Error detecting foreign keys between tables', {
+        table1: table1.tableName,
+        table2: table2.tableName,
+        error: error.message
+      });
+      
+      // Fallback to semantic-only detection
+      return this.detectForeignKeysSemanticOnly(table1, table2);
+    }
   }
 
   private inferCardinality(fk: ForeignKeyCandidate): CardinalityType {
@@ -485,5 +562,266 @@ export class RelationshipDetector {
     }
 
     return patterns;
+  }
+
+  /**
+   * Load sample data from a table for analysis
+   */
+  private async loadSampleData(table: TableMeta): Promise<any[]> {
+    try {
+      const rawData = await this.csvParser.parseFile(table.filePath);
+      
+      // Convert from ParsedRow format to object format
+      const convertedData = this.convertParsedRowsToObjects(rawData, table.schema);
+      
+      // Sample data if it's too large
+      if (convertedData.length > this.samplingConfig.maxSampleSize) {
+        // Use systematic sampling to ensure representativeness
+        const step = Math.floor(convertedData.length / this.samplingConfig.maxSampleSize);
+        const sample = [];
+        
+        for (let i = 0; i < convertedData.length; i += step) {
+          sample.push(convertedData[i]);
+          if (sample.length >= this.samplingConfig.maxSampleSize) break;
+        }
+        
+        logger.info(`Sampled ${sample.length} rows from ${convertedData.length} total rows`, {
+          table: table.tableName,
+          samplingRatio: sample.length / convertedData.length
+        });
+        
+        return sample;
+      }
+      
+      return convertedData;
+    } catch (error) {
+      logger.error(`Failed to load sample data for ${table.tableName}`, { error });
+      throw new DataPilotError(
+        `Failed to load sample data for table ${table.tableName}: ${error.message}`,
+        'DATA_LOADING_ERROR'
+      );
+    }
+  }
+
+  /**
+   * Convert ParsedRow array to object array using schema column names
+   */
+  private convertParsedRowsToObjects(rawData: any[], schema: ColumnSchema[]): any[] {
+    if (rawData.length === 0) return [];
+    
+    // Extract column names from schema
+    const columnNames = schema.map(col => col.name);
+    
+    // Find header row (first row with data property that matches schema length)
+    let headerRowIndex = -1;
+    let dataStartIndex = 0;
+    
+    for (let i = 0; i < rawData.length; i++) {
+      const row = rawData[i];
+      if (row.data && Array.isArray(row.data)) {
+        if (row.data.length === columnNames.length) {
+          // Check if this row contains the column names (header row)
+          const isHeaderRow = row.data.some(cell => 
+            columnNames.includes(String(cell).toLowerCase()) || 
+            columnNames.includes(String(cell))
+          );
+          
+          if (isHeaderRow) {
+            headerRowIndex = i;
+            dataStartIndex = i + 1;
+            break;
+          } else if (headerRowIndex === -1) {
+            // If no header found yet, assume first valid row starts data
+            dataStartIndex = i;
+            break;
+          }
+        }
+      }
+    }
+    
+    // Convert data rows to objects
+    const objectData = [];
+    
+    for (let i = dataStartIndex; i < rawData.length; i++) {
+      const row = rawData[i];
+      if (row.data && Array.isArray(row.data) && row.data.length >= columnNames.length) {
+        const obj: any = {};
+        
+        for (let j = 0; j < columnNames.length; j++) {
+          obj[columnNames[j]] = row.data[j];
+        }
+        
+        objectData.push(obj);
+      }
+    }
+    
+    logger.info(`Converted ${rawData.length} raw rows to ${objectData.length} object rows`, {
+      headerRowIndex,
+      dataStartIndex,
+      columnNames
+    });
+    
+    return objectData;
+  }
+
+  /**
+   * Validate foreign key relationship using actual data
+   */
+  private async validateForeignKeyRelationship(
+    table1Data: any[],
+    table2Data: any[],
+    col1Name: string,
+    col2Name: string,
+    col1Schema: ColumnSchema,
+    col2Schema: ColumnSchema
+  ): Promise<ValidationResult> {
+    const result: ValidationResult = {
+      dataOverlap: 0,
+      cardinalityRatio: 0,
+      typeCompatibility: 0,
+      uniquenessScore: 0,
+      referentialIntegrity: 0,
+      overallConfidence: 0,
+      violations: []
+    };
+
+    // Extract column values
+    const col1Values = table1Data.map(row => row[col1Name]).filter(v => v != null);
+    const col2Values = table2Data.map(row => row[col2Name]).filter(v => v != null);
+
+    if (col1Values.length === 0 || col2Values.length === 0) {
+      return result;
+    }
+
+    // Calculate data overlap
+    const col1Set = new Set(col1Values.map(v => String(v).toLowerCase().trim()));
+    const col2Set = new Set(col2Values.map(v => String(v).toLowerCase().trim()));
+    const intersection = new Set([...col1Set].filter(v => col2Set.has(v)));
+    
+    result.dataOverlap = intersection.size / Math.max(col1Set.size, col2Set.size);
+
+    // Check referential integrity (FK values exist in PK table)
+    const violations = [];
+    let validReferences = 0;
+    
+    for (const fkValue of col1Values) {
+      const normalizedFkValue = String(fkValue).toLowerCase().trim();
+      if (col2Set.has(normalizedFkValue)) {
+        validReferences++;
+      } else {
+        violations.push({ value: fkValue, type: 'missing_reference' });
+      }
+    }
+    
+    result.referentialIntegrity = validReferences / col1Values.length;
+    result.violations = violations.slice(0, 10); // Keep first 10 violations as examples
+
+    // Calculate cardinality ratio
+    const col1Unique = new Set(col1Values).size;
+    const col2Unique = new Set(col2Values).size;
+    result.cardinalityRatio = Math.min(col1Unique / col1Values.length, col2Unique / col2Values.length);
+
+    // Check type compatibility
+    result.typeCompatibility = this.calculateTypeCompatibility(col1Schema.type, col2Schema.type);
+
+    // Calculate uniqueness score (higher for potential PK columns)
+    result.uniquenessScore = Math.max(
+      col1Schema.distinctCount / Math.max(col1Values.length, 1),
+      col2Schema.distinctCount / Math.max(col2Values.length, 1)
+    );
+
+    return result;
+  }
+
+  /**
+   * Calculate overall confidence based on multiple factors
+   */
+  private calculateOverallConfidence(semanticSimilarity: number, validation: ValidationResult): number {
+    const weights = {
+      semantic: 0.15,     // Reduced weight for naming similarity
+      dataOverlap: 0.35,  // High weight for actual data overlap
+      referentialIntegrity: 0.25, // High weight for referential integrity
+      typeCompatibility: 0.15,    // Type compatibility
+      uniqueness: 0.10            // Uniqueness patterns
+    };
+
+    const confidence = (
+      semanticSimilarity * weights.semantic +
+      validation.dataOverlap * weights.dataOverlap +
+      validation.referentialIntegrity * weights.referentialIntegrity +
+      validation.typeCompatibility * weights.typeCompatibility +
+      validation.uniquenessScore * weights.uniqueness
+    );
+
+    return Math.min(confidence, 1.0);
+  }
+
+  /**
+   * Check if two data types are compatible for foreign key relationships
+   */
+  private areTypesCompatible(type1: DataType, type2: DataType): boolean {
+    // Exact match
+    if (type1 === type2) return true;
+
+    // Compatible numeric types
+    const numericTypes = [DataType.INTEGER, DataType.FLOAT];
+    if (numericTypes.includes(type1) && numericTypes.includes(type2)) {
+      return true;
+    }
+
+    // Compatible date types
+    const dateTypes = [DataType.DATE, DataType.DATETIME];
+    if (dateTypes.includes(type1) && dateTypes.includes(type2)) {
+      return true;
+    }
+
+    // String types are often compatible with other types
+    if (type1 === DataType.STRING || type2 === DataType.STRING) {
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Calculate type compatibility score
+   */
+  private calculateTypeCompatibility(type1: DataType, type2: DataType): number {
+    if (type1 === type2) return 1.0;
+    if (this.areTypesCompatible(type1, type2)) return 0.8;
+    return 0.2;
+  }
+
+  /**
+   * Fallback to semantic-only detection when data analysis fails
+   */
+  private async detectForeignKeysSemanticOnly(
+    table1: TableMeta, 
+    table2: TableMeta
+  ): Promise<ForeignKeyCandidate[]> {
+    const candidates: ForeignKeyCandidate[] = [];
+
+    for (const col1 of table1.schema) {
+      for (const col2 of table2.schema) {
+        const similarity = this.semanticSimilarity(col1.name, col2.name);
+        
+        if (similarity >= this.confidenceThreshold) {
+          const candidate: ForeignKeyCandidate = {
+            table: table1.tableName,
+            column: col1.name,
+            referencedTable: table2.tableName,
+            referencedColumn: col2.name,
+            confidence: similarity * 0.6, // Reduced confidence for semantic-only
+            matchingRows: Math.floor(table1.rowCount * 0.5), // Estimated
+            totalRows: table1.rowCount,
+            violations: 0
+          };
+
+          candidates.push(candidate);
+        }
+      }
+    }
+
+    return candidates;
   }
 }

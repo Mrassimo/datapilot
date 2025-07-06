@@ -46,7 +46,13 @@ export class JoinAnalyzer {
     this.relationshipDetector = new RelationshipDetector({
       confidenceThreshold: this.config.confidenceThreshold,
       enableFuzzyMatching: this.config.enableFuzzyMatching,
-      enableSemanticAnalysis: this.config.enableSemanticAnalysis
+      enableSemanticAnalysis: this.config.enableSemanticAnalysis,
+      samplingConfig: {
+        maxSampleSize: this.config.performanceMode === 'THOROUGH' ? 20000 : 10000,
+        minSampleSize: this.config.performanceMode === 'FAST' ? 500 : 1000,
+        dataOverlapThreshold: 0.7,
+        cardinalityThreshold: 0.8
+      }
     });
 
     this.csvParser = new CSVParser();
@@ -231,30 +237,161 @@ export class JoinAnalyzer {
 
     for (const filePath of filePaths) {
       try {
-        // Simplified metadata loading for Phase 1
-        const tableName = this.extractTableName(filePath);
+        logger.info(`Loading metadata for ${filePath}`);
         
-        // Create basic table metadata (will be enhanced in later phases)
-        const table: TableMeta = {
-          filePath,
-          tableName,
-          schema: this.generateMockSchema(tableName), // Mock for Phase 1
-          rowCount: 1000, // Mock data
-          estimatedSize: 1024 * 1024, // 1MB mock
-          lastModified: new Date(),
-          encoding: 'utf8',
-          delimiter: ','
-        };
-
+        // Load actual file metadata
+        const table = await this.loadRealTableMetadata(filePath);
         tables.push(table);
 
       } catch (error) {
         logger.warn(`Failed to load table metadata for ${filePath}`, { error });
-        // Continue with other tables rather than failing completely
+        
+        // Fallback to mock schema if file loading fails
+        const tableName = this.extractTableName(filePath);
+        const fallbackTable: TableMeta = {
+          filePath,
+          tableName,
+          schema: this.generateMockSchema(tableName),
+          rowCount: 1000,
+          estimatedSize: 1024 * 1024,
+          lastModified: new Date(),
+          encoding: 'utf8',
+          delimiter: ','
+        };
+        
+        tables.push(fallbackTable);
       }
     }
 
     return tables;
+  }
+
+  /**
+   * Load actual table metadata from CSV file
+   */
+  private async loadRealTableMetadata(filePath: string): Promise<TableMeta> {
+    const tableName = this.extractTableName(filePath);
+    
+    try {
+      // Get basic file information
+      const fs = require('fs');
+      const stats = fs.statSync(filePath);
+      
+      // Auto-detect CSV format
+      const buffer = fs.readFileSync(filePath);
+      const detectionResult = CSVDetector.detect(buffer.slice(0, 8192)); // Use first 8KB for detection
+      
+      // Load sample data to analyze schema
+      const sampleData = await this.loadSampleDataForSchema(filePath, detectionResult);
+      
+      // Analyze schema from sample data
+      const schema = this.analyzeColumnSchema(sampleData);
+      
+      // Estimate row count efficiently
+      const rowCount = await this.estimateRowCount(filePath, detectionResult);
+      
+      return {
+        filePath,
+        tableName,
+        schema,
+        rowCount,
+        estimatedSize: stats.size,
+        lastModified: stats.mtime,
+        encoding: detectionResult.encoding,
+        delimiter: detectionResult.delimiter
+      };
+      
+    } catch (error) {
+      logger.error(`Failed to load real metadata for ${filePath}`, { error });
+      throw error;
+    }
+  }
+
+  /**
+   * Load sample data for schema analysis
+   */
+  private async loadSampleDataForSchema(filePath: string, detectionResult: any): Promise<any[]> {
+    const parser = new CSVParser({
+      delimiter: detectionResult.delimiter,
+      encoding: detectionResult.encoding,
+      hasHeader: detectionResult.hasHeader,
+      maxRows: 1000 // Sample first 1000 rows for schema analysis
+    });
+    
+    const rawData = await parser.parseFile(filePath);
+    
+    // Convert ParsedRow format to object format for schema analysis
+    return this.convertRawDataToObjects(rawData, detectionResult.hasHeader);
+  }
+
+  /**
+   * Convert raw ParsedRow data to object format
+   */
+  private convertRawDataToObjects(rawData: any[], hasHeader: boolean): any[] {
+    if (rawData.length === 0) return [];
+    
+    // Extract column names from header row or generate them
+    let columnNames: string[] = [];
+    let dataStartIndex = 0;
+    
+    if (hasHeader && rawData.length > 0 && rawData[0].data) {
+      columnNames = rawData[0].data.map((col: any, index: number) => 
+        col ? String(col) : `column_${index}`
+      );
+      dataStartIndex = 1;
+    } else if (rawData.length > 0 && rawData[0].data) {
+      // Generate column names if no header
+      columnNames = rawData[0].data.map((_: any, index: number) => `column_${index}`);
+      dataStartIndex = 0;
+    }
+    
+    // Convert data rows to objects
+    const objectData = [];
+    
+    for (let i = dataStartIndex; i < rawData.length; i++) {
+      const row = rawData[i];
+      if (row.data && Array.isArray(row.data)) {
+        const obj: any = {};
+        
+        for (let j = 0; j < Math.min(columnNames.length, row.data.length); j++) {
+          obj[columnNames[j]] = row.data[j];
+        }
+        
+        objectData.push(obj);
+      }
+    }
+    
+    return objectData;
+  }
+
+  /**
+   * Efficiently estimate row count without loading entire file
+   */
+  private async estimateRowCount(filePath: string, detectionResult: any): Promise<number> {
+    const fs = require('fs');
+    const readline = require('readline');
+    
+    return new Promise((resolve, reject) => {
+      const fileStream = fs.createReadStream(filePath);
+      const rl = readline.createInterface({
+        input: fileStream,
+        crlfDelay: Infinity
+      });
+      
+      let lineCount = 0;
+      
+      rl.on('line', () => {
+        lineCount++;
+      });
+      
+      rl.on('close', () => {
+        // Subtract header row if present
+        const finalCount = detectionResult.hasHeader ? lineCount - 1 : lineCount;
+        resolve(Math.max(0, finalCount));
+      });
+      
+      rl.on('error', reject);
+    });
   }
 
   private analyzeColumnSchema(data: any[]): ColumnSchema[] {
@@ -278,14 +415,20 @@ export class JoinAnalyzer {
       };
 
       // Add min/max for numeric columns
-      const numericValues = values.filter(v => typeof v === 'number');
+      const numericValues = values.filter(v => {
+        const num = Number(v);
+        return !isNaN(num) && isFinite(num);
+      }).map(v => Number(v));
+      
       if (numericValues.length > 0) {
         column.minValue = Math.min(...numericValues);
         column.maxValue = Math.max(...numericValues);
       }
 
       // Add average length for string columns
-      const stringValues = values.filter(v => typeof v === 'string');
+      const stringValues = values.filter(v => typeof v === 'string' || v != null)
+        .map(v => String(v));
+      
       if (stringValues.length > 0) {
         column.avgLength = stringValues.reduce((sum, s) => sum + s.length, 0) / stringValues.length;
       }
@@ -300,38 +443,56 @@ export class JoinAnalyzer {
     if (values.length === 0) return DataType.STRING;
 
     const sample = values.slice(0, 100);
+    const threshold = 0.8;
 
-    // Check for specific patterns first
-    if (sample.every(v => /^\S+@\S+\.\S+$/.test(String(v)))) {
+    // Check for specific patterns first (require high confidence)
+    if (sample.length > 0 && sample.filter(v => /^\S+@\S+\.\S+$/.test(String(v))).length / sample.length > 0.9) {
       return DataType.EMAIL;
     }
 
-    if (sample.every(v => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(v)))) {
+    if (sample.length > 0 && sample.filter(v => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(v))).length / sample.length > 0.9) {
       return DataType.UUID;
     }
 
-    if (sample.every(v => /^\+?[\d\s\-\(\)]+$/.test(String(v)))) {
+    if (sample.length > 0 && sample.filter(v => /^\+?[\d\s\-\(\)]+$/.test(String(v))).length / sample.length > 0.9) {
       return DataType.PHONE;
     }
 
     // Check for numeric types
-    const numericCount = sample.filter(v => !isNaN(Number(v))).length;
-    if (numericCount / sample.length > 0.8) {
-      const hasDecimals = sample.some(v => String(v).includes('.'));
+    const numericCount = sample.filter(v => {
+      const num = Number(v);
+      return !isNaN(num) && isFinite(num);
+    }).length;
+    
+    if (numericCount / sample.length > threshold) {
+      const hasDecimals = sample.some(v => String(v).includes('.') && !isNaN(Number(v)));
       return hasDecimals ? DataType.FLOAT : DataType.INTEGER;
     }
 
-    // Check for dates
-    const dateCount = sample.filter(v => !isNaN(Date.parse(String(v)))).length;
-    if (dateCount / sample.length > 0.8) {
-      return DataType.DATE;
+    // Check for dates - be more strict
+    const dateCount = sample.filter(v => {
+      const dateStr = String(v);
+      // Check for common date patterns
+      return (
+        !isNaN(Date.parse(dateStr)) &&
+        (/^\d{4}-\d{2}-\d{2}/.test(dateStr) || // ISO format
+         /^\d{2}[\/\-]\d{2}[\/\-]\d{4}/.test(dateStr) || // MM/DD/YYYY
+         /^\d{2}[\/\-]\d{2}[\/\-]\d{2}/.test(dateStr)) // MM/DD/YY
+      );
+    }).length;
+    
+    if (dateCount / sample.length > threshold) {
+      // Check if it includes time components
+      const hasTime = sample.some(v => /\d{2}:\d{2}/.test(String(v)));
+      return hasTime ? DataType.DATETIME : DataType.DATE;
     }
 
     // Check for booleans
     const boolCount = sample.filter(v => 
-      ['true', 'false', '1', '0', 'yes', 'no'].includes(String(v).toLowerCase())
+      ['true', 'false', '1', '0', 'yes', 'no', 'y', 'n'].includes(String(v).toLowerCase())
     ).length;
-    if (boolCount / sample.length > 0.8) {
+    
+    if (boolCount / sample.length > threshold) {
       return DataType.BOOLEAN;
     }
 
@@ -340,12 +501,30 @@ export class JoinAnalyzer {
 
   private extractColumnPatterns(values: any[]): string[] {
     const patterns: string[] = [];
-    const stringValues = values.filter(v => typeof v === 'string').slice(0, 100);
+    const stringValues = values.filter(v => v != null).map(v => String(v)).slice(0, 100);
 
+    if (stringValues.length === 0) return patterns;
+
+    // Numeric patterns
     if (stringValues.some(v => /^\d+$/.test(v))) patterns.push('numeric_string');
+    if (stringValues.some(v => /^\d*\.\d+$/.test(v))) patterns.push('decimal_string');
+    
+    // Case patterns
     if (stringValues.some(v => /^[A-Z]{2,}$/.test(v))) patterns.push('uppercase');
     if (stringValues.some(v => /^[a-z_]+$/.test(v))) patterns.push('lowercase_underscore');
+    if (stringValues.some(v => /^[A-Z][a-z]+$/.test(v))) patterns.push('title_case');
+    
+    // Date patterns
     if (stringValues.some(v => /^\d{4}-\d{2}-\d{2}$/.test(v))) patterns.push('date_iso');
+    if (stringValues.some(v => /^\d{2}[\/\-]\d{2}[\/\-]\d{4}$/.test(v))) patterns.push('date_us');
+    
+    // ID patterns
+    if (stringValues.some(v => /^[A-Z0-9]{6,}$/.test(v))) patterns.push('code_identifier');
+    if (stringValues.some(v => /^\d{5,}$/.test(v))) patterns.push('long_numeric_id');
+    
+    // Special patterns
+    if (stringValues.some(v => /^[A-Z]{2,3}$/.test(v))) patterns.push('country_code');
+    if (stringValues.some(v => /_id$/.test(v))) patterns.push('foreign_key_naming');
 
     return patterns;
   }

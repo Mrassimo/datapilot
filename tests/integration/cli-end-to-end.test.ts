@@ -93,15 +93,15 @@ describe('CLI End-to-End Integration', () => {
       }).toThrow();
     });
 
-    it('should parse multiple files for join commands', () => {
+    it('should parse multiple files for engineering commands', () => {
       // Create additional test files
       const testCsvPath2 = join(tempDir, 'test-data2.csv');
       
       return fs.writeFile(testCsvPath2, 'user_id,score\n1,95\n2,87', 'utf8').then(() => {
-        const args = ['join', testCsvPath, testCsvPath2];
+        const args = ['engineering', testCsvPath, testCsvPath2];
         const context = parser.parse(['node', 'datapilot', ...args]);
 
-        expect(context.command).toBe('join');
+        expect(context.command).toBe('engineering');
         expect(context.args).toContain(testCsvPath);
         expect(context.args).toContain(testCsvPath2);
       });
