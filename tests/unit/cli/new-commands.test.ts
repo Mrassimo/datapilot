@@ -9,22 +9,18 @@ import { UniversalAnalyzer } from '@/cli/universal-analyzer';
 import type { CLIOptions, CLIResult } from '@/cli/types';
 import * as fs from 'fs';
 import * as os from 'os';
+import { SectionCacheManager } from '@/performance/section-cache-manager';
+import { createResultCache } from '@/cli/result-cache';
 
 // Mock fs and os methods
 jest.mock('fs');
 jest.mock('os');
-jest.mock('@/performance/section-cache-manager');
-jest.mock('@/cli/result-cache');
 
 const mockFs = fs as jest.Mocked<typeof fs>;
 const mockOs = os as jest.Mocked<typeof os>;
 
-// Mock implementations
-let mockSectionCacheManager: any;
-let mockResultCache: any;
-
-// Create the mocks
-mockSectionCacheManager = {
+// Mock implementations with accessible references
+const mockSectionCacheManager = {
   getStats: jest.fn().mockResolvedValue({
     totalEntries: 5,
     totalSizeBytes: 10485760, // 10MB
@@ -35,12 +31,11 @@ mockSectionCacheManager = {
     newestEntry: Date.now()
   }),
   clearAll: jest.fn().mockResolvedValue(undefined),
-  // Add constructor-related methods that might be called
   ensureCacheDirectory: jest.fn().mockReturnValue(undefined),
   cleanupExpiredEntries: jest.fn().mockResolvedValue(undefined)
 };
 
-mockResultCache = {
+const mockResultCache = {
   getStats: jest.fn().mockReturnValue({
     totalEntries: 3,
     totalSizeBytes: 5242880, // 5MB
@@ -51,7 +46,6 @@ mockResultCache = {
   dispose: jest.fn().mockResolvedValue(undefined)
 };
 
-// Mock the modules using jest.mock at the top level
 jest.mock('@/performance/section-cache-manager', () => ({
   SectionCacheManager: jest.fn().mockImplementation(() => mockSectionCacheManager)
 }));
