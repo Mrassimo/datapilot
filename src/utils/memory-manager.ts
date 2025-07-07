@@ -37,6 +37,7 @@ export class MemoryManager extends EventEmitter {
   private lastMemoryStats?: MemoryStats;
   private memoryHistory: MemoryStats[] = [];
   private maxHistorySize = 100;
+  private isLogging = false; // Guard against recursive logging
 
   constructor(config: Partial<MemoryManagerConfig> = {}) {
     super();
@@ -69,13 +70,23 @@ export class MemoryManager extends EventEmitter {
     }
 
     this.isMonitoring = true;
-    logger.debug('Starting memory monitoring', context);
+    
+    // Guard against recursive logging
+    if (!this.isLogging) {
+      this.isLogging = true;
+      logger.debug('Starting memory monitoring', context);
+      this.isLogging = false;
+    }
 
     this.monitoringTimer = setInterval(() => {
       try {
         this.checkMemoryUsage(context);
       } catch (error) {
-        logger.error('Error during memory monitoring', context, error);
+        if (!this.isLogging) {
+          this.isLogging = true;
+          logger.error('Error during memory monitoring', context, error);
+          this.isLogging = false;
+        }
       }
     }, this.config.monitoringInterval);
 
@@ -124,11 +135,13 @@ export class MemoryManager extends EventEmitter {
     const totalMB = Math.max(heapMB, rssMB);
 
     // Log memory usage if enabled
-    if (this.config.logMemoryUsage) {
+    if (this.config.logMemoryUsage && !this.isLogging) {
+      this.isLogging = true;
       logger.trace(`Memory usage: ${heapMB.toFixed(1)}MB heap, ${rssMB.toFixed(1)}MB RSS`, {
         ...context,
         memoryUsage: stats.heapUsed,
       });
+      this.isLogging = false;
     }
 
     // Check thresholds and emit events
@@ -332,10 +345,15 @@ export class MemoryManager extends EventEmitter {
 
   private handleMemoryWarning(stats: MemoryStats, context?: LogContext): void {
     const heapMB = stats.heapUsed / (1024 * 1024);
-    logger.warn(`Memory usage warning: ${heapMB.toFixed(1)}MB`, {
-      ...context,
-      memoryUsage: stats.heapUsed,
-    });
+    
+    if (!this.isLogging) {
+      this.isLogging = true;
+      logger.warn(`Memory usage warning: ${heapMB.toFixed(1)}MB`, {
+        ...context,
+        memoryUsage: stats.heapUsed,
+      });
+      this.isLogging = false;
+    }
 
     if (this.config.enableAutomaticCleanup) {
       this.forceGarbageCollection(context);
@@ -344,10 +362,15 @@ export class MemoryManager extends EventEmitter {
 
   private handleMemoryCritical(stats: MemoryStats, context?: LogContext): void {
     const heapMB = stats.heapUsed / (1024 * 1024);
-    logger.error(`Critical memory usage: ${heapMB.toFixed(1)}MB`, {
-      ...context,
-      memoryUsage: stats.heapUsed,
-    });
+    
+    if (!this.isLogging) {
+      this.isLogging = true;
+      logger.error(`Critical memory usage: ${heapMB.toFixed(1)}MB`, {
+        ...context,
+        memoryUsage: stats.heapUsed,
+      });
+      this.isLogging = false;
+    }
 
     if (this.config.enableAutomaticCleanup) {
       this.runCleanup(context);
@@ -356,21 +379,28 @@ export class MemoryManager extends EventEmitter {
 
     // Predict exhaustion
     const exhaustionTime = this.predictMemoryExhaustion();
-    if (exhaustionTime) {
+    if (exhaustionTime && !this.isLogging) {
       const timeLeft = exhaustionTime.getTime() - Date.now();
+      this.isLogging = true;
       logger.error(
         `Memory exhaustion predicted in ${(timeLeft / 1000).toFixed(1)} seconds`,
         context,
       );
+      this.isLogging = false;
     }
   }
 
   private handleMemoryMax(stats: MemoryStats, context?: LogContext): void {
     const heapMB = stats.heapUsed / (1024 * 1024);
-    logger.error(`Maximum memory limit reached: ${heapMB.toFixed(1)}MB`, {
-      ...context,
-      memoryUsage: stats.heapUsed,
-    });
+    
+    if (!this.isLogging) {
+      this.isLogging = true;
+      logger.error(`Maximum memory limit reached: ${heapMB.toFixed(1)}MB`, {
+        ...context,
+        memoryUsage: stats.heapUsed,
+      });
+      this.isLogging = false;
+    }
 
     if (this.config.enableAutomaticCleanup) {
       this.runCleanup(context);

@@ -315,6 +315,13 @@ export class Logger {
   private addToHistory(entry: LogEntry): void {
     if (!this.enableHistory) return;
 
+    // Guard against recursive calls during history management
+    if (this.logHistory.length > this.maxHistorySize * 2) {
+      // Emergency flush without logging to prevent infinite recursion
+      this.logHistory = [];
+      return;
+    }
+
     this.logHistory.push(entry);
 
     // Trim history if it gets too large

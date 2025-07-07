@@ -28,9 +28,16 @@ mockSectionCacheManager = {
   getStats: jest.fn().mockResolvedValue({
     totalEntries: 5,
     totalSizeBytes: 10485760, // 10MB
-    hitRate: 0.85
+    hitRate: 0.85,
+    totalHits: 17,
+    totalMisses: 3,
+    oldestEntry: Date.now() - 86400000,
+    newestEntry: Date.now()
   }),
-  clearAll: jest.fn().mockResolvedValue(undefined)
+  clearAll: jest.fn().mockResolvedValue(undefined),
+  // Add constructor-related methods that might be called
+  ensureCacheDirectory: jest.fn().mockReturnValue(undefined),
+  cleanupExpiredEntries: jest.fn().mockResolvedValue(undefined)
 };
 
 mockResultCache = {
@@ -72,7 +79,11 @@ describe('New CLI Commands', () => {
     mockSectionCacheManager.getStats.mockResolvedValue({
       totalEntries: 5,
       totalSizeBytes: 10485760, // 10MB
-      hitRate: 0.85
+      hitRate: 0.85,
+      totalHits: 17,
+      totalMisses: 3,
+      oldestEntry: Date.now() - 86400000,
+      newestEntry: Date.now()
     });
     mockSectionCacheManager.clearAll.mockResolvedValue(undefined);
     
@@ -87,6 +98,21 @@ describe('New CLI Commands', () => {
 
     // Setup default fs mocks
     mockFs.existsSync.mockReturnValue(true);
+    mockFs.mkdirSync.mockReturnValue(undefined);
+    mockFs.readdir.mockImplementation((path: any, callback: any) => {
+      if (typeof callback === 'function') {
+        callback(null, []);
+      }
+    });
+    mockFs.promises = {
+      readdir: jest.fn().mockResolvedValue([]),
+      stat: jest.fn().mockResolvedValue({
+        isFile: () => true,
+        size: 1000000,
+        mtime: new Date('2024-01-15T10:30:00Z')
+      }),
+      unlink: jest.fn().mockResolvedValue(undefined)
+    } as any;
     mockFs.statSync.mockReturnValue({
       isFile: () => true,
       size: 1000000, // 1MB
@@ -106,6 +132,10 @@ describe('New CLI Commands', () => {
     consoleLogSpy.mockRestore();
     consoleErrorSpy.mockRestore();
     processExitSpy.mockRestore();
+    
+    // Stop memory manager to prevent timers from running
+    const { globalMemoryManager } = require('@/utils/memory-manager');
+    globalMemoryManager.stopMonitoring();
   });
 
   describe('Clear Cache Command', () => {
