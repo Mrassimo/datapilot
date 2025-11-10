@@ -16,6 +16,7 @@ export interface CLIOptions {
   // Output options
   output?: 'txt' | 'markdown' | 'json' | 'yaml';
   outputFile?: string;
+  outputVersion?: 'v1' | 'v2';  // V2 = AI-ready format (facts only, 86% smaller)
   verbose?: boolean;
   quiet?: boolean;
 

@@ -19,13 +19,21 @@ import type {
   DataReadiness,
 } from './types-v2';
 
+export interface Section6Metadata {
+  sampleSize?: number;
+  missingRatio?: number;
+  categoricalCount?: number;
+  numericCount?: number;
+  totalColumns?: number;
+}
+
 export class Section6Adapter {
   /**
    * Convert V1 (bloated) to V2 (lean)
    * Strips: recommendations, strengths/weaknesses, business objectives, reasoning
    * Keeps: factual ML task detection and algorithm applicability
    */
-  public static convertToV2(v1: ModelingAnalysis): Section6ModelingV2 {
+  public static convertToV2(v1: ModelingAnalysis, metadata?: Section6Metadata): Section6ModelingV2 {
     const mlTasks: MLTask[] = [];
     const algorithms: AlgorithmApplicability[] = [];
 
@@ -50,8 +58,8 @@ export class Section6Adapter {
       version: '2.0',
       ml_tasks: mlTasks,
       algorithms,
-      data_readiness: this.extractDataReadiness(v1),
-      validation: this.extractValidation(v1),
+      data_readiness: this.extractDataReadiness(v1, metadata),
+      validation: this.extractValidation(v1, metadata),
       feature_candidates: this.extractFeatureCandidates(v1),
     };
   }
@@ -135,33 +143,47 @@ export class Section6Adapter {
     };
   }
 
-  private static extractDataReadiness(v1: ModelingAnalysis): DataReadiness {
-    // V1 doesn't have detailed data readiness info
-    // Would need to integrate with Sections 1-3 for accurate data
+  private static extractDataReadiness(v1: ModelingAnalysis, metadata?: Section6Metadata): DataReadiness {
+    const missingRatio = metadata?.missingRatio || 0;
+    const categoricalCount = metadata?.categoricalCount || 0;
+    const numericCount = metadata?.numericCount || 0;
+    const totalFeatures = metadata?.totalColumns || (categoricalCount + numericCount);
+    const sampleSize = metadata?.sampleSize || 0;
 
     return {
-      missing_data_ratio: 0, // Would need Section 2 data
-      requires_imputation: false, // Would need Section 2 data
-      requires_scaling: false, // Default assumption
-      requires_encoding: false, // Default assumption
-      categorical_features: 0, // Would need Section 3 data
-      numeric_features: 0, // Would need Section 3 data
-      total_features: 0, // Would need Section 3 data
-      sample_size: 0, // Would need Section 1 data
-      train_test_split_feasible: true, // Assume true unless we have data
+      missing_data_ratio: missingRatio,
+      requires_imputation: missingRatio > 0.05, // >5% missing requires imputation
+      requires_scaling: numericCount > 0, // If we have numeric features, scaling is recommended
+      requires_encoding: categoricalCount > 0, // If we have categorical features, encoding is required
+      categorical_features: categoricalCount,
+      numeric_features: numericCount,
+      total_features: totalFeatures,
+      sample_size: sampleSize,
+      train_test_split_feasible: sampleSize >= 100, // Need at least 100 rows for train/test split
     };
   }
 
-  private static extractValidation(v1: ModelingAnalysis): Section6ModelingV2['validation'] {
-    // Extract from evaluation framework
-    const evalFramework = v1.evaluationFramework;
+  private static extractValidation(v1: ModelingAnalysis, metadata?: Section6Metadata): Section6ModelingV2['validation'] {
+    const sampleSize = metadata?.sampleSize || 0;
+    const trainRatio = 0.8;
+
+    // Determine CV folds based on sample size
+    let cvFolds = 5; // Default
+    if (sampleSize < 100) {
+      cvFolds = 3; // Too small for 5-fold
+    } else if (sampleSize >= 1000) {
+      cvFolds = 10; // Large enough for 10-fold
+    }
+
+    const trainSize = Math.floor(sampleSize * trainRatio);
+    const testSize = sampleSize - trainSize; // Remainder goes to test set
 
     return {
-      sample_size: 0, // Would need Section 1 data
-      recommended_cv_folds: 5, // Default
-      train_size: 800, // Placeholder (80% of 1000)
-      test_size: 200, // Placeholder (20% of 1000)
-      stratification_required: false, // Default
+      sample_size: sampleSize,
+      recommended_cv_folds: cvFolds,
+      train_size: trainSize,
+      test_size: testSize,
+      stratification_required: false, // Would need to check if classification task
     };
   }
 

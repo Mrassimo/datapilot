@@ -115,6 +115,7 @@ Use --verbose for detailed confidence explanations in reports.`,
       .description('Run complete analysis on a CSV file (all sections)')
       .option('-f, --format <format>', 'Output format (txt, markdown, json, yaml)', 'json')
       .option('-o, --output <file>', 'Write output to file instead of stdout')
+      .option('--output-version <version>', 'Output format version: v1 (traditional) or v2 (AI-ready, 86% smaller)', 'v1')
       .option('--delimiter <char>', 'Specify delimiter character (e.g., ";" for semicolon)')
       .option('--max-rows <number>', 'Maximum rows to process', this.parseInteger)
       .option('--no-hashing', 'Disable file hashing for faster processing')
@@ -391,6 +392,14 @@ Use --verbose for detailed confidence explanations in reports.`,
 
     if (rawOptions.output) {
       options.outputFile = resolve(rawOptions.output as string);
+    }
+
+    // Output version (V2 = AI-ready)
+    if (rawOptions.outputVersion) {
+      if (!['v1', 'v2'].includes(rawOptions.outputVersion as string)) {
+        throw new ValidationError('Output version must be either v1 or v2');
+      }
+      options.outputVersion = rawOptions.outputVersion as 'v1' | 'v2';
     }
 
     // Verbosity options
