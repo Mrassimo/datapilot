@@ -101,7 +101,7 @@ export class Section2Adapter {
     return {
       rule_violations: v1.accuracy.businessRuleSummary?.totalViolations || 0,
       critical_violations: v1.accuracy.businessRuleSummary?.criticalViolations || 0,
-      pattern_violations: v1.validity.totalViolations || 0,
+      pattern_violations: v1.validity.patternConformance?.length || 0,
       cross_field_violations: v1.accuracy.crossFieldValidation?.reduce((sum, rule) => sum + rule.violations, 0) || 0,
     };
   }
@@ -121,7 +121,7 @@ export class Section2Adapter {
 
   private static extractConsistencyIssues(v1: Section2QualityAudit): ConsistencyIssues {
     return {
-      format_inconsistencies: v1.consistency.inconsistenciesDetected || 0,
+      format_inconsistencies: v1.consistency.formatConsistency?.length || 0,
       casing_inconsistencies: 0, // Not tracked in V1
       encoding_issues: 0, // Not tracked in V1
       delimiter_issues: 0, // Not tracked in V1
@@ -129,43 +129,31 @@ export class Section2Adapter {
   }
 
   private static extractFormatInconsistencies(v1: Section2QualityAudit): FormatInconsistency[] | undefined {
-    if (!v1.consistency.columnConsistencyAnalysis || v1.consistency.columnConsistencyAnalysis.length === 0) {
+    if (!v1.consistency.formatConsistency || v1.consistency.formatConsistency.length === 0) {
       return undefined;
     }
 
-    return v1.consistency.columnConsistencyAnalysis
-      .filter((col) => col.inconsistencyCount > 0)
-      .map((col) => ({
-        column: col.columnName,
-        patterns_found: [], // Not detailed enough in V1
-        pattern_counts: [],
-        examples: [],
-      }));
+    return v1.consistency.formatConsistency.map((format) => ({
+      column: format.columnName,
+      patterns_found: [], // Not detailed enough in V1
+      pattern_counts: [],
+      examples: [],
+    }));
   }
 
   private static extractDuplicates(v1: Section2QualityAudit): DuplicateAnalysis {
     return {
-      exact_duplicates: v1.uniqueness.duplicateRowCount || 0,
-      exact_duplicate_ratio: (v1.uniqueness.duplicateRowPercentage || 0) / 100,
-      fuzzy_duplicates: undefined, // Not tracked in V1
-      duplicate_groups: undefined, // Not tracked in V1
+      exact_duplicates: v1.uniqueness.exactDuplicates?.count || 0,
+      exact_duplicate_ratio: (v1.uniqueness.exactDuplicates?.percentage || 0) / 100,
+      fuzzy_duplicates: undefined, // Not in V1
+      duplicate_groups: v1.uniqueness.exactDuplicates?.duplicateGroups?.length,
     };
   }
 
   private static extractKeyViolations(v1: Section2QualityAudit): KeyConstraintViolation[] | undefined {
-    if (!v1.uniqueness.keyConstraintViolations || v1.uniqueness.keyConstraintViolations === 0) {
-      return undefined;
-    }
-
-    // V1 doesn't have detailed key violation data, return generic entry
-    return [
-      {
-        columns: [], // Not detailed in V1
-        violation_count: v1.uniqueness.keyConstraintViolations,
-        expected_unique: true,
-        actual_unique_ratio: 0, // Not available in V1
-      },
-    ];
+    // V1 structure doesn't have detailed key violations
+    // TODO: Map from keyUniqueness when available
+    return undefined;
   }
 
   private static extractPatterns(v1: Section2QualityAudit): ColumnPatterns[] | undefined {
