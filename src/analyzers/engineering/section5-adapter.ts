@@ -3,6 +3,7 @@
  * Converts bloated engineering output to lean schema optimization facts
  */
 
+import { logger } from '@/utils/logger';
 import type {
   DataEngineeringAnalysis,
   SchemaAnalysis,
@@ -26,44 +27,83 @@ export class Section5Adapter {
    * Convert V1 (bloated) to V2 (lean)
    * Strips: reasoning, examples, DDL statements, implementation details
    * Keeps: factual type optimizations and feature engineering candidates
+   *
+   * Error handling strategy:
+   * - Validates V1 input structure before processing
+   * - Uses safe navigation and defaults for missing fields
+   * - Returns minimal valid structure on critical errors
+   * - Logs warnings for unexpected data
    */
   public static convertToV2(v1: DataEngineeringAnalysis): Section5EngineeringV2 {
-    const typeOptimizations: TypeOptimization[] = [];
-    const categoricalCandidates: CategoricalCandidate[] = [];
-    const interactionFeatures: InteractionFeature[] = [];
-    const binningCandidates: BinningCandidate[] = [];
-    const dateFeatures: DateFeatureCandidate[] = [];
-    const joinCandidates: JoinCandidate[] = [];
-
-    // Extract type optimizations
-    if (v1.schemaAnalysis?.dataTypeConversions) {
-      v1.schemaAnalysis.dataTypeConversions.forEach((conv) => {
-        typeOptimizations.push({
-          column: conv.columnName,
-          current_type: conv.currentType,
-          suggested_type: conv.recommendedType,
-          conversion_safe: conv.riskLevel === 'low',
-          memory_savings_ratio: this.estimateMemorySavings(conv.currentType, conv.recommendedType),
+    try {
+      // Validate input
+      if (!this.isValidV1Input(v1)) {
+        logger.warn('Section5Adapter: Invalid V1 input, returning minimal structure', {
+          context: 'convertToV2',
+          hasInput: !!v1,
+          inputType: typeof v1,
         });
+        return this.getMinimalV2Structure();
+      }
+      const typeOptimizations: TypeOptimization[] = [];
+      const categoricalCandidates: CategoricalCandidate[] = [];
+      const interactionFeatures: InteractionFeature[] = [];
+      const binningCandidates: BinningCandidate[] = [];
+      const dateFeatures: DateFeatureCandidate[] = [];
+      const joinCandidates: JoinCandidate[] = [];
+
+      // Extract type optimizations
+      const dataTypeConversions = v1?.schemaAnalysis?.dataTypeConversions;
+      if (Array.isArray(dataTypeConversions)) {
+        dataTypeConversions.forEach((conv) => {
+          if (!conv || typeof conv !== 'object') {
+            return;
+          }
+          try {
+            typeOptimizations.push({
+              column: conv.columnName || 'unknown',
+              current_type: conv.currentType || 'unknown',
+              suggested_type: conv.recommendedType || 'unknown',
+              conversion_safe: conv.riskLevel === 'low',
+              memory_savings_ratio: this.estimateMemorySavings(
+                conv.currentType || 'unknown',
+                conv.recommendedType || 'unknown'
+              ),
+            });
+          } catch (error) {
+            logger.warn('Section5Adapter: Error processing type optimization', {
+              context: 'convertToV2',
+              columnName: conv.columnName,
+              error: error instanceof Error ? error.message : String(error),
+            });
+          }
+        });
+      }
+
+      // V1 doesn't have detailed feature engineering data in MLReadinessAssessment
+      // These would need to be extracted from other sections or enhanced in V1 first
+      // For now, leave empty arrays
+
+      return {
+        version: '2.0',
+        type_optimizations: typeOptimizations,
+        categorical_candidates: categoricalCandidates,
+        interaction_features: interactionFeatures,
+        binning_candidates: binningCandidates,
+        date_features: dateFeatures,
+        join_candidates: joinCandidates.length > 0 ? joinCandidates : undefined,
+        current_memory_mb: this.estimateCurrentMemory(v1),
+        optimized_memory_mb: this.estimateOptimizedMemory(v1, typeOptimizations),
+        memory_reduction_ratio: this.calculateMemoryReduction(v1, typeOptimizations),
+      };
+    } catch (error) {
+      logger.error('Section5Adapter: Critical error during V2 conversion', {
+        context: 'convertToV2',
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
       });
+      return this.getMinimalV2Structure();
     }
-
-    // V1 doesn't have detailed feature engineering data in MLReadinessAssessment
-    // These would need to be extracted from other sections or enhanced in V1 first
-    // For now, leave empty arrays
-
-    return {
-      version: '2.0',
-      type_optimizations: typeOptimizations,
-      categorical_candidates: categoricalCandidates,
-      interaction_features: interactionFeatures,
-      binning_candidates: binningCandidates,
-      date_features: dateFeatures,
-      join_candidates: joinCandidates.length > 0 ? joinCandidates : undefined,
-      current_memory_mb: this.estimateCurrentMemory(v1),
-      optimized_memory_mb: this.estimateOptimizedMemory(v1, typeOptimizations),
-      memory_reduction_ratio: this.calculateMemoryReduction(v1, typeOptimizations),
-    };
   }
 
   private static extractCategoricalCandidates(featureEng: any, candidates: CategoricalCandidate[]): void {
@@ -164,21 +204,48 @@ export class Section5Adapter {
   }
 
   private static estimateCurrentMemory(v1: DataEngineeringAnalysis): number {
-    // Estimate from schema analysis
-    const sizeBytes = v1.schemaAnalysis?.currentSchema?.estimatedSizeBytes || 0;
-    return sizeBytes / (1024 * 1024); // Convert to MB
+    try {
+      // Estimate from schema analysis
+      const sizeBytes = v1?.schemaAnalysis?.currentSchema?.estimatedSizeBytes || 0;
+      return sizeBytes / (1024 * 1024); // Convert to MB
+    } catch (error) {
+      logger.warn('Section5Adapter: Error estimating current memory', {
+        context: 'estimateCurrentMemory',
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return 0;
+    }
   }
 
   private static estimateOptimizedMemory(v1: DataEngineeringAnalysis, opts: TypeOptimization[]): number {
-    const current = this.estimateCurrentMemory(v1);
-    const avgSavings = opts.reduce((sum, opt) => sum + opt.memory_savings_ratio, 0) / (opts.length || 1);
-    return current * (1 - avgSavings);
+    try {
+      const current = this.estimateCurrentMemory(v1);
+      if (!Array.isArray(opts) || opts.length === 0) {
+        return current;
+      }
+      const avgSavings = opts.reduce((sum, opt) => sum + (opt?.memory_savings_ratio || 0), 0) / opts.length;
+      return current * (1 - avgSavings);
+    } catch (error) {
+      logger.warn('Section5Adapter: Error estimating optimized memory', {
+        context: 'estimateOptimizedMemory',
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return 0;
+    }
   }
 
   private static calculateMemoryReduction(v1: DataEngineeringAnalysis, opts: TypeOptimization[]): number {
-    const current = this.estimateCurrentMemory(v1);
-    const optimized = this.estimateOptimizedMemory(v1, opts);
-    return current > 0 ? (current - optimized) / current : 0;
+    try {
+      const current = this.estimateCurrentMemory(v1);
+      const optimized = this.estimateOptimizedMemory(v1, opts);
+      return current > 0 ? (current - optimized) / current : 0;
+    } catch (error) {
+      logger.warn('Section5Adapter: Error calculating memory reduction', {
+        context: 'calculateMemoryReduction',
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return 0;
+    }
   }
 
   private static mapEncodingType(type: string): 'onehot' | 'label' | 'target' | 'frequency' {
@@ -215,5 +282,37 @@ export class Section5Adapter {
     if (lower.includes('one_to_many') || lower.includes('1:n')) return 'one_to_many';
     if (lower.includes('many_to_many') || lower.includes('n:m')) return 'many_to_many';
     return 'one_to_many'; // Default
+  }
+
+  /**
+   * Validates V1 input structure
+   * Checks for required schemaAnalysis field
+   */
+  private static isValidV1Input(v1: DataEngineeringAnalysis): boolean {
+    if (!v1 || typeof v1 !== 'object') {
+      return false;
+    }
+
+    // Check for schemaAnalysis (main required field)
+    return v1.schemaAnalysis !== undefined;
+  }
+
+  /**
+   * Returns a minimal valid V2 structure for error cases
+   * Ensures that downstream consumers always receive valid structure
+   */
+  private static getMinimalV2Structure(): Section5EngineeringV2 {
+    return {
+      version: '2.0',
+      type_optimizations: [],
+      categorical_candidates: [],
+      interaction_features: [],
+      binning_candidates: [],
+      date_features: [],
+      join_candidates: undefined,
+      current_memory_mb: 0,
+      optimized_memory_mb: 0,
+      memory_reduction_ratio: 0,
+    };
   }
 }

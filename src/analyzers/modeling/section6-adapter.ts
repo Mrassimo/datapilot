@@ -3,6 +3,7 @@
  * Converts bloated modeling recommendations to lean ML task facts
  */
 
+import { logger } from '@/utils/logger';
 import type {
   ModelingAnalysis,
   ModelingTask,
@@ -32,40 +33,87 @@ export class Section6Adapter {
    * Convert V1 (bloated) to V2 (lean)
    * Strips: recommendations, strengths/weaknesses, business objectives, reasoning
    * Keeps: factual ML task detection and algorithm applicability
+   *
+   * Error handling strategy:
+   * - Validates V1 input structure before processing
+   * - Uses safe navigation and defaults for missing fields
+   * - Skips invalid tasks/algorithms with warnings
+   * - Returns minimal valid structure on critical errors
    */
   public static convertToV2(v1: ModelingAnalysis, metadata?: Section6Metadata): Section6ModelingV2 {
-    const mlTasks: MLTask[] = [];
-    const algorithms: AlgorithmApplicability[] = [];
+    try {
+      // Validate input
+      if (!this.isValidV1Input(v1)) {
+        logger.warn('Section6Adapter: Invalid V1 input, returning minimal structure', {
+          context: 'convertToV2',
+          hasInput: !!v1,
+          inputType: typeof v1,
+        });
+        return this.getMinimalV2Structure();
+      }
+      const mlTasks: MLTask[] = [];
+      const algorithms: AlgorithmApplicability[] = [];
 
-    // Extract ML tasks
-    if (v1.identifiedTasks) {
-      v1.identifiedTasks.forEach((task) => {
-        const mlTask = this.extractMLTask(task);
-        if (mlTask) {
-          mlTasks.push(mlTask);
-        }
+      // Extract ML tasks
+      const identifiedTasks = v1?.identifiedTasks;
+      if (Array.isArray(identifiedTasks)) {
+        identifiedTasks.forEach((task) => {
+          if (!task || typeof task !== 'object') {
+            return;
+          }
+          try {
+            const mlTask = this.extractMLTask(task);
+            if (mlTask) {
+              mlTasks.push(mlTask);
+            }
+          } catch (error) {
+            logger.warn('Section6Adapter: Error extracting ML task', {
+              context: 'convertToV2',
+              taskType: task.taskType,
+              error: error instanceof Error ? error.message : String(error),
+            });
+          }
+        });
+      }
+
+      // Extract algorithm applicability
+      const algorithmRecs = v1?.algorithmRecommendations;
+      if (Array.isArray(algorithmRecs)) {
+        algorithmRecs.forEach((algo) => {
+          if (!algo || typeof algo !== 'object') {
+            return;
+          }
+          try {
+            algorithms.push(this.extractAlgorithmApplicability(algo));
+          } catch (error) {
+            logger.warn('Section6Adapter: Error extracting algorithm applicability', {
+              context: 'convertToV2',
+              error: error instanceof Error ? error.message : String(error),
+            });
+          }
+        });
+      }
+
+      return {
+        version: '2.0',
+        ml_tasks: mlTasks,
+        algorithms,
+        data_readiness: this.extractDataReadiness(v1, metadata),
+        validation: this.extractValidation(v1, metadata),
+        feature_candidates: this.extractFeatureCandidates(v1),
+      };
+    } catch (error) {
+      logger.error('Section6Adapter: Critical error during V2 conversion', {
+        context: 'convertToV2',
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
       });
+      return this.getMinimalV2Structure();
     }
-
-    // Extract algorithm applicability
-    if (v1.algorithmRecommendations) {
-      v1.algorithmRecommendations.forEach((algo) => {
-        algorithms.push(this.extractAlgorithmApplicability(algo));
-      });
-    }
-
-    return {
-      version: '2.0',
-      ml_tasks: mlTasks,
-      algorithms,
-      data_readiness: this.extractDataReadiness(v1, metadata),
-      validation: this.extractValidation(v1, metadata),
-      feature_candidates: this.extractFeatureCandidates(v1),
-    };
   }
 
   private static extractMLTask(task: ModelingTask): MLTask | null {
-    const taskType = task.taskType;
+    const taskType = task?.taskType;
 
     if (
       taskType === 'binary_classification' ||
@@ -87,14 +135,14 @@ export class Section6Adapter {
     let classes = 2; // Default for binary
     let minClassRatio = 0.5;
 
-    if (task.targetType === 'multiclass') {
+    if (task?.targetType === 'multiclass') {
       // Would need to extract from actual data
       classes = 3; // Placeholder
     }
 
     return {
       type: 'classification',
-      target_column: task.targetVariable || '',
+      target_column: task?.targetVariable || '',
       classes,
       class_distribution: classDistribution,
       is_balanced: minClassRatio > 0.3, // Heuristic
@@ -103,43 +151,58 @@ export class Section6Adapter {
   }
 
   private static extractRegressionTask(task: ModelingTask): RegressionTask {
+    const potentialChallenges = task?.potentialChallenges || [];
+    const hasOutliers = Array.isArray(potentialChallenges)
+      ? potentialChallenges.some((c) => String(c).toLowerCase().includes('outlier'))
+      : false;
+
     return {
       type: 'regression',
-      target_column: task.targetVariable || '',
+      target_column: task?.targetVariable || '',
       range: [0, 0], // Would need actual data
       distribution_type: 'normal', // Placeholder
-      has_outliers: task.potentialChallenges?.some((c) => c.toLowerCase().includes('outlier')) || false,
+      has_outliers: hasOutliers,
       outlier_ratio: 0, // Would need actual data
     };
   }
 
   private static extractClusteringTask(task: ModelingTask): ClusteringTask {
+    const potentialChallenges = task?.potentialChallenges || [];
+    const hasMixedTypes = Array.isArray(potentialChallenges)
+      ? potentialChallenges.some((c) => String(c).toLowerCase().includes('mixed'))
+      : false;
+    const inputFeatures = task?.inputFeatures;
+
     return {
       type: 'clustering',
-      feature_count: task.inputFeatures?.length || 0,
+      feature_count: Array.isArray(inputFeatures) ? inputFeatures.length : 0,
       sample_size: 0, // Would need actual data
-      has_mixed_types: task.potentialChallenges?.some((c) => c.toLowerCase().includes('mixed')) || false,
+      has_mixed_types: hasMixedTypes,
     };
   }
 
   private static extractAlgorithmApplicability(algo: AlgorithmRecommendation): AlgorithmApplicability {
     // Map algorithm category to family
-    const family = this.mapAlgorithmFamily(algo.category);
+    const family = this.mapAlgorithmFamily(algo?.category || '');
 
     // Extract factual reasons (not subjective strengths/weaknesses)
     const reasons: string[] = [];
-    algo.dataRequirements?.forEach((req) => {
-      if (req.includes('sample')) reasons.push('sample_size_constraint');
-      if (req.includes('feature')) reasons.push('high_dimensionality');
-      if (req.includes('scale')) reasons.push('requires_scaling');
-      if (req.includes('categorical')) reasons.push('requires_encoding');
-    });
+    const dataRequirements = algo?.dataRequirements;
+    if (Array.isArray(dataRequirements)) {
+      dataRequirements.forEach((req) => {
+        const reqStr = String(req || '');
+        if (reqStr.includes('sample')) reasons.push('sample_size_constraint');
+        if (reqStr.includes('feature')) reasons.push('high_dimensionality');
+        if (reqStr.includes('scale')) reasons.push('requires_scaling');
+        if (reqStr.includes('categorical')) reasons.push('requires_encoding');
+      });
+    }
 
     return {
       algorithm_family: family,
-      applicable: algo.suitabilityScore > 50,
+      applicable: (algo?.suitabilityScore || 0) > 50,
       reasons,
-      computational_complexity: this.mapComplexity(algo.complexity),
+      computational_complexity: this.mapComplexity(algo?.complexity || ''),
     };
   }
 
@@ -215,5 +278,49 @@ export class Section6Adapter {
     if (lower.includes('moderate') || lower.includes('medium')) return 'medium';
     if (lower.includes('complex') || lower.includes('advanced') || lower.includes('high')) return 'high';
     return 'medium'; // Default
+  }
+
+  /**
+   * Validates V1 input structure
+   * Checks for at least some task or algorithm data
+   */
+  private static isValidV1Input(v1: ModelingAnalysis): boolean {
+    if (!v1 || typeof v1 !== 'object') {
+      return false;
+    }
+
+    // V1 can have empty arrays, which is valid
+    return true;
+  }
+
+  /**
+   * Returns a minimal valid V2 structure for error cases
+   * Ensures that downstream consumers always receive valid structure
+   */
+  private static getMinimalV2Structure(): Section6ModelingV2 {
+    return {
+      version: '2.0',
+      ml_tasks: [],
+      algorithms: [],
+      data_readiness: {
+        missing_data_ratio: 0,
+        requires_imputation: false,
+        requires_scaling: false,
+        requires_encoding: false,
+        categorical_features: 0,
+        numeric_features: 0,
+        total_features: 0,
+        sample_size: 0,
+        train_test_split_feasible: false,
+      },
+      validation: {
+        sample_size: 0,
+        recommended_cv_folds: 5,
+        train_size: 0,
+        test_size: 0,
+        stratification_required: false,
+      },
+      feature_candidates: [],
+    };
   }
 }
